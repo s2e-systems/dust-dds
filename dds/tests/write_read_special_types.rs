@@ -396,137 +396,137 @@ fn foo_xtypes_union_should_read_and_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-// #[test]
-// fn dynamic_data_should_read_and_write() {
-//     let mut type_buider = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
-//         kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-//         name: "KeyedData",
-//         base_type: None,
-//         discriminator_type: None,
-//         bound: None,
-//         element_type: None,
-//         key_element_type: None,
-//         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-//         is_nested: false,
-//     });
-//     type_buider
-//         .add_member(MemberDescriptor {
-//             name: "id",
-//             id: 0,
-//             r#type: <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE,
-//             default_value: None,
-//             index: 0_u32,
-//             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-//             label: None,
-//             is_key: true,
-//             is_optional: false,
-//             is_must_understand: true,
-//             is_shared: false,
-//             is_default_label: false,
-//             is_external: false,
-//         })
-//         .unwrap();
-//     type_buider
-//         .add_member(MemberDescriptor {
-//             name: "value",
-//             id: 1,
-//             r#type: <u32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE,
-//             default_value: None,
-//             index: 1_u32,
-//             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
-//             label: None,
-//             is_key: false,
-//             is_optional: false,
-//             is_must_understand: true,
-//             is_shared: false,
-//             is_default_label: false,
-//             is_external: false,
-//         })
-//         .unwrap();
-//     let dynamic_type = type_buider.build();
+#[test]
+fn dynamic_data_should_read_and_write() {
+    let mut type_buider = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+        kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+        name: "KeyedData",
+        base_type: None,
+        discriminator_type: None,
+        bound: None,
+        element_type: None,
+        key_element_type: None,
+        extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+        is_nested: false,
+    });
+    type_buider
+        .add_member(MemberDescriptor {
+            name: "id",
+            id: 0,
+            r#type: <u8 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
+            default_value: None,
+            index: 0_u32,
+            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+            label: None,
+            is_key: true,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+            is_external: false,
+        })
+        .unwrap();
+    type_buider
+        .add_member(MemberDescriptor {
+            name: "value",
+            id: 1,
+            r#type: <u32 as dust_dds::infrastructure::type_support::TypeSupport>::TYPE,
+            default_value: None,
+            index: 1_u32,
+            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+            label: None,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+            is_external: false,
+        })
+        .unwrap();
+    let dynamic_type = type_buider.build();
 
-//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-//     let participant = DomainParticipantFactory::get_instance()
-//         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-//         .unwrap();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
 
-//     let topic = participant
-//         .create_dynamic_topic(
-//             "MyEnumTopic",
-//             "MyEnum",
-//             QosKind::Default,
-//             NO_LISTENER,
-//             NO_STATUS,
-//             dynamic_type,
-//         )
-//         .unwrap();
+    let topic = participant
+        .create_dynamic_topic(
+            "MyEnumTopic",
+            "MyEnum",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            dynamic_type,
+        )
+        .unwrap();
 
-//     let publisher = participant
-//         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-//         .unwrap();
-//     let writer_qos = DataWriterQos {
-//         reliability: ReliabilityQosPolicy {
-//             kind: ReliabilityQosPolicyKind::Reliable,
-//             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-//         },
-//         ..Default::default()
-//     };
-//     let writer = publisher
-//         .create_datawriter(
-//             &topic,
-//             QosKind::Specific(writer_qos),
-//             NO_LISTENER,
-//             NO_STATUS,
-//         )
-//         .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
 
-//     let subscriber = participant
-//         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-//         .unwrap();
-//     let reader_qos = DataReaderQos {
-//         reliability: ReliabilityQosPolicy {
-//             kind: ReliabilityQosPolicyKind::Reliable,
-//             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-//         },
-//         ..Default::default()
-//     };
-//     let reader = subscriber
-//         .create_datareader::<DynamicData>(
-//             &topic,
-//             QosKind::Specific(reader_qos),
-//             NO_LISTENER,
-//             NO_STATUS,
-//         )
-//         .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
 
-//     let cond = writer.get_statuscondition();
-//     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-//         .unwrap();
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-//     let mut wait_set = WaitSet::new();
-//     wait_set
-//         .attach_condition(Condition::StatusCondition(cond))
-//         .unwrap();
-//     wait_set.wait(Duration::new(10, 0)).unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
-//     let mut data = DynamicDataFactory::create_data(dynamic_type);
-//     data.set_uint8_value(0, 10).unwrap();
-//     data.set_uint32_value(1, 100).unwrap();
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
+    data.set_uint8_value(0, 10).unwrap();
+    data.set_uint32_value(1, 100).unwrap();
 
-//     writer.write(data.clone(), None).unwrap();
+    writer.write(data.clone(), None).unwrap();
 
-//     writer
-//         .wait_for_acknowledgments(Duration::new(10, 0))
-//         .unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
 
-//     let samples = reader
-//         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-//         .unwrap();
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
 
-//     assert_eq!(samples.len(), 1);
-//     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
-// }
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
 
 #[test]
 fn enum_should_be_always_same_instance() {
