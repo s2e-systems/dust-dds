@@ -4,7 +4,6 @@ use dust_dds_derive::DdsType;
 use crate::{
     infrastructure::type_support::TypeSupport,
     xtypes::{
-        data_storage::{DataStorage, DataStorageMapping},
         dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
         error::XTypesError,
         serializer::serialize_cdr2_le,
@@ -2317,16 +2316,13 @@ mod tests {
             shapesize: i32,
         }
 
-        let type_information = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
+        let TYPE = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
         assert_eq!(
-            type_information
-                .complete
-                .typeid_with_size
-                .typeobject_serialized_size,
+            TYPE.complete.typeid_with_size.typeobject_serialized_size,
             132
         );
         // assert_eq!(
-        //     type_information.complete.typeid_with_size.type_id,
+        //     TYPE.complete.typeid_with_size.type_id,
         //     TypeIdentifier::EkComplete {
         //         equivalence_hash: [
         //             0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
@@ -2335,15 +2331,9 @@ mod tests {
         //     }
         // );
 
-        assert_eq!(
-            type_information
-                .minimal
-                .typeid_with_size
-                .typeobject_serialized_size,
-            92
-        );
+        assert_eq!(TYPE.minimal.typeid_with_size.typeobject_serialized_size, 92);
         // assert_eq!(
-        //     type_information.minimal.typeid_with_size.type_id,
+        //     TYPE.minimal.typeid_with_size.type_id,
         //     TypeIdentifier::EkMinimal {
         //         equivalence_hash: [
         //             0xd3, 0xd5, 0x89, 0xfb, 0x12, 0x8b, 0x55, 0xdb, 0x4b, 0x83, 0x3d, 0x99, 0xa4,

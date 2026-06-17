@@ -636,7 +636,6 @@ impl<T: TypeSupport + ComplexData> DataStorageMapping for Vec<T> {
 pub trait ComplexData {}
 
 impl<T> ComplexData for Box<T> {}
-// impl<T: ComplexData> ComplexData for Vec<T> {}
 impl<T> ComplexData for Option<T> {}
 
 impl<const N: usize, T: TypeSupport + ComplexData> DataStorageMapping for [T; N] {
@@ -694,11 +693,12 @@ impl<T: TypeSupport> TypeSupport for Option<T> {
     const r#TYPE: DynamicType = T::TYPE;
 
     fn create_sample(src: &mut super::dynamic_type::DynamicData) -> Self {
-        todo!()
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
     }
 
     fn create_dynamic_sample(self, data: &mut super::dynamic_type::DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -717,10 +717,10 @@ impl TypeSupport for &str {
         },
         member_list: &[],
     };
-    fn create_sample(src: &mut DynamicData) -> Self {
-        "todo"
+    fn create_sample(_src: &mut DynamicData) -> Self {
+        todo!()
     }
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, _data: &mut DynamicData) {
         todo!()
     }
 }
@@ -740,10 +740,10 @@ impl TypeSupport for &[u8] {
         },
         member_list: &[],
     };
-    fn create_sample(src: &mut DynamicData) -> Self {
+    fn create_sample(_src: &mut DynamicData) -> Self {
         todo!()
     }
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, _data: &mut DynamicData) {
         todo!()
     }
 }
@@ -768,7 +768,7 @@ impl TypeSupport for bool {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -792,7 +792,7 @@ impl TypeSupport for u8 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -864,7 +864,7 @@ impl TypeSupport for i16 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -888,7 +888,7 @@ impl TypeSupport for i32 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -936,7 +936,7 @@ impl TypeSupport for i64 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 impl TypeSupport for u64 {
@@ -959,7 +959,7 @@ impl TypeSupport for u64 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -983,7 +983,7 @@ impl TypeSupport for f32 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 impl TypeSupport for f64 {
@@ -1006,7 +1006,7 @@ impl TypeSupport for f64 {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -1030,7 +1030,7 @@ impl TypeSupport for char {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -1054,7 +1054,7 @@ impl TypeSupport for String {
             .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
-        todo!()
+        data.set_value(0, DataStorageMapping::into_storage(self));
     }
 }
 
@@ -1101,7 +1101,8 @@ impl<T: TypeSupport + ComplexData> TypeSupport for Vec<T> {
         member_list: &[],
     };
     fn create_sample(src: &mut DynamicData) -> Self {
-        todo!()
+        DataStorageMapping::try_from_storage(src.remove_value(0).expect("Must exist"))
+            .expect("Must match")
     }
     fn create_dynamic_sample(self, data: &mut DynamicData) {
         data.set_value(

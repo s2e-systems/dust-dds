@@ -1,4 +1,4 @@
-use crate::{infrastructure::type_support::TypeSupport, xtypes::{binding::XTypesBinding, dynamic_type::DynamicTypeMember}};
+use crate::{infrastructure::type_support::TypeSupport, xtypes::{dynamic_type::DynamicTypeMember}};
 
 pub mod discovered_reader_data;
 pub mod discovered_topic_data;

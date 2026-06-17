@@ -1,4 +1,3 @@
-pub mod binding;
 pub mod bytes;
 pub mod data_storage;
 pub mod deserializer;

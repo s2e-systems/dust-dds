@@ -14,7 +14,7 @@ use crate::{
         domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
 };
 use alloc::{string::String, vec, vec::Vec};
 
