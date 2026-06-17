@@ -57,7 +57,7 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
     sec: i32,
@@ -255,5 +255,20 @@ mod tests {
         let dds_time_from_rtps_time = Duration::from(rtps_time);
 
         assert_eq!(dds_time, dds_time_from_rtps_time)
+    }
+
+    #[test]
+    fn duration_ord() {
+        let d1 = Duration::new(1, 100);
+        let d2 = Duration::new(1, 200);
+        let d3 = Duration::new(2, 50);
+
+        assert!(d1 == d1);
+        assert!(d1 < d2);
+        assert!(d2 < d3);
+        assert!(d1 < d3);
+        assert_eq!(d1.cmp(&d1), std::cmp::Ordering::Equal);
+        assert_eq!(d1.cmp(&d2), std::cmp::Ordering::Less);
+        assert_eq!(d2.cmp(&d1), std::cmp::Ordering::Greater);
     }
 }

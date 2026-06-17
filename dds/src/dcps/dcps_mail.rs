@@ -605,9 +605,6 @@ pub enum MessageServiceMail {
         participant_handle: InstanceHandle,
         data_message: Vec<u8>,
     },
-    Poke {
-        participant_handle: InstanceHandle,
-    },
 }
 
 pub enum EventServiceMail {
