@@ -1,4 +1,7 @@
-use crate::{infrastructure::type_support::TypeSupport, xtypes::{data_storage::ComplexData, dynamic_type::DynamicData}};
+use crate::{
+    infrastructure::type_support::TypeSupport,
+    xtypes::{data_storage::ComplexData, dynamic_type::DynamicData},
+};
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
@@ -29,7 +32,7 @@ impl TypeSupport for DurationKind {
         value.create_dynamic_sample(data)
     }
 }
-impl ComplexData for DurationKind{}
+impl ComplexData for DurationKind {}
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
 const DURATION_INFINITE_NSEC: u32 = 0xffffffff;

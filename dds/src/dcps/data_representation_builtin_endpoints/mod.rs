@@ -1,4 +1,4 @@
-use crate::{infrastructure::type_support::TypeSupport, xtypes::{dynamic_type::DynamicTypeMember}};
+use crate::{infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicTypeMember};
 
 pub mod discovered_reader_data;
 pub mod discovered_topic_data;
@@ -46,11 +46,7 @@ impl ConvenienceTypeBuilder {
         }
     }
 
-    const fn member<T: TypeSupport>(
-        index: u32,
-        name: &'static str,
-        id: i16,
-    ) -> DynamicTypeMember {
+    const fn member<T: TypeSupport>(index: u32, name: &'static str, id: i16) -> DynamicTypeMember {
         DynamicTypeMember {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
