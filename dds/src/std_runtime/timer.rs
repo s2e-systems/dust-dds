@@ -55,7 +55,9 @@ pub struct Sleep {
 
 impl Drop for Sleep {
     fn drop(&mut self) {
-        let _ = self.periodic_task_sender.send(TimerMessage::Cancel(self.id));
+        let _ = self
+            .periodic_task_sender
+            .send(TimerMessage::Cancel(self.id));
     }
 }
 
