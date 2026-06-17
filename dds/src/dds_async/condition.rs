@@ -9,18 +9,10 @@ use crate::{
 };
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
+#[derive(Clone)]
 pub struct StatusConditionAsync {
     dcps_sender: DcpsSender,
     entity: StatusConditionEntity,
-}
-
-impl Clone for StatusConditionAsync {
-    fn clone(&self) -> Self {
-        Self {
-            dcps_sender: self.dcps_sender,
-            entity: self.entity.clone(),
-        }
-    }
 }
 
 impl StatusConditionAsync {

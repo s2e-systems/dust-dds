@@ -5,20 +5,12 @@ use crate::dds_async::{
 use alloc::string::String;
 
 /// Async version of [`TopicDescription`](crate::topic_definition::topic_description::TopicDescription).
+#[derive(Clone)]
 pub enum TopicDescriptionAsync {
     /// Async topic
     Topic(TopicAsync),
     /// Content filtered topic
     ContentFilteredTopic(ContentFilteredTopicAsync),
-}
-
-impl Clone for TopicDescriptionAsync {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Topic(arg0) => Self::Topic(arg0.clone()),
-            Self::ContentFilteredTopic(arg0) => Self::ContentFilteredTopic(arg0.clone()),
-        }
-    }
 }
 
 impl TopicDescriptionAsync {

@@ -17,16 +17,9 @@ use alloc::{string::String, vec::Vec};
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
+#[derive(Clone)]
 pub struct Topic {
     topic_async: TopicAsync,
-}
-
-impl Clone for Topic {
-    fn clone(&self) -> Self {
-        Self {
-            topic_async: self.topic_async.clone(),
-        }
-    }
 }
 
 impl From<TopicAsync> for Topic {

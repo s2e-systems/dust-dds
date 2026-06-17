@@ -11,7 +11,7 @@ use super::qos_policy::{
     WriterDataLifecycleQosPolicy,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DomainParticipantFactoryQos(dust_dds::infrastructure::qos::DomainParticipantFactoryQos);
 
@@ -46,7 +46,7 @@ impl DomainParticipantFactoryQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DomainParticipantQos(dust_dds::infrastructure::qos::DomainParticipantQos);
 
@@ -82,7 +82,7 @@ impl DomainParticipantQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct PublisherQos(dust_dds::infrastructure::qos::PublisherQos);
 
@@ -154,7 +154,7 @@ impl PublisherQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SubscriberQos(dust_dds::infrastructure::qos::SubscriberQos);
 
@@ -194,7 +194,7 @@ impl SubscriberQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct TopicQos(dust_dds::infrastructure::qos::TopicQos);
 
@@ -310,7 +310,7 @@ impl TopicQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DataWriterQos(dust_dds::infrastructure::qos::DataWriterQos);
 
@@ -436,7 +436,7 @@ impl DataWriterQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DataReaderQos(dust_dds::infrastructure::qos::DataReaderQos);
 

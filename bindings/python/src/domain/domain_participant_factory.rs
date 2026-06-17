@@ -11,7 +11,8 @@ use super::{
     domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct DomainParticipantFactory(
     &'static dust_dds::domain::domain_participant_factory::DomainParticipantFactory,
 );

@@ -13,7 +13,8 @@ use crate::{
 
 use super::topic_listener::TopicListener;
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct Topic(dust_dds::topic_definition::topic::Topic);
 
 impl AsRef<dust_dds::topic_definition::topic::Topic> for Topic {
