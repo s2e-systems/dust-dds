@@ -3,7 +3,7 @@ use crate::xtypes::{
     error::{XTypesError, XTypesResult},
     type_support::TypeSupport,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataStorage {

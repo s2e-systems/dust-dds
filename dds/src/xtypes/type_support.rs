@@ -1,3 +1,5 @@
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 pub use dust_dds_derive::TypeSupport;
 
 use crate::xtypes::dynamic_type::{
