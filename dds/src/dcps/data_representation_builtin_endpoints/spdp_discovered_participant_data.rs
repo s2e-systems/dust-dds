@@ -15,10 +15,7 @@ use crate::{
         parameter_id_values::{
             DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_LIVELINESS, ParameterId,
         },
-        rtps_data::{
-            CdrDeserialize, ParameterList, get_locator_list, get_non_optional_parameter,
-            get_optional_parameter,
-        },
+        rtps_data::{CdrDeserialize, ParameterList},
     },
     infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
@@ -144,10 +141,10 @@ pub struct ParticipantProxy {
 
 impl SpdpDiscoveredParticipantData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::new(bytes);
+        let pl = ParameterList::<()>::new(bytes);
 
         let domain_id = if let Some(pid_data) = pl.get_optional(PID_DOMAIN_ID) {
-            Some(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+            Some(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(
                 pid_data,
             ))?)
         } else {
@@ -160,40 +157,31 @@ impl SpdpDiscoveredParticipantData {
 
         let participant_proxy = ParticipantProxy {
             domain_id,
-            domain_tag: get_optional_parameter(
-                &pl,
-                PID_DOMAIN_TAG,
-                String::from(DEFAULT_DOMAIN_TAG),
-            )?,
-            protocol_version: get_non_optional_parameter(&pl, PID_PROTOCOL_VERSION)?,
-            guid_prefix: get_non_optional_parameter(&pl, PID_PARTICIPANT_GUID)?,
-            vendor_id: get_non_optional_parameter(&pl, PID_VENDORID)?,
-            expects_inline_qos: get_optional_parameter(
-                &pl,
-                PID_EXPECTS_INLINE_QOS,
-                DEFAULT_EXPECTS_INLINE_QOS,
-            )?,
-            metatraffic_unicast_locator_list: get_locator_list(&pl, PID_METATRAFFIC_UNICAST_LOCATOR)?,
-            metatraffic_multicast_locator_list: get_locator_list(&pl, PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-            default_unicast_locator_list: get_locator_list(&pl, PID_DEFAULT_UNICAST_LOCATOR)?,
-            default_multicast_locator_list: get_locator_list(&pl, PID_DEFAULT_MULTICAST_LOCATOR)?,
-            available_builtin_endpoints: get_non_optional_parameter(&pl, PID_BUILTIN_ENDPOINT_SET)?,
-            manual_liveliness_count: get_optional_parameter(
-                &pl,
+            domain_tag: pl
+                .get_optional_parameter(PID_DOMAIN_TAG, String::from(DEFAULT_DOMAIN_TAG))?,
+            protocol_version: pl.get_non_optional_parameter(PID_PROTOCOL_VERSION)?,
+            guid_prefix: pl.get_non_optional_parameter(PID_PARTICIPANT_GUID)?,
+            vendor_id: pl.get_non_optional_parameter(PID_VENDORID)?,
+            expects_inline_qos: pl
+                .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
+            metatraffic_unicast_locator_list: pl
+                .get_locator_list(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+            metatraffic_multicast_locator_list: pl
+                .get_locator_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: pl.get_locator_list(PID_DEFAULT_UNICAST_LOCATOR)?,
+            default_multicast_locator_list: pl.get_locator_list(PID_DEFAULT_MULTICAST_LOCATOR)?,
+            available_builtin_endpoints: pl.get_non_optional_parameter(PID_BUILTIN_ENDPOINT_SET)?,
+            manual_liveliness_count: pl.get_optional_parameter(
                 PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
                 Count::default(),
             )?,
-            builtin_endpoint_qos: get_optional_parameter(
-                &pl,
-                PID_BUILTIN_ENDPOINT_QOS,
-                BuiltinEndpointQos::default(),
-            )?,
+            builtin_endpoint_qos: pl
+                .get_optional_parameter(PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos::default())?,
         };
         Ok(SpdpDiscoveredParticipantData {
             dds_participant_data,
             participant_proxy,
-            lease_duration: get_optional_parameter(
-                &pl,
+            lease_duration: pl.get_optional_parameter(
                 PID_PARTICIPANT_LEASE_DURATION,
                 DEFAULT_PARTICIPANT_LEASE_DURATION,
             )?,

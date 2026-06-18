@@ -10,7 +10,7 @@ use crate::{
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
         parameter_id_values::{PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR},
-        rtps_data::{CdrResult, ParameterList, get_locator_list, get_optional_parameter},
+        rtps_data::{CdrResult, ParameterList},
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy, DeadlineQosPolicy,
@@ -45,7 +45,7 @@ pub struct DiscoveredWriterData {
 
 impl DiscoveredWriterData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::new(bytes);
+        let pl = ParameterList::<()>::new(bytes);
 
         let dds_publication_data = PublicationBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(PublicationBuiltinTopicData::TYPE, bytes)?,
@@ -53,13 +53,10 @@ impl DiscoveredWriterData {
 
         let writer_proxy = WriterProxy {
             remote_writer_guid: Guid::from(dds_publication_data.key.value),
-            remote_group_entity_id: get_optional_parameter(
-                &pl,
-                PID_GROUP_ENTITYID,
-                ENTITYID_UNKNOWN,
-            )?,
-            unicast_locator_list: get_locator_list(&pl, PID_UNICAST_LOCATOR)?,
-            multicast_locator_list: get_locator_list(&pl, PID_MULTICAST_LOCATOR)?,
+            remote_group_entity_id: pl
+                .get_optional_parameter(PID_GROUP_ENTITYID, ENTITYID_UNKNOWN)?,
+            unicast_locator_list: pl.get_locator_list(PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: pl.get_locator_list(PID_MULTICAST_LOCATOR)?,
         };
         Ok(DiscoveredWriterData {
             dds_publication_data,

@@ -9,7 +9,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
-        rtps_data::{CdrResult, ParameterList, get_locator_list, get_optional_parameter},
+        rtps_data::{CdrResult, ParameterList},
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
@@ -45,7 +45,7 @@ pub struct DiscoveredReaderData {
 
 impl DiscoveredReaderData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::new(bytes);
+        let pl = ParameterList::<()>::new(bytes);
 
         let dds_subscription_data = SubscriptionBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(SubscriptionBuiltinTopicData::TYPE, bytes)?,
@@ -53,18 +53,12 @@ impl DiscoveredReaderData {
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: Guid::from(dds_subscription_data.key.value),
-            remote_group_entity_id: get_optional_parameter(
-                &pl,
-                PID_GROUP_ENTITYID,
-                ENTITYID_UNKNOWN,
-            )?,
-            unicast_locator_list: get_locator_list(&pl, PID_UNICAST_LOCATOR)?,
-            multicast_locator_list: get_locator_list(&pl, PID_MULTICAST_LOCATOR)?,
-            expects_inline_qos: get_optional_parameter(
-                &pl,
-                PID_EXPECTS_INLINE_QOS,
-                DEFAULT_EXPECTS_INLINE_QOS,
-            )?,
+            remote_group_entity_id: pl
+                .get_optional_parameter(PID_GROUP_ENTITYID, ENTITYID_UNKNOWN)?,
+            unicast_locator_list: pl.get_locator_list(PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: pl.get_locator_list(PID_MULTICAST_LOCATOR)?,
+            expects_inline_qos: pl
+                .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
         };
         Ok(DiscoveredReaderData {
             dds_subscription_data,

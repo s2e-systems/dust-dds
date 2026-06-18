@@ -30,13 +30,17 @@ impl From<XTypesError> for CdrError {
     }
 }
 
-pub struct ParameterList<'a> {
+pub struct ParameterList<'a, E> {
     data: &'a [u8],
+    _endianness: core::marker::PhantomData<E>,
 }
 
-impl<'a> ParameterList<'a> {
+impl<'a, E> ParameterList<'a, E> {
     pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
+        Self {
+            data,
+            _endianness: core::marker::PhantomData,
+        }
     }
     pub fn get_list(&self, pid: ParameterId) -> Vec<&'a [u8]> {
         let mut list = Vec::new();
@@ -68,77 +72,79 @@ impl<'a> ParameterList<'a> {
     pub fn get_non_optional(&self, pid: ParameterId) -> CdrResult<&'a [u8]> {
         self.get_optional(pid).ok_or(CdrError::PidNotFound(pid))
     }
-}
 
-pub fn get_optional_parameter<'a, T: CdrDeserialize<'a>>(
-    pl: &'a ParameterList,
-    pid: ParameterId,
-    default: T,
-) -> CdrResult<T> {
-    if let Some(pid_data) = pl.get_optional(pid) {
-        CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))
-    } else {
-        Ok(default)
+    pub fn get_optional_parameter<T: CdrDeserialize<'a, E>>(
+        &self,
+        pid: ParameterId,
+        default: T,
+    ) -> CdrResult<T> {
+        if let Some(pid_data) = self.get_optional(pid) {
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))
+        } else {
+            Ok(default)
+        }
+    }
+    pub fn get_non_optional_parameter<T: CdrDeserialize<'a, E>>(
+        &self,
+        pid: ParameterId,
+    ) -> CdrResult<T> {
+        CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(self.get_non_optional(pid)?))
+    }
+    pub fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {
+        let mut locator_list = vec![];
+        for pid_data in self.get_list(pid) {
+            locator_list.push(CdrDeserialize::cdr_deserialize(
+                &mut CdrDeserializer::<E>::new(pid_data),
+            )?);
+        }
+        Ok(locator_list)
     }
 }
-pub fn get_non_optional_parameter<'a, T: CdrDeserialize<'a>>(
-    pl: &'a ParameterList,
-    pid: ParameterId,
-) -> CdrResult<T> {
-    CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pl.get_non_optional(pid)?))
-}
-pub fn get_locator_list(pl: &ParameterList, pid: ParameterId) -> CdrResult<Vec<Locator>> {
-    let mut locator_list = vec![];
-    for pid_data in pl.get_list(pid) {
-        locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
-            pid_data,
-        ))?);
-    }
-    Ok(locator_list)
-}
-
-pub struct CdrDeserializer<'a> {
+pub struct CdrDeserializer<'a, E> {
     reader: NextCdrReader<'a, LittleEndian>,
+    buffer: &'a [u8],
+    pos: usize,
+    _endianness: core::marker::PhantomData<E>,
 }
 
-pub trait CdrDeserialize<'a>: Sized {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self>;
+pub trait CdrDeserialize<'a, E>: Sized {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self>;
 }
-impl<'a> CdrDeserialize<'a> for Octet {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for Octet {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         de.deserialize_primitive()
     }
 }
-impl<'a> CdrDeserialize<'a> for Long {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for Long {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         de.reader.seek_padding(4);
         de.deserialize_primitive()
     }
 }
-impl<'a> CdrDeserialize<'a> for UnsignedLong {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for UnsignedLong {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         de.reader.seek_padding(4);
         de.deserialize_primitive()
     }
 }
-impl<'a> CdrDeserialize<'a> for bool {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for bool {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         de.deserialize_primitive()
     }
 }
 
-impl<'a, const N: usize> CdrDeserialize<'a> for [u8; N] {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E, const N: usize> CdrDeserialize<'a, E> for [u8; N] {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(de.deserialize_bytes(N)?.try_into().expect("must have size"))
     }
 }
-impl<'a> CdrDeserialize<'a> for String {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for String {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         de.deserialize_string()
     }
 }
-impl<'a> CdrDeserialize<'a> for Locator {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for Locator {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(Locator::new(
             CdrDeserialize::cdr_deserialize(de)?,
             CdrDeserialize::cdr_deserialize(de)?,
@@ -146,33 +152,33 @@ impl<'a> CdrDeserialize<'a> for Locator {
         ))
     }
 }
-impl<'a> CdrDeserialize<'a> for ProtocolVersion {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for ProtocolVersion {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(ProtocolVersion {
             bytes: CdrDeserialize::cdr_deserialize(de)?,
         })
     }
 }
-impl<'a> CdrDeserialize<'a> for BuiltinEndpointQos {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for BuiltinEndpointQos {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(Self(CdrDeserialize::cdr_deserialize(de)?))
     }
 }
-impl<'a> CdrDeserialize<'a> for BuiltinEndpointSet {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for BuiltinEndpointSet {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(Self(CdrDeserialize::cdr_deserialize(de)?))
     }
 }
-impl<'a> CdrDeserialize<'a> for Duration {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for Duration {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(Duration::new(
             CdrDeserialize::cdr_deserialize(de)?,
             CdrDeserialize::cdr_deserialize(de)?,
         ))
     }
 }
-impl<'a> CdrDeserialize<'a> for EntityId {
-    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+impl<'a, E> CdrDeserialize<'a, E> for EntityId {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a, E>) -> CdrResult<Self> {
         Ok(EntityId {
             entity_key: CdrDeserialize::cdr_deserialize(de)?,
             entity_kind: CdrDeserialize::cdr_deserialize(de)?,
@@ -180,10 +186,13 @@ impl<'a> CdrDeserialize<'a> for EntityId {
     }
 }
 
-impl<'a> CdrDeserializer<'a> {
+impl<'a, E> CdrDeserializer<'a, E> {
     pub fn new(buffer: &'a [u8]) -> Self {
         Self {
             reader: NextCdrReader::new(buffer, LittleEndian),
+            buffer,
+            pos: 0,
+            _endianness: core::marker::PhantomData,
         }
     }
 
@@ -214,24 +223,24 @@ mod tests {
     }
 
     fn from_bytes(bytes: &[u8]) -> CdrResult<TestDiscoveryData> {
-        let pl = ParameterList::new(bytes);
+        let pl = ParameterList::<()>::new(bytes);
 
         let domain_id = if let Some(pid_data) = pl.get_optional(15) {
-            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))?
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(pid_data))?
         } else {
             0
         };
         let domain_tag = if let Some(pid_data) = pl.get_optional(0x4014) {
-            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))?
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(pid_data))?
         } else {
             String::from("")
         };
         let vendor_id =
-            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pl.get_non_optional(0x16)?))?;
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(pl.get_non_optional(0x16)?))?;
 
         let mut locator_list = vec![];
         for pid_data in pl.get_list(72) {
-            locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+            locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(
                 pid_data,
             ))?);
         }
@@ -306,11 +315,11 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
         assert_eq!(
-            ParameterList::new(&data).get_optional(15),
+            ParameterList::<()>::new(&data).get_optional(15),
             Some(&[0x01, 0x00, 0x00, 0x00][..])
         );
         assert_eq!(
-            ParameterList::new(&data).get_optional(0x4014),
+            ParameterList::<()>::new(&data).get_optional(0x4014),
             Some(&[3, 0x00, 0x00, 0x00, b'a', b'b', 0, 0x00][..])
         );
     }
@@ -325,7 +334,7 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-        assert_eq!(ParameterList::new(&data,).get_optional(10), None);
+        assert_eq!(ParameterList::<()>::new(&data,).get_optional(10), None);
     }
 
     #[test]
@@ -336,6 +345,6 @@ mod tests {
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
         ];
-        assert_eq!(ParameterList::new(&data,).get_optional(10), None);
+        assert_eq!(ParameterList::<()>::new(&data,).get_optional(10), None);
     }
 }
