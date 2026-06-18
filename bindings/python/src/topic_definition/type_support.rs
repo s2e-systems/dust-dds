@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::type_support::TypeSupport;
+use dust_dds::infrastructure::type_support::{Type, TypeSupport};
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
@@ -47,45 +47,23 @@ pub fn convert_python_type_to_dynamic_type(
         let name = String::leak(field_name.extract::<String>()?);
         let r#type = if let Ok(dustdds_type) = field_dict.extract::<TypeKind>() {
             match dustdds_type {
-                TypeKind::boolean => {
-                    <bool as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::char8 => {
-                    <char as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::int8 => <i8 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE,
-                TypeKind::uint8 => {
-                    <u8 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::int16 => {
-                    <i16 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::uint16 => {
-                    <u16 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::int32 => {
-                    <i32 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::uint32 => {
-                    <u32 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::int64 => {
-                    <i64 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::uint64 => {
-                    <u64 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::float32 => {
-                    <f32 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
-                TypeKind::float64 => {
-                    <f64 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE
-                }
+                TypeKind::boolean => <bool as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::char8 => <char as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::int8 => <i8 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::uint8 => <u8 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::int16 => <i16 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::uint16 => <u16 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::int32 => <i32 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::uint32 => <u32 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::int64 => <i64 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::uint64 => <u64 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::float32 => <f32 as dust_dds::infrastructure::type_support::Type>::TYPE,
+                TypeKind::float64 => <f64 as dust_dds::infrastructure::type_support::Type>::TYPE,
             }
         } else {
             let type_name = field_dict.getattr("__name__")?.extract::<String>()?;
             match type_name.as_str() {
-                "int" => <i32 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE,
+                "int" => <i32 as dust_dds::infrastructure::type_support::Type>::TYPE,
                 // "bytes" => <&[u8] as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE,
                 // "str" => <&str as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE,
                 _ => unimplemented!("Mapping not implemented for {type_name}"),
@@ -290,10 +268,11 @@ impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
     }
 }
 
+impl Type for PythonDdsData {
+    const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+        <u8 as dust_dds::infrastructure::type_support::Type>::TYPE;
+}
 impl TypeSupport for PythonDdsData {
-    const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
-        <u8 as dust_dds::infrastructure::type_support::Type>::TYPE_TYPE;
-
     fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
         Self(src.clone())
     }
@@ -475,7 +454,7 @@ class MyDataType:
             let created_data = convert_dynamic_data_to_python_instance(
                 py,
                 &r#type,
-                &MyDataType::TYPE,
+                &MyDataType::get_type(),
                 dynamic_data,
             )
             .unwrap();

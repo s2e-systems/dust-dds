@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::type_support::{Type, TypeSupport},
-    xtypes::{dynamic_type::DynamicData},
+    xtypes::dynamic_type::DynamicData,
 };
 use core::ops::{Add, Sub};
 
@@ -14,7 +14,7 @@ pub enum DurationKind {
 }
 
 impl Type for DurationKind {
-    const TYPE_TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
+    const TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
 }
 impl TypeSupport for DurationKind {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {

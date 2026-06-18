@@ -5,9 +5,7 @@ use crate::{
         type_support::{Type, TypeSupport},
     },
     transport::types::{DurabilityKind, ReliabilityKind},
-    xtypes::{
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
-    },
+    xtypes::dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
@@ -24,7 +22,7 @@ pub enum Length {
     Limited(i32),
 }
 impl Type for Length {
-    const TYPE_TYPE: DynamicType = i32::TYPE_TYPE;
+    const TYPE: DynamicType = i32::TYPE;
 }
 impl TypeSupport for Length {
     fn create_dynamic_sample(self, data: &mut DynamicData) {
@@ -1043,12 +1041,12 @@ pub enum HistoryQosPolicyKind {
     KeepAll,
 }
 impl Type for HistoryQosPolicyKind {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
             base_type: None,
-            discriminator_type: Some(u8::TYPE_TYPE),
+            discriminator_type: Some(u8::TYPE),
             bound: None,
             element_type: None,
             key_element_type: None,
@@ -1105,7 +1103,7 @@ impl HistoryQosPolicy {
     }
 }
 impl Type for HistoryQosPolicy {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "HistoryQosPolicy",
@@ -1140,7 +1138,7 @@ impl Type for HistoryQosPolicy {
                 descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                     name: "depth",
                     id: 1,
-                    r#type: i32::TYPE_TYPE,
+                    r#type: i32::TYPE,
                     default_value: None,
                     index: 1u32,
                     try_construct_kind:

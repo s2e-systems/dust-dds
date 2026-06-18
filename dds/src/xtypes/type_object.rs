@@ -366,46 +366,26 @@ pub enum TypeIdentifier {
     TkChar16Type,
     // ============ Strings - use TypeIdentifierKind ===================
     #[dust_dds(case=TI_STRING8_SMALL)]
-    TiString8Small {
-        string_sdefn: StringSTypeDefn,
-    },
+    TiString8Small { string_sdefn: StringSTypeDefn },
     #[dust_dds(case=TI_STRING16_SMALL)]
-    TiString16Small {
-        string_sdefn: StringSTypeDefn,
-    },
+    TiString16Small { string_sdefn: StringSTypeDefn },
     #[dust_dds(case=TI_STRING8_LARGE)]
-    TiString8Large {
-        string_ldefn: StringLTypeDefn,
-    },
+    TiString8Large { string_ldefn: StringLTypeDefn },
     #[dust_dds(case=TI_STRING16_LARGE)]
-    TiString16Large {
-        string_ldefn: StringLTypeDefn,
-    },
+    TiString16Large { string_ldefn: StringLTypeDefn },
     // ============ Plain collectios - use TypeIdentifierKind =========
     #[dust_dds(case=TI_PLAIN_SEQUENCE_SMALL)]
-    TiPlainSequenceSmall {
-        seq_sdefn: PlainSequenceSElemDefn,
-    },
+    TiPlainSequenceSmall { seq_sdefn: PlainSequenceSElemDefn },
     #[dust_dds(case=TI_PLAIN_SEQUENCE_LARGE)]
-    TiPlainSequenceLarge {
-        seq_ldefn: PlainSequenceLElemDefn,
-    },
+    TiPlainSequenceLarge { seq_ldefn: PlainSequenceLElemDefn },
     #[dust_dds(case=TI_PLAIN_ARRAY_SMALL)]
-    TiPlainArraySmall {
-        array_sdefn: PlainArraySElemDefn,
-    },
+    TiPlainArraySmall { array_sdefn: PlainArraySElemDefn },
     #[dust_dds(case=TI_PLAIN_ARRAY_LARGE)]
-    TiPlainArrayLarge {
-        array_ldefn: PlainArrayLElemDefn,
-    },
+    TiPlainArrayLarge { array_ldefn: PlainArrayLElemDefn },
     #[dust_dds(case=TI_PLAIN_MAP_SMALL)]
-    TiPlainMapSmall {
-        map_sdefn: PlainMapSTypeDefn,
-    },
+    TiPlainMapSmall { map_sdefn: PlainMapSTypeDefn },
     #[dust_dds(case=TI_PLAIN_MAP_LARGE)]
-    TiPlainMapLarge {
-        map_ldefn: PlainMapLTypeDefn,
-    },
+    TiPlainMapLarge { map_ldefn: PlainMapLTypeDefn },
     // ============ Types that are mutually dependent on each other ===
     #[dust_dds(case=TI_STRONGLY_CONNECTED_COMPONENT)]
     TiStronglyConnectedComponent {
@@ -413,18 +393,12 @@ pub enum TypeIdentifier {
     },
     // ============ The remaining cases - use EquivalenceKind =========
     #[dust_dds(case=EK_COMPLETE)]
-    EkComplete {
-        equivalence_hash: EquivalenceHash,
-    },
+    EkComplete { equivalence_hash: EquivalenceHash },
     #[dust_dds(case=EK_MINIMAL)]
-    EkMinimal {
-        equivalence_hash: EquivalenceHash,
-    },
+    EkMinimal { equivalence_hash: EquivalenceHash },
     // =================== Future extensibility ============
     #[dust_dds(default)]
-    Default {
-        extended_type: MinimalExtendedType,
-    },
+    Default { extended_type: MinimalExtendedType },
 }
 
 impl Default for TypeIdentifier {
@@ -1433,7 +1407,7 @@ impl TryFrom<&DynamicType> for TypeInformation {
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         minimal_type_object.create_dynamic_sample(&mut data);
         let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
@@ -1441,7 +1415,7 @@ impl TryFrom<&DynamicType> for TypeInformation {
         let complete_type_object = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         complete_type_object.create_dynamic_sample(&mut data);
         let serialized_complete_type_object = serialize_cdr2_le(&data)?;
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
@@ -1504,7 +1478,6 @@ impl TryFrom<&DynamicType> for TypeInformation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     #[ignore]
     fn shape_type_hash() {
@@ -1518,9 +1491,12 @@ mod tests {
             shapesize: i32,
         }
 
-        let type_information = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
+        let type_information = TypeInformation::try_from(&ShapeType::get_type()).unwrap();
         assert_eq!(
-            type_information.complete.typeid_with_size.typeobject_serialized_size,
+            type_information
+                .complete
+                .typeid_with_size
+                .typeobject_serialized_size,
             132
         );
         // assert_eq!(
@@ -1533,7 +1509,13 @@ mod tests {
         //     }
         // );
 
-        assert_eq!(type_information.minimal.typeid_with_size.typeobject_serialized_size, 92);
+        assert_eq!(
+            type_information
+                .minimal
+                .typeid_with_size
+                .typeobject_serialized_size,
+            92
+        );
         // assert_eq!(
         //     type_information.minimal.typeid_with_size.type_id,
         //     TypeIdentifier::EkMinimal {

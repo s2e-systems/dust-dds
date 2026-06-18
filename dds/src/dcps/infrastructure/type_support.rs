@@ -2,44 +2,13 @@ use crate::xtypes::dynamic_type::{DynamicData, DynamicType};
 pub use dust_dds_derive::TypeSupport;
 
 pub trait Type {
-    const TYPE_TYPE: DynamicType = dust_dds::xtypes::dynamic_type::DynamicType {
-        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-            kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-            name: "Inner",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-            is_nested: false,
-        },
-        member_list: &[],
-    };
+    const TYPE: DynamicType;
 }
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
-pub trait TypeSupport {
-    const TYPE: DynamicType = dust_dds::xtypes::dynamic_type::DynamicType {
-        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-            kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
-            name: "Inner",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-            is_nested: false,
-        },
-        member_list: &[],
-    };
-
+pub trait TypeSupport: Type {
     /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
-    fn get_type() -> DynamicType
-    where
-        Self: Type,
-    {
-        Self::TYPE_TYPE
+    fn get_type() -> DynamicType {
+        Self::TYPE
     }
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.

@@ -38,7 +38,7 @@ pub struct DiscoveredReaderData {
     pub(crate) reader_proxy: ReaderProxy,
 }
 impl Type for DiscoveredReaderData {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

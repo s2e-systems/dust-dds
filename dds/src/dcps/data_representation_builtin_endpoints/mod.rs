@@ -54,7 +54,7 @@ impl ConvenienceTypeBuilder {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE_TYPE,
+                r#type: T::TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -78,7 +78,7 @@ impl ConvenienceTypeBuilder {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE_TYPE,
+                r#type: T::TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

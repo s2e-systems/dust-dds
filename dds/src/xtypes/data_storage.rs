@@ -627,23 +627,25 @@ impl<T: TypeSupport, const N: usize> DataStorageMapping for [T; N] {
     }
 }
 
-impl<T> DataStorageMapping for Option<T> {
+impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
     fn into_storage(self) -> DataStorage {
-        todo!()
+        T::into_storage(self.expect("Only options with value are converted. This usually indicats a member annotation #[dust_dds(optional)] is missing."))
     }
 
-    fn try_from_storage(_data_storage: DataStorage) -> XTypesResult<Self> {
-        todo!()
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        Ok(Some(T::try_from_storage(data_storage)?))
     }
 }
 
 impl DataStorageMapping for Box<super::type_object::TypeIdentifier> {
     fn into_storage(self) -> DataStorage {
-        todo!()
+        super::type_object::TypeIdentifier::into_storage(*self)
     }
 
-    fn try_from_storage(_data_storage: DataStorage) -> XTypesResult<Self> {
-        todo!()
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        Ok(Box::new(
+            super::type_object::TypeIdentifier::try_from_storage(data_storage)?,
+        ))
     }
 }
 
@@ -663,7 +665,7 @@ impl<T: TypeSupport> DataStorageMapping for T {
 }
 
 impl Type for u8 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT8,
             name: "",
@@ -679,7 +681,7 @@ impl Type for u8 {
     };
 }
 impl Type for i8 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT8,
             name: "",
@@ -696,7 +698,7 @@ impl Type for i8 {
 }
 
 impl Type for u16 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT16,
             name: "",
@@ -713,7 +715,7 @@ impl Type for u16 {
 }
 
 impl Type for i16 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT16,
             name: "",
@@ -730,7 +732,7 @@ impl Type for i16 {
 }
 
 impl Type for u32 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT32,
             name: "",
@@ -747,7 +749,7 @@ impl Type for u32 {
 }
 
 impl Type for i32 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT32,
             name: "",
@@ -764,7 +766,7 @@ impl Type for i32 {
 }
 
 impl Type for u64 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT64,
             name: "",
@@ -781,7 +783,7 @@ impl Type for u64 {
 }
 
 impl Type for i64 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT64,
             name: "",
@@ -798,7 +800,7 @@ impl Type for i64 {
 }
 
 impl Type for bool {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::BOOLEAN,
             name: "",
@@ -815,7 +817,7 @@ impl Type for bool {
 }
 
 impl Type for f32 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT32,
             name: "",
@@ -832,7 +834,7 @@ impl Type for f32 {
 }
 
 impl Type for f64 {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT64,
             name: "",
@@ -849,7 +851,7 @@ impl Type for f64 {
 }
 
 impl Type for char {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::CHAR8,
             name: "",
@@ -866,7 +868,7 @@ impl Type for char {
 }
 
 impl<T> Type for Box<T> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ALIAS,
             name: "",
@@ -883,7 +885,7 @@ impl<T> Type for Box<T> {
 }
 
 impl<T> Type for Option<T> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ALIAS,
             name: "",
@@ -900,7 +902,7 @@ impl<T> Type for Option<T> {
 }
 
 impl Type for String {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
             name: "",
@@ -917,14 +919,14 @@ impl Type for String {
 }
 
 impl<T: Type, const N: usize> Type for [T; N] {
-    const TYPE_TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ARRAY,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(N as u32),
-            element_type: Some(T::TYPE_TYPE),
+            element_type: Some(T::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -934,14 +936,14 @@ impl<T: Type, const N: usize> Type for [T; N] {
 }
 
 impl<T: TypeSupport> Type for Vec<T> {
-    const TYPE_TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &crate::xtypes::dynamic_type::TypeDescriptor {
-            kind: crate::xtypes::dynamic_type::TypeKind::NONE,
-            name: "Inner",
+            kind: crate::xtypes::dynamic_type::TypeKind::SEQUENCE,
+            name: "SequenceComplexValue",
             base_type: None,
             discriminator_type: None,
-            bound: None,
-            element_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(T::TYPE),
             key_element_type: None,
             extensibility_kind: crate::xtypes::dynamic_type::ExtensibilityKind::Final,
             is_nested: false,
@@ -951,14 +953,14 @@ impl<T: TypeSupport> Type for Vec<T> {
 }
 
 impl Type for Vec<u8> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(u8::TYPE_TYPE),
+            element_type: Some(u8::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -968,14 +970,14 @@ impl Type for Vec<u8> {
 }
 
 impl Type for Vec<u32> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(u32::TYPE_TYPE),
+            element_type: Some(u32::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -985,14 +987,14 @@ impl Type for Vec<u32> {
 }
 
 impl Type for Vec<i32> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(i32::TYPE_TYPE),
+            element_type: Some(i32::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -1002,14 +1004,14 @@ impl Type for Vec<i32> {
 }
 
 impl Type for Vec<u16> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(u16::TYPE_TYPE),
+            element_type: Some(u16::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -1019,14 +1021,14 @@ impl Type for Vec<u16> {
 }
 
 impl Type for Vec<String> {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(String::TYPE_TYPE),
+            element_type: Some(String::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -1039,8 +1041,8 @@ impl Type for Vec<String> {
 mod tests {
     use super::*;
 
-    fn really_create_dynamic_sample<T: TypeSupport + Type>(v: T) -> DynamicData {
-        let mut data = crate::xtypes::dynamic_type::DynamicDataFactory::create_data(T::TYPE_TYPE);
+    fn really_create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData {
+        let mut data = crate::xtypes::dynamic_type::DynamicDataFactory::create_data(T::TYPE);
         v.create_dynamic_sample(&mut data);
         data
     }
@@ -1052,7 +1054,7 @@ mod tests {
             x: u16,
         }
 
-        let mut inner = DynamicDataFactory::create_data(Inner::TYPE_TYPE);
+        let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
         inner.set_uint16_value(0, 2).unwrap();
 
         let v = Inner { x: 2 };
@@ -1071,9 +1073,9 @@ mod tests {
         }
 
         let v = Outer { y: Inner { x: 2 } };
-        let mut inner = DynamicDataFactory::create_data(Inner::TYPE_TYPE);
+        let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
         inner.set_uint16_value(0, 2).unwrap();
-        let mut outer = DynamicDataFactory::create_data(Outer::TYPE_TYPE);
+        let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
         outer.set_complex_value(0, inner).unwrap();
 
         assert_eq!(really_create_dynamic_sample(v), outer);
@@ -1085,7 +1087,7 @@ mod tests {
         pub struct Inner {
             x: Vec<u16>,
         }
-        let mut inner = DynamicDataFactory::create_data(Inner::TYPE_TYPE);
+        let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
         inner.set_uint16_values(0, vec![2]).unwrap();
 
         let v = Inner { x: vec![2] };
@@ -1106,9 +1108,9 @@ mod tests {
         let v = Outer {
             list: vec![Inner { x: 2 }],
         };
-        let mut inner = DynamicDataFactory::create_data(Inner::TYPE_TYPE);
+        let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
         inner.set_uint16_value(0, 2).unwrap();
-        let mut outer = DynamicDataFactory::create_data(Outer::TYPE_TYPE);
+        let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
         outer.set_complex_values(0, vec![inner]).unwrap();
 
         assert_eq!(really_create_dynamic_sample(v), outer);

@@ -46,7 +46,7 @@ use crate::{
         },
         status::StatusKind,
         time::Duration,
-        type_support::TypeSupport,
+        type_support::{Type, TypeSupport},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     runtime::{Clock, DdsRuntime},

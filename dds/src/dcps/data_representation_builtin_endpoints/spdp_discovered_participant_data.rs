@@ -140,7 +140,7 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
 impl Type for SpdpDiscoveredParticipantData {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "SpdpDiscoveredParticipantData",

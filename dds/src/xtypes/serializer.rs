@@ -957,7 +957,8 @@ impl Write for ByteCounter {
 mod tests {
     use super::*;
     use crate::{
-        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+        infrastructure::type_support::{Type, TypeSupport},
+        xtypes::dynamic_type::DynamicDataFactory,
     };
     extern crate std;
 

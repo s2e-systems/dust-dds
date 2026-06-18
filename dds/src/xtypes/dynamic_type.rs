@@ -1059,7 +1059,8 @@ impl DynamicData {
     }
 
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceInt32(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceInt32(value));
         Ok(())
     }
 
@@ -1076,7 +1077,8 @@ impl DynamicData {
     }
 
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceUInt32(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceUInt32(value));
         Ok(())
     }
 
@@ -1093,7 +1095,8 @@ impl DynamicData {
     }
 
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceInt16(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceInt16(value));
         Ok(())
     }
 
@@ -1110,7 +1113,8 @@ impl DynamicData {
     }
 
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceUInt16(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceUInt16(value));
         Ok(())
     }
 
@@ -1127,7 +1131,8 @@ impl DynamicData {
     }
 
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceInt64(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceInt64(value));
         Ok(())
     }
 
@@ -1144,7 +1149,8 @@ impl DynamicData {
     }
 
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceUInt64(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceUInt64(value));
         Ok(())
     }
 
@@ -1161,7 +1167,8 @@ impl DynamicData {
     }
 
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data.insert(id,DataStorage::SequenceFloat32(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceFloat32(value));
         Ok(())
     }
 
@@ -1178,7 +1185,8 @@ impl DynamicData {
     }
 
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceFloat64(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceFloat64(value));
         Ok(())
     }
 
@@ -1213,7 +1221,8 @@ impl DynamicData {
     }
 
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceChar8(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceChar8(value));
         Ok(())
     }
 
@@ -1230,7 +1239,8 @@ impl DynamicData {
     }
 
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceUInt8(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
@@ -1247,7 +1257,8 @@ impl DynamicData {
     }
 
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceBoolean(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceBoolean(value));
         Ok(())
     }
 
@@ -1264,7 +1275,8 @@ impl DynamicData {
     }
 
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        self.abstract_data.insert(id,DataStorage::SequenceString(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceString(value));
         Ok(())
     }
 
@@ -1294,12 +1306,14 @@ impl DynamicData {
     }
 
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceUInt8(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::SequenceInt8(value));
+        self.abstract_data
+            .insert(id, DataStorage::SequenceInt8(value));
         Ok(())
     }
 
@@ -1343,7 +1357,7 @@ impl DynamicData {
 }
 
 impl Type for DynamicData {
-    const TYPE_TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "",
