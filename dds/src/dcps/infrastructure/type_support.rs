@@ -2,5 +2,4 @@
 /// communication with Dust DDS. If the individual traits are manually derived then this derive should not be used.
 pub use dust_dds_derive::DdsType;
 
-
 // pub trait DdsType : crate::xtypes::type_support::TypeSupport{}

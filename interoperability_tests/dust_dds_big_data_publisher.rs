@@ -14,7 +14,7 @@ use dust_dds::{
         time::{Duration, DurationKind},
     },
     wait_set::{Condition, WaitSet},
-    xtypes::type_support::TypeSupport
+    xtypes::type_support::TypeSupport,
 };
 
 fn main() {
