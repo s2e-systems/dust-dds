@@ -19,22 +19,12 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
+#[derive(Clone)]
 pub struct TopicAsync {
     handle: InstanceHandle,
     type_name: String,
     topic_name: String,
     participant: DomainParticipantAsync,
-}
-
-impl Clone for TopicAsync {
-    fn clone(&self) -> Self {
-        Self {
-            handle: self.handle,
-            type_name: self.type_name.clone(),
-            topic_name: self.topic_name.clone(),
-            participant: self.participant.clone(),
-        }
-    }
 }
 
 impl TopicAsync {

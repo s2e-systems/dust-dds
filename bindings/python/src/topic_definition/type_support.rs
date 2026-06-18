@@ -6,7 +6,7 @@ use pyo3::{
 };
 
 #[allow(non_camel_case_types)]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum TypeKind {
     boolean,

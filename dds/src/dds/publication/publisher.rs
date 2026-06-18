@@ -19,6 +19,7 @@ use alloc::vec::Vec;
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
+#[derive(Clone)]
 pub struct Publisher {
     publisher_async: PublisherAsync,
 }

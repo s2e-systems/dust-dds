@@ -17,7 +17,8 @@ use super::{
     subcriber_listener::SubscriberListener,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct Subscriber(dust_dds::subscription::subscriber::Subscriber);
 
 impl From<dust_dds::subscription::subscriber::Subscriber> for Subscriber {

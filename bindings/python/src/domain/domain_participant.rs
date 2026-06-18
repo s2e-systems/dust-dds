@@ -26,7 +26,8 @@ use super::domain_participant_listener::DomainParticipantListener;
 
 static TYPE_REGISTRY: OnceLock<Mutex<HashMap<String, Py<PyAny>>>> = OnceLock::new();
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct DomainParticipant(dust_dds::domain::domain_participant::DomainParticipant);
 
 impl From<dust_dds::domain::domain_participant::DomainParticipant> for DomainParticipant {

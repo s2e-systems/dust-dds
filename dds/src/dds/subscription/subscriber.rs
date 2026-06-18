@@ -22,6 +22,7 @@ use alloc::vec::Vec;
 /// A [`Subscriber`] acts on the behalf of one or several [`DataReader`] objects that are related to it. When it receives data (from the
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
+#[derive(Clone)]
 pub struct Subscriber {
     subscriber_async: SubscriberAsync,
 }

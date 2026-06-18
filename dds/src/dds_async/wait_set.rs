@@ -6,17 +6,10 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
+#[derive(Clone)]
 pub enum ConditionAsync {
     /// Status condition variant
     StatusCondition(StatusConditionAsync),
-}
-
-impl Clone for ConditionAsync {
-    fn clone(&self) -> Self {
-        match self {
-            Self::StatusCondition(arg0) => Self::StatusCondition(arg0.clone()),
-        }
-    }
 }
 
 impl ConditionAsync {
@@ -30,7 +23,7 @@ impl ConditionAsync {
 }
 
 /// Async version of [`WaitSet`](crate::infrastructure::wait_set::WaitSet).
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WaitSetAsync {
     conditions: Vec<ConditionAsync>,
 }

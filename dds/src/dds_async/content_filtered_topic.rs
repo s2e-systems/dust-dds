@@ -5,18 +5,10 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic).
+#[derive(Clone)]
 pub struct ContentFilteredTopicAsync {
     name: String,
     topic: TopicAsync,
-}
-
-impl Clone for ContentFilteredTopicAsync {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            topic: self.topic.clone(),
-        }
-    }
 }
 
 impl ContentFilteredTopicAsync {

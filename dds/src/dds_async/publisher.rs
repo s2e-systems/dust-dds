@@ -22,18 +22,10 @@ use crate::{
 use alloc::vec::Vec;
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
+#[derive(Clone)]
 pub struct PublisherAsync {
     handle: InstanceHandle,
     participant: DomainParticipantAsync,
-}
-
-impl Clone for PublisherAsync {
-    fn clone(&self) -> Self {
-        Self {
-            handle: self.handle,
-            participant: self.participant.clone(),
-        }
-    }
 }
 
 impl PublisherAsync {
