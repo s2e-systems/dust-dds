@@ -25,9 +25,8 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::Time,
-        type_support::TypeSupport,
     },
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{
     string::{String, ToString},

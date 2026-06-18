@@ -23,7 +23,7 @@ use crate::{
         type_support::{PythonDdsData, convert_dynamic_data_to_python_instance},
     },
 };
-use dust_dds::infrastructure::type_support::TypeSupport;
+use dust_dds::xtypes::type_support::TypeSupport;
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -472,7 +472,7 @@ impl Sample {
                 convert_dynamic_data_to_python_instance(
                     py,
                     type_,
-                    &PythonDdsData::TYPE,
+                    &PythonDdsData::get_type(),
                     dynamic_data.into(),
                 )
                 .ok()

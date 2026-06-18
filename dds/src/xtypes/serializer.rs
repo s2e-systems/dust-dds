@@ -956,8 +956,9 @@ impl Write for ByteCounter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+    use crate::xtypes::{
+        dynamic_type::DynamicDataFactory,
+        type_support::{Type, TypeSupport},
     };
     extern crate std;
 
@@ -1750,9 +1751,7 @@ mod tests {
 #[cfg(test)]
 mod rtps_pl_tests {
     use super::*;
-    use crate::{
-        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
-    };
+    use crate::xtypes::{dynamic_type::DynamicDataFactory, type_support::TypeSupport};
     extern crate std;
 
     fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {

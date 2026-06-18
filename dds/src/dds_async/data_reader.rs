@@ -26,8 +26,8 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
-        type_support::TypeSupport,
     },
+    xtypes::type_support::TypeSupport,
 };
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;

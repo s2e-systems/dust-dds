@@ -1,13 +1,11 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
-        error::XTypesError,
-        serializer::serialize_cdr2_le,
-    },
+use crate::xtypes::{
+    dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+    error::XTypesError,
+    serializer::serialize_cdr2_le,
+    type_support::TypeSupport,
 };
 
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
@@ -481,6 +479,7 @@ pub struct AppliedAnnotationParameter {
     pub paramname_hash: NameHash,
     pub value: AnnotationParameterValue,
 }
+
 // Sorted by AppliedAnnotationParameter.paramname_hash
 pub type AppliedAnnotationParameterSeq = Vec<AppliedAnnotationParameter>;
 
@@ -1406,7 +1405,7 @@ impl TryFrom<&DynamicType> for TypeInformation {
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         minimal_type_object.create_dynamic_sample(&mut data);
         let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
@@ -1414,7 +1413,7 @@ impl TryFrom<&DynamicType> for TypeInformation {
         let complete_type_object = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         complete_type_object.create_dynamic_sample(&mut data);
         let serialized_complete_type_object = serialize_cdr2_le(&data)?;
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
@@ -1477,7 +1476,6 @@ impl TryFrom<&DynamicType> for TypeInformation {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     #[ignore]
     fn shape_type_hash() {
@@ -1491,7 +1489,7 @@ mod tests {
             shapesize: i32,
         }
 
-        let type_information = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
+        let type_information = TypeInformation::try_from(&ShapeType::get_type()).unwrap();
         assert_eq!(
             type_information
                 .complete
