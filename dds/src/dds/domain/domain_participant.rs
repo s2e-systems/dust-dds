@@ -14,10 +14,7 @@ use crate::{
     std_runtime::executor::{block_on, block_timeout},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
-    xtypes::{
-        dynamic_type::DynamicType,
-        type_support::{Type, TypeSupport},
-    },
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::String, vec::Vec};
 

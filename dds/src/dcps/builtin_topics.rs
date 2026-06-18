@@ -18,10 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    xtypes::{
-        type_object::TypeInformation,
-        type_support::{Type, TypeSupport},
-    },
+    xtypes::{type_object::TypeInformation, type_support::TypeSupport},
 };
 use alloc::string::String;
 

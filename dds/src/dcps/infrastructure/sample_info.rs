@@ -1,9 +1,6 @@
 use crate::{
     infrastructure::{instance::InstanceHandle, time::Time},
-    xtypes::{
-        dynamic_type::DynamicData,
-        type_support::{Type, TypeSupport},
-    },
+    xtypes::{dynamic_type::DynamicData, type_support::TypeSupport},
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
