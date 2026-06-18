@@ -16,7 +16,11 @@ use crate::{
         UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_support::{Type, TypeSupport},
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -34,9 +38,8 @@ pub struct DiscoveredReaderData {
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
 }
-
-impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for DiscoveredReaderData {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -140,7 +143,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             ),
         ],
     };
-
+}
+impl TypeSupport for DiscoveredReaderData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
@@ -412,14 +416,15 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        infrastructure::type_support::TypeSupport,
         transport::types::{
             BUILT_IN_WRITER_WITH_KEY, EntityId, Guid, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{
-            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
+            deserializer::deserialize_builtin,
+            dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
+            type_support::{Type, TypeSupport},
         },
     };
 

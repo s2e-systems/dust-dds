@@ -11,11 +11,11 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
-        type_support::TypeSupport,
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     std_runtime::executor::{block_on, block_timeout},
     topic_definition::topic_description::TopicDescription,
+    xtypes::type_support::TypeSupport,
 };
 use alloc::vec::Vec;
 

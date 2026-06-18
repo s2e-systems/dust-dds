@@ -1,11 +1,9 @@
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{
-        dynamic_type::{DynamicData, DynamicDataFactory},
-        error::{XTypesError, XTypesResult},
-    },
+use crate::xtypes::{
+    dynamic_type::{DynamicData, DynamicDataFactory},
+    error::{XTypesError, XTypesResult},
+    type_support::TypeSupport,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataStorage {
@@ -216,21 +214,6 @@ impl DataStorageMapping for String {
         }
     }
 }
-
-impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
-    fn into_storage(self) -> DataStorage {
-        T::into_storage(self.expect("Only options with value are converted. This usually indicated a member annotation #[dust_dds(optional)] is missing."))
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        Ok(Some(T::try_from_storage(data_storage)?))
-    }
-}
-
-// SequenceChar8(Vec<char>),
-// SequenceBoolean(Vec<bool>),
-// SequenceString(Vec<String>),
-// SequenceComplexValue(Vec<DynamicData>),
 
 impl DataStorageMapping for Vec<u8> {
     fn into_storage(self) -> DataStorage {
@@ -594,21 +577,6 @@ impl<const N: usize> DataStorageMapping for [String; N] {
     }
 }
 
-impl<T: TypeSupport> DataStorageMapping for T {
-    fn into_storage(self) -> DataStorage {
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        self.create_dynamic_sample(&mut data);
-        DataStorage::ComplexValue(data)
-    }
-
-    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
-        match &mut data_storage {
-            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
-            _ => Err(XTypesError::InvalidType),
-        }
-    }
-}
-
 impl<T: TypeSupport> DataStorageMapping for Vec<T> {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(
@@ -632,7 +600,7 @@ impl<T: TypeSupport> DataStorageMapping for Vec<T> {
     }
 }
 
-impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
+impl<T: TypeSupport, const N: usize> DataStorageMapping for [T; N] {
     fn into_storage(self) -> DataStorage {
         DataStorage::SequenceComplexValue(
             self.into_iter()
@@ -651,6 +619,43 @@ impl<const N: usize, T: TypeSupport> DataStorageMapping for [T; N] {
                 Self::try_from(x.iter_mut().map(T::create_sample).collect::<Vec<_>>())
                     .map_err(|_| XTypesError::InvalidType)
             }
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
+}
+
+impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
+    fn into_storage(self) -> DataStorage {
+        T::into_storage(self.expect("Only options with value are converted. This usually indicats a member annotation #[dust_dds(optional)] is missing."))
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        Ok(Some(T::try_from_storage(data_storage)?))
+    }
+}
+
+impl DataStorageMapping for Box<super::type_object::TypeIdentifier> {
+    fn into_storage(self) -> DataStorage {
+        super::type_object::TypeIdentifier::into_storage(*self)
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        Ok(Box::new(
+            super::type_object::TypeIdentifier::try_from_storage(data_storage)?,
+        ))
+    }
+}
+
+impl<T: TypeSupport> DataStorageMapping for T {
+    fn into_storage(self) -> DataStorage {
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        self.create_dynamic_sample(&mut data);
+        DataStorage::ComplexValue(data)
+    }
+
+    fn try_from_storage(mut data_storage: DataStorage) -> XTypesResult<Self> {
+        match &mut data_storage {
+            DataStorage::ComplexValue(x) => Ok(T::create_sample(x)),
             _ => Err(XTypesError::InvalidType),
         }
     }

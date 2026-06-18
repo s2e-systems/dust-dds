@@ -60,7 +60,6 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::TypeSupport,
     },
     rtps::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
@@ -80,6 +79,7 @@ use crate::{
         deserializer::{deserialize_key_only, deserialize_top_level_type},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
+        type_support::{Type, TypeSupport},
     },
 };
 use alloc::{

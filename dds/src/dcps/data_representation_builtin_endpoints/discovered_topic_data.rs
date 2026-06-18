@@ -9,18 +9,18 @@ use crate::{
             PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
     },
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy,
-        },
-        type_support::TypeSupport,
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+        ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+        TransportPriorityQosPolicy,
     },
     xtypes::{
-        data_storage::DataStorageMapping, dynamic_type::DynamicType, type_object::TypeInformation,
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_object::TypeInformation,
+        type_support::{Type, TypeSupport},
     },
 };
 use alloc::string::String;
@@ -29,9 +29,8 @@ use alloc::string::String;
 pub struct DiscoveredTopicData {
     pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
 }
-
-impl TypeSupport for DiscoveredTopicData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for DiscoveredTopicData {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("TopicBuiltinTopicData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -109,7 +108,8 @@ impl TypeSupport for DiscoveredTopicData {
             ),
         ],
     };
-
+}
+impl TypeSupport for DiscoveredTopicData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {

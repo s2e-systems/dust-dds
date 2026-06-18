@@ -13,11 +13,11 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
-        type_support::TypeSupport,
     },
     std_runtime::executor::block_on,
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::topic_description::TopicDescription,
+    xtypes::type_support::TypeSupport,
 };
 use alloc::vec::Vec;
 

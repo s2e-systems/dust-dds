@@ -14,14 +14,11 @@ use crate::{
         PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION,
         PID_TYPE_NAME, PID_USER_DATA,
     },
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
-        type_support::TypeSupport,
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    xtypes::type_object::TypeInformation,
+    xtypes::{type_object::TypeInformation, type_support::TypeSupport},
 };
 use alloc::string::String;
 

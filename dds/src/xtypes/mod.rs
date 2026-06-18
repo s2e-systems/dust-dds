@@ -1,4 +1,3 @@
-pub mod binding;
 pub mod bytes;
 pub mod data_storage;
 pub mod deserializer;
@@ -7,3 +6,4 @@ pub mod error;
 pub mod read_write;
 pub mod serializer;
 pub mod type_object;
+pub mod type_support;
