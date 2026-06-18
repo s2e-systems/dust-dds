@@ -25,9 +25,8 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::Time,
-        type_support::TypeSupport,
     },
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{
     string::{String, ToString},
@@ -77,7 +76,7 @@ impl DomainParticipantAsync {
                     participant_handle: self.handle,
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -121,7 +120,7 @@ impl DomainParticipantAsync {
                     participant_handle: self.handle,
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -186,7 +185,7 @@ impl DomainParticipantAsync {
                 type_name: String::from(type_name),
                 qos,
                 dcps_listener,
-                mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 type_support: dynamic_type_representation,
                 reply_sender,
             }))
@@ -646,7 +645,7 @@ impl DomainParticipantAsync {
             .send(DcpsMail::Participant(ParticipantServiceMail::SetListener {
                 participant_handle: self.handle,
                 dcps_listener,
-                status_kind: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

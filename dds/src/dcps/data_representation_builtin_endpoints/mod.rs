@@ -1,4 +1,7 @@
-use crate::xtypes::{binding::XTypesBinding, dynamic_type::DynamicTypeMember};
+use crate::xtypes::{
+    dynamic_type::DynamicTypeMember,
+    type_support::{Type, TypeSupport},
+};
 
 pub mod discovered_reader_data;
 pub mod discovered_topic_data;
@@ -23,7 +26,7 @@ impl ConvenienceTypeBuilder {
             is_nested: false,
         }
     }
-    const fn key_member<T: XTypesBinding>(
+    const fn key_member<T: TypeSupport>(
         index: u32,
         name: &'static str,
         id: i16,
@@ -32,7 +35,7 @@ impl ConvenienceTypeBuilder {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE_INFORMATION,
+                r#type: T::TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -47,16 +50,12 @@ impl ConvenienceTypeBuilder {
         }
     }
 
-    const fn member<T: XTypesBinding>(
-        index: u32,
-        name: &'static str,
-        id: i16,
-    ) -> DynamicTypeMember {
+    const fn member<T: Type>(index: u32, name: &'static str, id: i16) -> DynamicTypeMember {
         DynamicTypeMember {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE_INFORMATION,
+                r#type: T::TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -71,7 +70,7 @@ impl ConvenienceTypeBuilder {
         }
     }
 
-    const fn member_with_default<T: XTypesBinding>(
+    const fn member_with_default<T: Type>(
         index: u32,
         name: &'static str,
         id: i16,
@@ -80,7 +79,7 @@ impl ConvenienceTypeBuilder {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE_INFORMATION,
+                r#type: T::TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

@@ -1,5 +1,5 @@
-use crate::infrastructure::type_support::TypeSupport;
 use alloc::{sync::Arc, vec::Vec};
+use dust_dds::xtypes::type_support::TypeSupport;
 
 pub type Octet = u8;
 pub type Short = i16;

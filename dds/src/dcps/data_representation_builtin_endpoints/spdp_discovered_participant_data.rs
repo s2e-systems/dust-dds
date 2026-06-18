@@ -10,11 +10,13 @@ use crate::{
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
     },
-    infrastructure::{
-        domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
-    },
+    infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{binding::XTypesBinding, data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_support::{Type, TypeSupport},
+    },
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -136,13 +138,12 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
-
-impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for SpdpDiscoveredParticipantData {
+    const TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "SpdpDiscoveredParticipantData",
-            base_type: Some(ParticipantBuiltinTopicData::TYPE_INFORMATION),
+            base_type: Some(ParticipantBuiltinTopicData::TYPE),
             discriminator_type: None,
             bound: None,
             element_type: None,
@@ -207,7 +208,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             ),
         ],
     };
-
+}
+impl TypeSupport for SpdpDiscoveredParticipantData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
         let guid_prefix = dds_participant_data.key.value[0..12]

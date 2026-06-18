@@ -25,6 +25,7 @@ use crate::{
         },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     dds_async::{
@@ -42,15 +43,14 @@ use crate::{
             TopicQos,
         },
         qos_policy::{
-            BUILT_IN_DATA_REPRESENTATION, DataRepresentationQosPolicy, DeadlineQosPolicy,
-            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
-            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, QosPolicyId,
-            ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
-            UserDataQosPolicy, WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, Length,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            OwnershipStrengthQosPolicy, QosPolicyId, ReaderDataLifecycleQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -60,7 +60,6 @@ use crate::{
             StatusKind, SubscriptionMatchedStatus,
         },
         time::{Duration, DurationKind, Time},
-        type_support::TypeSupport,
     },
     rtps::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
@@ -73,23 +72,20 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, ReliabilityKind, TopicKind,
+            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
         },
     },
     xtypes::{
         deserializer::{deserialize_key_only, deserialize_top_level_type},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{
-            serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
-            serialize_rtps,
-        },
+        serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
+        type_support::{Type, TypeSupport},
     },
 };
 use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
 use core::{
@@ -207,9 +203,7 @@ fn spdp_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -226,9 +220,7 @@ fn sedp_data_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -282,6 +274,15 @@ const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     representation: DataRepresentationQosPolicy::const_default(),
 };
 
+struct DiscoveredParticipantInfo {
+    dds_participant_data: ParticipantBuiltinTopicData,
+    guid_prefix: GuidPrefix,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    lease_duration: Duration,
+    reception_timestamp: Time,
+}
+
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
     duration: core::time::Duration,
@@ -325,7 +326,7 @@ impl DcpsDomainParticipant {
         guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
     ) -> Self {
@@ -345,7 +346,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SPDP_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             ParticipantBuiltinTopicData::TYPE,
         )));
 
@@ -356,7 +357,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_TOPICS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TopicBuiltinTopicData::TYPE,
         )));
 
@@ -367,7 +368,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_PUBLICATIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             PublicationBuiltinTopicData::TYPE,
         )));
 
@@ -378,7 +379,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             SubscriptionBuiltinTopicData::TYPE,
         )));
 
@@ -389,7 +390,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TypeLookupRequest::TYPE,
         )));
 
@@ -400,7 +401,7 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_RPL_TOPIC).into()),
             DcpsStatusCondition::default(),
             None,
-            vec![],
+            StatusMask::default(),
             TypeLookupReply::TYPE,
         )));
 
@@ -415,7 +416,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_PARTICIPANT),
             ParticipantBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateless(rtps_stateless_reader),
         );
         builtin_data_reader_list.push(dcps_participant_reader);
@@ -431,7 +432,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_TOPIC),
             TopicBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_topic_transport_reader),
         );
         builtin_data_reader_list.push(dcps_topic_reader);
@@ -447,7 +448,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_PUBLICATION),
             PublicationBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_publication_transport_reader),
         );
         builtin_data_reader_list.push(dcps_publication_reader);
@@ -463,7 +464,7 @@ impl DcpsDomainParticipant {
             String::from(DCPS_SUBSCRIPTION),
             SubscriptionBuiltinTopicData::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
         );
         builtin_data_reader_list.push(dcps_subscription_reader);
@@ -478,7 +479,7 @@ impl DcpsDomainParticipant {
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TypeLookupRequest::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
         );
         builtin_data_reader_list.push(type_lookup_request_reader);
@@ -493,7 +494,7 @@ impl DcpsDomainParticipant {
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TypeLookupReply::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
         );
         builtin_data_reader_list.push(type_lookup_reply_reader);
@@ -503,7 +504,7 @@ impl DcpsDomainParticipant {
             SubscriberQos::default(),
             builtin_data_reader_list,
             None,
-            vec![],
+            StatusMask::default(),
         );
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
@@ -520,7 +521,7 @@ impl DcpsDomainParticipant {
             "SpdpDiscoveredParticipantData".to_string(),
             SpdpDiscoveredParticipantData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             spdp_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_participant_writer);
@@ -537,7 +538,7 @@ impl DcpsDomainParticipant {
             "DiscoveredTopicData".to_string(),
             DiscoveredTopicData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_topics_writer);
@@ -554,7 +555,7 @@ impl DcpsDomainParticipant {
             "DiscoveredWriterData".to_string(),
             DiscoveredWriterData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_publications_writer);
@@ -570,7 +571,7 @@ impl DcpsDomainParticipant {
             "DiscoveredReaderData".to_string(),
             DiscoveredReaderData::TYPE,
             None,
-            vec![],
+            StatusMask::default(),
             sedp_data_writer_qos(),
         );
         builtin_data_writer_list.push(dcps_subscriptions_writer);
@@ -586,7 +587,7 @@ impl DcpsDomainParticipant {
             String::from(TypeLookupRequest::TYPE.descriptor.name),
             TypeLookupRequest::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
         builtin_data_writer_list.push(type_lookup_request_writer);
@@ -602,7 +603,7 @@ impl DcpsDomainParticipant {
             String::from(TypeLookupReply::TYPE.descriptor.name),
             TypeLookupReply::TYPE,
             None,
-            Vec::new(),
+            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
         builtin_data_writer_list.push(type_lookup_reply_writer);
@@ -612,14 +613,14 @@ impl DcpsDomainParticipant {
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
             builtin_data_writer_list,
             None,
-            vec![],
+            StatusMask::default(),
         );
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
             domain_participant_qos,
             listener_sender,
-            status_kind,
+            listener_mask,
             participant_handle,
             builtin_publisher,
             builtin_subscriber,
@@ -637,6 +638,14 @@ impl DcpsDomainParticipant {
             domain_participant,
             dcps_sender,
         }
+    }
+
+    pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .discovered_participant_list
+            .iter()
+            .map(|dp| dp.lease_duration - (now - dp.reception_timestamp))
+            .min()
     }
 
     fn get_participant_async(&self) -> DomainParticipantAsync {
@@ -806,7 +815,7 @@ impl DcpsDomainParticipant {
 
         if data_writer
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let status = data_writer.get_offered_deadline_missed_status();
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
@@ -836,7 +845,7 @@ impl DcpsDomainParticipant {
             }
         } else if publisher
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
@@ -865,7 +874,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::OfferedDeadlineMissed)
+            .is_enabled(&StatusKind::OfferedDeadlineMissed)
         {
             let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
             else {
@@ -954,7 +963,7 @@ impl DcpsDomainParticipant {
 
         if data_reader
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let status = data_reader.get_requested_deadline_missed_status();
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
@@ -982,7 +991,7 @@ impl DcpsDomainParticipant {
             }
         } else if subscriber
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
@@ -1012,7 +1021,7 @@ impl DcpsDomainParticipant {
         } else if self
             .domain_participant
             .listener_mask
-            .contains(&StatusKind::RequestedDeadlineMissed)
+            .is_enabled(&StatusKind::RequestedDeadlineMissed)
         {
             let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
             else {
@@ -1105,7 +1114,7 @@ struct DomainParticipantEntity {
     default_publisher_qos: PublisherQos,
     topic_description_list: Vec<TopicDescriptionKind>,
     default_topic_qos: TopicQos,
-    discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
+    discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
@@ -1115,7 +1124,7 @@ struct DomainParticipantEntity {
     ignored_subscriptions: BTreeSet<InstanceHandle>,
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl DomainParticipantEntity {
@@ -1124,7 +1133,7 @@ impl DomainParticipantEntity {
         domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
@@ -1187,20 +1196,6 @@ impl DomainParticipantEntity {
         self.discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
-    }
-
-    fn add_discovered_participant(
-        &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        match self.discovered_participant_list.iter_mut().find(|p| {
-            p.dds_participant_data.key() == discovered_participant_data.dds_participant_data.key()
-        }) {
-            Some(x) => *x = discovered_participant_data,
-            None => self
-                .discovered_participant_list
-                .push(discovered_participant_data),
-        }
     }
 
     fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
@@ -1289,7 +1284,7 @@ struct SubscriberEntity {
     default_data_reader_qos: DataReaderQos,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl SubscriberEntity {
@@ -1298,7 +1293,7 @@ impl SubscriberEntity {
         qos: SubscriberQos,
         data_reader_list: Vec<DataReaderEntity>,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
     ) -> Self {
         Self {
             instance_handle,
@@ -1337,7 +1332,7 @@ struct TopicEntity {
     inconsistent_topic_status: InconsistentTopicStatus,
     status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
-    _status_kind: Vec<StatusKind>,
+    _listener_mask: StatusMask,
     type_support: DynamicType,
 }
 
@@ -1350,7 +1345,7 @@ impl TopicEntity {
         instance_handle: InstanceHandle,
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         type_support: DynamicType,
     ) -> Self {
         Self {
@@ -1362,7 +1357,7 @@ impl TopicEntity {
             inconsistent_topic_status: InconsistentTopicStatus::const_default(),
             status_condition,
             _listener_sender: listener_sender,
-            _status_kind: status_kind,
+            _listener_mask: listener_mask,
             type_support,
         }
     }
@@ -1375,7 +1370,7 @@ struct PublisherEntity {
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
 }
 
 impl PublisherEntity {
@@ -1384,7 +1379,7 @@ impl PublisherEntity {
         instance_handle: InstanceHandle,
         data_writer_list: Vec<DataWriterEntity>,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
     ) -> Self {
         Self {
             qos,
@@ -1456,7 +1451,7 @@ struct DataWriterEntity {
     enabled: bool,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
     max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
@@ -1481,7 +1476,7 @@ impl DataWriterEntity {
         type_name: String,
         type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         qos: DataWriterQos,
     ) -> Self {
         Self {
@@ -1508,6 +1503,132 @@ impl DataWriterEntity {
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),
         }
+    }
+
+    fn write_w_timestamp(
+        &mut self,
+        sample_instance_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        sample_timestamp: Time,
+        now: Time,
+        message_writer: &(impl WriteMessage + ?Sized),
+        runtime: &impl DdsRuntime,
+    ) -> DdsResult<()> {
+        if !self
+            .registered_instance_list
+            .contains(&sample_instance_handle)
+        {
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list.push(sample_instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self
+                .instance_samples
+                .iter()
+                .any(|x| x.instance == sample_instance_handle)
+                && self.instance_samples.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match self.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
+                _ => {
+                    if let Some(s) = self
+                        .instance_samples
+                        .iter()
+                        .find(|x| x.instance == sample_instance_handle)
+                    {
+                        // Only Alive changes count towards the resource limits
+                        if s.samples.len() >= max_samples_per_instance as usize {
+                            return Err(DdsError::OutOfResources);
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self
+                .instance_samples
+                .iter()
+                .fold(0, |acc, x| acc + x.samples.len());
+
+            if total_samples >= max_samples as usize {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        self.last_change_sequence_number += 1;
+        let change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: self.transport_writer.guid(),
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(sample_timestamp.into()),
+            instance_handle: Some(sample_instance_handle.into()),
+            data_value: serialized_data.into(),
+        };
+        let seq_num = change.sequence_number;
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        match self
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(x) => {
+                if x.last_write_time < sample_timestamp {
+                    x.last_write_time = sample_timestamp;
+                }
+            }
+            None => self
+                .instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: sample_instance_handle,
+                    last_write_time: sample_timestamp,
+                }),
+        }
+
+        match self
+            .instance_samples
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(s) => s.samples.push_back(change.sequence_number),
+            None => {
+                let s = InstanceSamples {
+                    instance: sample_instance_handle,
+                    samples: VecDeque::from([change.sequence_number]),
+                };
+                self.instance_samples.push(s);
+            }
+        }
+
+        if let DurationKind::Finite(lifespan_duration) = self.qos.lifespan.duration {
+            let duration_until_expired = sample_timestamp - now + lifespan_duration;
+            if duration_until_expired <= Duration::new(0, 0) {
+                return Ok(());
+            }
+        }
+
+        self.transport_writer
+            .add_change(change, message_writer, runtime);
+
+        Ok(())
     }
 
     fn dispose_w_timestamp(
@@ -1832,7 +1953,7 @@ struct DataReaderEntity {
     incompatible_writer_list: Vec<InstanceHandle>,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: Vec<StatusKind>,
+    listener_mask: StatusMask,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
     transport_reader: RtpsReaderKind,
@@ -1846,7 +1967,7 @@ impl DataReaderEntity {
         topic_name: String,
         type_support: DynamicType,
         listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         transport_reader: RtpsReaderKind,
     ) -> Self {
         Self {
@@ -2638,8 +2759,6 @@ fn serialize(
             } else {
                 serialize_cdr2_le(dynamic_data)
             }
-        } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            serialize_rtps(dynamic_data)
         } else {
             panic!("Invalid data representation")
         }?,

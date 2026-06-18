@@ -413,7 +413,7 @@ fn dynamic_data_should_read_and_write() {
         .add_member(MemberDescriptor {
             name: "id",
             id: 0,
-            r#type: <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+            r#type: <u8 as dust_dds::xtypes::type_support::Type>::TYPE,
             default_value: None,
             index: 0_u32,
             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -430,7 +430,7 @@ fn dynamic_data_should_read_and_write() {
         .add_member(MemberDescriptor {
             name: "value",
             id: 1,
-            r#type: <u32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+            r#type: <u32 as dust_dds::xtypes::type_support::Type>::TYPE,
             default_value: None,
             index: 1_u32,
             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

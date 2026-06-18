@@ -26,8 +26,8 @@ use crate::{
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
         time::Duration,
-        type_support::TypeSupport,
     },
+    xtypes::type_support::TypeSupport,
 };
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;
@@ -539,7 +539,7 @@ impl<Foo> DataReaderAsync<Foo> {
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
                 dcps_listener,
-                listener_mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

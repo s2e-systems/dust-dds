@@ -1,6 +1,6 @@
 use super::condition::StatusConditionAsync;
 use crate::{
-    dcps::channels::oneshot::oneshot,
+    dcps::channels::notification::notification,
     infrastructure::error::{DdsError, DdsResult},
 };
 use alloc::{string::String, vec::Vec};
@@ -64,7 +64,7 @@ impl WaitSetAsync {
         }
 
         // No status condition is yet triggered so now we have to wait for at least one status condition to trigger
-        let (notification_sender, notification_receiver) = oneshot();
+        let (notification_sender, notification_receiver) = notification();
 
         for condition in &self.conditions {
             match condition {

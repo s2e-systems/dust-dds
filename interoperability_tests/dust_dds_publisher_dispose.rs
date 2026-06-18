@@ -12,9 +12,9 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::TypeSupport,
     },
     wait_set::{Condition, WaitSet},
+    xtypes::type_support::TypeSupport,
 };
 
 fn main() {
@@ -28,7 +28,7 @@ fn main() {
     let topic = participant
         .create_topic::<DisposeDataType>(
             "DisposeData",
-            DisposeDataType::TYPE.get_name(),
+            DisposeDataType::get_type().get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,

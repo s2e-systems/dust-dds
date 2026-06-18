@@ -1,18 +1,5 @@
-use crate::xtypes::dynamic_type::{DynamicData, DynamicType};
-pub use dust_dds_derive::TypeSupport;
-
-/// The TypeSupport trait represents a type that can be transmitted by DDS.
-pub trait TypeSupport {
-    /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
-    const r#TYPE: DynamicType;
-
-    /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
-    fn create_sample(src: &mut DynamicData) -> Self;
-
-    /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
-    fn create_dynamic_sample(self, data: &mut DynamicData);
-}
-
 /// This is a convenience derive to allow the user to easily derive all the different traits needed for a type to be used for
 /// communication with Dust DDS. If the individual traits are manually derived then this derive should not be used.
 pub use dust_dds_derive::DdsType;
+
+// pub trait DdsType : crate::xtypes::type_support::TypeSupport{}

@@ -1,27 +1,24 @@
-use alloc::{collections::VecDeque, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         channels::oneshot::{OneshotSender, oneshot},
-        dcps_domain_participant::{
-            DcpsDomainParticipant, InstancePublicationTime, InstanceSamples, RtpsWriterKind,
-            serialize,
-        },
+        dcps_domain_participant::{DcpsDomainParticipant, RtpsWriterKind, serialize},
         dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
-        qos_policy::{HistoryQosPolicyKind, Length, ReliabilityQosPolicyKind},
+        qos_policy::{HistoryQosPolicyKind, ReliabilityQosPolicyKind},
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{Duration, DurationKind, Time},
     },
     runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
-    transport::types::{CacheChange, ChangeKind},
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -62,7 +59,7 @@ impl DcpsDomainParticipant {
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataWriterListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -277,80 +274,18 @@ impl DcpsDomainParticipant {
             return;
         }
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
-            Ok(h) => h,
-            Err(e) => {
-                reply_sender.send(Err(e.into()));
-                return;
-            }
-        };
-
-        if !data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
-        {
-            if data_writer.registered_instance_list.len()
-                < data_writer.qos.resource_limits.max_instances
-            {
-                data_writer.registered_instance_list.push(instance_handle);
-            } else {
-                reply_sender.send(Err(DdsError::OutOfResources));
-                return;
-            }
-        }
-
-        if let Length::Limited(max_instances) = data_writer.qos.resource_limits.max_instances {
-            if !data_writer
-                .instance_samples
-                .iter()
-                .any(|x| x.instance == instance_handle)
-                && data_writer.instance_samples.len() == max_instances as usize
-            {
-                reply_sender.send(Err(DdsError::OutOfResources));
-                return;
-            }
-        }
-
-        if let Length::Limited(max_samples_per_instance) =
-            data_writer.qos.resource_limits.max_samples_per_instance
-        {
-            // If the history Qos guarantess that the number of samples
-            // is below the limit there is no need to check
-            match data_writer.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth)
-                    if depth as i32 <= max_samples_per_instance => {}
-                _ => {
-                    if let Some(s) = data_writer
-                        .instance_samples
-                        .iter()
-                        .find(|x| x.instance == instance_handle)
-                    {
-                        // Only Alive changes count towards the resource limits
-                        if s.samples.len() >= max_samples_per_instance as usize {
-                            reply_sender.send(Err(DdsError::OutOfResources));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Length::Limited(max_samples) = data_writer.qos.resource_limits.max_samples {
-            let total_samples = data_writer
-                .instance_samples
-                .iter()
-                .fold(0, |acc, x| acc + x.samples.len());
-
-            if total_samples >= max_samples as usize {
-                reply_sender.send(Err(DdsError::OutOfResources));
-                return;
-            }
-        }
-
         let serialized_data = match serialize(dynamic_data, &data_writer.qos.representation) {
             Ok(s) => s,
             Err(e) => {
                 reply_sender.send(Err(e));
+                return;
+            }
+        };
+
+        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
+            Ok(h) => h,
+            Err(e) => {
+                reply_sender.send(Err(e.into()));
                 return;
             }
         };
@@ -445,52 +380,17 @@ impl DcpsDomainParticipant {
             }
         }
 
-        data_writer.last_change_sequence_number += 1;
-        let change = CacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: data_writer.transport_writer.guid(),
-            sequence_number: data_writer.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
-            data_value: serialized_data.into(),
-        };
-        let seq_num = change.sequence_number;
-
-        if seq_num > data_writer.max_seq_num.unwrap_or(0) {
-            data_writer.max_seq_num = Some(seq_num)
-        }
-
-        match data_writer
-            .instance_publication_time
-            .iter_mut()
-            .find(|x| x.instance == instance_handle)
-        {
-            Some(x) => {
-                if x.last_write_time < timestamp {
-                    x.last_write_time = timestamp;
-                }
-            }
-            None => data_writer
-                .instance_publication_time
-                .push(InstancePublicationTime {
-                    instance: instance_handle,
-                    last_write_time: timestamp,
-                }),
-        }
-
-        match data_writer
-            .instance_samples
-            .iter_mut()
-            .find(|x| x.instance == instance_handle)
-        {
-            Some(s) => s.samples.push_back(change.sequence_number),
-            None => {
-                let s = InstanceSamples {
-                    instance: instance_handle,
-                    samples: VecDeque::from([change.sequence_number]),
-                };
-                data_writer.instance_samples.push(s);
-            }
+        let write_result = data_writer.write_w_timestamp(
+            instance_handle,
+            serialized_data,
+            timestamp,
+            now,
+            self.transport.message_writer.as_ref(),
+            runtime,
+        );
+        if write_result.is_err() {
+            reply_sender.send(write_result);
+            return;
         }
 
         let dcps_sender_clone = self.dcps_sender;
@@ -539,12 +439,6 @@ impl DcpsDomainParticipant {
                     .await;
             });
         }
-
-        data_writer.transport_writer.add_change(
-            change,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        );
 
         reply_sender.send(Ok(()));
     }
