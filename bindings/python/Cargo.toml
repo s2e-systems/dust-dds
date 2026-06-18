@@ -18,7 +18,7 @@ name = "dust_dds"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.27.1", features = ["py-clone"] }
+pyo3 = { version = "0.29", features = ["py-clone"] }
 dust_dds = { path = "../../dds" }
 tracing = { version = "0.1", default-features = false, features = [
     "attributes",

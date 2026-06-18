@@ -36,6 +36,7 @@ use alloc::{string::String, vec::Vec};
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 ///   [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
+#[derive(Clone)]
 pub struct DomainParticipant {
     participant_async: DomainParticipantAsync,
 }

@@ -8,16 +8,9 @@ use alloc::{string::String, vec::Vec};
 /// [`ContentFilteredTopic`] describes a more sophisticated subscription that indicates the subscriber does not want to necessarily see
 /// all values of each instance published under the [`Topic`]. Rather, it wants to see only the values whose contents satisfy certain
 /// criteria. This class therefore can be used to request content-based subscriptions.
+#[derive(Clone)]
 pub struct ContentFilteredTopic {
     topic: ContentFilteredTopicAsync,
-}
-
-impl Clone for ContentFilteredTopic {
-    fn clone(&self) -> Self {
-        Self {
-            topic: self.topic.clone(),
-        }
-    }
 }
 
 impl From<ContentFilteredTopicAsync> for ContentFilteredTopic {

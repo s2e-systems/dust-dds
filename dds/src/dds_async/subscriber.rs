@@ -24,18 +24,10 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
+#[derive(Clone)]
 pub struct SubscriberAsync {
     handle: InstanceHandle,
     participant: DomainParticipantAsync,
-}
-
-impl Clone for SubscriberAsync {
-    fn clone(&self) -> Self {
-        Self {
-            handle: self.handle,
-            participant: self.participant.clone(),
-        }
-    }
 }
 
 impl SubscriberAsync {
