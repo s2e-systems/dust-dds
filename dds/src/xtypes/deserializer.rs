@@ -1275,7 +1275,7 @@ trait XTypesDeserialize {
     }
 }
 
-trait Align {
+pub trait Align {
     fn align<'a, E: EndiannessRead, V: EncodingVersion>(reader: &mut NextCdrReader<'a, E>);
 }
 impl Align for bool {
@@ -1539,7 +1539,7 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
             _endianness: endianness,
         }
     }
-    fn read_byte(&mut self) -> XTypesResult<u8> {
+    pub fn read_byte(&mut self) -> XTypesResult<u8> {
         if self.pos + 1 > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
         }
@@ -1548,7 +1548,7 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
         Ok(ret)
     }
 
-    fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
+    pub fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
         if self.pos + length > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
         }
@@ -1561,7 +1561,7 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
         self.pos += v
     }
 
-    fn seek_padding(&mut self, alignment: usize) {
+    pub fn seek_padding(&mut self, alignment: usize) {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }

@@ -1,31 +1,61 @@
 use crate::{
-    infrastructure::{qos_policy::UserDataQosPolicy, type_support::TypeSupport},
+    dcps::data_representation_builtin_endpoints::{
+        parameter_id_values::ParameterId,
+        spdp_discovered_participant_data::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
+    infrastructure::{qos_policy::UserDataQosPolicy, time::Duration},
+    transport::types::{Locator, Long, ProtocolVersion, UnsignedLong},
     xtypes::{
-        binding::XTypesBinding,
         deserializer::{
-            AsBytes, EncodingVersion1, LittleEndian, NextCdrReader, XTypesDeserializer,
+            Align, AsBytes, EncodingVersion1, LittleEndian, NextCdrReader, XTypesDeserializer,
         },
         dynamic_type::DynamicData,
         error::{XTypesError, XTypesResult},
+        type_support::{Type, TypeSupport},
     },
 };
 
-struct ParameterList<'a, E> {
-    data: &'a [u8],
-    endianness: E,
+pub type CdrResult<T> = Result<T, CdrError>;
+
+#[derive(Debug, PartialEq)]
+pub enum CdrError {
+    InvalidData,
+    PidNotFound(i16),
+    NotEnoughData,
+    XTypes(XTypesError),
+}
+impl From<XTypesError> for CdrError {
+    fn from(value: XTypesError) -> Self {
+        CdrError::XTypes(value)
+    }
 }
 
-impl<'a, E> ParameterList<'a, E> {
-    fn new(data: &'a [u8], endianness: E) -> Self {
-        Self {
-            data,
-            endianness: endianness,
-        }
+pub struct ParameterList<'a> {
+    data: &'a [u8],
+}
+
+impl<'a> ParameterList<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
     }
-    fn get_data_of_pid(&self, pid: u16) -> Option<&'a [u8]> {
+    pub fn get_list(&self, pid: ParameterId) -> Vec<&'a [u8]> {
+        let mut list = Vec::new();
         let mut pointer = &self.data[..];
         loop {
-            let current_pid = u16::from_le_bytes([pointer[0], pointer[1]]);
+            let current_pid = ParameterId::from_le_bytes([pointer[0], pointer[1]]);
+            let length = u16::from_le_bytes([pointer[2], pointer[3]]) as usize;
+            if current_pid == pid {
+                list.push(&pointer[4..length + 4]);
+            } else if current_pid == 1 || pointer.len() < length + 4 {
+                return list;
+            }
+            pointer = &pointer[length + 4..]
+        }
+    }
+    pub fn get_optional(&self, pid: ParameterId) -> Option<&'a [u8]> {
+        let mut pointer = &self.data[..];
+        loop {
+            let current_pid = ParameterId::from_le_bytes([pointer[0], pointer[1]]);
             let length = u16::from_le_bytes([pointer[2], pointer[3]]) as usize;
             if current_pid == pid {
                 return Some(&pointer[4..length + 4]);
@@ -35,155 +65,237 @@ impl<'a, E> ParameterList<'a, E> {
             pointer = &pointer[length + 4..]
         }
     }
+    pub fn get_non_optional(&self, pid: ParameterId) -> CdrResult<&'a [u8]> {
+        self.get_optional(pid).ok_or(CdrError::PidNotFound(pid))
+    }
 }
 
+pub struct CdrDeserializer<'a> {
+    reader: NextCdrReader<'a, LittleEndian>,
+}
 
-#[derive(TypeSupport)]
-struct _String(String);
+pub trait CdrDeserialize<'a>: Sized {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self>;
+}
+impl<'a> CdrDeserialize<'a> for Long {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        de.reader.seek_padding(4);
+        de.deserialize_primitive()
+    }
+}
+impl<'a> CdrDeserialize<'a> for UnsignedLong {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        de.reader.seek_padding(4);
+        de.deserialize_primitive()
+    }
+}
+impl<'a> CdrDeserialize<'a> for bool {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        de.deserialize_primitive()
+    }
+}
 
-#[derive(TypeSupport)]
-struct ULong(u32);
-
-impl<'a> ParameterList<'a, LittleEndian> {
-    fn get(
-        &self,
-        pid: u16,
-    ) -> XTypesResult<XTypesDeserializer<'a, LittleEndian, EncodingVersion1>> {
-        Ok(XTypesDeserializer::new(
-            self.get_data_of_pid(pid)
-                .ok_or(XTypesError::PidNotFound(pid))?,
-            EncodingVersion1,
-            LittleEndian,
+impl<'a, const N: usize> CdrDeserialize<'a> for [u8; N] {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(de.deserialize_bytes(N)?.try_into().expect("must have size"))
+    }
+}
+impl<'a> CdrDeserialize<'a> for String {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        de.deserialize_string()
+    }
+}
+impl<'a> CdrDeserialize<'a> for Locator {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(Locator::new(
+            CdrDeserialize::cdr_deserialize(de)?,
+            CdrDeserialize::cdr_deserialize(de)?,
+            CdrDeserialize::cdr_deserialize(de)?,
         ))
     }
-    fn get_with_default<T>(
-        &self,
-        pid: u16,
-        f: impl Fn(&mut XTypesDeserializer<'a, LittleEndian, EncodingVersion1>) -> XTypesResult<T>,
-        default: T,
-    ) -> XTypesResult<T> {
-        if let Some(data) = self.get_data_of_pid(pid) {
-            f(&mut XTypesDeserializer::new(
-                data,
-                EncodingVersion1,
-                LittleEndian,
-            ))
-        } else {
-            Ok(default)
-        }
+}
+impl<'a> CdrDeserialize<'a> for ProtocolVersion {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(ProtocolVersion {
+            bytes: CdrDeserialize::cdr_deserialize(de)?,
+        })
+    }
+}
+impl<'a> CdrDeserialize<'a> for BuiltinEndpointQos {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(Self(CdrDeserialize::cdr_deserialize(de)?))
+    }
+}
+impl<'a> CdrDeserialize<'a> for BuiltinEndpointSet {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(Self(CdrDeserialize::cdr_deserialize(de)?))
+    }
+}
+impl<'a> CdrDeserialize<'a> for Duration {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(Duration::new(
+            CdrDeserialize::cdr_deserialize(de)?,
+            CdrDeserialize::cdr_deserialize(de)?,
+        ))
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct TestDiscoveryData {
-    domain_id: i32,
-    domain_tag: String,
-    vendor_id: [u8; 2],
+impl<'a> CdrDeserializer<'a> {
+    pub fn new(buffer: &'a [u8]) -> Self {
+        Self {
+            reader: NextCdrReader::new(buffer, LittleEndian),
+        }
+    }
+
+    fn deserialize_primitive<T: AsBytes>(&mut self) -> CdrResult<T> {
+        Ok(T::as_bytes(&mut self.reader)?)
+    }
+    fn deserialize_bytes(&mut self, length: usize) -> CdrResult<&[u8]> {
+        Ok(self.reader.read_all(length)?)
+    }
+    fn deserialize_string(&mut self) -> CdrResult<String> {
+        let length = u32::as_bytes(&mut self.reader)?;
+        let character_data = self.reader.read_all(length as usize - 1)?.to_vec();
+        self.reader.read_byte()?; // 0-termination
+        String::from_utf8(character_data).map_err(|_| CdrError::InvalidData)
+    }
 }
 
-fn from_bytes(bytes: &[u8]) -> XTypesResult<TestDiscoveryData> {
-    let pl = ParameterList::new(bytes, LittleEndian);
-    _String::create_sample(&mut pl.get(0x4014)?.deserialize_as_nested(_String::TYPE)?);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let domain_id = if let Some(pid_data) = pl.get_data_of_pid(15) {
-        i32::as_bytes(&mut NextCdrReader::new(pid_data, LittleEndian))?
-    } else {
-        0
-    };
-    let domain_tag = if let Some(pid_data) = pl.get_data_of_pid(0x4014) {
-        _String::create_sample(&mut pl.get(0x4014)?.deserialize_as_nested(_String::TYPE)?).0
-    } else {
-        String::from("")
-    };
-    let data = pl.get_data_of_pid(0x4014).ok_or(XTypesError::PidNotFound(0x4014))?;
-    let vendor_id = [data[0], data[1]];
-    Ok(TestDiscoveryData {
-        domain_id,
-        domain_tag,
-        vendor_id,
-    })
-}
+    #[derive(Debug, PartialEq)]
+    struct TestDiscoveryData {
+        domain_id: i32,
+        domain_tag: String,
+        vendor_id: [u8; 2],
+        locator_list: Vec<Locator>,
+    }
 
-// #[test]
-// fn derserialize_test_discovery_data() {
-//     let bytes = [
-//         15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-//         0x01, 0x00, 0x00, 0x00, // DomainId
-//         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-//         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-//         b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-//         0x16, 0x00, 4, 0x00, // PID_VENDORID
-//         73, 74, 0x00, 0x00, // VendorId
-//         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-//     ];
-//     let expected = TestDiscoveryData {
-//         domain_id: 1,
-//         domain_tag: String::from("ab"),
-//     };
-//     assert_eq!(from_bytes(&bytes).unwrap(), expected);
-// }
+    fn from_bytes(bytes: &[u8]) -> CdrResult<TestDiscoveryData> {
+        let pl = ParameterList::new(bytes);
 
-#[test]
-fn derserialize_test_discovery_data_with_default() {
-    let bytes = [
-        0x16, 0x00, 4, 0x00, // PID_VENDORID
-        73, 74, 0x00, 0x00, // VendorId
-        0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    ];
-    let expected = TestDiscoveryData {
-        domain_id: 0,
-        domain_tag: String::from(""),
-        vendor_id: [73, 74],
-    };
-    assert_eq!(from_bytes(&bytes).unwrap(), expected);
-}
+        let domain_id = if let Some(pid_data) = pl.get_optional(15) {
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))?
+        } else {
+            0
+        };
+        let domain_tag = if let Some(pid_data) = pl.get_optional(0x4014) {
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))?
+        } else {
+            String::from("")
+        };
+        let vendor_id =
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pl.get_non_optional(0x16)?))?;
 
-#[test]
-fn get_existing_pid() {
-    let data = [
-        15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-        0x01, 0x00, 0x00, 0x00, // DomainId
-        0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-        3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-        b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-        0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    ];
-    assert_eq!(
-        ParameterList::new(&data, LittleEndian).get_data_of_pid(15),
-        Some(&[0x01, 0x00, 0x00, 0x00][..])
-    );
-    assert_eq!(
-        ParameterList::new(&data, LittleEndian).get_data_of_pid(0x4014),
-        Some(&[3, 0x00, 0x00, 0x00, b'a', b'b', 0, 0x00][..])
-    );
-}
+        let mut locator_list = vec![];
+        for pid_data in pl.get_list(72) {
+            locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+                pid_data,
+            ))?);
+        }
 
-#[test]
-fn get_non_existing_pid() {
-    let data = [
-        15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-        0x01, 0x00, 0x00, 0x00, // DomainId
-        0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-        3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-        b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-        0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    ];
-    assert_eq!(
-        ParameterList::new(&data, LittleEndian).get_data_of_pid(10),
-        None
-    );
-}
+        Ok(TestDiscoveryData {
+            domain_id,
+            domain_tag,
+            vendor_id,
+            locator_list,
+        })
+    }
 
-#[test]
-fn get_non_existing_pid_sentinel_missing() {
-    let data = [
-        15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-        0x01, 0x00, 0x00, 0x00, // DomainId
-        0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-        3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-    ];
-    assert_eq!(
-        ParameterList::new(&data, LittleEndian).get_data_of_pid(10),
-        None
-    );
+    #[test]
+    fn derserialize_test_discovery_data() {
+        let bytes = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
+            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            11, 0x00, 0x00, 0x00, // Locator{kind
+            12, 0x00, 0x00, 0x00, // port,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
+            21, 0x00, 0x00, 0x00, // Locator{kind
+            22, 0x00, 0x00, 0x00, // port,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        let expected = TestDiscoveryData {
+            domain_id: 1,
+            domain_tag: String::from("ab"),
+            vendor_id: [73, 74],
+            locator_list: vec![Locator::new(11, 12, [1; 16]), Locator::new(21, 22, [2; 16])],
+        };
+        assert_eq!(from_bytes(&bytes).unwrap(), expected);
+    }
+
+    #[test]
+    fn derserialize_test_discovery_data_with_default() {
+        let bytes = [
+            0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, // VendorId
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        let expected = TestDiscoveryData {
+            domain_id: 0,
+            domain_tag: String::from(""),
+            vendor_id: [73, 74],
+            locator_list: vec![],
+        };
+        assert_eq!(from_bytes(&bytes).unwrap(), expected);
+    }
+
+    #[test]
+    fn get_existing_pid() {
+        let data = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        assert_eq!(
+            ParameterList::new(&data).get_optional(15),
+            Some(&[0x01, 0x00, 0x00, 0x00][..])
+        );
+        assert_eq!(
+            ParameterList::new(&data).get_optional(0x4014),
+            Some(&[3, 0x00, 0x00, 0x00, b'a', b'b', 0, 0x00][..])
+        );
+    }
+
+    #[test]
+    fn get_non_existing_pid() {
+        let data = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ];
+        assert_eq!(ParameterList::new(&data,).get_optional(10), None);
+    }
+
+    #[test]
+    fn get_non_existing_pid_sentinel_missing() {
+        let data = [
+            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+        ];
+        assert_eq!(ParameterList::new(&data,).get_optional(10), None);
+    }
 }

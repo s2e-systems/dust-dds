@@ -272,7 +272,7 @@ impl Locator {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct ProtocolVersion {
-    bytes: [u8; 2],
+    pub(crate) bytes: [u8; 2],
 }
 
 impl ProtocolVersion {
