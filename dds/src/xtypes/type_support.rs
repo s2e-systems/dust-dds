@@ -295,14 +295,14 @@ impl<T: Type, const N: usize> Type for [T; N] {
     };
 }
 
-impl<'a> Type for &'a [u8] {
+impl Type for &[u8] {
     const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ARRAY,
             name: "",
             base_type: None,
             discriminator_type: None,
-            bound: Some(u32::MAX as u32),
+            bound: Some(u32::MAX),
             element_type: Some(u8::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
@@ -312,7 +312,7 @@ impl<'a> Type for &'a [u8] {
     };
 }
 
-impl<'a> Type for &'a str {
+impl Type for &str {
     const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
