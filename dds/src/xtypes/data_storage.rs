@@ -1,9 +1,7 @@
-use crate::{
-    infrastructure::type_support::{Type, TypeSupport},
-    xtypes::{
-        dynamic_type::{DynamicData, DynamicDataFactory},
-        error::{XTypesError, XTypesResult},
-    },
+use crate::xtypes::{
+    dynamic_type::{DynamicData, DynamicDataFactory},
+    error::{XTypesError, XTypesResult},
+    type_support::{Type, TypeSupport},
 };
 use alloc::{string::String, vec::Vec};
 use dust_dds::xtypes::dynamic_type::{DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind};

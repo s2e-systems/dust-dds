@@ -8,18 +8,19 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy,
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-            ReliabilityQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        },
-        type_support::{Type, TypeSupport},
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy, DeadlineQosPolicy,
+        DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+        PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
+        UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_support::{Type, TypeSupport},
+    },
 };
 use alloc::{string::String, vec::Vec};
 

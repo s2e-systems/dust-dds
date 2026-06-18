@@ -1,11 +1,9 @@
 use super::error::XTypesError;
-use crate::{
-    infrastructure::type_support::{Type, TypeSupport},
-    xtypes::{
-        data_storage::{DataStorage, DataStorageMapping},
-        error::XTypesResult,
-        type_object::TypeObject,
-    },
+use crate::xtypes::{
+    data_storage::{DataStorage, DataStorageMapping},
+    error::XTypesResult,
+    type_object::TypeObject,
+    type_support::{Type, TypeSupport},
 };
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 

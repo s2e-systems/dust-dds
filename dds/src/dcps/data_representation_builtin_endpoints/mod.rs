@@ -1,6 +1,6 @@
-use crate::{
-    infrastructure::type_support::{Type, TypeSupport},
-    xtypes::dynamic_type::DynamicTypeMember,
+use crate::xtypes::{
+    dynamic_type::DynamicTypeMember,
+    type_support::{Type, TypeSupport},
 };
 
 pub mod discovered_reader_data;

@@ -1,10 +1,3 @@
-use alloc::{
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
-use regex::Regex;
-
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
@@ -45,7 +38,6 @@ use crate::{
         },
         status::StatusKind,
         time::{Duration, Time},
-        type_support::{Type, TypeSupport},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     runtime::{Clock, DdsRuntime},
@@ -60,8 +52,15 @@ use crate::{
         deserializer::{deserialize_builtin, deserialize_top_level_type},
         dynamic_type::DynamicDataFactory,
         serializer::serialize_rtps,
+        type_support::{Type, TypeSupport},
     },
 };
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use regex::Regex;
 
 impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]

@@ -1,13 +1,11 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
-        error::XTypesError,
-        serializer::serialize_cdr2_le,
-    },
+use crate::xtypes::{
+    dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+    error::XTypesError,
+    serializer::serialize_cdr2_le,
+    type_support::TypeSupport,
 };
 
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};

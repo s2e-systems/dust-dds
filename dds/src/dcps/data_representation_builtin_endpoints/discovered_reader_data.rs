@@ -8,18 +8,19 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy,
-            TopicDataQosPolicy, UserDataQosPolicy,
-        },
-        type_support::Type,
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+        UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
+    xtypes::{
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_support::{Type, TypeSupport},
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -143,7 +144,7 @@ impl Type for DiscoveredReaderData {
         ],
     };
 }
-impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
+impl TypeSupport for DiscoveredReaderData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
@@ -415,14 +416,15 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
-        infrastructure::type_support::TypeSupport,
         transport::types::{
             BUILT_IN_WRITER_WITH_KEY, EntityId, Guid, USER_DEFINED_READER_WITH_KEY,
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{
-            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
+            deserializer::deserialize_builtin,
+            dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
+            type_support::{Type, TypeSupport},
         },
     };
 

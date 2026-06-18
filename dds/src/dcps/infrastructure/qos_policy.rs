@@ -1,11 +1,11 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
-    infrastructure::{
-        time::{Duration, DurationKind},
+    infrastructure::time::{Duration, DurationKind},
+    transport::types::{DurabilityKind, ReliabilityKind},
+    xtypes::{
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
         type_support::{Type, TypeSupport},
     },
-    transport::types::{DurabilityKind, ReliabilityKind},
-    xtypes::dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
 };
 use alloc::{string::String, vec::Vec};
 use core::cmp::Ordering;
@@ -1155,7 +1155,7 @@ impl Type for HistoryQosPolicy {
         ],
     };
 }
-impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
+impl TypeSupport for HistoryQosPolicy {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let mut kind = src.get_complex_value(0).cloned().unwrap();
         let depth = src.get_int32_value(1).unwrap();

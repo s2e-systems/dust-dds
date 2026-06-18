@@ -9,13 +9,15 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
-        type_support::TypeSupport,
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     std_runtime::executor::{block_on, block_timeout},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{
+        dynamic_type::DynamicType,
+        type_support::{Type, TypeSupport},
+    },
 };
 use alloc::{string::String, vec::Vec};
 

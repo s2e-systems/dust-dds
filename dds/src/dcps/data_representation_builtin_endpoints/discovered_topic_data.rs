@@ -9,18 +9,18 @@ use crate::{
             PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
     },
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy,
-        },
-        type_support::{Type, TypeSupport},
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+        ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+        TransportPriorityQosPolicy,
     },
     xtypes::{
-        data_storage::DataStorageMapping, dynamic_type::DynamicType, type_object::TypeInformation,
+        data_storage::DataStorageMapping,
+        dynamic_type::DynamicType,
+        type_object::TypeInformation,
+        type_support::{Type, TypeSupport},
     },
 };
 use alloc::string::String;

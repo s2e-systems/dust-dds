@@ -22,9 +22,8 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::Time,
-        type_support::TypeSupport,
     },
-    xtypes::dynamic_type::DynamicDataFactory,
+    xtypes::{dynamic_type::DynamicDataFactory, type_support::TypeSupport},
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;

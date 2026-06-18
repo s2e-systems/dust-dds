@@ -1,6 +1,6 @@
-use crate::{
-    infrastructure::type_support::{Type, TypeSupport},
-    xtypes::dynamic_type::DynamicData,
+use crate::xtypes::{
+    dynamic_type::DynamicData,
+    type_support::{Type, TypeSupport},
 };
 use core::ops::{Add, Sub};
 
