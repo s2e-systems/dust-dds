@@ -19,8 +19,9 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
+        time::Duration,
     },
-    runtime::{DdsRuntime, Spawner},
+    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
@@ -256,6 +257,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     ) -> Self {
         static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
         let spawner_handle = runtime.spawner();
+        let mut timer_handle = runtime.timer();
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
@@ -265,8 +267,26 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let dcps_receiver = DCPS_CHANNEL.receiver();
         spawner_handle.spawn(async move {
             loop {
-                let m = dcps_receiver.receive().await;
-                domain_participant_factory.handle(m);
+                let poke_time = Duration::new(0, 50_000_000);
+                let next_task_time = domain_participant_factory
+                    .time_until_stale_participant()
+                    .unwrap_or(poke_time)
+                    .min(poke_time);
+
+                match select_future(
+                    dcps_receiver.receive(),
+                    timer_handle.delay(next_task_time.into()),
+                )
+                .await
+                {
+                    Either::A(m) => {
+                        domain_participant_factory.handle(m);
+                    }
+                    Either::B(_) => (),
+                };
+
+                domain_participant_factory.poke();
+                domain_participant_factory.remove_stale_participants();
             }
         });
         Self {

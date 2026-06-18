@@ -1,7 +1,7 @@
 use crate::{
     dcps::{
         dcps_domain_participant::DcpsDomainParticipant,
-        dcps_mail::{DcpsMail, DiscoveryServiceMail, MessageServiceMail},
+        dcps_mail::{DcpsMail, DiscoveryServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,
     },
@@ -11,8 +11,9 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
+        time::Duration,
     },
-    runtime::{DdsRuntime, Spawner, Timer},
+    runtime::{Clock, DdsRuntime, Spawner, Timer},
     transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
 };
 use alloc::{string::String, vec::Vec};
@@ -87,23 +88,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             }
         });
 
-        // Start regular message writing
-        let dcps_sender_clone = self.dcps_sender;
-        let mut timer_handle = self.runtime.timer();
-        spawner_handle.spawn(async move {
-            loop {
-                dcps_sender_clone
-                    .send(DcpsMail::Message(MessageServiceMail::Poke {
-                        participant_handle,
-                    }))
-                    .await;
-
-                timer_handle
-                    .delay(core::time::Duration::from_millis(50))
-                    .await;
-            }
-        });
-
         if self.qos.entity_factory.autoenable_created_entities {
             dcps_participant.enable_domain_participant(&self.runtime)?;
         }
@@ -169,5 +153,26 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
     pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
         self.qos.clone()
+    }
+
+    pub(crate) fn time_until_stale_participant(&self) -> Option<Duration> {
+        let now = self.runtime.clock().now();
+        self.domain_participant_list
+            .iter()
+            .filter_map(|x| x.time_until_stale_participant(now))
+            .min()
+    }
+
+    pub(crate) fn poke(&mut self) {
+        for dp in &mut self.domain_participant_list {
+            dp.poke(&self.runtime.clock());
+        }
+    }
+
+    pub(crate) fn remove_stale_participants(&mut self) {
+        let now = self.runtime.clock().now();
+        for dp in &mut self.domain_participant_list {
+            dp.remove_stale_participants(now);
+        }
     }
 }

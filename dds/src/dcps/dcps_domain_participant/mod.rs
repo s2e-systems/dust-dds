@@ -43,15 +43,14 @@ use crate::{
             TopicQos,
         },
         qos_policy::{
-            BUILT_IN_DATA_REPRESENTATION, DataRepresentationQosPolicy, DeadlineQosPolicy,
-            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy,
-            DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, QosPolicyId,
-            ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
-            UserDataQosPolicy, WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
+            DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, Length,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            OwnershipStrengthQosPolicy, QosPolicyId, ReaderDataLifecycleQosPolicy,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -74,23 +73,19 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, ReliabilityKind, TopicKind,
+            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
         },
     },
     xtypes::{
         deserializer::{deserialize_key_only, deserialize_top_level_type},
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
-        serializer::{
-            serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le,
-            serialize_rtps,
-        },
+        serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
     },
 };
 use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
 use core::{
@@ -208,9 +203,7 @@ fn spdp_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -227,9 +220,7 @@ fn sedp_data_writer_qos() -> DataWriterQos {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
         },
-        representation: DataRepresentationQosPolicy {
-            value: vec![BUILT_IN_DATA_REPRESENTATION],
-        },
+        representation: DataRepresentationQosPolicy::const_default(),
         ..Default::default()
     }
 }
@@ -282,6 +273,15 @@ const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
 };
+
+struct DiscoveredParticipantInfo {
+    dds_participant_data: ParticipantBuiltinTopicData,
+    guid_prefix: GuidPrefix,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    lease_duration: Duration,
+    reception_timestamp: Time,
+}
 
 fn poll_timeout<T>(
     mut timer_handle: impl Timer,
@@ -638,6 +638,14 @@ impl DcpsDomainParticipant {
             domain_participant,
             dcps_sender,
         }
+    }
+
+    pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .discovered_participant_list
+            .iter()
+            .map(|dp| dp.lease_duration - (now - dp.reception_timestamp))
+            .min()
     }
 
     fn get_participant_async(&self) -> DomainParticipantAsync {
@@ -1106,7 +1114,7 @@ struct DomainParticipantEntity {
     default_publisher_qos: PublisherQos,
     topic_description_list: Vec<TopicDescriptionKind>,
     default_topic_qos: TopicQos,
-    discovered_participant_list: Vec<SpdpDiscoveredParticipantData>,
+    discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
     discovered_reader_list: Vec<DiscoveredReaderData>,
     discovered_writer_list: Vec<DiscoveredWriterData>,
@@ -1188,20 +1196,6 @@ impl DomainParticipantEntity {
         self.discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
-    }
-
-    fn add_discovered_participant(
-        &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        match self.discovered_participant_list.iter_mut().find(|p| {
-            p.dds_participant_data.key() == discovered_participant_data.dds_participant_data.key()
-        }) {
-            Some(x) => *x = discovered_participant_data,
-            None => self
-                .discovered_participant_list
-                .push(discovered_participant_data),
-        }
     }
 
     fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {
@@ -1509,6 +1503,132 @@ impl DataWriterEntity {
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),
         }
+    }
+
+    fn write_w_timestamp(
+        &mut self,
+        sample_instance_handle: InstanceHandle,
+        serialized_data: Vec<u8>,
+        sample_timestamp: Time,
+        now: Time,
+        message_writer: &(impl WriteMessage + ?Sized),
+        runtime: &impl DdsRuntime,
+    ) -> DdsResult<()> {
+        if !self
+            .registered_instance_list
+            .contains(&sample_instance_handle)
+        {
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_list.push(sample_instance_handle);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
+            if !self
+                .instance_samples
+                .iter()
+                .any(|x| x.instance == sample_instance_handle)
+                && self.instance_samples.len() == max_instances as usize
+            {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        if let Length::Limited(max_samples_per_instance) =
+            self.qos.resource_limits.max_samples_per_instance
+        {
+            // If the history Qos guarantess that the number of samples
+            // is below the limit there is no need to check
+            match self.qos.history.kind {
+                HistoryQosPolicyKind::KeepLast(depth)
+                    if depth as i32 <= max_samples_per_instance => {}
+                _ => {
+                    if let Some(s) = self
+                        .instance_samples
+                        .iter()
+                        .find(|x| x.instance == sample_instance_handle)
+                    {
+                        // Only Alive changes count towards the resource limits
+                        if s.samples.len() >= max_samples_per_instance as usize {
+                            return Err(DdsError::OutOfResources);
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
+            let total_samples = self
+                .instance_samples
+                .iter()
+                .fold(0, |acc, x| acc + x.samples.len());
+
+            if total_samples >= max_samples as usize {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+
+        self.last_change_sequence_number += 1;
+        let change = CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: self.transport_writer.guid(),
+            sequence_number: self.last_change_sequence_number,
+            source_timestamp: Some(sample_timestamp.into()),
+            instance_handle: Some(sample_instance_handle.into()),
+            data_value: serialized_data.into(),
+        };
+        let seq_num = change.sequence_number;
+
+        if seq_num > self.max_seq_num.unwrap_or(0) {
+            self.max_seq_num = Some(seq_num)
+        }
+
+        match self
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(x) => {
+                if x.last_write_time < sample_timestamp {
+                    x.last_write_time = sample_timestamp;
+                }
+            }
+            None => self
+                .instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: sample_instance_handle,
+                    last_write_time: sample_timestamp,
+                }),
+        }
+
+        match self
+            .instance_samples
+            .iter_mut()
+            .find(|x| x.instance == sample_instance_handle)
+        {
+            Some(s) => s.samples.push_back(change.sequence_number),
+            None => {
+                let s = InstanceSamples {
+                    instance: sample_instance_handle,
+                    samples: VecDeque::from([change.sequence_number]),
+                };
+                self.instance_samples.push(s);
+            }
+        }
+
+        if let DurationKind::Finite(lifespan_duration) = self.qos.lifespan.duration {
+            let duration_until_expired = sample_timestamp - now + lifespan_duration;
+            if duration_until_expired <= Duration::new(0, 0) {
+                return Ok(());
+            }
+        }
+
+        self.transport_writer
+            .add_change(change, message_writer, runtime);
+
+        Ok(())
     }
 
     fn dispose_w_timestamp(
@@ -2639,8 +2759,6 @@ fn serialize(
             } else {
                 serialize_cdr2_le(dynamic_data)
             }
-        } else if representation.value[0] == BUILT_IN_DATA_REPRESENTATION {
-            serialize_rtps(dynamic_data)
         } else {
             panic!("Invalid data representation")
         }?,

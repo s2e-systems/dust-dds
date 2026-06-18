@@ -12,7 +12,6 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::oneshot::oneshot,
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -24,12 +23,12 @@ use crate::{
         },
         dcps_domain_participant::{
             BuiltInKeyHolder, DataReaderEntity, DataWriterEntity, DcpsDomainParticipant,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            DiscoveredParticipantInfo, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            RtpsReaderKind, RtpsWriterKind, TopicDescriptionKind,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, RtpsReaderKind, RtpsWriterKind,
+            TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
     },
@@ -45,7 +44,7 @@ use crate::{
             TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
         },
         status::StatusKind,
-        time::Duration,
+        time::{Duration, Time},
         type_support::{Type, TypeSupport},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -60,6 +59,7 @@ use crate::{
     xtypes::{
         deserializer::{deserialize_builtin, deserialize_top_level_type},
         dynamic_type::DynamicDataFactory,
+        serializer::serialize_rtps,
     },
 };
 
@@ -110,26 +110,31 @@ impl DcpsDomainParticipant {
                     .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
                     .collect(),
             };
-            let data_writer_handle = InstanceHandle::new(
-                Guid::new(
-                    Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-                )
-                .into(),
-            );
-            let timestamp = runtime.clock().now();
-            let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-            let (reply_sender, _) = oneshot();
             let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
             spdp_discovered_participant_data.create_dynamic_sample(&mut data);
-            self.write_w_timestamp(
-                &publisher_handle,
-                &data_writer_handle,
-                &data,
-                timestamp,
-                runtime,
-                reply_sender,
-            );
+
+            if let Some(w) = self
+                .domain_participant
+                .builtin_publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| x.topic_name == DCPS_PARTICIPANT)
+            {
+                let timestamp = runtime.clock().now();
+                let sample_instance_handle = self.domain_participant.instance_handle;
+                let serialized_data = serialize_rtps(&data).expect("Must succeed");
+                let sample_timestamp = timestamp;
+                let now = timestamp;
+                w.write_w_timestamp(
+                    sample_instance_handle,
+                    serialized_data,
+                    sample_timestamp,
+                    now,
+                    self.transport.message_writer.as_ref(),
+                    runtime,
+                )
+                .ok();
+            }
         }
     }
 
@@ -161,6 +166,23 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+        }
+    }
+
+    pub fn remove_stale_participants(&mut self, now: Time) {
+        while let Some(handle) = self
+            .domain_participant
+            .discovered_participant_list
+            .iter()
+            .find_map(|x| {
+                if now - x.reception_timestamp > x.lease_duration {
+                    Some(InstanceHandle::new(x.dds_participant_data.key.value))
+                } else {
+                    None
+                }
+            })
+        {
+            self.remove_discovered_participant(&handle);
         }
     }
 
@@ -232,26 +254,31 @@ impl DcpsDomainParticipant {
             dds_publication_data,
             writer_proxy,
         };
-        let data_writer_handle = InstanceHandle::new(
-            Guid::new(
-                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            )
-            .into(),
-        );
-        let timestamp = runtime.clock().now();
-        let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-        let (reply_sender, _) = oneshot();
+
         let mut data = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
         discovered_writer_data.create_dynamic_sample(&mut data);
-        self.write_w_timestamp(
-            &publisher_handle,
-            &data_writer_handle,
-            &data,
-            timestamp,
-            runtime,
-            reply_sender,
-        );
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_PUBLICATION)
+        {
+            let now = runtime.clock().now();
+            let sample_instance_handle = data_writer.transport_writer.guid().into();
+            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let sample_timestamp = now;
+            let message_writer = self.transport.message_writer.as_ref();
+            dw.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                message_writer,
+                runtime,
+            )
+            .ok();
+        }
     }
 
     #[tracing::instrument(skip(self, data_writer, runtime))]
@@ -366,26 +393,32 @@ impl DcpsDomainParticipant {
             dds_subscription_data,
             reader_proxy,
         };
-        let data_writer_handle = InstanceHandle::new(
-            Guid::new(
-                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            )
-            .into(),
-        );
-        let timestamp = runtime.clock().now();
-        let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-        let (reply_sender, _) = oneshot();
+
         let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
         discovered_reader_data.create_dynamic_sample(&mut data);
-        self.write_w_timestamp(
-            &publisher_handle,
-            &data_writer_handle,
-            &data,
-            timestamp,
-            runtime,
-            reply_sender,
-        );
+
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
+        {
+            let now = runtime.clock().now();
+            let sample_instance_handle = data_reader.transport_reader.guid().into();
+            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let sample_timestamp = now;
+            let message_writer = self.transport.message_writer.as_ref();
+            dw.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                message_writer,
+                runtime,
+            )
+            .ok();
+        }
     }
 
     #[tracing::instrument(skip(self, data_reader, runtime))]
@@ -454,26 +487,31 @@ impl DcpsDomainParticipant {
             },
         };
 
-        let data_writer_handle = InstanceHandle::new(
-            Guid::new(
-                Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            )
-            .into(),
-        );
-        let timestamp = runtime.clock().now();
-        let publisher_handle = self.domain_participant.builtin_publisher.instance_handle;
-        let (reply_sender, _) = oneshot();
         let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
         discovered_topic_data.create_dynamic_sample(&mut data);
-        self.write_w_timestamp(
-            &publisher_handle,
-            &data_writer_handle,
-            &data,
-            timestamp,
-            runtime,
-            reply_sender,
-        );
+
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_TOPIC)
+        {
+            let sample_instance_handle = topic.instance_handle;
+            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let now = runtime.clock().now();
+            let sample_timestamp = now;
+            let message_writer = self.transport.message_writer.as_ref();
+            dw.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                message_writer,
+                runtime,
+            )
+            .ok();
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -488,13 +526,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_reader_data
                         .reader_proxy
                         .remote_reader_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_unicast_locator_list.clone()
+            p.default_unicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -503,13 +541,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_reader_data
                         .reader_proxy
                         .remote_reader_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_multicast_locator_list.clone()
+            p.default_multicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -924,13 +962,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_writer_data
                         .writer_proxy
                         .remote_writer_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_unicast_locator_list.clone()
+            p.default_unicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -939,13 +977,13 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find(|p| {
-                p.participant_proxy.guid_prefix
+                p.guid_prefix
                     == discovered_writer_data
                         .writer_proxy
                         .remote_writer_guid
                         .prefix()
             }) {
-            p.participant_proxy.default_multicast_locator_list.clone()
+            p.default_multicast_locator_list.clone()
         } else {
             vec![]
         };
@@ -1756,8 +1794,32 @@ impl DcpsDomainParticipant {
 
             self.announce_participant(runtime);
 
-            self.domain_participant
-                .add_discovered_participant(discovered_participant_data);
+            let discovered_participant_info = DiscoveredParticipantInfo {
+                dds_participant_data: discovered_participant_data.dds_participant_data,
+                guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
+                default_unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .default_unicast_locator_list,
+                default_multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .default_multicast_locator_list,
+                lease_duration: discovered_participant_data.lease_duration,
+                reception_timestamp: runtime.clock().now(),
+            };
+            match self
+                .domain_participant
+                .discovered_participant_list
+                .iter_mut()
+                .find(|p| {
+                    p.dds_participant_data.key()
+                        == discovered_participant_info.dds_participant_data.key()
+                }) {
+                Some(x) => *x = discovered_participant_info,
+                None => self
+                    .domain_participant
+                    .discovered_participant_list
+                    .push(discovered_participant_info),
+            }
         }
     }
 
