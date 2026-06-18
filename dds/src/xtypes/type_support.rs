@@ -23,22 +23,6 @@ pub trait TypeSupport: Type {
     fn create_dynamic_sample(self, data: &mut DynamicData);
 }
 
-impl Type for u8 {
-    const TYPE: DynamicType = DynamicType {
-        descriptor: &TypeDescriptor {
-            kind: TypeKind::UINT8,
-            name: "",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Final,
-            is_nested: true,
-        },
-        member_list: &[],
-    };
-}
 impl Type for i8 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
@@ -56,10 +40,10 @@ impl Type for i8 {
     };
 }
 
-impl Type for u16 {
+impl Type for u8 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
-            kind: TypeKind::UINT16,
+            kind: TypeKind::UINT8,
             name: "",
             base_type: None,
             discriminator_type: None,
@@ -90,10 +74,10 @@ impl Type for i16 {
     };
 }
 
-impl Type for u32 {
+impl Type for u16 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
-            kind: TypeKind::UINT32,
+            kind: TypeKind::UINT16,
             name: "",
             base_type: None,
             discriminator_type: None,
@@ -124,10 +108,10 @@ impl Type for i32 {
     };
 }
 
-impl Type for u64 {
+impl Type for u32 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
-            kind: TypeKind::UINT64,
+            kind: TypeKind::UINT32,
             name: "",
             base_type: None,
             discriminator_type: None,
@@ -158,10 +142,10 @@ impl Type for i64 {
     };
 }
 
-impl Type for bool {
+impl Type for u64 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
-            kind: TypeKind::BOOLEAN,
+            kind: TypeKind::UINT64,
             name: "",
             base_type: None,
             discriminator_type: None,
@@ -196,6 +180,23 @@ impl Type for f64 {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT64,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: true,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for bool {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::BOOLEAN,
             name: "",
             base_type: None,
             discriminator_type: None,
@@ -294,6 +295,40 @@ impl<T: Type, const N: usize> Type for [T; N] {
     };
 }
 
+impl<'a> Type for &'a [u8] {
+    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::ARRAY,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX as u32),
+            element_type: Some(u8::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl<'a> Type for &'a str {
+    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRING8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
 impl<T: TypeSupport> Type for Vec<T> {
     const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &crate::xtypes::dynamic_type::TypeDescriptor {
@@ -305,6 +340,23 @@ impl<T: TypeSupport> Type for Vec<T> {
             element_type: Some(T::TYPE),
             key_element_type: None,
             extensibility_kind: crate::xtypes::dynamic_type::ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<i8> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u8::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
         },
         member_list: &[],
@@ -328,7 +380,7 @@ impl Type for Vec<u8> {
     };
 }
 
-impl Type for Vec<u32> {
+impl Type for Vec<i16> {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
@@ -336,7 +388,24 @@ impl Type for Vec<u32> {
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(u32::TYPE),
+            element_type: Some(i16::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<u16> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u16::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
@@ -362,7 +431,7 @@ impl Type for Vec<i32> {
     };
 }
 
-impl Type for Vec<u16> {
+impl Type for Vec<u32> {
     const TYPE: DynamicType = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
@@ -370,7 +439,75 @@ impl Type for Vec<u16> {
             base_type: None,
             discriminator_type: None,
             bound: Some(u32::MAX),
-            element_type: Some(u16::TYPE),
+            element_type: Some(u32::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<i64> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(i64::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<u64> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(u64::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<f32> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(f32::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<f64> {
+    const TYPE: DynamicType = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(f64::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,

@@ -64,8 +64,8 @@ pub fn convert_python_type_to_dynamic_type(
             let type_name = field_dict.getattr("__name__")?.extract::<String>()?;
             match type_name.as_str() {
                 "int" => <i32 as dust_dds::xtypes::type_support::Type>::TYPE,
-                // "bytes" => <&[u8] as dust_dds::xtypes::type_support::Type>::TYPE_TYPE,
-                // "str" => <&str as dust_dds::xtypes::type_support::Type>::TYPE_TYPE,
+                "bytes" => <&[u8] as dust_dds::xtypes::type_support::Type>::TYPE,
+                "str" => <&str as dust_dds::xtypes::type_support::Type>::TYPE,
                 _ => unimplemented!("Mapping not implemented for {type_name}"),
             }
         };
