@@ -17,7 +17,7 @@ use crate::{
             ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
             TransportPriorityQosPolicy,
         },
-        type_support::TypeSupport,
+        type_support::{Type, TypeSupport},
     },
     xtypes::{
         data_storage::DataStorageMapping, dynamic_type::DynamicType, type_object::TypeInformation,
@@ -29,9 +29,8 @@ use alloc::string::String;
 pub struct DiscoveredTopicData {
     pub(crate) topic_builtin_topic_data: TopicBuiltinTopicData,
 }
-
-impl TypeSupport for DiscoveredTopicData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for DiscoveredTopicData {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("TopicBuiltinTopicData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -109,7 +108,8 @@ impl TypeSupport for DiscoveredTopicData {
             ),
         ],
     };
-
+}
+impl TypeSupport for DiscoveredTopicData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {

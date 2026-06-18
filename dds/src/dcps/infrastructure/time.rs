@@ -1,6 +1,6 @@
 use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{data_storage::ComplexData, dynamic_type::DynamicData},
+    infrastructure::type_support::{Type, TypeSupport},
+    xtypes::{dynamic_type::DynamicData},
 };
 use core::ops::{Add, Sub};
 
@@ -13,9 +13,10 @@ pub enum DurationKind {
     Infinite,
 }
 
+impl Type for DurationKind {
+    const TYPE_TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
+}
 impl TypeSupport for DurationKind {
-    const r#TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
-
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let duration = Duration::create_sample(src);
         match duration {
@@ -32,7 +33,6 @@ impl TypeSupport for DurationKind {
         value.create_dynamic_sample(data)
     }
 }
-impl ComplexData for DurationKind {}
 
 const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
 const DURATION_INFINITE_NSEC: u32 = 0xffffffff;

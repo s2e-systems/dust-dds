@@ -1,4 +1,7 @@
-use crate::{infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicTypeMember};
+use crate::{
+    infrastructure::type_support::{Type, TypeSupport},
+    xtypes::dynamic_type::DynamicTypeMember,
+};
 
 pub mod discovered_reader_data;
 pub mod discovered_topic_data;
@@ -46,12 +49,12 @@ impl ConvenienceTypeBuilder {
         }
     }
 
-    const fn member<T: TypeSupport>(index: u32, name: &'static str, id: i16) -> DynamicTypeMember {
+    const fn member<T: Type>(index: u32, name: &'static str, id: i16) -> DynamicTypeMember {
         DynamicTypeMember {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE,
+                r#type: T::TYPE_TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -66,7 +69,7 @@ impl ConvenienceTypeBuilder {
         }
     }
 
-    const fn member_with_default<T: TypeSupport>(
+    const fn member_with_default<T: Type>(
         index: u32,
         name: &'static str,
         id: i16,
@@ -75,7 +78,7 @@ impl ConvenienceTypeBuilder {
             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                 name,
                 id: id as u32,
-                r#type: T::TYPE,
+                r#type: T::TYPE_TYPE,
                 default_value: None,
                 index,
                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,

@@ -11,7 +11,10 @@ use crate::{
         ConvenienceTypeBuilder, parameter_id_values::DEFAULT_DOMAIN_TAG,
     },
     infrastructure::{
-        domain::DomainId, instance::InstanceHandle, time::Duration, type_support::TypeSupport,
+        domain::DomainId,
+        instance::InstanceHandle,
+        time::Duration,
+        type_support::{Type, TypeSupport},
     },
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
@@ -136,9 +139,8 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) lease_duration: Duration,
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
-
-impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for SpdpDiscoveredParticipantData {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "SpdpDiscoveredParticipantData",
@@ -207,7 +209,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParti
             ),
         ],
     };
-
+}
+impl dust_dds::infrastructure::type_support::TypeSupport for SpdpDiscoveredParticipantData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
         let guid_prefix = dds_participant_data.key.value[0..12]

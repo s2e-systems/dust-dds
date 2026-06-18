@@ -8,12 +8,15 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
-    infrastructure::qos_policy::{
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-        UserDataQosPolicy,
+    infrastructure::{
+        qos_policy::{
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy,
+            TopicDataQosPolicy, UserDataQosPolicy,
+        },
+        type_support::Type,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
@@ -34,9 +37,8 @@ pub struct DiscoveredReaderData {
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
 }
-
-impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for DiscoveredReaderData {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -140,7 +142,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderDat
             ),
         ],
     };
-
+}
+impl dust_dds::infrastructure::type_support::TypeSupport for DiscoveredReaderData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)

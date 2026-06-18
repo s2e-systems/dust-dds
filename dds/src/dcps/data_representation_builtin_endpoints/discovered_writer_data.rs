@@ -16,7 +16,7 @@ use crate::{
             OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
             ReliabilityQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         },
-        type_support::TypeSupport,
+        type_support::{Type, TypeSupport},
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{data_storage::DataStorageMapping, dynamic_type::DynamicType},
@@ -36,8 +36,8 @@ pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
 }
-impl TypeSupport for DiscoveredWriterData {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for DiscoveredWriterData {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredWriterData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -141,7 +141,8 @@ impl TypeSupport for DiscoveredWriterData {
             ),
         ],
     };
-
+}
+impl TypeSupport for DiscoveredWriterData {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)

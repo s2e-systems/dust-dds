@@ -2,11 +2,10 @@ use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::{
         time::{Duration, DurationKind},
-        type_support::TypeSupport,
+        type_support::{Type, TypeSupport},
     },
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        data_storage::ComplexData,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
     },
 };
@@ -24,10 +23,10 @@ pub enum Length {
     /// Limited length with the corresponding associated value.
     Limited(i32),
 }
-
+impl Type for Length {
+    const TYPE_TYPE: DynamicType = i32::TYPE_TYPE;
+}
 impl TypeSupport for Length {
-    const r#TYPE: DynamicType = i32::TYPE;
-
     fn create_dynamic_sample(self, data: &mut DynamicData) {
         let value = match self {
             Length::Limited(length) => length,
@@ -44,7 +43,6 @@ impl TypeSupport for Length {
         }
     }
 }
-impl ComplexData for Length {}
 
 const LENGTH_UNLIMITED: i32 = i32::MAX;
 
@@ -1044,14 +1042,13 @@ pub enum HistoryQosPolicyKind {
     /// Keep all samples.
     KeepAll,
 }
-
-impl TypeSupport for HistoryQosPolicyKind {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for HistoryQosPolicyKind {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
             base_type: None,
-            discriminator_type: Some(u8::TYPE),
+            discriminator_type: Some(u8::TYPE_TYPE),
             bound: None,
             element_type: None,
             key_element_type: None,
@@ -1060,7 +1057,8 @@ impl TypeSupport for HistoryQosPolicyKind {
         },
         member_list: &[],
     };
-
+}
+impl TypeSupport for HistoryQosPolicyKind {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let discriminant = src.get_uint8_value(0).unwrap();
         match discriminant {
@@ -1106,10 +1104,8 @@ impl HistoryQosPolicy {
         }
     }
 }
-impl ComplexData for HistoryQosPolicy {}
-
-impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
-    const r#TYPE: DynamicType = DynamicType {
+impl Type for HistoryQosPolicy {
+    const TYPE_TYPE: DynamicType = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "HistoryQosPolicy",
@@ -1144,7 +1140,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                 descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                     name: "depth",
                     id: 1,
-                    r#type: i32::TYPE,
+                    r#type: i32::TYPE_TYPE,
                     default_value: None,
                     index: 1u32,
                     try_construct_kind:
@@ -1160,7 +1156,8 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
             },
         ],
     };
-
+}
+impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
     fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
         let mut kind = src.get_complex_value(0).cloned().unwrap();
         let depth = src.get_int32_value(1).unwrap();
