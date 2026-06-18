@@ -15,7 +15,10 @@ use crate::{
         parameter_id_values::{
             DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_LIVELINESS, ParameterId,
         },
-        rtps_data::{CdrDeserialize, ParameterList},
+        rtps_data::{
+            CdrDeserialize, ParameterList, get_locator_list, get_non_optional_parameter,
+            get_optional_parameter,
+        },
     },
     infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
     transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
@@ -139,33 +142,6 @@ pub struct ParticipantProxy {
     pub(crate) builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
-fn get_optional_parameter<'a, T: CdrDeserialize<'a>>(
-    pl: &'a ParameterList,
-    pid: ParameterId,
-    default: T,
-) -> CdrResult<T> {
-    if let Some(pid_data) = pl.get_optional(pid) {
-        CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))
-    } else {
-        Ok(default)
-    }
-}
-fn get_non_optional_parameter<'a, T: CdrDeserialize<'a>>(
-    pl: &'a ParameterList,
-    pid: ParameterId,
-) -> CdrResult<T> {
-    CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pl.get_non_optional(pid)?))
-}
-fn get_list(pl: &ParameterList, pid: ParameterId) -> CdrResult<Vec<Locator>> {
-    let mut locator_list = vec![];
-    for pid_data in pl.get_list(pid) {
-        locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
-            pid_data,
-        ))?);
-    }
-    Ok(locator_list)
-}
-
 impl SpdpDiscoveredParticipantData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let pl = ParameterList::new(bytes);
@@ -197,10 +173,10 @@ impl SpdpDiscoveredParticipantData {
                 PID_EXPECTS_INLINE_QOS,
                 DEFAULT_EXPECTS_INLINE_QOS,
             )?,
-            metatraffic_unicast_locator_list: get_list(&pl, PID_METATRAFFIC_UNICAST_LOCATOR)?,
-            metatraffic_multicast_locator_list: get_list(&pl, PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-            default_unicast_locator_list: get_list(&pl, PID_DEFAULT_UNICAST_LOCATOR)?,
-            default_multicast_locator_list: get_list(&pl, PID_DEFAULT_MULTICAST_LOCATOR)?,
+            metatraffic_unicast_locator_list: get_locator_list(&pl, PID_METATRAFFIC_UNICAST_LOCATOR)?,
+            metatraffic_multicast_locator_list: get_locator_list(&pl, PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: get_locator_list(&pl, PID_DEFAULT_UNICAST_LOCATOR)?,
+            default_multicast_locator_list: get_locator_list(&pl, PID_DEFAULT_MULTICAST_LOCATOR)?,
             available_builtin_endpoints: get_non_optional_parameter(&pl, PID_BUILTIN_ENDPOINT_SET)?,
             manual_liveliness_count: get_optional_parameter(
                 &pl,

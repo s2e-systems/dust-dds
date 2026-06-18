@@ -6,8 +6,12 @@ use super::parameter_id_values::{
     PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder,
+        parameter_id_values::{PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR},
+        rtps_data::{CdrResult, ParameterList, get_locator_list, get_optional_parameter},
+    },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy, DeadlineQosPolicy,
         DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -18,6 +22,7 @@ use crate::{
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         data_storage::DataStorageMapping,
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicType,
         type_support::{Type, TypeSupport},
     },
@@ -36,6 +41,31 @@ pub struct WriterProxy {
 pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
+}
+
+impl DiscoveredWriterData {
+    fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+        let pl = ParameterList::new(bytes);
+
+        let dds_publication_data = PublicationBuiltinTopicData::create_sample(
+            &mut deserialize_top_level_type(PublicationBuiltinTopicData::TYPE, bytes)?,
+        );
+
+        let writer_proxy = WriterProxy {
+            remote_writer_guid: Guid::from(dds_publication_data.key.value),
+            remote_group_entity_id: get_optional_parameter(
+                &pl,
+                PID_GROUP_ENTITYID,
+                ENTITYID_UNKNOWN,
+            )?,
+            unicast_locator_list: get_locator_list(&pl, PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: get_locator_list(&pl, PID_MULTICAST_LOCATOR)?,
+        };
+        Ok(DiscoveredWriterData {
+            dds_publication_data,
+            writer_proxy,
+        })
+    }
 }
 impl Type for DiscoveredWriterData {
     const TYPE: DynamicType = DynamicType {

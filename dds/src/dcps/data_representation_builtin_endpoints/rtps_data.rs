@@ -4,7 +4,7 @@ use crate::{
         spdp_discovered_participant_data::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     infrastructure::{qos_policy::UserDataQosPolicy, time::Duration},
-    transport::types::{Locator, Long, ProtocolVersion, UnsignedLong},
+    transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
     xtypes::{
         deserializer::{
             Align, AsBytes, EncodingVersion1, LittleEndian, NextCdrReader, XTypesDeserializer,
@@ -70,12 +70,44 @@ impl<'a> ParameterList<'a> {
     }
 }
 
+pub fn get_optional_parameter<'a, T: CdrDeserialize<'a>>(
+    pl: &'a ParameterList,
+    pid: ParameterId,
+    default: T,
+) -> CdrResult<T> {
+    if let Some(pid_data) = pl.get_optional(pid) {
+        CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data))
+    } else {
+        Ok(default)
+    }
+}
+pub fn get_non_optional_parameter<'a, T: CdrDeserialize<'a>>(
+    pl: &'a ParameterList,
+    pid: ParameterId,
+) -> CdrResult<T> {
+    CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pl.get_non_optional(pid)?))
+}
+pub fn get_locator_list(pl: &ParameterList, pid: ParameterId) -> CdrResult<Vec<Locator>> {
+    let mut locator_list = vec![];
+    for pid_data in pl.get_list(pid) {
+        locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+            pid_data,
+        ))?);
+    }
+    Ok(locator_list)
+}
+
 pub struct CdrDeserializer<'a> {
     reader: NextCdrReader<'a, LittleEndian>,
 }
 
 pub trait CdrDeserialize<'a>: Sized {
     fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self>;
+}
+impl<'a> CdrDeserialize<'a> for Octet {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        de.deserialize_primitive()
+    }
 }
 impl<'a> CdrDeserialize<'a> for Long {
     fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
@@ -137,6 +169,14 @@ impl<'a> CdrDeserialize<'a> for Duration {
             CdrDeserialize::cdr_deserialize(de)?,
             CdrDeserialize::cdr_deserialize(de)?,
         ))
+    }
+}
+impl<'a> CdrDeserialize<'a> for EntityId {
+    fn cdr_deserialize(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        Ok(EntityId {
+            entity_key: CdrDeserialize::cdr_deserialize(de)?,
+            entity_kind: CdrDeserialize::cdr_deserialize(de)?,
+        })
     }
 }
 

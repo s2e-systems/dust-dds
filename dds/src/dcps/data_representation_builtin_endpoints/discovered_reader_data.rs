@@ -7,7 +7,10 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder,
+        rtps_data::{CdrResult, ParameterList, get_locator_list, get_optional_parameter},
+    },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -18,6 +21,7 @@ use crate::{
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         data_storage::DataStorageMapping,
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicType,
         type_support::{Type, TypeSupport},
     },
@@ -38,6 +42,37 @@ pub struct DiscoveredReaderData {
     pub(crate) dds_subscription_data: SubscriptionBuiltinTopicData,
     pub(crate) reader_proxy: ReaderProxy,
 }
+
+impl DiscoveredReaderData {
+    fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+        let pl = ParameterList::new(bytes);
+
+        let dds_subscription_data = SubscriptionBuiltinTopicData::create_sample(
+            &mut deserialize_top_level_type(SubscriptionBuiltinTopicData::TYPE, bytes)?,
+        );
+
+        let reader_proxy = ReaderProxy {
+            remote_reader_guid: Guid::from(dds_subscription_data.key.value),
+            remote_group_entity_id: get_optional_parameter(
+                &pl,
+                PID_GROUP_ENTITYID,
+                ENTITYID_UNKNOWN,
+            )?,
+            unicast_locator_list: get_locator_list(&pl, PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: get_locator_list(&pl, PID_MULTICAST_LOCATOR)?,
+            expects_inline_qos: get_optional_parameter(
+                &pl,
+                PID_EXPECTS_INLINE_QOS,
+                DEFAULT_EXPECTS_INLINE_QOS,
+            )?,
+        };
+        Ok(DiscoveredReaderData {
+            dds_subscription_data,
+            reader_proxy,
+        })
+    }
+}
+
 impl Type for DiscoveredReaderData {
     const TYPE: DynamicType = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
@@ -636,5 +671,70 @@ mod tests {
             deserialize_builtin(DiscoveredReaderData::TYPE, &data).unwrap(),
             expected
         );
+    }
+
+    #[test]
+    fn deserialize_all_default_from_bytes() {
+        let expected = DiscoveredReaderData {
+            reader_proxy: ReaderProxy {
+                remote_reader_guid: Guid::new(
+                    [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+            dds_subscription_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                ownership: Default::default(),
+                destination_order: Default::default(),
+                user_data: Default::default(),
+                time_based_filter: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+        };
+
+        let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc2, // u8[3], u8
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+
+        assert_eq!(DiscoveredReaderData::from_bytes(&data).unwrap(), expected);
     }
 }
