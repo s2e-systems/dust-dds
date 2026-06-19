@@ -9,7 +9,7 @@ use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
-        rtps_data::{CdrResult, ParameterList},
+        rtps_data_representation::{CdrResult, ParameterList},
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,

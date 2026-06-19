@@ -6,14 +6,14 @@ use super::{
         PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
     },
-    rtps_data::CdrResult,
+    rtps_data_representation::CdrResult,
 };
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
         parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
-        rtps_data::ParameterList,
+        rtps_data_representation::ParameterList,
     },
     infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},

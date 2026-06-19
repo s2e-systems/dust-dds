@@ -8,7 +8,7 @@ use crate::{
             PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
             PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
-        rtps_data::CdrResult,
+        rtps_data_representation::CdrResult,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
