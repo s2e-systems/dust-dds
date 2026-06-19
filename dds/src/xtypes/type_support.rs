@@ -8,6 +8,7 @@ use crate::xtypes::dynamic_type::{
 
 /// The Type trait represents static type information of Rust types
 pub trait Type {
+    /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
     const TYPE: DynamicType;
 }
 
