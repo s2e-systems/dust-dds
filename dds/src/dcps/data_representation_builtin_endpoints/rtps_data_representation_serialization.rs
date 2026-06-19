@@ -5,36 +5,14 @@ use crate::{
     },
     infrastructure::time::Duration,
     transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
-    xtypes::error::XTypesError,
 };
 use alloc::{string::String, vec::Vec};
 
-pub type CdrResult<T> = Result<T, CdrError>;
-
-#[derive(Debug, PartialEq)]
-pub enum CdrError {
-    InvalidData,
-    PidNotFound(i16),
-    NotEnoughData,
-    XTypes(XTypesError),
-}
-impl From<XTypesError> for CdrError {
-    fn from(value: XTypesError) -> Self {
-        CdrError::XTypes(value)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum Endianness {
-    Big,
-    Little,
-}
-
-pub(crate) struct ParameterList<'a> {
+pub(crate) struct ParameterListSerializer<'a> {
     data: &'a mut Vec<u8>,
 }
 
-impl<'a> ParameterList<'a> {
+impl<'a> ParameterListSerializer<'a> {
     pub(crate) fn new(data: &'a mut Vec<u8>) -> Self {
         Self { data }
     }
@@ -203,7 +181,7 @@ mod tests {
     impl TestDiscoveryData {
         fn to_bytes(&self) -> Vec<u8> {
             let mut buffer = Vec::new();
-            let mut pl = ParameterList::new(&mut buffer);
+            let mut pl = ParameterListSerializer::new(&mut buffer);
             pl.write_header();
             pl.write_optional_parameter(15, &self.domain_id, &0);
             pl.write_optional_parameter(0x4014, &self.domain_tag, &String::from(""));
