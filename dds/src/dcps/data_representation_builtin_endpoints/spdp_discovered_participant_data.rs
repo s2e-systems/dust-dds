@@ -18,7 +18,7 @@ use crate::{
         rtps_data::{CdrDeserialize, ParameterList},
     },
     infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
-    transport::types::{GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
+    transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
         data_storage::DataStorageMapping,
         deserializer::{XTypesDeserializer, deserialize_top_level_type},
@@ -141,26 +141,19 @@ pub struct ParticipantProxy {
 
 impl SpdpDiscoveredParticipantData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::<()>::new(bytes);
+        let pl = ParameterList::new(bytes)?;
 
-        let domain_id = if let Some(pid_data) = pl.get_optional(PID_DOMAIN_ID) {
-            Some(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::<()>::new(
-                pid_data,
-            ))?)
-        } else {
-            None
-        };
 
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(ParticipantBuiltinTopicData::TYPE, bytes)?,
         );
 
         let participant_proxy = ParticipantProxy {
-            domain_id,
+            domain_id:  pl.get_non_optional_parameter(PID_DOMAIN_ID).ok(),
             domain_tag: pl
                 .get_optional_parameter(PID_DOMAIN_TAG, String::from(DEFAULT_DOMAIN_TAG))?,
             protocol_version: pl.get_non_optional_parameter(PID_PROTOCOL_VERSION)?,
-            guid_prefix: pl.get_non_optional_parameter(PID_PARTICIPANT_GUID)?,
+            guid_prefix: Guid::from(dds_participant_data.key.value).prefix(),
             vendor_id: pl.get_non_optional_parameter(PID_VENDORID)?,
             expects_inline_qos: pl
                 .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
@@ -655,8 +648,7 @@ mod tests {
         );
         let lease_duration = Duration::new(10, 11);
 
-        let mut expected = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
-        let expected_struct = SpdpDiscoveredParticipantData {
+        let expected = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
@@ -681,7 +673,6 @@ mod tests {
             lease_duration,
             discovered_participant_list: vec![],
         };
-        // expected_struct.create_dynamic_sample(&mut expected);
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -747,15 +738,9 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ];
-
-        // assert_eq!(
-        //     deserialize_builtin(SpdpDiscoveredParticipantData::TYPE, &data).unwrap(),
-        //     expected
-        // );
-
         assert_eq!(
             SpdpDiscoveredParticipantData::from_bytes(&data).unwrap(),
-            expected_struct
+            expected
         );
     }
 }

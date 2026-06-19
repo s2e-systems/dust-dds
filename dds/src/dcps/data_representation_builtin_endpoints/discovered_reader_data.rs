@@ -45,7 +45,7 @@ pub struct DiscoveredReaderData {
 
 impl DiscoveredReaderData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::<()>::new(bytes);
+        let pl = ParameterList::new(bytes)?;
 
         let dds_subscription_data = SubscriptionBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(SubscriptionBuiltinTopicData::TYPE, bytes)?,

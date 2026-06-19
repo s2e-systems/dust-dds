@@ -45,7 +45,7 @@ pub struct DiscoveredWriterData {
 
 impl DiscoveredWriterData {
     fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let pl = ParameterList::<()>::new(bytes);
+        let pl = ParameterList::new(bytes)?;
 
         let dds_publication_data = PublicationBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(PublicationBuiltinTopicData::TYPE, bytes)?,
@@ -511,8 +511,7 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let mut expected = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
-        DiscoveredWriterData {
+        let expected = DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -548,8 +547,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
-        }
-        .create_dynamic_sample(&mut expected);
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -573,9 +571,6 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(
-            deserialize_builtin(DiscoveredWriterData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(DiscoveredWriterData::from_bytes(&data).unwrap(), expected);
     }
 }

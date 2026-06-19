@@ -1275,7 +1275,7 @@ trait XTypesDeserialize {
     }
 }
 
-pub trait Align {
+trait Align {
     fn align<'a, E: EndiannessRead, V: EncodingVersion>(reader: &mut NextCdrReader<'a, E>);
 }
 impl Align for bool {
