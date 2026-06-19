@@ -140,16 +140,15 @@ pub struct ParticipantProxy {
 }
 
 impl SpdpDiscoveredParticipantData {
-    fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let pl = ParameterList::new(bytes)?;
-
 
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(ParticipantBuiltinTopicData::TYPE, bytes)?,
         );
 
         let participant_proxy = ParticipantProxy {
-            domain_id:  pl.get_non_optional_parameter(PID_DOMAIN_ID).ok(),
+            domain_id: pl.get_non_optional_parameter(PID_DOMAIN_ID).ok(),
             domain_tag: pl
                 .get_optional_parameter(PID_DOMAIN_TAG, String::from(DEFAULT_DOMAIN_TAG))?,
             protocol_version: pl.get_non_optional_parameter(PID_PROTOCOL_VERSION)?,
@@ -458,10 +457,7 @@ mod tests {
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy,
         rtps::types::PROTOCOLVERSION_2_4,
-        xtypes::{
-            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
-            serializer::serialize_rtps,
-        },
+        xtypes::{dynamic_type::DynamicDataFactory, serializer::serialize_rtps},
     };
 
     #[test]

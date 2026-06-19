@@ -33,7 +33,7 @@ pub struct DiscoveredTopicData {
 }
 
 impl DiscoveredTopicData {
-    fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let topic_builtin_topic_data = TopicBuiltinTopicData::create_sample(
             &mut deserialize_top_level_type(TopicBuiltinTopicData::TYPE, bytes)?,
         );
@@ -328,10 +328,7 @@ mod tests {
     use crate::{
         builtin_topics::BuiltInTopicKey,
         infrastructure::qos::TopicQos,
-        xtypes::{
-            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
-            serializer::serialize_rtps,
-        },
+        xtypes::{dynamic_type::DynamicDataFactory, serializer::serialize_rtps},
     };
 
     #[test]
@@ -384,8 +381,7 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let topic_qos = TopicQos::default();
-        let mut expected = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
-        DiscoveredTopicData {
+        let expected = DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -407,8 +403,7 @@ mod tests {
                 topic_data: topic_qos.topic_data,
                 representation: topic_qos.representation,
             },
-        }
-        .create_dynamic_sample(&mut expected);
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -425,10 +420,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(
-            deserialize_builtin(DiscoveredTopicData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(DiscoveredTopicData::from_bytes(&data).unwrap(), expected);
     }
 
     #[test]

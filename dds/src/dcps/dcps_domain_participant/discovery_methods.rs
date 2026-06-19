@@ -49,7 +49,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{deserialize_builtin, deserialize_top_level_type},
+        deserializer::{deserialize_top_level_type},
         dynamic_type::DynamicDataFactory,
         serializer::serialize_rtps,
         type_support::{Type, TypeSupport},
@@ -1399,13 +1399,9 @@ impl DcpsDomainParticipant {
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) = deserialize_builtin(
-                    SpdpDiscoveredParticipantData::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    let discovered_participant_data =
-                        SpdpDiscoveredParticipantData::create_sample(&mut dynamic_data);
-
+                if let Ok(discovered_participant_data) =
+                    SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
+                {
                     self.add_discovered_participant(discovered_participant_data, runtime);
                 }
             }
@@ -1449,12 +1445,9 @@ impl DcpsDomainParticipant {
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) = deserialize_builtin(
-                    DiscoveredWriterData::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    let discovered_writer_data =
-                        DiscoveredWriterData::create_sample(&mut dynamic_data);
+                if let Ok(discovered_writer_data) =
+                    DiscoveredWriterData::from_bytes(cache_change.data_value.as_ref())
+                {
                     let publication_builtin_topic_data =
                         &discovered_writer_data.dds_publication_data;
                     if self
@@ -1559,12 +1552,9 @@ impl DcpsDomainParticipant {
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) = deserialize_builtin(
-                    DiscoveredReaderData::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    let discovered_reader_data =
-                        DiscoveredReaderData::create_sample(&mut dynamic_data);
+                if let Ok(discovered_reader_data) =
+                    DiscoveredReaderData::from_bytes(cache_change.data_value.as_ref())
+                {
                     if self
                         .domain_participant
                         .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
@@ -1697,12 +1687,10 @@ impl DcpsDomainParticipant {
     ) {
         match cache_change.kind {
             ChangeKind::Alive => {
-                if let Ok(mut dynamic_data) =
-                    deserialize_builtin(DiscoveredTopicData::TYPE, cache_change.data_value.as_ref())
+                if let Ok(discovered_topic_data) =
+                    DiscoveredTopicData::from_bytes(cache_change.data_value.as_ref())
                 {
-                    let topic_builtin_topic_data =
-                        TopicBuiltinTopicData::create_sample(&mut dynamic_data);
-
+                    let topic_builtin_topic_data = discovered_topic_data.topic_builtin_topic_data;
                     self.domain_participant
                         .add_discovered_topic(topic_builtin_topic_data.clone());
                     for topic in self.domain_participant.topic_description_list.iter_mut() {

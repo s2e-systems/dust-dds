@@ -44,7 +44,7 @@ pub struct DiscoveredReaderData {
 }
 
 impl DiscoveredReaderData {
-    fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let pl = ParameterList::new(bytes)?;
 
         let dds_subscription_data = SubscriptionBuiltinTopicData::create_sample(
@@ -450,7 +450,6 @@ mod tests {
             USER_DEFINED_UNKNOWN,
         },
         xtypes::{
-            deserializer::deserialize_builtin,
             dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
             type_support::{Type, TypeSupport},
@@ -599,8 +598,7 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let mut expected = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
-        DiscoveredReaderData {
+        let expected = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
@@ -635,8 +633,7 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
             },
-        }
-        .create_dynamic_sample(&mut expected);
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -661,10 +658,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
 
-        assert_eq!(
-            deserialize_builtin(DiscoveredReaderData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(DiscoveredReaderData::from_bytes(&data).unwrap(), expected);
     }
 
     #[test]
