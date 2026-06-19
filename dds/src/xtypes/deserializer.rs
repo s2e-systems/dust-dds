@@ -20,7 +20,7 @@ const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
-pub trait Read {
+trait Read {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]>;
 
     fn read_array<const N: usize>(&mut self) -> XTypesResult<&[u8; N]> {
@@ -123,31 +123,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2KeyDeserializer<'a, E> {
         T::deserialize(&mut self.reader)
     }
 }
-
-struct Cdr1Deserializer<'a, E: EndiannessRead> {
-    reader: CdrReader<'a, E, CdrVersion1>,
-}
-
-impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
-    fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            reader: CdrReader::new(buffer, endianness, CdrVersion1),
-        }
-    }
-}
-
-struct RtpsPlCdrDeserializer<'a> {
-    cdr1_deserializer: Cdr1Deserializer<'a, LittleEndian>,
-}
-
-impl<'a> RtpsPlCdrDeserializer<'a> {
-    fn new(buffer: &'a [u8]) -> Self {
-        Self {
-            cdr1_deserializer: Cdr1Deserializer::new(buffer, LittleEndian),
-        }
-    }
-}
-
 trait CdrVersion {
     const MAX_ALIGN: usize;
 }
@@ -162,7 +137,7 @@ impl CdrVersion for CdrVersion2 {
     const MAX_ALIGN: usize = 4;
 }
 
-pub trait EndiannessRead {
+trait EndiannessRead {
     fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16>;
     fn read_u16<R: Read>(reader: &mut R) -> XTypesResult<u16>;
     fn read_i32<R: Read>(reader: &mut R) -> XTypesResult<i32>;
@@ -214,7 +189,7 @@ impl EndiannessRead for BigEndian {
     }
 }
 
-pub struct LittleEndian;
+struct LittleEndian;
 
 impl EndiannessRead for LittleEndian {
     fn read_i16<R: Read>(reader: &mut R) -> XTypesResult<i16> {
@@ -306,7 +281,7 @@ trait EncodingVersion {
     ) -> XTypesResult<()>;
 }
 
-pub struct EncodingVersion1;
+struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
     const MAX_ALIGN: usize = 8;
 
@@ -489,7 +464,7 @@ pub fn deserialize_top_level_type(
     }
 }
 
-pub struct XTypesDeserializer<'a, E, V> {
+struct XTypesDeserializer<'a, E, V> {
     reader: NextCdrReader<'a, E>,
     _encoding_version: V,
 }
@@ -522,7 +497,7 @@ fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bo
 }
 
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
-    pub fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
+    fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
             reader: NextCdrReader::new(buffer, endianness),
             _encoding_version: encoding_version,
@@ -642,10 +617,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    pub fn deserialize_as_nested(
-        &mut self,
-        dynamic_type: DynamicType,
-    ) -> XTypesResult<DynamicData> {
+    fn deserialize_as_nested(&mut self, dynamic_type: DynamicType) -> XTypesResult<DynamicData> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
         fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
@@ -771,13 +743,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (2)
-    pub fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
+    fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
         O::align::<_, V>(&mut self.reader);
         O::as_bytes(&mut self.reader)
     }
 
     /// Serialization Rule (3) & (4)
-    pub fn deserialize_string_type(&mut self) -> XTypesResult<String> {
+    fn deserialize_string_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
         let values = self.reader.read_all(length as usize - 1)?.to_vec();
         self.reader.read_byte()?; // 0-termination
@@ -1311,7 +1283,7 @@ impl Align for char {
     fn align<'a, E: EndiannessRead, V: EncodingVersion>(_reader: &mut NextCdrReader<'a, E>) {}
 }
 
-pub trait AsBytes {
+trait AsBytes {
     fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a, E>) -> XTypesResult<Self>
     where
         Self: Sized;
@@ -1500,21 +1472,21 @@ impl CdrPrimitiveTypeDeserialize for char {
     }
 }
 
-pub struct NextCdrReader<'a, E> {
+struct NextCdrReader<'a, E> {
     buffer: &'a [u8],
     pos: usize,
     _endianness: E,
 }
 
 impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
-    pub fn new(buffer: &'a [u8], endianness: E) -> Self {
+    fn new(buffer: &'a [u8], endianness: E) -> Self {
         Self {
             buffer,
             pos: 0,
             _endianness: endianness,
         }
     }
-    pub fn read_byte(&mut self) -> XTypesResult<u8> {
+    fn read_byte(&mut self) -> XTypesResult<u8> {
         if self.pos + 1 > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
         }
@@ -1523,7 +1495,7 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
         Ok(ret)
     }
 
-    pub fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
+    fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
         if self.pos + length > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
         }
@@ -1536,7 +1508,7 @@ impl<'a, E: EndiannessRead> NextCdrReader<'a, E> {
         self.pos += v
     }
 
-    pub fn seek_padding(&mut self, alignment: usize) {
+    fn seek_padding(&mut self, alignment: usize) {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
@@ -1618,100 +1590,11 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
-
-    fn set_position(&mut self, pos: usize) {
-        self.pos = pos;
-    }
-
-    fn seek_to_pid(&mut self, pid: u16) -> XTypesResult<bool> {
-        const PID_SENTINEL: u16 = 1;
-        loop {
-            let current_pid = E::read_u16(self)?;
-            let length = E::read_u16(self)? as usize;
-            if current_pid == pid {
-                return Ok(true);
-            } else if current_pid == PID_SENTINEL {
-                return Ok(false);
-            } else {
-                self.seek(length);
-                self.seek_padding(4);
-            }
-        }
-    }
 }
 
 impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
         self.read_all(size)
-    }
-}
-
-impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            let member_descriptor = member.get_descriptor()?;
-            let pid = member.get_id() as u16;
-
-            self.reader.set_position(0);
-            if self.reader.seek_to_pid(pid)? {
-                self.deserialize_final_member(member, dynamic_data)?;
-            } else if !member_descriptor.is_optional {
-                return Err(XTypesError::PidNotFound(pid));
-            }
-        }
-        Ok(())
-    }
-
-    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.reader)
-    }
-}
-
-impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            let member_descriptor = member.get_descriptor()?;
-            let pid = member.get_id() as u16;
-
-            self.cdr1_deserializer.reader.set_position(0);
-            if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                let mut sequence = Vec::new();
-                while self.cdr1_deserializer.reader.seek_to_pid(pid)? {
-                    sequence.push(
-                        self.deserialize_complex_value(
-                            member_descriptor
-                                .r#type
-                                .get_descriptor()
-                                .element_type
-                                .expect("must have element_type"),
-                        )?,
-                    );
-                }
-                // Only add empty sequences to non-optional members
-                if !(sequence.is_empty() && member_descriptor.is_optional) {
-                    dynamic_data.set_complex_values(pid as u32, sequence)?;
-                }
-            } else if self.cdr1_deserializer.reader.seek_to_pid(pid)? {
-                self.deserialize_final_member(member, dynamic_data)?;
-            } else if member_descriptor.is_key {
-                return Err(XTypesError::PidNotFound(pid));
-            }
-        }
-        Ok(())
-    }
-
-    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.cdr1_deserializer.reader)
     }
 }
 

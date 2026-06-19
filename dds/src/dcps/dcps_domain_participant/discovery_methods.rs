@@ -49,7 +49,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{deserialize_top_level_type},
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_rtps,
         type_support::{Type, TypeSupport},

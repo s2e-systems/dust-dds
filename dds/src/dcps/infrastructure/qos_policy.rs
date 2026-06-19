@@ -934,99 +934,13 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
 /// kind* is true. For the purposes of this inequality, the values of [`ReliabilityQosPolicyKind`] are considered ordered such
 /// that *BestEffort < Reliable*.
-#[derive(Debug, PartialEq, Eq, Clone)]
-// #[dust_dds(extensibility = "appendable", nested)]
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
 pub struct ReliabilityQosPolicy {
     /// Kind of reliability QoS
     pub kind: ReliabilityQosPolicyKind,
     /// Maximum blocking time to block. This only applies when kind is set to [`ReliabilityQosPolicyKind::Reliable`]
     pub max_blocking_time: DurationKind,
-}
-
-
-#[automatically_derived]
-impl dust_dds::xtypes::type_support::TypeSupport for ReliabilityQosPolicy {
-    fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
-        Self {
-            kind: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(
-                src.remove_value(0).expect("Must exist"),
-            )
-            .expect("Must match"),
-            max_blocking_time:
-                dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(
-                    src.remove_value(1).expect("Must exist"),
-                )
-                .expect("Must match"),
-        }
-    }
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
-        data.set_value(
-            0,
-            dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.kind),
-        );
-        data.set_value(
-            1,
-            dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(
-                self.max_blocking_time,
-            ),
-        );
-    }
-}
-#[automatically_derived]
-impl dust_dds::xtypes::type_support::Type for ReliabilityQosPolicy {
-    const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
-        dust_dds::xtypes::dynamic_type::DynamicType {
-            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: "ReliabilityQosPolicy",
-                base_type: None,
-                discriminator_type: None,
-                bound: None,
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable,
-                is_nested: true,
-            },
-            member_list: &[
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "kind",
-                        id: 0,
-                        r#type:
-                            <ReliabilityQosPolicyKind as dust_dds::xtypes::type_support::Type>::TYPE,
-                        default_value: None,
-                        index: 0u32 as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "max_blocking_time",
-                        id: 1,
-                        r#type: <DurationKind as dust_dds::xtypes::type_support::Type>::TYPE,
-                        default_value: None,
-                        index: 1u32 as u32,
-                        try_construct_kind:
-                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                        label: None,
-                        is_key: false,
-                        is_optional: false,
-                        is_must_understand: false,
-                        is_shared: false,
-                        is_default_label: false,
-                        is_external: false,
-                    },
-                },
-            ],
-        };
 }
 
 impl QosPolicy for ReliabilityQosPolicy {

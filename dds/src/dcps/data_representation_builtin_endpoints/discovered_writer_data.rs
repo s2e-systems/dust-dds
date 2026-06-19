@@ -6,10 +6,9 @@ use super::parameter_id_values::{
     PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
-        parameter_id_values::{PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR},
         rtps_data::{CdrResult, ParameterList},
     },
     infrastructure::qos_policy::{

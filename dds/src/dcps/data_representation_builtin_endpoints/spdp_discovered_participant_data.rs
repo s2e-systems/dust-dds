@@ -6,22 +6,20 @@ use super::{
         PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
     },
-    rtps_data::{CdrDeserializer, CdrResult},
+    rtps_data::CdrResult,
 };
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         ConvenienceTypeBuilder,
-        parameter_id_values::{
-            DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_LIVELINESS, ParameterId,
-        },
-        rtps_data::{CdrDeserialize, ParameterList},
+        parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
+        rtps_data::ParameterList,
     },
     infrastructure::{domain::DomainId, instance::InstanceHandle, time::Duration},
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::{
         data_storage::DataStorageMapping,
-        deserializer::{XTypesDeserializer, deserialize_top_level_type},
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicType,
         type_support::{Type, TypeSupport},
     },

@@ -75,13 +75,9 @@ impl<'a> ParameterList<'a> {
         Ok(locator_list)
     }
 
-    pub(crate) fn endianness(&self) -> Endianness {
-        self.endianness
-    }
-
     fn get_list(&self, pid: ParameterId) -> CdrResult<Vec<&'a [u8]>> {
         let mut list = Vec::new();
-        let mut pointer = &self.data[..];
+        let mut pointer = self.data;
         loop {
             let mut de = CdrDeserializer::new(pointer, self.endianness);
             let current_pid = i16::cdr_deserialize(&mut de)?;
@@ -95,7 +91,7 @@ impl<'a> ParameterList<'a> {
         }
     }
     fn seek_to_pid(&self, pid: ParameterId) -> CdrResult<Option<&'a [u8]>> {
-        let mut pointer = &self.data[..];
+        let mut pointer = self.data;
         loop {
             let mut de = CdrDeserializer::new(pointer, self.endianness);
             let current_pid = i16::cdr_deserialize(&mut de)?;
