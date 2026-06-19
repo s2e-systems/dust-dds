@@ -5,7 +5,7 @@ pub(crate) mod serializer;
 #[doc(hidden)]
 pub mod bytes;
 
-#[doc(hidden)]
+/// Representation of data storage for dynamic types.
 pub mod data_storage;
 
 /// Classes related to the dynamic representation of types and data.
