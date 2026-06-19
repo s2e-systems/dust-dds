@@ -224,9 +224,9 @@ pub enum DurabilityKind {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Locator {
-    kind: Long,
-    port: UnsignedLong,
-    address: [Octet; 16],
+    pub(crate) kind: Long,
+    pub(crate) port: UnsignedLong,
+    pub(crate) address: [Octet; 16],
 }
 
 #[allow(dead_code)]
