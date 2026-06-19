@@ -7,55 +7,83 @@ use crate::xtypes::{
 };
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 
+/// Represents a sequence bound.
 pub type BoundSeq = Option<u32>;
+/// Represents a sequence of include paths.
 pub type IncludePathSeq = Vec<String>;
+/// Represents the name of an object.
 pub type ObjectName<'a> = &'a str;
 
 // ---------- TypeKinds (begin) -------------------
+/// Represents the kind of a dynamic type (e.g., primitive, constructed, or collection type).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum TypeKind {
-    // Primitive TKs
+    /// No type kind.
     NONE = 0x00,
+    /// Boolean type kind.
     BOOLEAN = 0x01,
+    /// Byte type kind.
     BYTE = 0x02,
+    /// 16-bit signed integer type kind.
     INT16 = 0x03,
+    /// 32-bit signed integer type kind.
     INT32 = 0x04,
+    /// 64-bit signed integer type kind.
     INT64 = 0x05,
+    /// 16-bit unsigned integer type kind.
     UINT16 = 0x06,
+    /// 32-bit unsigned integer type kind.
     UINT32 = 0x07,
+    /// 64-bit unsigned integer type kind.
     UINT64 = 0x08,
+    /// 32-bit floating point type kind.
     FLOAT32 = 0x09,
+    /// 64-bit floating point type kind.
     FLOAT64 = 0x0A,
+    /// 128-bit floating point type kind.
     FLOAT128 = 0x0B,
+    /// 8-bit signed integer type kind.
     INT8 = 0x0C,
+    /// 8-bit unsigned integer type kind.
     UINT8 = 0x0D,
+    /// 8-bit character type kind.
     CHAR8 = 0x10,
+    /// 16-bit character type kind.
     CHAR16 = 0x11,
-    // String TK;
+    /// 8-bit string type kind.
     STRING8 = 0x20,
+    /// 16-bit string type kind.
     STRING16 = 0x21,
-    // Constructed/Named type;
+    /// Alias type kind.
     ALIAS = 0x30,
-    // Enumerated TK;
+    /// Enumeration type kind.
     ENUM = 0x40,
+    /// Bitmask type kind.
     BITMASK = 0x41,
-    // Structured TK;
+    /// Annotation type kind.
     ANNOTATION = 0x50,
+    /// Structure type kind.
     STRUCTURE = 0x51,
+    /// Union type kind.
     UNION = 0x52,
+    /// Bitset type kind.
     BITSET = 0x53,
-    // Collection TK;
+    /// Sequence type kind.
     SEQUENCE = 0x60,
+    /// Array type kind.
     ARRAY = 0x61,
+    /// Map type kind.
     MAP = 0x62,
 }
 
 // ---------- TypeKinds (end) -------------------
 
+/// A factory class used to create [`DynamicType`] and [`DynamicTypeBuilder`] instances.
 pub struct DynamicTypeBuilderFactory;
 
 impl DynamicTypeBuilderFactory {
+    /// Returns a [`DynamicType`] representing the specified primitive type kind.
     pub fn get_primitive_type(kind: TypeKind) -> DynamicType {
         DynamicType {
             descriptor: Box::leak(Box::new(TypeDescriptor {
@@ -73,6 +101,7 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
+    /// Creates a [`DynamicTypeBuilder`] with the given type descriptor.
     pub fn create_type(descriptor: TypeDescriptor) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor,
@@ -80,14 +109,17 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
+    /// Creates a [`DynamicTypeBuilder`] as a copy of an existing type.
     pub fn create_type_copy(r#_type: DynamicType) -> DynamicTypeBuilder {
         todo!()
     }
 
+    /// Creates a [`DynamicTypeBuilder`] from a [`TypeObject`].
     pub fn create_type_w_type_object(_type_object: TypeObject) -> DynamicTypeBuilder {
         todo!()
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a string type with the specified bound.
     pub fn create_string_type(bound: u32) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
@@ -105,10 +137,12 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a wide string type with the specified bound.
     pub fn create_wstring_type(_bound: u32) -> DynamicTypeBuilder {
         unimplemented!("wstring not supported in Rust")
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a sequence type with the specified element type and bound.
     pub fn create_sequence_type(element_type: DynamicType, bound: u32) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
@@ -126,6 +160,7 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for an array type with the specified element type and dimensions/bound.
     pub fn create_array_type(element_type: DynamicType, bound: BoundSeq) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
@@ -143,6 +178,7 @@ impl DynamicTypeBuilderFactory {
         }
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a map type with the specified key, element type, and bound.
     pub fn create_map_type(
         _key_element_type: DynamicType,
         _element_type: DynamicType,
@@ -151,10 +187,12 @@ impl DynamicTypeBuilderFactory {
         todo!()
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a bitmask type with the specified bound.
     pub fn create_bitmask_type(_bound: u32) -> DynamicTypeBuilder {
         todo!()
     }
 
+    /// Creates a [`DynamicTypeBuilder`] for a type defined at the specified URI.
     pub fn create_type_w_uri(
         _document_url: String,
         _type_name: String,
@@ -164,6 +202,7 @@ impl DynamicTypeBuilderFactory {
     }
 
     #[cfg(feature = "xtypes-xml")]
+    /// Creates a [`DynamicTypeBuilder`] for a type defined by the input XML.
     pub fn create_type_w_document(
         document: &str,
         type_name: &str,
@@ -470,58 +509,96 @@ impl DynamicTypeBuilderFactory {
     }
 }
 
+/// Represents parameter name-value pairs.
 pub type Parameters = BTreeMap<ObjectName<'static>, ObjectName<'static>>;
 
+/// Defines how a type can be extended or modified in future versions.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExtensibilityKind {
+    /// Cannot be extended or modified.
     Final,
+    /// Members can be appended to the end of the type in future versions.
     Appendable,
+    /// Members can be added, removed, or reordered in future versions.
     Mutable,
 }
 
+/// Defines the behavior when constructing an object of a type that fails some validation or constraints.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TryConstructKind {
+    /// Fall back to the default value.
     UseDefault,
+    /// Discard the entire object or element.
     Discard,
+    /// Trim the elements to fit the constraints.
     Trim,
 }
 
+/// Describes the properties and characteristics of a [`DynamicType`].
 pub struct TypeDescriptor {
+    /// The kind of the type.
     pub kind: TypeKind,
+    /// The name of the type.
     pub name: ObjectName<'static>,
+    /// The base type if this type inherits from another type.
     pub base_type: Option<DynamicType>,
+    /// The discriminator type if this type is a union.
     pub discriminator_type: Option<DynamicType>,
+    /// The bound(s) of the type if it is a collection or string.
     pub bound: BoundSeq,
+    /// The element type if this type is a collection.
     pub element_type: Option<DynamicType>,
+    /// The key element type if this type is a map.
     pub key_element_type: Option<DynamicType>,
+    /// The extensibility kind of the type.
     pub extensibility_kind: ExtensibilityKind,
+    /// Indicates whether this is a nested type.
     pub is_nested: bool,
 }
 
+/// Represents the unique identifier of a member.
 pub type MemberId = u32;
+/// Represents case labels for a union member.
 pub type UnionCaseLabelSeq = Option<i32>;
 
+/// Describes a member of a constructed type.
 pub struct MemberDescriptor {
+    /// The name of the member.
     pub name: ObjectName<'static>,
+    /// The unique identifier of the member.
     pub id: MemberId,
+    /// The dynamic type of the member.
     pub r#type: DynamicType,
+    /// The optional default value of the member.
     pub default_value: Option<&'static str>,
+    /// The index of the member within the parent type.
     pub index: u32,
+    /// The union case labels if this member belongs to a union.
     pub label: UnionCaseLabelSeq,
+    /// The construct fail action of the member.
     pub try_construct_kind: TryConstructKind,
+    /// Indicates if the member is part of the type's key.
     pub is_key: bool,
+    /// Indicates if the member is optional.
     pub is_optional: bool,
+    /// Indicates if a receiver must understand this member to process the data.
     pub is_must_understand: bool,
+    /// Indicates if the member is shared.
     pub is_shared: bool,
+    /// Indicates if this is the default case for a union.
     pub is_default_label: bool,
+    /// Indicates if the member is external (stored by reference).
     pub is_external: bool,
 }
 
+/// Represents a member of a [`DynamicType`].
 pub struct DynamicTypeMember {
+    /// The descriptor describing this member.
     pub descriptor: MemberDescriptor,
 }
 
 impl DynamicTypeMember {
+    /// Returns a reference to the member's descriptor.
     pub fn get_descriptor(&self) -> XTypesResult<&MemberDescriptor> {
         Ok(&self.descriptor)
     }
@@ -530,32 +607,39 @@ impl DynamicTypeMember {
     // unsigned long get_verbatim_text_count();
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
 
+    /// Returns the unique member ID.
     pub fn get_id(&self) -> MemberId {
         self.descriptor.id
     }
+    /// Returns the name of the member.
     pub fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
 }
 
+/// A builder class used to construct a [`DynamicType`].
 pub struct DynamicTypeBuilder {
     descriptor: TypeDescriptor,
     member_list: Vec<DynamicTypeMember>,
 }
 
 impl DynamicTypeBuilder {
+    /// Returns a reference to the type descriptor being built.
     pub fn get_descriptor(&self) -> XTypesResult<&TypeDescriptor> {
         Ok(&self.descriptor)
     }
 
+    /// Returns the name of the type.
     pub fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
 
+    /// Returns the kind of the type.
     pub fn get_kind(&self) -> TypeKind {
         self.descriptor.kind
     }
 
+    /// Returns a mutable reference to a member by its name.
     pub fn get_member_by_name(
         &mut self,
         name: &ObjectName,
@@ -566,28 +650,34 @@ impl DynamicTypeBuilder {
             .ok_or(XTypesError::InvalidData)
     }
 
+    /// Returns all members indexed by their names.
     pub fn get_all_members_by_name(
         &self,
     ) -> Result<Vec<(ObjectName<'static>, DynamicTypeMember)>, XTypesError> {
         todo!()
     }
 
+    /// Returns a member by its ID.
     pub fn get_member(&self, _id: MemberId) -> Result<DynamicTypeMember, XTypesError> {
         todo!()
     }
 
+    /// Returns all members indexed by their ID.
     pub fn get_all_members(&self) -> Result<Vec<(MemberId, DynamicTypeMember)>, XTypesError> {
         todo!()
     }
 
+    /// Returns the number of annotations on this type.
     pub fn get_annotation_count(&self) -> u32 {
         todo!()
     }
 
+    /// Returns the annotation at the specified index.
     pub fn get_annotation(&self, _idx: u32) -> XTypesResult<()> {
         todo!()
     }
 
+    /// Adds a member to the type.
     pub fn add_member(&mut self, descriptor: MemberDescriptor) -> XTypesResult<()> {
         if let TypeKind::ENUM
         | TypeKind::BITMASK
@@ -605,10 +695,12 @@ impl DynamicTypeBuilder {
         Ok(())
     }
 
+    /// Applies an annotation descriptor to this type.
     pub fn apply_annotation(&mut self) -> XTypesResult<()> {
         todo!()
     }
 
+    /// Builds and returns the constructed [`DynamicType`].
     pub fn build(self) -> DynamicType {
         DynamicType {
             descriptor: Box::leak(Box::new(self.descriptor)),
@@ -617,9 +709,12 @@ impl DynamicTypeBuilder {
     }
 }
 
+/// Represents a data type's schema at runtime.
 #[derive(Clone, Copy)]
 pub struct DynamicType {
+    /// The type descriptor.
     pub descriptor: &'static TypeDescriptor,
+    /// The list of members belonging to this type.
     pub member_list: &'static [DynamicTypeMember],
 }
 
@@ -631,16 +726,20 @@ impl PartialEq for DynamicType {
 }
 
 impl DynamicType {
+    /// Returns the type descriptor.
     pub fn get_descriptor(&self) -> &TypeDescriptor {
         self.descriptor
     }
+    /// Returns the name of the type.
     pub fn get_name(&self) -> ObjectName<'static> {
         self.descriptor.name
     }
+    /// Returns the kind of the type.
     pub fn get_kind(&self) -> TypeKind {
         self.descriptor.kind
     }
 
+    /// Retrieves a member by name.
     pub fn get_member_by_name(&self, name: ObjectName) -> Result<&DynamicTypeMember, XTypesError> {
         self.member_list
             .iter()
@@ -649,6 +748,7 @@ impl DynamicType {
     }
 
     // DDS::ReturnCode_t get_all_members_by_name(inout DynamicTypeMembersByName member);
+    /// Retrieves a member by ID.
     pub fn get_member(&self, id: MemberId) -> Result<&DynamicTypeMember, XTypesError> {
         self.member_list
             .iter()
@@ -658,9 +758,11 @@ impl DynamicType {
 
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
 
+    /// Returns the total number of members in the type.
     pub fn get_member_count(&self) -> u32 {
         self.member_list.len() as u32
     }
+    /// Retrieves a member by index.
     pub fn get_member_by_index(&self, index: u32) -> Result<&DynamicTypeMember, XTypesError> {
         self.member_list
             .get(index as usize)
@@ -673,9 +775,11 @@ impl DynamicType {
     // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
 }
 
+/// A factory class used to instantiate [`DynamicData`] samples.
 pub struct DynamicDataFactory;
 
 impl DynamicDataFactory {
+    /// Creates a [`DynamicData`] sample of the specified [`DynamicType`].
     pub fn create_data(r#type: DynamicType) -> DynamicData {
         DynamicData {
             r#type,
@@ -684,6 +788,7 @@ impl DynamicDataFactory {
     }
 }
 
+/// Represents a data sample conforming to a [`DynamicType`] schema.
 #[derive(Clone)]
 pub struct DynamicData {
     r#type: DynamicType,
@@ -705,10 +810,12 @@ impl PartialEq for DynamicData {
 }
 
 impl DynamicData {
+    /// Returns the [`DynamicType`] of this data sample.
     pub fn r#type(&self) -> DynamicType {
         self.r#type
     }
 
+    /// Returns a reference to the descriptor of the specified member.
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
         if let Ok(x) = self.r#type.get_member(id) {
             Ok(&x.descriptor)
@@ -719,10 +826,12 @@ impl DynamicData {
         }
     }
 
+    /// Sets the descriptor of the specified member.
     pub fn set_descriptor(&mut self, _id: MemberId, _value: MemberDescriptor) -> XTypesResult<()> {
         todo!()
     }
 
+    /// Retrieves the member ID corresponding to the given member name.
     pub fn get_member_id_by_name(&self, name: &str) -> Option<MemberId> {
         self.r#type
             .get_member_by_name(name)
@@ -730,6 +839,7 @@ impl DynamicData {
             .map(|m| m.get_id())
     }
 
+    /// Retrieves the member ID at the specified index.
     pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
         self.abstract_data
             .keys()
@@ -738,15 +848,18 @@ impl DynamicData {
             .ok_or(XTypesError::InvalidIndex(index))
     }
 
+    /// Returns the number of items/members in this data sample.
     pub fn get_item_count(&self) -> u32 {
         self.abstract_data.len() as u32
     }
 
+    /// Clears all member values from this data sample.
     pub fn clear_all_values(&mut self) -> XTypesResult<()> {
         self.abstract_data.clear();
         Ok(())
     }
 
+    /// Clears all non-key member values from this data sample.
     pub fn clear_nonkey_values(&mut self) -> XTypesResult<()> {
         for index in 0..self.r#type.get_member_count() {
             let member = self.r#type.get_member_by_index(index)?;
@@ -758,6 +871,7 @@ impl DynamicData {
         Ok(())
     }
 
+    /// Clears the value of the specified member.
     pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
         self.abstract_data
             .remove(&id)
@@ -765,6 +879,7 @@ impl DynamicData {
         Ok(())
     }
 
+    /// Gets the `i32` value for the specified member.
     pub fn get_int32_value(&self, id: MemberId) -> XTypesResult<&i32> {
         if let DataStorage::Int32(d) = self
             .abstract_data
@@ -777,11 +892,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `i32` value for the specified member.
     pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Int32(value));
         Ok(())
     }
 
+    /// Gets the `u32` value for the specified member.
     pub fn get_uint32_value(&self, id: MemberId) -> XTypesResult<&u32> {
         if let DataStorage::UInt32(d) = self
             .abstract_data
@@ -794,11 +911,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `u32` value for the specified member.
     pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::UInt32(value));
         Ok(())
     }
 
+    /// Gets the `i8` value for the specified member.
     pub fn get_int8_value(&self, id: MemberId) -> XTypesResult<&i8> {
         if let DataStorage::Int8(d) = self
             .abstract_data
@@ -811,11 +930,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `i8` value for the specified member.
     pub fn set_int8_value(&mut self, id: MemberId, value: i8) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Int8(value));
         Ok(())
     }
 
+    /// Gets the `u8` value for the specified member.
     pub fn get_uint8_value(&self, id: MemberId) -> XTypesResult<&u8> {
         if let DataStorage::UInt8(d) = self
             .abstract_data
@@ -828,11 +949,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `u8` value for the specified member.
     pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::UInt8(value));
         Ok(())
     }
 
+    /// Gets the `i16` value for the specified member.
     pub fn get_int16_value(&self, id: MemberId) -> XTypesResult<&i16> {
         if let DataStorage::Int16(d) = self
             .abstract_data
@@ -845,11 +968,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `i16` value for the specified member.
     pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Int16(value));
         Ok(())
     }
 
+    /// Gets the `u16` value for the specified member.
     pub fn get_uint16_value(&self, id: MemberId) -> XTypesResult<&u16> {
         if let DataStorage::UInt16(d) = self
             .abstract_data
@@ -862,11 +987,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `u16` value for the specified member.
     pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::UInt16(value));
         Ok(())
     }
 
+    /// Gets the `i64` value for the specified member.
     pub fn get_int64_value(&self, id: MemberId) -> XTypesResult<&i64> {
         if let DataStorage::Int64(d) = self
             .abstract_data
@@ -879,11 +1006,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `i64` value for the specified member.
     pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Int64(value));
         Ok(())
     }
 
+    /// Gets the `u64` value for the specified member.
     pub fn get_uint64_value(&self, id: MemberId) -> XTypesResult<&u64> {
         if let DataStorage::UInt64(d) = self
             .abstract_data
@@ -896,11 +1025,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `u64` value for the specified member.
     pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::UInt64(value));
         Ok(())
     }
 
+    /// Gets the `f32` value for the specified member.
     pub fn get_float32_value(&self, id: MemberId) -> XTypesResult<&f32> {
         if let DataStorage::Float32(d) = self
             .abstract_data
@@ -913,11 +1044,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `f32` value for the specified member.
     pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Float32(value));
         Ok(())
     }
 
+    /// Gets the `f64` value for the specified member.
     pub fn get_float64_value(&self, id: MemberId) -> XTypesResult<&f64> {
         if let DataStorage::Float64(d) = self
             .abstract_data
@@ -930,11 +1063,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `f64` value for the specified member.
     pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Float64(value));
         Ok(())
     }
 
+    /// Gets the `i128` (representing `float128`) value for the specified member.
     pub fn get_float128_value(&self, id: MemberId) -> XTypesResult<&i128> {
         if let DataStorage::Float128(d) = self
             .abstract_data
@@ -947,11 +1082,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `i128` (representing `float128`) value for the specified member.
     pub fn set_float128_value(&mut self, id: MemberId, value: i128) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Float128(value));
         Ok(())
     }
 
+    /// Gets the `char` (representing `char8`) value for the specified member.
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
         if let DataStorage::Char8(d) = self
             .abstract_data
@@ -964,11 +1101,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `char` (representing `char8`) value for the specified member.
     pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::Char8(value));
         Ok(())
     }
 
+    /// Gets the byte (8-bit unsigned integer) value for the specified member.
     pub fn get_byte_value(&self, id: MemberId) -> XTypesResult<&u8> {
         if let DataStorage::UInt8(d) = self
             .abstract_data
@@ -981,11 +1120,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the byte (8-bit unsigned integer) value for the specified member.
     pub fn set_byte_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::UInt8(value));
         Ok(())
     }
 
+    /// Gets the `bool` value for the specified member.
     pub fn get_boolean_value(&self, id: MemberId) -> XTypesResult<&bool> {
         if let DataStorage::Boolean(d) = self
             .abstract_data
@@ -998,11 +1139,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `bool` value for the specified member.
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
         self.abstract_data.insert(id, value.into_storage());
         Ok(())
     }
 
+    /// Gets the `String` value for the specified member.
     pub fn get_string_value(&self, id: MemberId) -> XTypesResult<&String> {
         if let DataStorage::String(d) = self
             .abstract_data
@@ -1015,11 +1158,13 @@ impl DynamicData {
         }
     }
 
+    /// Sets the `String` value for the specified member.
     pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
         self.abstract_data.insert(id, DataStorage::String(value));
         Ok(())
     }
 
+    /// Gets the complex (nested `DynamicData`) value for the specified member.
     pub fn get_complex_value(&self, id: MemberId) -> XTypesResult<&DynamicData> {
         if let DataStorage::ComplexValue(d) = self
             .abstract_data
@@ -1032,18 +1177,21 @@ impl DynamicData {
         }
     }
 
+    /// Gets the raw data kind/storage for the specified member.
     pub fn get_data_kind(&self, id: MemberId) -> XTypesResult<&DataStorage> {
         self.abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))
     }
 
+    /// Sets the complex (nested `DynamicData`) value for the specified member.
     pub fn set_complex_value(&mut self, id: MemberId, value: DynamicData) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::ComplexValue(value));
         Ok(())
     }
 
+    /// Gets a slice of `i32` values for the specified sequence/array member.
     pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<&[i32]> {
         if let DataStorage::SequenceInt32(d) = self
             .abstract_data
@@ -1056,12 +1204,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `i32` values for the specified member.
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceInt32(value));
         Ok(())
     }
 
+    /// Gets a slice of `u32` values for the specified sequence/array member.
     pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<&[u32]> {
         if let DataStorage::SequenceUInt32(d) = self
             .abstract_data
@@ -1074,12 +1224,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `u32` values for the specified member.
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceUInt32(value));
         Ok(())
     }
 
+    /// Gets a slice of `i16` values for the specified sequence/array member.
     pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<&[i16]> {
         if let DataStorage::SequenceInt16(d) = self
             .abstract_data
@@ -1092,12 +1244,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `i16` values for the specified member.
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceInt16(value));
         Ok(())
     }
 
+    /// Gets a slice of `u16` values for the specified sequence/array member.
     pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<&[u16]> {
         if let DataStorage::SequenceUInt16(d) = self
             .abstract_data
@@ -1110,12 +1264,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `u16` values for the specified member.
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceUInt16(value));
         Ok(())
     }
 
+    /// Gets a slice of `i64` values for the specified sequence/array member.
     pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<&[i64]> {
         if let DataStorage::SequenceInt64(d) = self
             .abstract_data
@@ -1128,12 +1284,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `i64` values for the specified member.
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceInt64(value));
         Ok(())
     }
 
+    /// Gets a slice of `u64` values for the specified sequence/array member.
     pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<&[u64]> {
         if let DataStorage::SequenceUInt64(d) = self
             .abstract_data
@@ -1146,12 +1304,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `u64` values for the specified member.
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceUInt64(value));
         Ok(())
     }
 
+    /// Gets a slice of `f32` values for the specified sequence/array member.
     pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<&[f32]> {
         if let DataStorage::SequenceFloat32(d) = self
             .abstract_data
@@ -1164,12 +1324,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `f32` values for the specified member.
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceFloat32(value));
         Ok(())
     }
 
+    /// Gets a slice of `f64` values for the specified sequence/array member.
     pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<&[f64]> {
         if let DataStorage::SequenceFloat64(d) = self
             .abstract_data
@@ -1182,12 +1344,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `f64` values for the specified member.
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceFloat64(value));
         Ok(())
     }
 
+    /// Gets a slice of `i128` (representing `float128`) values for the specified sequence/array member.
     pub fn get_float128_values(&self, id: MemberId) -> XTypesResult<&[i128]> {
         if let DataStorage::SequenceFloat128(d) = self
             .abstract_data
@@ -1200,12 +1364,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `i128` (representing `float128`) values for the specified member.
     pub fn set_float128_values(&mut self, id: MemberId, value: Vec<i128>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceFloat128(value));
         Ok(())
     }
 
+    /// Gets a slice of `char` (representing `char8`) values for the specified sequence/array member.
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&[char]> {
         if let DataStorage::SequenceChar8(d) = self
             .abstract_data
@@ -1218,12 +1384,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `char` (representing `char8`) values for the specified member.
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceChar8(value));
         Ok(())
     }
 
+    /// Gets a slice of byte (8-bit unsigned integer) values for the specified sequence/array member.
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
         if let DataStorage::SequenceUInt8(d) = self
             .abstract_data
@@ -1236,12 +1404,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of byte (8-bit unsigned integer) values for the specified member.
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
+    /// Gets a slice of `bool` values for the specified sequence/array member.
     pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<&[bool]> {
         if let DataStorage::SequenceBoolean(d) = self
             .abstract_data
@@ -1254,12 +1424,14 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `bool` values for the specified member.
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceBoolean(value));
         Ok(())
     }
 
+    /// Gets a slice of `String` values for the specified sequence/array member.
     pub fn get_string_values(&self, id: MemberId) -> XTypesResult<&[String]> {
         if let DataStorage::SequenceString(d) = self
             .abstract_data
@@ -1272,6 +1444,7 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `String` values for the specified member.
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceString(value));
@@ -1279,6 +1452,7 @@ impl DynamicData {
     }
 
     // Custom functions
+    /// Gets a slice of `u8` values for the specified sequence/array member.
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
         if let DataStorage::SequenceUInt8(d) = self
             .abstract_data
@@ -1291,6 +1465,7 @@ impl DynamicData {
         }
     }
 
+    /// Gets a slice of `i8` values for the specified sequence/array member.
     pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<&[i8]> {
         if let DataStorage::SequenceInt8(d) = self
             .abstract_data
@@ -1303,18 +1478,21 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of `u8` values for the specified member.
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
+    /// Sets a sequence of `i8` values for the specified member.
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
         self.abstract_data
             .insert(id, DataStorage::SequenceInt8(value));
         Ok(())
     }
 
+    /// Gets a slice of complex (nested `DynamicData`) values for the specified sequence/array member.
     pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&[DynamicData]> {
         if let DataStorage::SequenceComplexValue(d) = self
             .abstract_data
@@ -1327,6 +1505,7 @@ impl DynamicData {
         }
     }
 
+    /// Sets a sequence of complex (nested `DynamicData`) values for the specified member.
     pub fn set_complex_values(
         &mut self,
         id: MemberId,
@@ -1337,16 +1516,19 @@ impl DynamicData {
         Ok(())
     }
 
+    /// Sets the value of the specified member to the given raw data storage.
     pub fn set_value(&mut self, id: MemberId, value: DataStorage) {
         self.abstract_data.insert(id, value);
     }
 
+    /// Gets the raw data storage for the specified member.
     pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataStorage> {
         self.abstract_data
             .get(&id)
             .ok_or(XTypesError::InvalidId(id))
     }
 
+    /// Removes and returns the raw data storage for the specified member.
     pub fn remove_value(&mut self, id: MemberId) -> XTypesResult<DataStorage> {
         self.abstract_data
             .remove(&id)
@@ -1382,6 +1564,7 @@ impl TypeSupport for DynamicData {
 
 #[cfg(feature = "xtypes-xml")]
 impl DynamicData {
+    /// Deserializes data from an XML string into this `DynamicData` instance.
     pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
         let doc = roxmltree::Document::parse(xml).map_err(|_| XTypesError::InvalidData)?;
         let root = doc.root_element();
