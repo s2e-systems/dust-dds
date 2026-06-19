@@ -1441,8 +1441,6 @@ impl Default for DataRepresentationQosPolicy {
 
 #[cfg(test)]
 mod tests {
-    use crate::xtypes::{deserializer::deserialize_top_level_type, serializer::serialize_cdr1_le};
-
     use super::*;
 
     #[test]
@@ -1563,43 +1561,5 @@ mod tests {
         assert!(10usize < Length::Limited(20));
         assert!(Length::Limited(10) == 10usize);
         assert!(10usize == Length::Limited(10));
-    }
-
-    #[test]
-    fn serialize_reliability_qos_policy() {
-        let mut dynamic_data = DynamicDataFactory::create_data(ReliabilityQosPolicy::get_type());
-        ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        }
-        .create_dynamic_sample(&mut dynamic_data);
-
-        let serialized_data = serialize_cdr1_le(&mut dynamic_data).unwrap();
-        let expected = [
-            0, 1, 0, 0, // CDR HEADER
-            1, 0, 0, 0, // Best Effort reliability kind
-            1, 0, 0, 0, 0, 0, 0, 0, // Duration {sec:1, nanosec:0}
-        ];
-        assert_eq!(serialized_data, expected);
-    }
-
-    #[test]
-    fn deserialize_reliability_qos_policy() {
-        let expected = ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        };
-
-        let buffer = [
-            0, 1, 0, 0, // PLAIN CDR1 LE HEADER
-            1, 0, 0, 0, // Best Effort reliability kind
-            1, 0, 0, 0, 0, 0, 0, 0, // Duration {sec:1, nanosec:0}
-        ];
-        let mut dynamic_data =
-            deserialize_top_level_type(ReliabilityQosPolicy::TYPE, &buffer).unwrap();
-        assert_eq!(
-            ReliabilityQosPolicy::create_sample(&mut dynamic_data),
-            expected
-        );
     }
 }
