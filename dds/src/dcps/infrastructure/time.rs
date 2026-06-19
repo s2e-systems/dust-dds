@@ -60,8 +60,8 @@ impl PartialOrd<DurationKind> for DurationKind {
 #[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
-    sec: i32,
-    nanosec: u32,
+    pub(crate) sec: i32,
+    pub(crate) nanosec: u32,
 }
 
 impl Duration {
