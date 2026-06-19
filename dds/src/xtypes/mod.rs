@@ -1,17 +1,19 @@
+pub(crate) mod deserializer;
+pub(crate) mod read_write;
+pub(crate) mod serializer;
+
 #[doc(hidden)]
 pub mod bytes;
 #[doc(hidden)]
 pub mod data_storage;
-#[doc(hidden)]
-pub mod deserializer;
+
 #[doc(hidden)]
 pub mod dynamic_type;
-#[doc(hidden)]
+
+/// Classes related to the XTypes error and return codes.
 pub mod error;
+
 #[doc(hidden)]
-pub mod read_write;
-#[doc(hidden)]
-pub mod serializer;
 #[doc(hidden)]
 pub mod type_object;
 
