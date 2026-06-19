@@ -7,6 +7,7 @@ use crate::{
     transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
     xtypes::error::XTypesError,
 };
+use alloc::{string::String, vec::Vec};
 
 pub type CdrResult<T> = Result<T, CdrError>;
 
@@ -65,7 +66,7 @@ impl<'a> ParameterList<'a> {
         ))
     }
     pub(crate) fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {
-        let mut locator_list = vec![];
+        let mut locator_list = Vec::new();
         for pid_data in self.get_list(pid)? {
             locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
                 pid_data,
@@ -332,48 +333,4 @@ mod tests {
         };
         assert_eq!(from_bytes(&bytes).unwrap(), expected);
     }
-
-    // #[test]
-    // fn get_existing_pid() {
-    //     let data = [
-    //         15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-    //         0x01, 0x00, 0x00, 0x00, // DomainId
-    //         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-    //         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    //     ];
-    //     assert_eq!(
-    //         ParameterList::new(&data).seek_to_pid(15).unwrap(),
-    //         Some(&[0x01, 0x00, 0x00, 0x00][..])
-    //     );
-    //     assert_eq!(
-    //         ParameterList::new(&data).seek_to_pid(0x4014).unwrap(),
-    //         Some(&[3, 0x00, 0x00, 0x00, b'a', b'b', 0, 0x00][..])
-    //     );
-    // }
-
-    // #[test]
-    // fn get_non_existing_pid() {
-    //     let data = [
-    //         15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-    //         0x01, 0x00, 0x00, 0x00, // DomainId
-    //         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-    //         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-    //         b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-    //         0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-    //     ];
-    //     assert_eq!(ParameterList::new(&data,).seek_to_pid(10).unwrap(), None);
-    // }
-
-    // #[test]
-    // fn get_non_existing_pid_sentinel_missing() {
-    //     let data = [
-    //         15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-    //         0x01, 0x00, 0x00, 0x00, // DomainId
-    //         0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-    //         3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-    //     ];
-    //     assert_eq!(ParameterList::new(&data,).seek_to_pid(10).unwrap(), None);
-    // }
 }
