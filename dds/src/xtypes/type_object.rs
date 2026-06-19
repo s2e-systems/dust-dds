@@ -455,12 +455,12 @@ pub struct ExtendedTypeDefn {
 /// For Plain Types and Hash-defined TypeIdentifiers there are three
 /// possibilities: MINIMAL, COMPLETE, and COMMON:
 /// - MINIMAL indicates the TypeIdentifier identifies equivalent types
-/// according to the MINIMAL equivalence relation
+///   according to the MINIMAL equivalence relation
 /// - COMPLETE indicates the TypeIdentifier identifies equivalent types
-/// according to the COMPLETE equivalence relation
+///   according to the COMPLETE equivalence relation
 /// - COMMON indicates the TypeIdentifier identifies equivalent types
-/// according to both the MINIMAL and the COMMON equivalence relation.
-/// This means the TypeIdentifier is the same for both relationships
+///   according to both the MINIMAL and the COMMON equivalence relation.
+///   This means the TypeIdentifier is the same for both relationships
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeIdentifier {
