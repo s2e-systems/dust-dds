@@ -112,23 +112,146 @@ If you answered yes to one or more of these questions, DDS is likely a strong ca
 2. Non-real-time web applications. If your main requirement is scalable centralized web-based communication you are probably better of with other message broker solutions
 3. Simple request-response workloads. If your application follows a standard request-response model then you are probably better off with REST or RPC-based communication even if DDS is able to handle request reply mechanisms.
 
-## IDL type generation
+## Rust type definition using #[derive(DdsType)]
 
-If using only Rust, you can make use of the procedural macros to enable a type to be transmitted
-using Dust DDS. The key fields can also be defined as part of the macro.
+This library provides the `DdsType` derive macro to support defining DDS types in Rust. The `DdsType` derive macro can be applied to `struct`s, tuples, and `enum`s to automatically implement the traits needed for communication.
+
+### Container Attributes
+
+Container attributes apply to the entire `struct` or `enum` definition and are defined using `#[dust_dds(...)]` on the container:
+
+* **`name = "<string>"`**:
+  Customizes the name of the DDS type. Defaults to the Rust struct or enum identifier.
+* **`extensibility = "final" | "appendable" | "mutable"`**:
+  Specifies the type extensibility (defined in the DDS XTypes specification). Defaults to `"final"`.
+* **`nested`**:
+  A boolean flag marking the type as nested. Nested types cannot be used as standalone top-level topics but can be members of other types.
+
+### Struct Field Attributes
+
+Field attributes apply to individual fields of a struct or tuple, defined using `#[dust_dds(...)]` on the field:
+
+* **`key`**:
+  Marks the field as part of the key of the type. Multiple fields can be marked as keys.
+* **`id = <integer>`**:
+  Explicitly assigns a member ID. This is particularly useful for `"mutable"` extensibility.
+* **`optional`**:
+  Marks the field as optional.
+* **`default_value = <expression>`**:
+  Specifies a default value expression to use if the field is missing during deserialization.
+* **`non_serialized`**:
+  Marks a field to be skipped during serialization and deserialization. It is initialized using `Default::default()`.
+* **`external`**:
+  Marks the field as external, which indicates it uses a pointer/box/reference semantic representation in the DDS type system.
+* **`hashid`**:
+  Instructs the macro to automatically assign a member ID computed from the MD5 hash of the field's name (first 4 bytes as a little-endian integer).
+
+### Enum Attributes
+
+An enum can represent either a standard **Enumerated Type** or an **XTypes Union**.
+
+#### 1. Enumerated Types (Unit Variants Only)
+
+If an enum contains only unit variants (variants without fields), it is mapped to a DDS enumerated type.
+
+* **`bit_bound = "8" | "16" | "32"`**:
+  Specifies the size of the integer representation in bits. Defaults to `"32"`.
+* Custom integer discriminants (e.g. `A = 10`) are mapped directly to their corresponding DDS values.
+
+#### 2. XTypes Unions (Variants with Fields)
+
+If an enum contains at least one variant with fields, it is mapped to a DDS Union.
+
+* **`switch(<Type>)` or `switch(key, <Type>)`**:
+  **Required.** Specifies the type of the discriminator. If `key` is present, the discriminator is treated as a key.
+* **`case = <expression>`** (on variants):
+  Specifies the discriminator value(s) for which this variant is selected. If omitted, defaults to the 0-indexed index of the variant.
+* **`default`** (on a variant):
+  Marks the variant as the default case if no other case matches.
+
+### Examples
+
+#### Basic Struct with Key
 
 ```rust
 use dust_dds::infrastructure::type_support::DdsType;
 
 #[derive(DdsType)]
-struct HelloWorldType {
+struct HelloWorld {
     #[dust_dds(key)]
-    id: u8,
+    id: i32,
     msg: String,
 }
 ```
 
-If using different programming languages or vendors, the DDS type can be generated from an IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen). The `HelloWorldType` can be generated from the following idl.
+#### Appendable and Nested Struct
+
+```rust
+use dust_dds::infrastructure::type_support::DdsType;
+
+#[derive(DdsType)]
+#[dust_dds(name = "CustomPoint", extensibility = "appendable", nested)]
+struct Point {
+    x: f64,
+    y: f64,
+}
+```
+
+#### Mutable Struct with Custom Member IDs and Defaults
+
+```rust
+use dust_dds::infrastructure::type_support::DdsType;
+
+#[derive(DdsType)]
+#[dust_dds(extensibility = "mutable")]
+struct Profile {
+    #[dust_dds(id = 1, key)]
+    id: u32,
+    #[dust_dds(id = 2)]
+    username: String,
+    #[dust_dds(id = 10, optional)]
+    email: Option<String>,
+    #[dust_dds(id = 11, default_value = 18)]
+    age: u32,
+    #[dust_dds(non_serialized)]
+    session_count: u32,
+}
+```
+
+#### Enumerated Type with Bit Bound
+
+```rust
+use dust_dds::infrastructure::type_support::DdsType;
+
+#[derive(DdsType)]
+#[dust_dds(bit_bound = "16")]
+enum TrafficLight {
+    Red = 1,
+    Yellow = 2,
+    Green = 3,
+}
+```
+
+#### Union with Discriminator Switch
+
+```rust
+use dust_dds::infrastructure::type_support::DdsType;
+
+#[derive(DdsType)]
+#[dust_dds(switch(i32))]
+enum Shape {
+    #[dust_dds(case = 1)]
+    Circle(f64),
+    #[dust_dds(case = 2)]
+    Square { side: f64 },
+    #[dust_dds(default)]
+    Unknown,
+}
+```
+
+## IDL type generation
+
+If using different programming languages or vendors, the DDS type can be generated from an IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen). For example, the `HelloWorldType` can be generated from the following IDL:
 
 ```idl
 struct HelloWorldType {
