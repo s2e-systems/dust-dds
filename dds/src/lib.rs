@@ -40,8 +40,7 @@ pub mod runtime;
 #[doc(hidden)]
 pub mod std_runtime;
 
-/// Contains the XTypes serializer and deserializer
-#[doc(hidden)]
+/// Contains the DDS XTypes standard types and methods definitions
 pub mod xtypes;
 
 // To enable using our own derive macros to allow the name dust_dds:: to be used
