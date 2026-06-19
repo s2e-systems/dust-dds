@@ -122,8 +122,8 @@ pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 #[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct EntityId {
-    entity_key: OctetArray3,
-    entity_kind: Octet,
+    pub(crate) entity_key: OctetArray3,
+    pub(crate) entity_kind: Octet,
 }
 
 impl EntityId {
@@ -224,9 +224,9 @@ pub enum DurabilityKind {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Locator {
-    kind: Long,
-    port: UnsignedLong,
-    address: [Octet; 16],
+    pub(crate) kind: Long,
+    pub(crate) port: UnsignedLong,
+    pub(crate) address: [Octet; 16],
 }
 
 #[allow(dead_code)]
@@ -272,7 +272,7 @@ impl Locator {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct ProtocolVersion {
-    bytes: [u8; 2],
+    pub(crate) bytes: [u8; 2],
 }
 
 impl ProtocolVersion {

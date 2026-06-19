@@ -7,7 +7,10 @@ use super::parameter_id_values::{
 };
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
-    dcps::data_representation_builtin_endpoints::ConvenienceTypeBuilder,
+    dcps::data_representation_builtin_endpoints::{
+        ConvenienceTypeBuilder,
+        rtps_data_representation::{CdrResult, ParameterList},
+    },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DataRepresentationQosPolicy, DeadlineQosPolicy,
         DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -18,6 +21,7 @@ use crate::{
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         data_storage::DataStorageMapping,
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicType,
         type_support::{Type, TypeSupport},
     },
@@ -36,6 +40,28 @@ pub struct WriterProxy {
 pub struct DiscoveredWriterData {
     pub(crate) dds_publication_data: PublicationBuiltinTopicData,
     pub(crate) writer_proxy: WriterProxy,
+}
+
+impl DiscoveredWriterData {
+    pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
+        let pl = ParameterList::new(bytes)?;
+
+        let dds_publication_data = PublicationBuiltinTopicData::create_sample(
+            &mut deserialize_top_level_type(PublicationBuiltinTopicData::TYPE, bytes)?,
+        );
+
+        let writer_proxy = WriterProxy {
+            remote_writer_guid: Guid::from(dds_publication_data.key.value),
+            remote_group_entity_id: pl
+                .get_optional_parameter(PID_GROUP_ENTITYID, ENTITYID_UNKNOWN)?,
+            unicast_locator_list: pl.get_locator_list(PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: pl.get_locator_list(PID_MULTICAST_LOCATOR)?,
+        };
+        Ok(DiscoveredWriterData {
+            dds_publication_data,
+            writer_proxy,
+        })
+    }
 }
 impl Type for DiscoveredWriterData {
     const TYPE: DynamicType = DynamicType {
@@ -405,14 +431,15 @@ mod tests {
     use super::*;
     use crate::{
         builtin_topics::BuiltInTopicKey,
+        infrastructure::{
+            qos_policy::ReliabilityQosPolicyKind,
+            time::{Duration, DurationKind},
+        },
         transport::types::{
             BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY, EntityId, Guid,
             USER_DEFINED_UNKNOWN,
         },
-        xtypes::{
-            deserializer::deserialize_builtin, dynamic_type::DynamicDataFactory,
-            serializer::serialize_rtps,
-        },
+        xtypes::{dynamic_type::DynamicDataFactory, serializer::serialize_rtps},
     };
 
     #[test]
@@ -483,9 +510,79 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_discovered_writer_data() {
+        let expected = DiscoveredWriterData {
+            dds_publication_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
+                },
+                participant_key: BuiltInTopicKey {
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
+                },
+                topic_name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: Default::default(),
+                deadline: Default::default(),
+                latency_budget: Default::default(),
+                liveliness: Default::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffort,
+                    max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+                },
+                lifespan: Default::default(),
+                user_data: Default::default(),
+                ownership: Default::default(),
+                ownership_strength: Default::default(),
+                destination_order: Default::default(),
+                presentation: Default::default(),
+                partition: Default::default(),
+                topic_data: Default::default(),
+                group_data: Default::default(),
+                representation: Default::default(),
+            },
+            writer_proxy: WriterProxy {
+                // must correspond to publication_builtin_topic_data.key
+                remote_writer_guid: Guid::new(
+                    [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0],
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
+                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+            },
+        };
+
+        let data = [
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc1, // u8[3], u8
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
+            0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
+            0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // string + padding (1 byte)
+            0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
+            3, 0x00, 0x00, 0x00, // string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            26, 0, 12, 0, // PID_RELIABILITY
+            1, 0, 0, 0, // Best Effort reliability kind
+            1, 0, 0, 0, 0, 0, 0, 0, // Duration {sec:1, nanosec:0}
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        assert_eq!(DiscoveredWriterData::from_bytes(&data).unwrap(), expected);
+    }
+
+    #[test]
     fn deserialize_all_default() {
-        let mut expected = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
-        DiscoveredWriterData {
+        let expected = DiscoveredWriterData {
             dds_publication_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -521,8 +618,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
             },
-        }
-        .create_dynamic_sample(&mut expected);
+        };
 
         let data = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -546,9 +642,6 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        assert_eq!(
-            deserialize_builtin(DiscoveredWriterData::TYPE, &data).unwrap(),
-            expected
-        );
+        assert_eq!(DiscoveredWriterData::from_bytes(&data).unwrap(), expected);
     }
 }

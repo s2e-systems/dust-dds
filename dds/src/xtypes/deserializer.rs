@@ -20,7 +20,7 @@ const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
 const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
-pub trait Read {
+trait Read {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]>;
 
     fn read_array<const N: usize>(&mut self) -> XTypesResult<&[u8; N]> {
@@ -28,22 +28,6 @@ pub trait Read {
             .try_into()
             .map_err(|_e| XTypesError::InvalidData)
     }
-}
-
-pub fn deserialize_builtin(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
-    if buffer.len() < 4 {
-        return Err(XTypesError::NotEnoughData);
-    }
-    let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
-    let representation_identifier = [buffer[0], buffer[1]];
-    match representation_identifier {
-        PL_CDR_LE => {
-            let mut deserializer = RtpsPlCdrDeserializer::new(&buffer[4..]);
-            deserializer.deserialize_dynamic_data(&dynamic_type, &mut dynamic_data)?;
-        }
-        _ => return Err(XTypesError::NotSupported(representation_identifier)),
-    }
-    Ok(dynamic_data)
 }
 
 pub fn deserialize_key_only(dynamic_type: DynamicType, buffer: &[u8]) -> XTypesResult<DynamicData> {
@@ -139,31 +123,6 @@ impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr2KeyDeserializer<'a, E> {
         T::deserialize(&mut self.reader)
     }
 }
-
-struct Cdr1Deserializer<'a, E: EndiannessRead> {
-    reader: CdrReader<'a, E, CdrVersion1>,
-}
-
-impl<'a, E: EndiannessRead> Cdr1Deserializer<'a, E> {
-    fn new(buffer: &'a [u8], endianness: E) -> Self {
-        Self {
-            reader: CdrReader::new(buffer, endianness, CdrVersion1),
-        }
-    }
-}
-
-struct RtpsPlCdrDeserializer<'a> {
-    cdr1_deserializer: Cdr1Deserializer<'a, LittleEndian>,
-}
-
-impl<'a> RtpsPlCdrDeserializer<'a> {
-    fn new(buffer: &'a [u8]) -> Self {
-        Self {
-            cdr1_deserializer: Cdr1Deserializer::new(buffer, LittleEndian),
-        }
-    }
-}
-
 trait CdrVersion {
     const MAX_ALIGN: usize;
 }
@@ -679,23 +638,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                         V::deserialize_mstruct_type(deserializer, dynamic_type, dynamic_data)
                     }
                 },
-                TypeKind::ENUM => {
-                    let discriminator_type = dynamic_type
-                        .descriptor
-                        .discriminator_type
-                        .ok_or(XTypesError::InvalidType)?;
-                    match discriminator_type.get_kind() {
-                        TypeKind::INT8 => {
-                            let value = deserializer.deserialize_primitive_type::<i8>()?;
-                            dynamic_data.set_int8_value(0, value)
-                        }
-                        TypeKind::INT32 => {
-                            let value = deserializer.deserialize_primitive_type::<i32>()?;
-                            dynamic_data.set_int32_value(0, value)
-                        }
-                        d => panic!("Invalid discriminator {d:?}"),
-                    }
-                }
+                TypeKind::ENUM => deserializer.deserialize_enum_type(dynamic_type, dynamic_data),
+
                 TypeKind::UNION => todo!(),
                 kind => {
                     debug!("Expected structure, enum or union. Got kind {kind:?} ");
@@ -768,25 +712,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => {
-                let discriminator_type = member
-                    .descriptor
-                    .r#type
-                    .descriptor
-                    .discriminator_type
-                    .ok_or(XTypesError::InvalidType)?;
-                match discriminator_type.get_kind() {
-                    TypeKind::INT8 => {
-                        let value = self.deserialize_primitive_type::<i8>()?;
-                        dynamic_data.set_int8_value(0, value)
-                    }
-                    TypeKind::INT32 => {
-                        let value = self.deserialize_primitive_type::<i32>()?;
-                        dynamic_data.set_int32_value(0, value)
-                    }
-                    d => panic!("Invalid discriminator {d:?}"),
-                }
-            }
+            TypeKind::ENUM => dynamic_data.set_complex_value(
+                member.get_id(),
+                self.deserialize_as_nested(member.descriptor.r#type)?,
+            ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => dynamic_data.set_complex_value(
@@ -828,8 +757,26 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (5)
-    fn _deserialize_enum_type(&mut self) -> XTypesResult<()> {
-        todo!()
+    fn deserialize_enum_type(
+        &mut self,
+        dynamic_type: DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let discriminator_type = dynamic_type
+            .descriptor
+            .discriminator_type
+            .ok_or(XTypesError::InvalidType)?;
+        match discriminator_type.get_kind() {
+            TypeKind::INT8 => {
+                let value = self.deserialize_primitive_type::<i8>()?;
+                dynamic_data.set_int8_value(0, value)
+            }
+            TypeKind::INT32 => {
+                let value = self.deserialize_primitive_type::<i32>()?;
+                dynamic_data.set_int32_value(0, value)
+            }
+            d => panic!("Invalid discriminator {d:?}"),
+        }
     }
 
     /// Serialization Rule (6)
@@ -1643,100 +1590,11 @@ impl<'a, E: EndiannessRead, V: CdrVersion> CdrReader<'a, E, V> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
-
-    fn set_position(&mut self, pos: usize) {
-        self.pos = pos;
-    }
-
-    fn seek_to_pid(&mut self, pid: u16) -> XTypesResult<bool> {
-        const PID_SENTINEL: u16 = 1;
-        loop {
-            let current_pid = E::read_u16(self)?;
-            let length = E::read_u16(self)? as usize;
-            if current_pid == pid {
-                return Ok(true);
-            } else if current_pid == PID_SENTINEL {
-                return Ok(false);
-            } else {
-                self.seek(length);
-                self.seek_padding(4);
-            }
-        }
-    }
 }
 
 impl<'a, E: EndiannessRead, V: CdrVersion> Read for CdrReader<'a, E, V> {
     fn read_exact(&mut self, size: usize) -> XTypesResult<&[u8]> {
         self.read_all(size)
-    }
-}
-
-impl<'a, E: EndiannessRead> XTypesDeserialize for Cdr1Deserializer<'a, E> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            let member_descriptor = member.get_descriptor()?;
-            let pid = member.get_id() as u16;
-
-            self.reader.set_position(0);
-            if self.reader.seek_to_pid(pid)? {
-                self.deserialize_final_member(member, dynamic_data)?;
-            } else if !member_descriptor.is_optional {
-                return Err(XTypesError::PidNotFound(pid));
-            }
-        }
-        Ok(())
-    }
-
-    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.reader)
-    }
-}
-
-impl<'a> XTypesDeserialize for RtpsPlCdrDeserializer<'a> {
-    fn deserialize_mutable_struct(
-        &mut self,
-        dynamic_type: &DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            let member_descriptor = member.get_descriptor()?;
-            let pid = member.get_id() as u16;
-
-            self.cdr1_deserializer.reader.set_position(0);
-            if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                let mut sequence = Vec::new();
-                while self.cdr1_deserializer.reader.seek_to_pid(pid)? {
-                    sequence.push(
-                        self.deserialize_complex_value(
-                            member_descriptor
-                                .r#type
-                                .get_descriptor()
-                                .element_type
-                                .expect("must have element_type"),
-                        )?,
-                    );
-                }
-                // Only add empty sequences to non-optional members
-                if !(sequence.is_empty() && member_descriptor.is_optional) {
-                    dynamic_data.set_complex_values(pid as u32, sequence)?;
-                }
-            } else if self.cdr1_deserializer.reader.seek_to_pid(pid)? {
-                self.deserialize_final_member(member, dynamic_data)?;
-            } else if member_descriptor.is_key {
-                return Err(XTypesError::PidNotFound(pid));
-            }
-        }
-        Ok(())
-    }
-
-    fn deserialize_primitive_type<T: CdrPrimitiveTypeDeserialize>(&mut self) -> XTypesResult<T> {
-        T::deserialize(&mut self.cdr1_deserializer.reader)
     }
 }
 
@@ -2187,6 +2045,35 @@ mod tests {
                     7, 0, 0, 0, // key | padding
                     0x20, 0x00, 0x00, 0x050, // LC=2 (=> length = 4 bytes) + PID  (EMHEADER)
                     0, 0, 0, 8, // participant_key
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_mutable_struct_with_enum() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        enum Kind {
+            Zero,
+            One,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct UserType {
+            kind: Kind,
+        }
+
+        let mut expected = DynamicDataFactory::create_data(UserType::TYPE);
+        UserType { kind: Kind::One }.create_dynamic_sample(&mut expected);
+
+        assert_eq!(
+            deserialize_top_level_type(
+                UserType::TYPE,
+                &[
+                    0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+                    1, 0, 0, 0, // Kind one
                 ],
             )
             .unwrap(),
