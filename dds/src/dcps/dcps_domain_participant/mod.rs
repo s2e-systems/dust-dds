@@ -76,7 +76,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::{deserialize_key_only, deserialize_top_level_type},
+        deserializer::deserialize_top_level_type,
         dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
         type_support::{Type, TypeSupport},
@@ -2183,8 +2183,10 @@ impl DataReaderEntity {
                     (data_value, instance_handle)
                 }
                 None => {
-                    let data_value =
-                        deserialize_top_level_type(self.type_support, cache_change.data_value.as_ref())?;
+                    let data_value = deserialize_top_level_type(
+                        self.type_support,
+                        cache_change.data_value.as_ref(),
+                    )?;
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
                     (data_value, instance_handle)
