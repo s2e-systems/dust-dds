@@ -101,48 +101,48 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
-trait EncodingVersion {
-    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+trait EncodingVersion: Sized {
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         alignment: usize,
     ) -> XTypesResult<()>;
 
-    fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn seek_to_pid<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (9) & (10)
-    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_array_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (12)
-    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_sequence_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (15) & (16)
-    fn _deserialize_map_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        _deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn _deserialize_map_type<'a, E: EndiannessRead>(
+        _deserializer: &mut XTypesDeserializer<'a, E, Self>,
     ) -> XTypesResult<()> {
         todo!()
     }
 
     /// Serialization Rule (21) & (23)
-    fn deserialize_mstruct_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mstruct_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (22) & (24) & (25)
-    fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
@@ -153,8 +153,8 @@ trait EncodingVersion {
     }
 
     /// Serialization Rule (29) & (30)
-    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_appendable_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
@@ -162,8 +162,8 @@ trait EncodingVersion {
 
 struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
-    fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn seek_to_pid<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
     ) -> XTypesResult<()> {
         const PID_SENTINEL: u16 = 1;
@@ -176,13 +176,20 @@ impl EncodingVersion for EncodingVersion1 {
                 return Err(PidNotFound(pid));
             } else {
                 deserializer.reader.seek(length as usize)?;
-                V::align(deserializer, 4)?;
+                Self::align(deserializer, 4)?;
             }
         }
     }
 
-    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer.reader.seek_padding(alignment)
+    }
+
+    fn deserialize_array_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
@@ -196,8 +203,8 @@ impl EncodingVersion for EncodingVersion1 {
     }
 
     /// Serialization Rule (12)
-    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_sequence_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
@@ -206,31 +213,31 @@ impl EncodingVersion for EncodingVersion1 {
     }
 
     /// Serialization Rule (23)
-    fn deserialize_mstruct_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mstruct_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            V::deserialize_mmember(deserializer, member, dynamic_data)?;
+            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
         }
         const PID_SENTINEL: u16 = 1;
-        V::seek_to_pid(deserializer, PID_SENTINEL)?;
+        Self::seek_to_pid(deserializer, PID_SENTINEL)?;
         Ok(())
     }
 
     /// Serialization Rule (24) & (25)
-    fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
-        V::align(deserializer, 4)?;
+        Self::align(deserializer, 4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if V::seek_to_pid(deserializer, pid).is_ok() {
+        let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else {
             Ok(())
@@ -242,26 +249,19 @@ impl EncodingVersion for EncodingVersion1 {
     }
 
     /// Serialization Rule (29)
-    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_appendable_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
     }
-
-    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
-        alignment: usize,
-    ) -> XTypesResult<()> {
-        deserializer.reader.seek_padding(alignment)
-    }
 }
 
 struct EncodingVersion2;
 impl EncodingVersion for EncodingVersion2 {
-    fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn seek_to_pid<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
     ) -> XTypesResult<()> {
         loop {
@@ -272,13 +272,13 @@ impl EncodingVersion for EncodingVersion2 {
                 return Ok(());
             } else {
                 deserializer.reader.seek(length)?;
-                V::align(deserializer, 4)?;
+                Self::align(deserializer, 4)?;
             }
         }
     }
 
-    fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_array_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
@@ -293,8 +293,8 @@ impl EncodingVersion for EncodingVersion2 {
     }
 
     /// Serialization Rule (12)
-    fn deserialize_sequence_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_sequence_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
@@ -304,31 +304,31 @@ impl EncodingVersion for EncodingVersion2 {
     }
 
     /// Serialization Rule (21)
-    fn deserialize_mstruct_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mstruct_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            V::deserialize_mmember(deserializer, member, dynamic_data)?;
+            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
         }
         Ok(())
     }
 
     /// Serialization Rule (22)
-    fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_mmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        V::align(deserializer, 4)?;
+        Self::align(deserializer, 4)?;
         // TODO: If LC(C)>=4
         //let _next_int = deserializer.deserialize_primitive_type::<u32>();
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if V::seek_to_pid(deserializer, pid).is_ok() {
+        let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
@@ -340,8 +340,8 @@ impl EncodingVersion for EncodingVersion2 {
     }
 
     /// Serialization Rule (30)
-    fn deserialize_appendable_type<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn deserialize_appendable_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
@@ -349,8 +349,8 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
     }
 
-    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
-        deserializer: &mut XTypesDeserializer<'a, E, V>,
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
         alignment: usize,
     ) -> XTypesResult<()> {
         deserializer
