@@ -3,7 +3,7 @@ use crate::xtypes::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TypeKind,
     },
-    error::{XTypesError, XTypesResult},
+    error::{XTypesError::{self, PidNotFound}, XTypesResult},
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -32,65 +32,69 @@ trait EndiannessRead {
     fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64>;
 }
 
+fn read_array<const N: usize>(reader: &mut NextCdrReader) -> XTypesResult<[u8; N]> {
+    Ok(*reader.read_bytes(N)?.as_array().expect("must have length"))
+}
+
 struct BigEndian;
 impl EndiannessRead for BigEndian {
     fn read_i16(reader: &mut NextCdrReader) -> XTypesResult<i16> {
-        Ok(i16::from_be_bytes(reader.read_array::<2>()?))
+        Ok(i16::from_be_bytes(read_array(reader)?))
     }
     fn read_u16(reader: &mut NextCdrReader) -> XTypesResult<u16> {
-        Ok(u16::from_be_bytes(reader.read_array::<2>()?))
+        Ok(u16::from_be_bytes(read_array(reader)?))
     }
     fn read_i32(reader: &mut NextCdrReader) -> XTypesResult<i32> {
-        Ok(i32::from_be_bytes(reader.read_array::<4>()?))
+        Ok(i32::from_be_bytes(read_array(reader)?))
     }
     fn read_u32(reader: &mut NextCdrReader) -> XTypesResult<u32> {
-        Ok(u32::from_be_bytes(reader.read_array::<4>()?))
+        Ok(u32::from_be_bytes(read_array(reader)?))
     }
     fn read_i64(reader: &mut NextCdrReader) -> XTypesResult<i64> {
-        Ok(i64::from_be_bytes(reader.read_array::<8>()?))
+        Ok(i64::from_be_bytes(read_array(reader)?))
     }
     fn read_u64(reader: &mut NextCdrReader) -> XTypesResult<u64> {
-        Ok(u64::from_be_bytes(reader.read_array::<8>()?))
+        Ok(u64::from_be_bytes(read_array(reader)?))
     }
     fn read_i128(reader: &mut NextCdrReader) -> XTypesResult<i128> {
-        Ok(i128::from_be_bytes(reader.read_array::<16>()?))
+        Ok(i128::from_be_bytes(read_array(reader)?))
     }
     fn read_f32(reader: &mut NextCdrReader) -> XTypesResult<f32> {
-        Ok(f32::from_be_bytes(reader.read_array::<4>()?))
+        Ok(f32::from_be_bytes(read_array(reader)?))
     }
     fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64> {
-        Ok(f64::from_be_bytes(reader.read_array::<8>()?))
+        Ok(f64::from_be_bytes(read_array(reader)?))
     }
 }
 
 struct LittleEndian;
 impl EndiannessRead for LittleEndian {
     fn read_i16(reader: &mut NextCdrReader) -> XTypesResult<i16> {
-        Ok(i16::from_le_bytes(reader.read_array::<2>()?))
+        Ok(i16::from_le_bytes(read_array(reader)?))
     }
     fn read_u16(reader: &mut NextCdrReader) -> XTypesResult<u16> {
-        Ok(u16::from_le_bytes(reader.read_array::<2>()?))
+        Ok(u16::from_le_bytes(read_array(reader)?))
     }
     fn read_i32(reader: &mut NextCdrReader) -> XTypesResult<i32> {
-        Ok(i32::from_le_bytes(reader.read_array::<4>()?))
+        Ok(i32::from_le_bytes(read_array(reader)?))
     }
     fn read_u32(reader: &mut NextCdrReader) -> XTypesResult<u32> {
-        Ok(u32::from_le_bytes(reader.read_array::<4>()?))
+        Ok(u32::from_le_bytes(read_array(reader)?))
     }
     fn read_i64(reader: &mut NextCdrReader) -> XTypesResult<i64> {
-        Ok(i64::from_le_bytes(reader.read_array::<8>()?))
+        Ok(i64::from_le_bytes(read_array(reader)?))
     }
     fn read_u64(reader: &mut NextCdrReader) -> XTypesResult<u64> {
-        Ok(u64::from_le_bytes(reader.read_array::<8>()?))
+        Ok(u64::from_le_bytes(read_array(reader)?))
     }
     fn read_i128(reader: &mut NextCdrReader) -> XTypesResult<i128> {
-        Ok(i128::from_le_bytes(reader.read_array::<16>()?))
+        Ok(i128::from_le_bytes(read_array(reader)?))
     }
     fn read_f32(reader: &mut NextCdrReader) -> XTypesResult<f32> {
-        Ok(f32::from_le_bytes(reader.read_array::<4>()?))
+        Ok(f32::from_le_bytes(read_array(reader)?))
     }
     fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64> {
-        Ok(f64::from_le_bytes(reader.read_array::<8>()?))
+        Ok(f64::from_le_bytes(read_array(reader)?))
     }
 }
 
@@ -98,10 +102,9 @@ trait EncodingVersion {
     const MAX_ALIGN: usize;
 
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
-        reader: &mut XTypesDeserializer<'a, E, V>,
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
         pid: u16,
-        max_length: usize,
-    ) -> XTypesResult<bool>;
+    ) -> XTypesResult<()>;
 
     /// Serialization Rule (9) & (10)
     fn deserialize_array_type<'a, E: EndiannessRead, V: EncodingVersion>(
@@ -159,20 +162,18 @@ impl EncodingVersion for EncodingVersion1 {
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         pid: u16,
-        _max_length: usize,
-    ) -> XTypesResult<bool> {
+    ) -> XTypesResult<()> {
         const PID_SENTINEL: u16 = 1;
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let length: u16 = deserializer.deserialize_primitive_type()?;
             if current_pid == pid {
-                return Ok(true);
+                return Ok(());
             } else if current_pid == PID_SENTINEL {
-                return Ok(false);
+                return Err(PidNotFound(pid));
             } else {
-                deserializer.reader.seek(length as usize);
-
-                deserializer.reader.seek_padding(4);
+                deserializer.reader.seek(length as usize)?;
+                deserializer.align(4)?;
             }
         }
     }
@@ -212,9 +213,7 @@ impl EncodingVersion for EncodingVersion1 {
             V::deserialize_mmember(deserializer, member, dynamic_data, 0)?;
         }
         const PID_SENTINEL: u16 = 1;
-        V::seek_to_pid(deserializer, PID_SENTINEL, 0)?;
-        // let _pid_sentinel = deserializer.deserialize_primitive_type::<u16>()?;
-        // let _length_0 = deserializer.deserialize_primitive_type::<u16>()?;
+        V::seek_to_pid(deserializer, PID_SENTINEL)?;
         Ok(())
     }
 
@@ -229,7 +228,7 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer.align(4);
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if V::seek_to_pid(deserializer, pid, 0)? {
+        let result = if V::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else {
             Ok(())
@@ -257,19 +256,16 @@ impl EncodingVersion for EncodingVersion2 {
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         pid: u16,
-        max_length: usize,
-    ) -> XTypesResult<bool> {
+    ) -> XTypesResult<()> {
         loop {
             let emheader: u32 = deserializer.deserialize_primitive_type()?;
             let current_pid = (emheader & 0x0fffffff) as u16;
             let length = ((emheader & 0b01110000_00000000_00000000_00000000) >> 28) as usize;
             if current_pid == pid {
-                return Ok(true);
-            } else if deserializer.reader.pos + length > max_length {
-                return Ok(false);
+                return Ok(());
             } else {
-                deserializer.reader.seek(length);
-                deserializer.reader.seek_padding(4);
+                deserializer.reader.seek(length)?;
+                deserializer.align(4)?;
             }
         }
     }
@@ -327,7 +323,7 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.align(4);
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if V::seek_to_pid(deserializer, pid, length)? {
+        let result = if V::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
@@ -418,8 +414,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn align(&mut self, alignment: usize) {
-        self.reader.seek_padding(alignment);
+    fn align(&mut self, alignment: usize) -> XTypesResult<()>{
+        self.reader.seek_padding(alignment)
     }
 
     fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
@@ -668,7 +664,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     /// Serialization Rule (3) & (4)
     fn deserialize_string_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
-        let values = self.reader.read_all(length as usize - 1)?.to_vec();
+        let values = self.reader.read_bytes(length as usize - 1)?.to_vec();
         self.reader.read_byte()?; // 0-termination
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
@@ -918,7 +914,7 @@ impl<'a> NextCdrReader<'a> {
         Ok(ret)
     }
 
-    fn read_all(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
+    fn read_bytes(&mut self, length: usize) -> XTypesResult<&'a [u8]> {
         if self.pos + length > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
         }
@@ -927,17 +923,16 @@ impl<'a> NextCdrReader<'a> {
         Ok(ret)
     }
 
-    fn read_array<const N: usize>(&mut self) -> XTypesResult<[u8; N]> {
-        let ret = *self.read_all(N)?.as_array().expect("must have length");
-        self.pos += N;
-        Ok(ret)
+    fn seek(&mut self, v: usize) -> XTypesResult<()>{
+        if self.pos + v > self.buffer.len() {
+            Err(XTypesError::NotEnoughData)
+        } else {
+            self.pos += v;
+            Ok(())
+        }
     }
 
-    fn seek(&mut self, v: usize) {
-        self.pos += v
-    }
-
-    fn seek_padding(&mut self, alignment: usize) {
+    fn seek_padding(&mut self, alignment: usize) -> XTypesResult<()> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
@@ -998,11 +993,13 @@ mod tests {
         struct FinalType {
             field_u16: u16,
             field_u64: u64,
+            field_u32: u32,
         }
         let mut expected = DynamicDataFactory::create_data(FinalType::TYPE);
         FinalType {
             field_u16: 7,
             field_u64: 9,
+            field_u32: 10,
         }
         .create_dynamic_sample(&mut expected);
         assert_eq!(
@@ -1012,6 +1009,7 @@ mod tests {
                     0x00, 0x00, 0x00, 0x00, // CDR_BE
                     0, 7, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                    0, 0, 0, 10, // field_u32
                 ],
             )
             .unwrap(),
@@ -1024,6 +1022,7 @@ mod tests {
                     0x00, 0x01, 0x00, 0x00, // CDR_LE
                     7, 0, 0, 0, 0, 0, 0, 0, // field_u16 | padding (6 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                    10, 0, 0, 0, // field_u32
                 ],
             )
             .unwrap(),
@@ -1036,6 +1035,7 @@ mod tests {
                     0x00, 0x06, 0x00, 0x00, // CDR2_BE
                     0, 7, 0, 0, // field_u16 | padding (2 bytes)
                     0, 0, 0, 0, 0, 0, 0, 9, // field_u64
+                    0, 0, 0, 10, // field_u32
                 ],
             )
             .unwrap(),
@@ -1048,6 +1048,7 @@ mod tests {
                     0x00, 0x07, 0x00, 0x00, // CDR2_LE
                     7, 0, 0, 0, // field_u16 | padding (2 bytes)
                     9, 0, 0, 0, 0, 0, 0, 0, // field_u64
+                    10, 0, 0, 0, // field_u32
                 ],
             )
             .unwrap(),
