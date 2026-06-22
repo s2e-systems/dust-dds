@@ -102,7 +102,10 @@ impl EndiannessRead for LittleEndian {
 }
 
 trait EncodingVersion {
-    const MAX_ALIGN: usize;
+    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        alignment: usize,
+    ) -> XTypesResult<()>;
 
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
@@ -159,8 +162,6 @@ trait EncodingVersion {
 
 struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
-    const MAX_ALIGN: usize = 8;
-
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         pid: u16,
@@ -175,7 +176,7 @@ impl EncodingVersion for EncodingVersion1 {
                 return Err(PidNotFound(pid));
             } else {
                 deserializer.reader.seek(length as usize)?;
-                deserializer.align(4)?;
+                V::align(deserializer, 4)?;
             }
         }
     }
@@ -226,7 +227,7 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
-        deserializer.align(4);
+        V::align(deserializer, 4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if V::seek_to_pid(deserializer, pid).is_ok() {
@@ -248,12 +249,17 @@ impl EncodingVersion for EncodingVersion1 {
     ) -> XTypesResult<()> {
         deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
     }
+
+    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer.reader.seek_padding(alignment)
+    }
 }
 
 struct EncodingVersion2;
 impl EncodingVersion for EncodingVersion2 {
-    const MAX_ALIGN: usize = 4;
-
     fn seek_to_pid<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         pid: u16,
@@ -266,7 +272,7 @@ impl EncodingVersion for EncodingVersion2 {
                 return Ok(());
             } else {
                 deserializer.reader.seek(length)?;
-                deserializer.align(4)?;
+                V::align(deserializer, 4)?;
             }
         }
     }
@@ -317,10 +323,9 @@ impl EncodingVersion for EncodingVersion2 {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        deserializer.align(4)?;
+        V::align(deserializer, 4)?;
         // TODO: If LC(C)>=4
         //let _next_int = deserializer.deserialize_primitive_type::<u32>();
-        deserializer.align(4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if V::seek_to_pid(deserializer, pid).is_ok() {
@@ -342,6 +347,15 @@ impl EncodingVersion for EncodingVersion2 {
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>();
         deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
+    }
+
+    fn align<'a, E: EndiannessRead, V: EncodingVersion>(
+        deserializer: &mut XTypesDeserializer<'a, E, V>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer
+            .reader
+            .seek_padding(core::cmp::min(alignment, 4))
     }
 }
 
@@ -412,11 +426,6 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             _endianness: endianness,
             _encoding_version: encoding_version,
         }
-    }
-
-    fn align(&mut self, alignment: usize) -> XTypesResult<()> {
-        self.reader
-            .seek_padding(core::cmp::min(alignment, V::MAX_ALIGN))
     }
 
     fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
@@ -658,7 +667,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 
     /// Serialization Rule (2)
     fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
-        self.align(O::ALIGNMENT)?;
+        V::align(self, O::ALIGNMENT)?;
         O::as_bytes::<E>(&mut self.reader)
     }
 
