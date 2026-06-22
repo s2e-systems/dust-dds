@@ -36,7 +36,9 @@ trait EndiannessRead {
 }
 
 fn read_array<const N: usize>(reader: &mut Reader) -> XTypesResult<[u8; N]> {
-    Ok(*reader.read_bytes(N)?.as_array().expect("must have length"))
+    let mut array = [0u8; N];
+    array.copy_from_slice(reader.read_bytes(N)?);
+    Ok(array)
 }
 
 struct BigEndian;
