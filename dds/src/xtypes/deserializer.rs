@@ -3,7 +3,10 @@ use crate::xtypes::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TypeKind,
     },
-    error::{XTypesError::{self, PidNotFound}, XTypesResult},
+    error::{
+        XTypesError::{self, PidNotFound},
+        XTypesResult,
+    },
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -138,8 +141,7 @@ trait EncodingVersion {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-        length: usize,
+        dynamic_data: &mut DynamicData
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (27) & (28)
@@ -210,7 +212,7 @@ impl EncodingVersion for EncodingVersion1 {
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            V::deserialize_mmember(deserializer, member, dynamic_data, 0)?;
+            V::deserialize_mmember(deserializer, member, dynamic_data)?;
         }
         const PID_SENTINEL: u16 = 1;
         V::seek_to_pid(deserializer, PID_SENTINEL)?;
@@ -221,8 +223,7 @@ impl EncodingVersion for EncodingVersion1 {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-        _length: usize,
+        dynamic_data: &mut DynamicData
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         deserializer.align(4);
@@ -302,10 +303,10 @@ impl EncodingVersion for EncodingVersion2 {
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let dheader = deserializer.deserialize_primitive_type::<u32>()?;
+        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            V::deserialize_mmember(deserializer, member, dynamic_data, dheader as usize)?;
+            V::deserialize_mmember(deserializer, member, dynamic_data)?;
         }
         Ok(())
     }
@@ -314,13 +315,12 @@ impl EncodingVersion for EncodingVersion2 {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-        length: usize,
+        dynamic_data: &mut DynamicData
     ) -> XTypesResult<()> {
-        deserializer.align(4);
+        deserializer.align(4)?;
         // TODO: If LC(C)>=4
         //let _next_int = deserializer.deserialize_primitive_type::<u32>();
-        deserializer.align(4);
+        deserializer.align(4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if V::seek_to_pid(deserializer, pid).is_ok() {
@@ -414,11 +414,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn align(&mut self, alignment: usize) -> XTypesResult<()>{
+    fn align(&mut self, alignment: usize) -> XTypesResult<()> {
         self.reader.seek_padding(alignment)
     }
 
-    fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
+    fn deserialize_primitive_sequence_elements<O: AsBytes + Align<V>>(
         &mut self,
         length: usize,
     ) -> XTypesResult<Vec<O>> {
@@ -656,8 +656,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (2)
-    fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
-        O::align::<V>(&mut self.reader);
+    fn deserialize_primitive_type<O: AsBytes + Align<V>>(&mut self) -> XTypesResult<O> {
+        self.align(O::ALIGNMENT)?;
         O::as_bytes::<E>(&mut self.reader)
     }
 
@@ -760,65 +760,50 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 }
 
-trait Align {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>);
+trait Align<V> {
+    const ALIGNMENT: usize;
 }
-impl Align for bool {
-    fn align<'a, V: EncodingVersion>(_reader: &mut NextCdrReader<'a>) {}
+const fn const_min(a: usize, b: usize) -> usize {
+    if a <= b { a } else { b }
 }
-impl Align for u8 {
-    fn align<'a, V: EncodingVersion>(_reader: &mut NextCdrReader<'a>) {}
+impl<V> Align<V> for bool {
+    const ALIGNMENT: usize = 1;
 }
-impl Align for u16 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(Self::BITS as usize / 8);
-    }
+impl<V> Align<V> for u8 {
+    const ALIGNMENT: usize = 1;
 }
-impl Align for u32 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(Self::BITS as usize / 8);
-    }
+impl<V> Align<V> for u16 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for u64 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(core::cmp::min(Self::BITS as usize / 8, V::MAX_ALIGN));
-    }
+impl<V> Align<V> for u32 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for i8 {
-    fn align<'a, V: EncodingVersion>(_reader: &mut NextCdrReader<'a>) {}
+impl<V: EncodingVersion> Align<V> for u64 {
+    const ALIGNMENT: usize = const_min(Self::BITS as usize / 8, V::MAX_ALIGN);
 }
-impl Align for i16 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(Self::BITS as usize / 8);
-    }
+impl<V> Align<V> for i8 {
+    const ALIGNMENT: usize = 1;
 }
-impl Align for i32 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(Self::BITS as usize / 8);
-    }
+impl<V> Align<V> for i16 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for i64 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(core::cmp::min(Self::BITS as usize / 8, V::MAX_ALIGN));
-    }
+impl<V> Align<V> for i32 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for i128 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(core::cmp::min(Self::BITS as usize / 8, V::MAX_ALIGN));
-    }
+impl<V> Align<V> for i64 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for f32 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(32 / 8);
-    }
+impl<V> Align<V> for i128 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl Align for f64 {
-    fn align<'a, V: EncodingVersion>(reader: &mut NextCdrReader<'a>) {
-        reader.seek_padding(core::cmp::min(64 / 8, V::MAX_ALIGN));
-    }
+impl<V> Align<V> for f32 {
+    const ALIGNMENT: usize = 4;
 }
-impl Align for char {
-    fn align<'a, V: EncodingVersion>(_reader: &mut NextCdrReader<'a>) {}
+impl<V: EncodingVersion> Align<V> for f64 {
+    const ALIGNMENT: usize = const_min(8, V::MAX_ALIGN);
+}
+impl<V> Align<V> for char {
+    const ALIGNMENT: usize = 1;
 }
 
 trait AsBytes {
@@ -923,7 +908,7 @@ impl<'a> NextCdrReader<'a> {
         Ok(ret)
     }
 
-    fn seek(&mut self, v: usize) -> XTypesResult<()>{
+    fn seek(&mut self, v: usize) -> XTypesResult<()> {
         if self.pos + v > self.buffer.len() {
             Err(XTypesError::NotEnoughData)
         } else {
