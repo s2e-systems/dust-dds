@@ -24,79 +24,79 @@ const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 
 trait EndiannessRead {
-    fn read_i16(reader: &mut NextCdrReader) -> XTypesResult<i16>;
-    fn read_u32(reader: &mut NextCdrReader) -> XTypesResult<u32>;
-    fn read_u16(reader: &mut NextCdrReader) -> XTypesResult<u16>;
-    fn read_i64(reader: &mut NextCdrReader) -> XTypesResult<i64>;
-    fn read_i32(reader: &mut NextCdrReader) -> XTypesResult<i32>;
-    fn read_u64(reader: &mut NextCdrReader) -> XTypesResult<u64>;
-    fn read_i128(reader: &mut NextCdrReader) -> XTypesResult<i128>;
-    fn read_f32(reader: &mut NextCdrReader) -> XTypesResult<f32>;
-    fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64>;
+    fn read_i16(reader: &mut Reader) -> XTypesResult<i16>;
+    fn read_u32(reader: &mut Reader) -> XTypesResult<u32>;
+    fn read_u16(reader: &mut Reader) -> XTypesResult<u16>;
+    fn read_i64(reader: &mut Reader) -> XTypesResult<i64>;
+    fn read_i32(reader: &mut Reader) -> XTypesResult<i32>;
+    fn read_u64(reader: &mut Reader) -> XTypesResult<u64>;
+    fn read_i128(reader: &mut Reader) -> XTypesResult<i128>;
+    fn read_f32(reader: &mut Reader) -> XTypesResult<f32>;
+    fn read_f64(reader: &mut Reader) -> XTypesResult<f64>;
 }
 
-fn read_array<const N: usize>(reader: &mut NextCdrReader) -> XTypesResult<[u8; N]> {
+fn read_array<const N: usize>(reader: &mut Reader) -> XTypesResult<[u8; N]> {
     Ok(*reader.read_bytes(N)?.as_array().expect("must have length"))
 }
 
 struct BigEndian;
 impl EndiannessRead for BigEndian {
-    fn read_i16(reader: &mut NextCdrReader) -> XTypesResult<i16> {
+    fn read_i16(reader: &mut Reader) -> XTypesResult<i16> {
         Ok(i16::from_be_bytes(read_array(reader)?))
     }
-    fn read_u16(reader: &mut NextCdrReader) -> XTypesResult<u16> {
+    fn read_u16(reader: &mut Reader) -> XTypesResult<u16> {
         Ok(u16::from_be_bytes(read_array(reader)?))
     }
-    fn read_i32(reader: &mut NextCdrReader) -> XTypesResult<i32> {
+    fn read_i32(reader: &mut Reader) -> XTypesResult<i32> {
         Ok(i32::from_be_bytes(read_array(reader)?))
     }
-    fn read_u32(reader: &mut NextCdrReader) -> XTypesResult<u32> {
+    fn read_u32(reader: &mut Reader) -> XTypesResult<u32> {
         Ok(u32::from_be_bytes(read_array(reader)?))
     }
-    fn read_i64(reader: &mut NextCdrReader) -> XTypesResult<i64> {
+    fn read_i64(reader: &mut Reader) -> XTypesResult<i64> {
         Ok(i64::from_be_bytes(read_array(reader)?))
     }
-    fn read_u64(reader: &mut NextCdrReader) -> XTypesResult<u64> {
+    fn read_u64(reader: &mut Reader) -> XTypesResult<u64> {
         Ok(u64::from_be_bytes(read_array(reader)?))
     }
-    fn read_i128(reader: &mut NextCdrReader) -> XTypesResult<i128> {
+    fn read_i128(reader: &mut Reader) -> XTypesResult<i128> {
         Ok(i128::from_be_bytes(read_array(reader)?))
     }
-    fn read_f32(reader: &mut NextCdrReader) -> XTypesResult<f32> {
+    fn read_f32(reader: &mut Reader) -> XTypesResult<f32> {
         Ok(f32::from_be_bytes(read_array(reader)?))
     }
-    fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64> {
+    fn read_f64(reader: &mut Reader) -> XTypesResult<f64> {
         Ok(f64::from_be_bytes(read_array(reader)?))
     }
 }
 
 struct LittleEndian;
 impl EndiannessRead for LittleEndian {
-    fn read_i16(reader: &mut NextCdrReader) -> XTypesResult<i16> {
+    fn read_i16(reader: &mut Reader) -> XTypesResult<i16> {
         Ok(i16::from_le_bytes(read_array(reader)?))
     }
-    fn read_u16(reader: &mut NextCdrReader) -> XTypesResult<u16> {
+    fn read_u16(reader: &mut Reader) -> XTypesResult<u16> {
         Ok(u16::from_le_bytes(read_array(reader)?))
     }
-    fn read_i32(reader: &mut NextCdrReader) -> XTypesResult<i32> {
+    fn read_i32(reader: &mut Reader) -> XTypesResult<i32> {
         Ok(i32::from_le_bytes(read_array(reader)?))
     }
-    fn read_u32(reader: &mut NextCdrReader) -> XTypesResult<u32> {
+    fn read_u32(reader: &mut Reader) -> XTypesResult<u32> {
         Ok(u32::from_le_bytes(read_array(reader)?))
     }
-    fn read_i64(reader: &mut NextCdrReader) -> XTypesResult<i64> {
+    fn read_i64(reader: &mut Reader) -> XTypesResult<i64> {
         Ok(i64::from_le_bytes(read_array(reader)?))
     }
-    fn read_u64(reader: &mut NextCdrReader) -> XTypesResult<u64> {
+    fn read_u64(reader: &mut Reader) -> XTypesResult<u64> {
         Ok(u64::from_le_bytes(read_array(reader)?))
     }
-    fn read_i128(reader: &mut NextCdrReader) -> XTypesResult<i128> {
+    fn read_i128(reader: &mut Reader) -> XTypesResult<i128> {
         Ok(i128::from_le_bytes(read_array(reader)?))
     }
-    fn read_f32(reader: &mut NextCdrReader) -> XTypesResult<f32> {
+    fn read_f32(reader: &mut Reader) -> XTypesResult<f32> {
         Ok(f32::from_le_bytes(read_array(reader)?))
     }
-    fn read_f64(reader: &mut NextCdrReader) -> XTypesResult<f64> {
+    fn read_f64(reader: &mut Reader) -> XTypesResult<f64> {
         Ok(f64::from_le_bytes(read_array(reader)?))
     }
 }
@@ -242,7 +242,7 @@ impl EncodingVersion for EncodingVersion1 {
         } else {
             Ok(())
         };
-        deserializer.reader.set_position(orig_pos);
+        deserializer.reader.pos = orig_pos;
         result
 
         // TODO (25) using long PL encoding
@@ -335,7 +335,7 @@ impl EncodingVersion for EncodingVersion2 {
         } else {
             Ok(())
         };
-        deserializer.reader.set_position(orig_pos);
+        deserializer.reader.pos = orig_pos;
         result
     }
 
@@ -387,7 +387,7 @@ pub fn deserialize_top_level_type<'a>(
 }
 
 struct XTypesDeserializer<'a, E, V> {
-    reader: NextCdrReader<'a>,
+    reader: Reader<'a>,
     _endianness: E,
     _encoding_version: V,
 }
@@ -422,7 +422,7 @@ fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bo
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
-            reader: NextCdrReader::new(buffer),
+            reader: Reader { buffer, pos: 0 },
             _endianness: endianness,
             _encoding_version: encoding_version,
         }
@@ -667,7 +667,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 
     /// Serialization Rule (2)
     fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
-        V::align(self, O::ALIGNMENT)?;
+        V::align(self, O::SSIZE)?;
         O::as_bytes::<E>(&mut self.reader)
     }
 
@@ -771,55 +771,55 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 }
 
 trait Align {
-    const ALIGNMENT: usize;
+    const SSIZE: usize;
 }
 impl Align for u8 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for u16 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for u32 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for u64 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for i8 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for i16 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for i32 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for i64 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for i128 {
-    const ALIGNMENT: usize = Self::BITS as usize / 8;
+    const SSIZE: usize = Self::BITS as usize / 8;
 }
 impl Align for f32 {
-    const ALIGNMENT: usize = 4;
+    const SSIZE: usize = 4;
 }
 impl Align for f64 {
-    const ALIGNMENT: usize = 8;
+    const SSIZE: usize = 8;
 }
 impl Align for bool {
-    const ALIGNMENT: usize = 1;
+    const SSIZE: usize = 1;
 }
 impl Align for char {
-    const ALIGNMENT: usize = 1;
+    const SSIZE: usize = 1;
 }
 
 trait AsBytes {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self>
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self>
     where
         Self: Sized;
 }
 impl AsBytes for bool {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         match reader.read_byte()? {
             0 => Ok(false),
             1 => Ok(true),
@@ -828,75 +828,72 @@ impl AsBytes for bool {
     }
 }
 impl AsBytes for u8 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         reader.read_byte()
     }
 }
 impl AsBytes for u16 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_u16(reader)
     }
 }
 impl AsBytes for u32 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_u32(reader)
     }
 }
 impl AsBytes for u64 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_u64(reader)
     }
 }
 impl AsBytes for i8 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         Ok(reader.read_byte()? as Self)
     }
 }
 impl AsBytes for i16 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_i16(reader)
     }
 }
 impl AsBytes for i32 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_i32(reader)
     }
 }
 impl AsBytes for i64 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_i64(reader)
     }
 }
 impl AsBytes for i128 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_i128(reader)
     }
 }
 impl AsBytes for f32 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_f32(reader)
     }
 }
 impl AsBytes for f64 {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         E::read_f64(reader)
     }
 }
 impl AsBytes for char {
-    fn as_bytes<'a, E: EndiannessRead>(reader: &mut NextCdrReader<'a>) -> XTypesResult<Self> {
+    fn as_bytes<'a, E: EndiannessRead>(reader: &mut Reader<'a>) -> XTypesResult<Self> {
         Ok(char::from(reader.read_byte()?))
     }
 }
 
-struct NextCdrReader<'a> {
+struct Reader<'a> {
     buffer: &'a [u8],
     pos: usize,
 }
 
-impl<'a> NextCdrReader<'a> {
-    fn new(buffer: &'a [u8]) -> Self {
-        Self { buffer, pos: 0 }
-    }
+impl<'a> Reader<'a> {
     fn read_byte(&mut self) -> XTypesResult<u8> {
         if self.pos + 1 > self.buffer.len() {
             return Err(XTypesError::NotEnoughData);
@@ -928,10 +925,6 @@ impl<'a> NextCdrReader<'a> {
         let mask = alignment - 1;
         self.seek(((self.pos + mask) & !mask) - self.pos)
     }
-
-    fn set_position(&mut self, pos: usize) {
-        self.pos = pos;
-    }
 }
 
 #[cfg(test)]
@@ -945,10 +938,10 @@ mod tests {
     #[test]
     fn cyclone_dispose_message() {
         #[derive(Debug, PartialEq, TypeSupport)]
-        pub struct DisposeDataType {
+        struct DisposeDataType {
             #[dust_dds(key)]
-            pub name: String,
-            pub value: u8,
+            name: String,
+            value: u8,
         }
 
         let mut dispose_data_type_key_holder = DisposeDataType::TYPE;
