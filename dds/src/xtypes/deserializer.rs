@@ -338,7 +338,7 @@ impl EncodingVersion for EncodingVersion1 {
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if deserializer.reader.seek_to_pid_v1(pid)? {
-            deserializer.deserialize_nopt_member(member, dynamic_data)
+            deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else {
             Ok(())
         };
@@ -416,7 +416,7 @@ impl EncodingVersion for EncodingVersion2 {
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if deserializer.reader.seek_to_pid_v2(pid, length)? {
-            deserializer.deserialize_nopt_member(member, dynamic_data)
+            deserializer.deserialize_nopt_fmember(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
         } else {
@@ -827,13 +827,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_nopt_member(member, dynamic_data)?;
+            self.deserialize_nopt_fmember(member, dynamic_data)?;
         }
         Ok(())
     }
 
     /// Serialization Rule (18)
-    fn deserialize_nopt_member(
+    fn deserialize_nopt_fmember(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
@@ -1603,7 +1603,10 @@ mod tests {
     use super::*;
     use crate::{
         dcps::xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
-        xtypes::type_support::{Type, TypeSupport},
+        xtypes::{
+            dynamic_type::{DynamicTypeBuilder, DynamicTypeBuilderFactory},
+            type_support::{Type, TypeSupport},
+        },
     };
 
     #[test]
@@ -1614,7 +1617,7 @@ mod tests {
             pub name: String,
             pub value: u8,
         }
-        let dispose_serialized_key_from_data_message = deserialize_key_only(
+        let dispose_serialized_key_from_data_message = deserialize_top_level_type(
             DisposeDataType::TYPE,
             &[
                 0x0, 0x1, 0x0, 0x1, 0xf, 0x0, 0x0, 0x0, 0x56, 0x65, 0x72, 0x79, 0x20, 0x4c, 0x6f,
@@ -1623,7 +1626,7 @@ mod tests {
         )
         .unwrap();
         let instance_handle =
-            get_instance_handle_from_dynamic_data(dispose_serialized_key_from_data_message.clone())
+            get_instance_handle_from_dynamic_data(dispose_serialized_key_from_data_message)
                 .unwrap();
         assert_eq!(
             instance_handle,

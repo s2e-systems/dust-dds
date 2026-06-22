@@ -2184,7 +2184,7 @@ impl DataReaderEntity {
                 }
                 None => {
                     let data_value =
-                        deserialize_key_only(self.type_support, cache_change.data_value.as_ref())?;
+                        deserialize_top_level_type(self.type_support, cache_change.data_value.as_ref())?;
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
                     (data_value, instance_handle)
