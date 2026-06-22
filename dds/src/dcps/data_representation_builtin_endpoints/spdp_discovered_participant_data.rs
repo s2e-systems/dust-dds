@@ -190,7 +190,7 @@ pub struct SpdpDiscoveredParticipantData {
     pub(crate) discovered_participant_list: Vec<InstanceHandle>,
 }
 impl Type for SpdpDiscoveredParticipantData {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "SpdpDiscoveredParticipantData",
@@ -261,7 +261,7 @@ impl Type for SpdpDiscoveredParticipantData {
     };
 }
 impl TypeSupport for SpdpDiscoveredParticipantData {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
         let guid_prefix = dds_participant_data.key.value[0..12]
             .try_into()
@@ -339,7 +339,10 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
+    fn create_dynamic_sample(
+        self,
+        data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>,
+    ) {
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),

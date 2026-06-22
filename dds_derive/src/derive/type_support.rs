@@ -121,10 +121,23 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 );
 
-                if !struct_member_attributes.non_serialized {
-                    let member_type = &member.ty;
-                    let member_default_value = default_value
-                        .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                let member_type = &member.ty;
+                let member_default_value = default_value
+                    .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                if struct_member_attributes.non_serialized {
+                    match &member.ident {
+                        Some(member_ident) => {
+                            member_sample_seq.push(quote! {
+                                #member_ident: #member_default_value,
+                            });
+                        }
+                        None => {
+                            member_sample_seq.push(quote! {
+                                #member_default_value,
+                            });
+                        }
+                    }
+                } else {
                     match &member.ident {
                         Some(member_ident) => {
                             // In Mutable structs every member is optional even when not explicitly marked as such
@@ -179,7 +192,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #struct_descriptor,
                         member_list: &[#(#member_list,)*]
@@ -424,7 +437,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #union_descriptor,
                         member_list: &[#(#variant_list,)*]
@@ -497,7 +510,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #enum_descriptor,
                         member_list: &[]

@@ -223,7 +223,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         listener_mask: StatusMask,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         if self
@@ -410,7 +410,7 @@ impl DcpsDomainParticipant {
     pub fn find_topic(
         &mut self,
         topic_name: String,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
     ) -> DdsResult<Option<(InstanceHandle, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
