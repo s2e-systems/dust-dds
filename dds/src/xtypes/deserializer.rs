@@ -377,10 +377,10 @@ impl EncodingVersion for EncodingVersion2 {
 }
 
 /// Serialization Rule (1)
-pub fn deserialize_top_level_type(
-    dynamic_type: DynamicType,
+pub fn deserialize_top_level_type<'a>(
+    dynamic_type: DynamicType<'a>,
     buffer: &[u8],
-) -> XTypesResult<DynamicData> {
+) -> XTypesResult<DynamicData<'a>> {
     if buffer.len() < 4 {
         return Err(XTypesError::NotEnoughData);
     }
@@ -558,7 +558,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn deserialize_as_nested(&mut self, dynamic_type: DynamicType) -> XTypesResult<DynamicData> {
+    fn deserialize_as_nested<'b>(&mut self, dynamic_type: DynamicType<'b>) -> XTypesResult<DynamicData<'b>> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
         fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
@@ -764,7 +764,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn deserialize_fstruct_type(
         &mut self,
         dynamic_type: DynamicType,
-        dynamic_data: &mut DynamicData,
+        dynamic_data: &mut DynamicData<'_>,
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
@@ -777,13 +777,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn deserialize_nopt_fmember(
         &mut self,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
+        dynamic_data: &mut DynamicData<'_>,
     ) -> XTypesResult<()> {
         self.deserialize_as_value(member, dynamic_data)
     }
 
     /// Serialization Rule (26)
-    fn _deserialize_funion_type(&mut self) -> XTypesResult<DynamicData> {
+    fn _deserialize_funion_type(&mut self) -> XTypesResult<DynamicData<'_>> {
         todo!()
     }
 }
@@ -986,11 +986,21 @@ mod tests {
             pub name: String,
             pub value: u8,
         }
+
+        let mut dispose_data_type_key_holder = DisposeDataType::TYPE;
+        let mut member_list = dispose_data_type_key_holder.member_list.to_vec();
+        member_list.retain(|f|f.descriptor.is_key);
+        dispose_data_type_key_holder.member_list = &member_list;
+
         let dispose_serialized_key_from_data_message = deserialize_top_level_type(
-            DisposeDataType::TYPE,
+            dispose_data_type_key_holder,
             &[
-                0x0, 0x1, 0x0, 0x1, 0xf, 0x0, 0x0, 0x0, 0x56, 0x65, 0x72, 0x79, 0x20, 0x4c, 0x6f,
-                0x6e, 0x67, 0x20, 0x4e, 0x61, 0x6d, 0x65, 0x0, 0x0,
+                0x0, 0x1, 0x0, 0x1, // CDR Header
+                0xf, 0x0, 0x0, 0x0, // String length
+                0x56, 0x65, 0x72, 0x79, // String
+                0x20, 0x4c, 0x6f, 0x6e, // String
+                0x67, 0x20, 0x4e, 0x61, // String
+                0x6d, 0x65, 0x0, 0x0, // String = terminiating 0 + 1 byte padding
             ],
         )
         .unwrap();

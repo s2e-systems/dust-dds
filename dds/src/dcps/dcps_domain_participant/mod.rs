@@ -1333,7 +1333,7 @@ struct TopicEntity {
     status_condition: DcpsStatusCondition,
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _listener_mask: StatusMask,
-    type_support: DynamicType,
+    type_support: DynamicType<'static>,
 }
 
 impl TopicEntity {
@@ -1346,7 +1346,7 @@ impl TopicEntity {
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
     ) -> Self {
         Self {
             qos,
@@ -1443,7 +1443,7 @@ struct DataWriterEntity {
     transport_writer: RtpsWriterKind,
     topic_name: String,
     type_name: String,
-    type_support: DynamicType,
+    type_support: DynamicType<'static>,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
     incompatible_subscription_list: Vec<InstanceHandle>,
@@ -1474,7 +1474,7 @@ impl DataWriterEntity {
         transport_writer: RtpsWriterKind,
         topic_name: String,
         type_name: String,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         qos: DataWriterQos,
@@ -1633,7 +1633,7 @@ impl DataWriterEntity {
 
     fn dispose_w_timestamp(
         &mut self,
-        mut dynamic_data: DynamicData,
+        mut dynamic_data: DynamicData<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1679,7 +1679,7 @@ impl DataWriterEntity {
 
     fn unregister_w_timestamp(
         &mut self,
-        mut dynamic_data: DynamicData,
+        mut dynamic_data: DynamicData<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1827,7 +1827,7 @@ impl DataWriterEntity {
     }
 }
 
-type SampleList = Vec<(Option<DynamicData>, SampleInfo)>;
+type SampleList = Vec<(Option<DynamicData<'static>>, SampleInfo)>;
 
 enum AddChangeResult {
     Added(InstanceHandle),
@@ -1906,7 +1906,7 @@ struct ReaderSample {
     writer_guid: [u8; 16],
     instance_handle: InstanceHandle,
     source_timestamp: Option<Time>,
-    data_value: DynamicData,
+    data_value: DynamicData<'static>,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
@@ -1914,7 +1914,7 @@ struct ReaderSample {
 
 struct IndexedSample {
     index: usize,
-    sample: (Option<DynamicData>, SampleInfo),
+    sample: (Option<DynamicData<'static>>, SampleInfo),
 }
 
 enum RtpsReaderKind {
@@ -1942,7 +1942,7 @@ struct DataReaderEntity {
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
     topic_name: String,
-    type_support: DynamicType,
+    type_support: DynamicType<'static>,
     requested_deadline_missed_status: RequestedDeadlineMissedStatus,
     requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
     sample_rejected_status: SampleRejectedStatus,
@@ -1965,7 +1965,7 @@ impl DataReaderEntity {
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         transport_reader: RtpsReaderKind,
@@ -2167,7 +2167,7 @@ impl DataReaderEntity {
     ) -> DdsResult<ReaderSample> {
         let (data_value, instance_handle) = match cache_change.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value: DynamicData = deserialize_top_level_type(
+                let data_value: DynamicData<'static> = deserialize_top_level_type(
                     self.type_support,
                     cache_change.data_value.as_ref(),
                 )?;
@@ -2183,13 +2183,19 @@ impl DataReaderEntity {
                     (data_value, instance_handle)
                 }
                 None => {
+                    let mut dispose_data_type_key_holder = self.type_support;
+                    let mut member_list = self.type_support.member_list.to_vec();
+                    member_list.retain(|f| f.descriptor.is_key);
+                    dispose_data_type_key_holder.member_list = &member_list;
+
                     let data_value = deserialize_top_level_type(
-                        self.type_support,
+                        dispose_data_type_key_holder,
                         cache_change.data_value.as_ref(),
                     )?;
+
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
-                    (data_value, instance_handle)
+                    (DynamicDataFactory::create_data(self.type_support), instance_handle)
                 }
             },
         };
@@ -2745,7 +2751,7 @@ impl DataReaderEntity {
 }
 
 fn serialize(
-    dynamic_data: &DynamicData,
+    dynamic_data: &DynamicData<'static>,
     representation: &DataRepresentationQosPolicy,
 ) -> DdsResult<Vec<u8>> {
     Ok(

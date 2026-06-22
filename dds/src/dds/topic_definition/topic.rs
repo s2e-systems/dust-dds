@@ -157,7 +157,7 @@ impl Topic {
 impl Topic {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&self) -> DdsResult<DynamicType> {
+    pub fn get_type_support(&self) -> DdsResult<DynamicType<'static>> {
         block_on(self.topic_async.get_type_support())
     }
 }

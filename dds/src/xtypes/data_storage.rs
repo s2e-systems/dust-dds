@@ -37,7 +37,7 @@ pub enum DataStorage {
     /// String value.
     String(String),
     /// Complex data value represented by a [`DynamicData`].
-    ComplexValue(DynamicData),
+    ComplexValue(DynamicData<'static>),
     /// Sequence of unsigned 8-bit integers.
     SequenceUInt8(Vec<u8>),
     /// Sequence of signed 8-bit integers.
@@ -67,7 +67,7 @@ pub enum DataStorage {
     /// Sequence of string values.
     SequenceString(Vec<String>),
     /// Sequence of complex data values.
-    SequenceComplexValue(Vec<DynamicData>),
+    SequenceComplexValue(Vec<DynamicData<'static>>),
 }
 
 /// Trait used to map Rust types to and from their corresponding [`DataStorage`] variants.

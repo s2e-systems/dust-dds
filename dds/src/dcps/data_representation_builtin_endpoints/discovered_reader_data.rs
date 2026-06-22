@@ -68,7 +68,7 @@ impl DiscoveredReaderData {
 }
 
 impl Type for DiscoveredReaderData {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredReaderData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -174,7 +174,7 @@ impl Type for DiscoveredReaderData {
     };
 }
 impl TypeSupport for DiscoveredReaderData {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static> ) -> Self {
         let key = BuiltInTopicKey::try_from_storage(
             src.remove_value(PID_ENDPOINT_GUID as u32)
                 .expect("Must exist"),
@@ -304,7 +304,7 @@ impl TypeSupport for DiscoveredReaderData {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static> ) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.dds_subscription_data.key.into_storage(),

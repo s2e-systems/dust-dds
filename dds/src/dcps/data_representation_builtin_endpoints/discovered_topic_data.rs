@@ -44,7 +44,7 @@ impl DiscoveredTopicData {
 }
 
 impl Type for DiscoveredTopicData {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("TopicBuiltinTopicData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),
@@ -124,7 +124,7 @@ impl Type for DiscoveredTopicData {
     };
 }
 impl TypeSupport for DiscoveredTopicData {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static> ) -> Self {
         Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: DataStorageMapping::try_from_storage(
@@ -214,7 +214,7 @@ impl TypeSupport for DiscoveredTopicData {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static> ) {
         data.set_value(
             PID_ENDPOINT_GUID as u32,
             self.topic_builtin_topic_data.key.into_storage(),

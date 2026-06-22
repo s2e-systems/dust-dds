@@ -25,7 +25,7 @@ pub enum TypeKind {
 
 pub fn convert_python_type_to_dynamic_type(
     python_type: &Bound<'_, PyAny>,
-) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicType> {
+) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicType<'static>> {
     let dataclass_fields = python_type.getattr("__annotations__")?;
     let fields_dict = dataclass_fields.cast::<PyDict>()?;
     let name = String::leak(python_type.getattr("__name__")?.extract::<String>()?);
@@ -94,7 +94,7 @@ pub fn convert_python_type_to_dynamic_type(
 
 pub fn convert_python_instance_to_dynamic_data(
     python_instance: Bound<'_, PyAny>,
-) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicData> {
+) -> PyResult<dust_dds::xtypes::dynamic_type::DynamicData<'static> > {
     let r#type = convert_python_type_to_dynamic_type(&python_instance.getattr("__class__")?)?;
     let mut dynamic_data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(r#type);
 
@@ -168,7 +168,7 @@ pub fn convert_dynamic_data_to_python_instance(
     py: Python,
     r#type: &Py<PyAny>,
     dynamic_type: &dust_dds::xtypes::dynamic_type::DynamicType,
-    dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData,
+    dynamic_data: dust_dds::xtypes::dynamic_type::DynamicData<'static> ,
 ) -> PyResult<Py<PyAny>> {
     // Call the empty constructor of the type
     let py_type = r#type.cast_bound::<PyType>(py)?;
@@ -254,30 +254,30 @@ pub fn convert_dynamic_data_to_python_instance(
     Ok(data.unbind())
 }
 
-pub struct PythonDdsData(dust_dds::xtypes::dynamic_type::DynamicData);
+pub struct PythonDdsData(dust_dds::xtypes::dynamic_type::DynamicData<'static> );
 
-impl From<dust_dds::xtypes::dynamic_type::DynamicData> for PythonDdsData {
-    fn from(value: dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+impl From<dust_dds::xtypes::dynamic_type::DynamicData<'static> > for PythonDdsData {
+    fn from(value: dust_dds::xtypes::dynamic_type::DynamicData<'static> ) -> Self {
         Self(value)
     }
 }
 
-impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData {
+impl From<PythonDdsData> for dust_dds::xtypes::dynamic_type::DynamicData<'static>  {
     fn from(value: PythonDdsData) -> Self {
         value.0
     }
 }
 
 impl Type for PythonDdsData {
-    const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+    const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
         <u8 as dust_dds::xtypes::type_support::Type>::TYPE;
 }
 impl TypeSupport for PythonDdsData {
-    fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static> ) -> Self {
         Self(src.clone())
     }
 
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
+    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static> ) {
         *data = self.0;
     }
 }

@@ -9,25 +9,25 @@ use crate::xtypes::dynamic_type::{
 /// The Type trait represents static type information of Rust types
 pub trait Type {
     /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
-    const TYPE: DynamicType;
+    const TYPE: DynamicType<'static>;
 }
 
 /// The TypeSupport trait represents a type that can be transmitted by DDS.
 pub trait TypeSupport: Type {
     /// This constant represent the ['DynamicType'] object corresponding to the TypeSupport’s data type
-    fn get_type() -> DynamicType {
+    fn get_type() -> DynamicType<'static> {
         Self::TYPE
     }
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
-    fn create_sample(src: &mut DynamicData) -> Self;
+    fn create_sample(src: &mut DynamicData<'static>) -> Self;
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
-    fn create_dynamic_sample(self, data: &mut DynamicData);
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>);
 }
 
 impl Type for i8 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT8,
             name: "",
@@ -44,7 +44,7 @@ impl Type for i8 {
 }
 
 impl Type for u8 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT8,
             name: "",
@@ -61,7 +61,7 @@ impl Type for u8 {
 }
 
 impl Type for i16 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT16,
             name: "",
@@ -78,7 +78,7 @@ impl Type for i16 {
 }
 
 impl Type for u16 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT16,
             name: "",
@@ -95,7 +95,7 @@ impl Type for u16 {
 }
 
 impl Type for i32 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT32,
             name: "",
@@ -112,7 +112,7 @@ impl Type for i32 {
 }
 
 impl Type for u32 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT32,
             name: "",
@@ -129,7 +129,7 @@ impl Type for u32 {
 }
 
 impl Type for i64 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::INT64,
             name: "",
@@ -146,7 +146,7 @@ impl Type for i64 {
 }
 
 impl Type for u64 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::UINT64,
             name: "",
@@ -163,7 +163,7 @@ impl Type for u64 {
 }
 
 impl Type for f32 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT32,
             name: "",
@@ -180,7 +180,7 @@ impl Type for f32 {
 }
 
 impl Type for f64 {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::FLOAT64,
             name: "",
@@ -197,7 +197,7 @@ impl Type for f64 {
 }
 
 impl Type for bool {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::BOOLEAN,
             name: "",
@@ -214,7 +214,7 @@ impl Type for bool {
 }
 
 impl Type for char {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::CHAR8,
             name: "",
@@ -231,7 +231,7 @@ impl Type for char {
 }
 
 impl<T> Type for Box<T> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ALIAS,
             name: "",
@@ -248,7 +248,7 @@ impl<T> Type for Box<T> {
 }
 
 impl<T> Type for Option<T> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ALIAS,
             name: "",
@@ -265,7 +265,7 @@ impl<T> Type for Option<T> {
 }
 
 impl Type for String {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
             name: "",
@@ -282,7 +282,7 @@ impl Type for String {
 }
 
 impl<T: Type, const N: usize> Type for [T; N] {
-    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType<'static> = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ARRAY,
             name: "",
@@ -299,7 +299,7 @@ impl<T: Type, const N: usize> Type for [T; N] {
 }
 
 impl Type for &[u8] {
-    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType<'static> = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ARRAY,
             name: "",
@@ -316,7 +316,7 @@ impl Type for &[u8] {
 }
 
 impl Type for &str {
-    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType<'static> = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::STRING8,
             name: "",
@@ -333,7 +333,7 @@ impl Type for &str {
 }
 
 impl<T: TypeSupport> Type for Vec<T> {
-    const TYPE: DynamicType = crate::xtypes::dynamic_type::DynamicType {
+    const TYPE: DynamicType<'static> = crate::xtypes::dynamic_type::DynamicType {
         descriptor: &crate::xtypes::dynamic_type::TypeDescriptor {
             kind: crate::xtypes::dynamic_type::TypeKind::SEQUENCE,
             name: "SequenceComplexValue",
@@ -350,7 +350,7 @@ impl<T: TypeSupport> Type for Vec<T> {
 }
 
 impl Type for Vec<i8> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -367,7 +367,7 @@ impl Type for Vec<i8> {
 }
 
 impl Type for Vec<u8> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -384,7 +384,7 @@ impl Type for Vec<u8> {
 }
 
 impl Type for Vec<i16> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -401,7 +401,7 @@ impl Type for Vec<i16> {
 }
 
 impl Type for Vec<u16> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -418,7 +418,7 @@ impl Type for Vec<u16> {
 }
 
 impl Type for Vec<i32> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -435,7 +435,7 @@ impl Type for Vec<i32> {
 }
 
 impl Type for Vec<u32> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -452,7 +452,7 @@ impl Type for Vec<u32> {
 }
 
 impl Type for Vec<i64> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -469,7 +469,7 @@ impl Type for Vec<i64> {
 }
 
 impl Type for Vec<u64> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -486,7 +486,7 @@ impl Type for Vec<u64> {
 }
 
 impl Type for Vec<f32> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -503,7 +503,7 @@ impl Type for Vec<f32> {
 }
 
 impl Type for Vec<f64> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -520,7 +520,7 @@ impl Type for Vec<f64> {
 }
 
 impl Type for Vec<String> {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::SEQUENCE,
             name: "",
@@ -541,7 +541,7 @@ mod tests {
     use super::*;
     use crate::xtypes::dynamic_type::DynamicDataFactory;
 
-    fn create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData {
+    fn create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData<'static>  {
         let mut data = crate::xtypes::dynamic_type::DynamicDataFactory::create_data(T::TYPE);
         v.create_dynamic_sample(&mut data);
         data
