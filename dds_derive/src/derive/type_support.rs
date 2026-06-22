@@ -192,7 +192,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #struct_descriptor,
                         member_list: &[#(#member_list,)*]
@@ -437,7 +437,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #union_descriptor,
                         member_list: &[#(#variant_list,)*]
@@ -510,7 +510,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let get_type_quote = quote! {
-                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #enum_descriptor,
                         member_list: &[]

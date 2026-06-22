@@ -14,10 +14,10 @@ pub enum DurationKind {
 }
 
 impl Type for DurationKind {
-    const TYPE: crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
+    const TYPE: crate::xtypes::dynamic_type::DynamicType<'static> = Duration::TYPE;
 }
 impl TypeSupport for DurationKind {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let duration = Duration::create_sample(src);
         match duration {
             DURATION_INFINITE => DurationKind::Infinite,
@@ -25,7 +25,7 @@ impl TypeSupport for DurationKind {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
         let value = match self {
             DurationKind::Finite(duration) => duration,
             DurationKind::Infinite => DURATION_INFINITE,

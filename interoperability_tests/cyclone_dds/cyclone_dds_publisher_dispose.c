@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-	interoperability_test_DisposeDataType msg = {"Very Long Name", 1};
+	interoperability_test_DisposeDataType msg = {"No Padding Str", 1};
 	rc = dds_write(data_writer, &msg);
 	if (rc != DDS_RETCODE_OK)
 	{

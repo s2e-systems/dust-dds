@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 	}
 
 	interoperability::test::DisposeDataType dispose_msg;
-	dispose_msg.name("Very Long Name");
+	dispose_msg.name("No Padding Str");
 	dispose_msg.value(1);
 	auto handle = writer->register_instance(&dispose_msg);
 

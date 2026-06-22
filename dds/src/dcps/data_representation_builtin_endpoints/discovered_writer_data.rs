@@ -64,7 +64,7 @@ impl DiscoveredWriterData {
     }
 }
 impl Type for DiscoveredWriterData {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &ConvenienceTypeBuilder::type_descriptor("DiscoveredWriterData"),
         member_list: &[
             ConvenienceTypeBuilder::key_member::<BuiltInTopicKey>(0, "key", PID_ENDPOINT_GUID),

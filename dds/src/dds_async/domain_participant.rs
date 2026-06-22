@@ -174,7 +174,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: DynamicType,
+        dynamic_type_representation: DynamicType<'static>,
     ) -> DdsResult<TopicDescriptionAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsTopicListener::new);

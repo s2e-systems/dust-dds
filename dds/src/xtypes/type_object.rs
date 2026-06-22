@@ -1861,8 +1861,8 @@ pub struct TypeInformation {
 /// Sequence of TypeInformation.
 pub type TypeInformationSeq = Vec<TypeInformation>;
 
-impl From<&DynamicType> for MinimalTypeObject {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<&DynamicType<'a>> for MinimalTypeObject {
+    fn from(value: &DynamicType<'a>) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -1891,8 +1891,8 @@ impl From<&DynamicType> for MinimalTypeObject {
     }
 }
 
-impl From<&DynamicType> for CompleteTypeObject {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<&DynamicType<'a>> for CompleteTypeObject {
+    fn from(value: &DynamicType<'a>) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -1926,8 +1926,8 @@ impl From<&DynamicType> for CompleteTypeObject {
     }
 }
 
-impl From<&DynamicType> for TypeIdentifier {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
+    fn from(value: &DynamicType<'a>) -> Self {
         match value.descriptor.kind {
             TypeKind::NONE => TypeIdentifier::TkNone,
             TypeKind::BOOLEAN => TypeIdentifier::TkBoolean,
@@ -2014,10 +2014,10 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
     }
 }
 
-impl TryFrom<&DynamicType> for TypeInformation {
+impl<'a> TryFrom<&DynamicType<'a>> for TypeInformation {
     type Error = XTypesError;
 
-    fn try_from(value: &DynamicType) -> Result<Self, Self::Error> {
+    fn try_from(value: &DynamicType<'a>) -> Result<Self, Self::Error> {
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };

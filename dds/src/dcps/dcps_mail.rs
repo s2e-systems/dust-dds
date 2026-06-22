@@ -119,7 +119,7 @@ pub enum ParticipantServiceMail {
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
         listener_mask: StatusMask,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
         reply_sender: OneshotSender<DdsResult<InstanceHandle>>,
     },
     DeleteUserDefinedTopic {
@@ -144,7 +144,7 @@ pub enum ParticipantServiceMail {
     FindTopic {
         participant_handle: InstanceHandle,
         topic_name: String,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
         reply_sender: OneshotSender<DdsResult<Option<(InstanceHandle, String)>>>,
     },
     LookupTopicdescription {
@@ -266,7 +266,7 @@ pub enum TopicServiceMail {
     GetTypeSupport {
         participant_handle: InstanceHandle,
         topic_name: String,
-        reply_sender: OneshotSender<DdsResult<DynamicType>>,
+        reply_sender: OneshotSender<DdsResult<DynamicType<'static>>>,
     },
 }
 
@@ -408,7 +408,7 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData,
+        dynamic_data: DynamicData<'static>,
         timestamp: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -416,14 +416,14 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData,
+        dynamic_data: DynamicData<'static>,
         reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     WriteWTimestamp {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData,
+        dynamic_data: DynamicData<'static>,
         timestamp: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -431,7 +431,7 @@ pub enum WriterServiceMail {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData,
+        dynamic_data: DynamicData<'static>,
         timestamp: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
@@ -473,7 +473,7 @@ pub enum ReaderServiceMail {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>>>,
     },
     Take {
         participant_handle: InstanceHandle,
@@ -485,7 +485,7 @@ pub enum ReaderServiceMail {
         instance_states: Vec<InstanceStateKind>,
         specific_instance_handle: Option<InstanceHandle>,
         #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>>>,
     },
     ReadNextInstance {
         participant_handle: InstanceHandle,
@@ -497,7 +497,7 @@ pub enum ReaderServiceMail {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>>>,
     },
     TakeNextInstance {
         participant_handle: InstanceHandle,
@@ -509,7 +509,7 @@ pub enum ReaderServiceMail {
         view_states: Vec<ViewStateKind>,
         instance_states: Vec<InstanceStateKind>,
         #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData>, SampleInfo)>>>,
+        reply_sender: OneshotSender<DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>>>,
     },
     GetSubscriptionMatchedStatus {
         participant_handle: InstanceHandle,

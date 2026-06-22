@@ -71,7 +71,7 @@ fn main() {
     writer
         .write(
             DisposeDataType {
-                name: "Very Long Name".to_string(),
+                name: "No Padding Str".to_string(),
                 value: 1,
             },
             None,
@@ -85,7 +85,7 @@ fn main() {
     writer
         .dispose(
             DisposeDataType {
-                name: "Very Long Name".to_string(),
+                name: "No Padding Str".to_string(),
                 value: 1,
             },
             None,

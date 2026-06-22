@@ -22,7 +22,7 @@ pub enum Length {
     Limited(i32),
 }
 impl Type for Length {
-    const TYPE: DynamicType = i32::TYPE;
+    const TYPE: DynamicType<'static> = i32::TYPE;
 }
 impl TypeSupport for Length {
     fn create_dynamic_sample(self, data: &mut DynamicData) {
@@ -1041,7 +1041,7 @@ pub enum HistoryQosPolicyKind {
     KeepAll,
 }
 impl Type for HistoryQosPolicyKind {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
@@ -1057,7 +1057,7 @@ impl Type for HistoryQosPolicyKind {
     };
 }
 impl TypeSupport for HistoryQosPolicyKind {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let discriminant = src.get_uint8_value(0).unwrap();
         match discriminant {
             0 => Self::KeepLast(1),
@@ -1066,7 +1066,7 @@ impl TypeSupport for HistoryQosPolicyKind {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
         let value = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
@@ -1103,7 +1103,7 @@ impl HistoryQosPolicy {
     }
 }
 impl Type for HistoryQosPolicy {
-    const TYPE: DynamicType = DynamicType {
+    const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
             kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
             name: "HistoryQosPolicy",
@@ -1156,7 +1156,7 @@ impl Type for HistoryQosPolicy {
     };
 }
 impl TypeSupport for HistoryQosPolicy {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let mut kind = src.get_complex_value(0).cloned().unwrap();
         let depth = src.get_int32_value(1).unwrap();
         let qos_policy_kind = HistoryQosPolicyKind::create_sample(&mut kind);
@@ -1170,7 +1170,7 @@ impl TypeSupport for HistoryQosPolicy {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
         let mut kind_data = DynamicDataFactory::create_data(HistoryQosPolicyKind::TYPE);
         self.kind.create_dynamic_sample(&mut kind_data);
         data.set_complex_value(0, kind_data).unwrap();

@@ -35,7 +35,7 @@ impl DcpsDomainParticipant {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let subscriber = if subscriber_handle == &self.domain_participant.instance_handle {
             Some(&mut self.domain_participant.builtin_subscriber)
         } else {
@@ -77,7 +77,7 @@ impl DcpsDomainParticipant {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -113,7 +113,7 @@ impl DcpsDomainParticipant {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -149,7 +149,7 @@ impl DcpsDomainParticipant {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list

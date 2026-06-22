@@ -8,8 +8,8 @@ use crate::{
     },
 };
 
-pub fn get_instance_handle_from_dynamic_data(
-    mut dynamic_data: DynamicData,
+pub fn get_instance_handle_from_dynamic_data<'a>(
+    mut dynamic_data: DynamicData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
     struct Md5 {
         key: [u8; 16],
