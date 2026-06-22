@@ -141,7 +141,7 @@ trait EncodingVersion {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData
+        dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (27) & (28)
@@ -223,7 +223,7 @@ impl EncodingVersion for EncodingVersion1 {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData
+        dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         deserializer.align(4);
@@ -315,7 +315,7 @@ impl EncodingVersion for EncodingVersion2 {
     fn deserialize_mmember<'a, E: EndiannessRead, V: EncodingVersion>(
         deserializer: &mut XTypesDeserializer<'a, E, V>,
         member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData
+        dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         deserializer.align(4)?;
         // TODO: If LC(C)>=4
@@ -415,10 +415,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     fn align(&mut self, alignment: usize) -> XTypesResult<()> {
-        self.reader.seek_padding(alignment)
+        self.reader
+            .seek_padding(core::cmp::min(alignment, V::MAX_ALIGN))
     }
 
-    fn deserialize_primitive_sequence_elements<O: AsBytes + Align<V>>(
+    fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
         &mut self,
         length: usize,
     ) -> XTypesResult<Vec<O>> {
@@ -656,7 +657,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (2)
-    fn deserialize_primitive_type<O: AsBytes + Align<V>>(&mut self) -> XTypesResult<O> {
+    fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
         self.align(O::ALIGNMENT)?;
         O::as_bytes::<E>(&mut self.reader)
     }
@@ -760,49 +761,46 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 }
 
-trait Align<V> {
+trait Align {
     const ALIGNMENT: usize;
 }
-const fn const_min(a: usize, b: usize) -> usize {
-    if a <= b { a } else { b }
-}
-impl<V> Align<V> for bool {
-    const ALIGNMENT: usize = 1;
-}
-impl<V> Align<V> for u8 {
-    const ALIGNMENT: usize = 1;
-}
-impl<V> Align<V> for u16 {
+impl Align for u8 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V> Align<V> for u32 {
+impl Align for u16 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V: EncodingVersion> Align<V> for u64 {
-    const ALIGNMENT: usize = const_min(Self::BITS as usize / 8, V::MAX_ALIGN);
-}
-impl<V> Align<V> for i8 {
-    const ALIGNMENT: usize = 1;
-}
-impl<V> Align<V> for i16 {
+impl Align for u32 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V> Align<V> for i32 {
+impl Align for u64 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V> Align<V> for i64 {
+impl Align for i8 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V> Align<V> for i128 {
+impl Align for i16 {
     const ALIGNMENT: usize = Self::BITS as usize / 8;
 }
-impl<V> Align<V> for f32 {
+impl Align for i32 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
+}
+impl Align for i64 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
+}
+impl Align for i128 {
+    const ALIGNMENT: usize = Self::BITS as usize / 8;
+}
+impl Align for f32 {
     const ALIGNMENT: usize = 4;
 }
-impl<V: EncodingVersion> Align<V> for f64 {
-    const ALIGNMENT: usize = const_min(8, V::MAX_ALIGN);
+impl Align for f64 {
+    const ALIGNMENT: usize = 8;
 }
-impl<V> Align<V> for char {
+impl Align for bool {
+    const ALIGNMENT: usize = 1;
+}
+impl Align for char {
     const ALIGNMENT: usize = 1;
 }
 
