@@ -964,9 +964,7 @@ mod tests {
     use super::*;
     use crate::{
         dcps::xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
-        xtypes::{
-            type_support::{Type, TypeSupport},
-        },
+        xtypes::type_support::{Type, TypeSupport},
     };
 
     #[test]
