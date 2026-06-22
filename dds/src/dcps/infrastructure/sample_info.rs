@@ -16,7 +16,7 @@ impl<Foo> Sample<Foo>
 where
     Foo: TypeSupport,
 {
-    pub(crate) fn new(mut data: Option<DynamicData<'static> >, sample_info: SampleInfo) -> Self {
+    pub(crate) fn new(mut data: Option<DynamicData<'static>>, sample_info: SampleInfo) -> Self {
         Self {
             data: data.as_mut().map(Foo::create_sample),
             sample_info,

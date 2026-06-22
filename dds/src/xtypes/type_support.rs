@@ -541,7 +541,7 @@ mod tests {
     use super::*;
     use crate::xtypes::dynamic_type::DynamicDataFactory;
 
-    fn create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData<'static>  {
+    fn create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData<'static> {
         let mut data = crate::xtypes::dynamic_type::DynamicDataFactory::create_data(T::TYPE);
         v.create_dynamic_sample(&mut data);
         data

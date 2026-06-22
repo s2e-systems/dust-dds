@@ -2195,7 +2195,10 @@ impl DataReaderEntity {
 
                     let instance_handle =
                         get_instance_handle_from_dynamic_data(data_value.clone())?;
-                    (DynamicDataFactory::create_data(self.type_support), instance_handle)
+                    (
+                        DynamicDataFactory::create_data(self.type_support),
+                        instance_handle,
+                    )
                 }
             },
         };

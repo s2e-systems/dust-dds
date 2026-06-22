@@ -558,7 +558,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn deserialize_as_nested<'b>(&mut self, dynamic_type: DynamicType<'b>) -> XTypesResult<DynamicData<'b>> {
+    fn deserialize_as_nested<'b>(
+        &mut self,
+        dynamic_type: DynamicType<'b>,
+    ) -> XTypesResult<DynamicData<'b>> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
         fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
@@ -989,7 +992,7 @@ mod tests {
 
         let mut dispose_data_type_key_holder = DisposeDataType::TYPE;
         let mut member_list = dispose_data_type_key_holder.member_list.to_vec();
-        member_list.retain(|f|f.descriptor.is_key);
+        member_list.retain(|f| f.descriptor.is_key);
         dispose_data_type_key_holder.member_list = &member_list;
 
         let dispose_serialized_key_from_data_message = deserialize_top_level_type(

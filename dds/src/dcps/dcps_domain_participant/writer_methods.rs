@@ -173,7 +173,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: DynamicData<'static> ,
+        dynamic_data: DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
@@ -206,7 +206,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: &DynamicData<'static> ,
+        dynamic_data: &DynamicData<'static>,
     ) -> DdsResult<Option<InstanceHandle>> {
         let Some(publisher) = self
             .domain_participant
@@ -247,7 +247,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: &DynamicData<'static> ,
+        dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
         reply_sender: OneshotSender<DdsResult<()>>,
@@ -448,7 +448,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: DynamicData<'static> ,
+        dynamic_data: DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {

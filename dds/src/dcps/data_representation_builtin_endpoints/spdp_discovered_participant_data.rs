@@ -259,7 +259,7 @@ impl Type for SpdpDiscoveredParticipantData {
     };
 }
 impl TypeSupport for SpdpDiscoveredParticipantData {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static> ) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let dds_participant_data = ParticipantBuiltinTopicData::create_sample(src);
         let guid_prefix = dds_participant_data.key.value[0..12]
             .try_into()
@@ -337,7 +337,10 @@ impl TypeSupport for SpdpDiscoveredParticipantData {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static> ) {
+    fn create_dynamic_sample(
+        self,
+        data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>,
+    ) {
         data.set_value(
             PID_PARTICIPANT_GUID as u32,
             self.dds_participant_data.key.into_storage(),
