@@ -5,6 +5,10 @@ use crate::{
     },
     infrastructure::time::Duration,
     transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
+    xtypes::{
+        dynamic_type::DynamicDataFactory, serializer::serialize_without_header_cdr1_le,
+        type_support::TypeSupport,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -30,7 +34,7 @@ impl<'a> ParameterListSerializer<'a> {
     pub(crate) fn write_non_optional_parameter<T: CdrSerialize>(
         &mut self,
         pid: ParameterId,
-        value: &T,
+        value: T,
     ) {
         const ZEROS: [u8; 4] = [0; 4];
         let mut ser = CdrSerializer::new(self.data);
@@ -46,21 +50,13 @@ impl<'a> ParameterListSerializer<'a> {
         let length = (self.data.len() - position) as u16;
         self.data[position - 2..position].clone_from_slice(&length.to_le_bytes());
     }
-    pub(crate) fn write_optional_parameter<T: CdrSerialize + PartialEq>(
-        &mut self,
-        pid: ParameterId,
-        value: &T,
-        default: &T,
-    ) {
-        if default != value {
-            self.write_non_optional_parameter(pid, value);
-        }
-    }
-    pub(crate) fn write_list<T: CdrSerialize>(&mut self, pid: ParameterId, value_list: &[T]) {
-        for value in value_list {
-            self.write_non_optional_parameter(pid, value);
-        }
-    }
+}
+
+pub fn cdr1_le_data<T: TypeSupport>(value: T) -> Vec<u8> {
+    let buffer = Vec::new();
+    let mut data = DynamicDataFactory::create_data(T::TYPE);
+    value.create_dynamic_sample(&mut data);
+    serialize_without_header_cdr1_le(buffer, &data).expect("Must succeed")
 }
 
 struct CdrSerializer<'a> {
@@ -80,7 +76,7 @@ impl<'a> CdrSerializer<'a> {
     }
 }
 
-trait CdrSerialize {
+pub(crate) trait CdrSerialize {
     fn cdr_serialize(&self, ser: &mut CdrSerializer);
 }
 
@@ -119,6 +115,11 @@ impl CdrSerialize for bool {
     }
 }
 impl<const N: usize> CdrSerialize for [u8; N] {
+    fn cdr_serialize(&self, ser: &mut CdrSerializer) {
+        ser.buffer.extend_from_slice(self);
+    }
+}
+impl CdrSerialize for &[u8] {
     fn cdr_serialize(&self, ser: &mut CdrSerializer) {
         ser.buffer.extend_from_slice(self);
     }
@@ -163,71 +164,5 @@ impl CdrSerialize for EntityId {
     fn cdr_serialize(&self, ser: &mut CdrSerializer) {
         self.entity_key.cdr_serialize(ser);
         self.entity_kind.cdr_serialize(ser);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Debug, PartialEq)]
-    struct TestDiscoveryData {
-        domain_id: i32,
-        domain_tag: String,
-        vendor_id: [u8; 2],
-        locator_list: Vec<Locator>,
-    }
-
-    impl TestDiscoveryData {
-        fn to_bytes(&self) -> Vec<u8> {
-            let mut buffer = Vec::new();
-            let mut pl = ParameterListSerializer::new(&mut buffer);
-            pl.write_header();
-            pl.write_optional_parameter(15, &self.domain_id, &0);
-            pl.write_optional_parameter(0x4014, &self.domain_tag, &String::from(""));
-            pl.write_non_optional_parameter(0x16, &self.vendor_id);
-            pl.write_list(72, &self.locator_list);
-            pl.write_sentinel();
-            buffer
-        }
-    }
-
-    #[test]
-    fn serialize_test_discovery_data() {
-        let expected = [
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            15, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
-            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
-            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00, // VendorId
-            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
-            11, 0x00, 0x00, 0x00, // Locator{kind
-            12, 0x00, 0x00, 0x00, // port,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            72, 0x00, 24, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR
-            21, 0x00, 0x00, 0x00, // Locator{kind
-            22, 0x00, 0x00, 0x00, // port,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
-        ];
-        assert_eq!(
-            TestDiscoveryData {
-                domain_id: 1,
-                domain_tag: String::from("ab"),
-                vendor_id: [73, 74],
-                locator_list: vec![Locator::new(11, 12, [1; 16]), Locator::new(21, 22, [2; 16])],
-            }
-            .to_bytes(),
-            expected.to_vec()
-        );
     }
 }
