@@ -31,11 +31,7 @@ impl<'a> ParameterListSerializer<'a> {
         0u16.cdr_serialize(&mut ser);
     }
 
-    pub(crate) fn write_non_optional_parameter<T: CdrSerialize>(
-        &mut self,
-        pid: ParameterId,
-        value: T,
-    ) {
+    pub(crate) fn write_cdr_parameter<T: CdrSerialize>(&mut self, pid: ParameterId, value: T) {
         const ZEROS: [u8; 4] = [0; 4];
         let mut ser = CdrSerializer::new(self.data);
         pid.cdr_serialize(&mut ser);
@@ -50,16 +46,17 @@ impl<'a> ParameterListSerializer<'a> {
         let length = (self.data.len() - position) as u16;
         self.data[position - 2..position].clone_from_slice(&length.to_le_bytes());
     }
+
+    pub(crate) fn write_xcdr1_parameter<T: TypeSupport>(&mut self, pid: ParameterId, value: T) {
+        let buffer = Vec::new();
+        let mut data = DynamicDataFactory::create_data(T::TYPE);
+        value.create_dynamic_sample(&mut data);
+        let buffer = serialize_without_header_cdr1_le(buffer, &data).expect("Must succeed");
+        self.write_cdr_parameter(pid, buffer.as_slice());
+    }
 }
 
-pub fn cdr1_le_data<T: TypeSupport>(value: T) -> Vec<u8> {
-    let buffer = Vec::new();
-    let mut data = DynamicDataFactory::create_data(T::TYPE);
-    value.create_dynamic_sample(&mut data);
-    serialize_without_header_cdr1_le(buffer, &data).expect("Must succeed")
-}
-
-struct CdrSerializer<'a> {
+pub(crate) struct CdrSerializer<'a> {
     buffer: &'a mut Vec<u8>,
 }
 

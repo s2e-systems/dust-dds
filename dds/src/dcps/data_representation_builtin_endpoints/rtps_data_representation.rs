@@ -65,6 +65,7 @@ impl<'a> ParameterList<'a> {
             self.endianness,
         ))
     }
+
     pub(crate) fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {
         let mut locator_list = Vec::new();
         for pid_data in self.get_list(pid)? {
@@ -178,6 +179,12 @@ impl CdrDeserialize for String {
         let character_data = de.read_bytes(length as usize - 1)?.to_vec();
         Octet::cdr_deserialize(de)?; // 0-termination
         String::from_utf8(character_data).map_err(|_| CdrError::InvalidData)
+    }
+}
+impl CdrDeserialize for Vec<u8> {
+    fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
+        let length = UnsignedLong::cdr_deserialize(de)?;
+        Ok(de.read_bytes(length as usize)?.to_vec())
     }
 }
 impl CdrDeserialize for Locator {

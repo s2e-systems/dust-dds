@@ -13,16 +13,13 @@ use crate::{
     dcps::data_representation_builtin_endpoints::{
         parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
         rtps_data_representation::ParameterList,
-        rtps_data_representation_serialization::{ParameterListSerializer, cdr1_le_data},
+        rtps_data_representation_serialization::ParameterListSerializer,
     },
     infrastructure::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
     },
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
-    xtypes::{
-        dynamic_type::DynamicDataFactory, serializer::serialize_without_header_cdr1_le,
-        type_support::TypeSupport,
-    },
+    xtypes::type_support::TypeSupport,
 };
 use alloc::{string::String, vec, vec::Vec};
 
@@ -153,117 +150,109 @@ impl SpdpDiscoveredParticipantData {
         pl.write_header();
 
         if self.dds_participant_data.user_data != Default::default() {
-            pl.write_non_optional_parameter(
-                PID_USER_DATA,
-                cdr1_le_data(self.dds_participant_data.user_data).as_slice(),
-            );
+            pl.write_xcdr1_parameter(PID_USER_DATA, self.dds_participant_data.user_data);
         }
 
-        pl.write_non_optional_parameter(
-            PID_PARTICIPANT_GUID,
-            cdr1_le_data(self.dds_participant_data.key).as_slice(),
-        );
+        pl.write_xcdr1_parameter(PID_PARTICIPANT_GUID, self.dds_participant_data.key);
 
         if let Some(domain_id) = self.participant_proxy.domain_id {
-            pl.write_non_optional_parameter(PID_DOMAIN_ID, domain_id);
+            pl.write_cdr_parameter(PID_DOMAIN_ID, domain_id);
         }
         if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
-            pl.write_non_optional_parameter(PID_DOMAIN_TAG, self.participant_proxy.domain_tag);
+            pl.write_cdr_parameter(PID_DOMAIN_TAG, self.participant_proxy.domain_tag);
         }
-        pl.write_non_optional_parameter(
+        pl.write_cdr_parameter(
             PID_PROTOCOL_VERSION,
             self.participant_proxy.protocol_version,
         );
         // guid_prefix is skipped because it is sent as the key
-        pl.write_non_optional_parameter(PID_VENDORID, self.participant_proxy.vendor_id);
-        if self.participant_proxy.expects_inline_qos != false {
-            pl.write_non_optional_parameter(
+        pl.write_cdr_parameter(PID_VENDORID, self.participant_proxy.vendor_id);
+        if self.participant_proxy.expects_inline_qos {
+            pl.write_cdr_parameter(
                 PID_EXPECTS_INLINE_QOS,
                 self.participant_proxy.expects_inline_qos,
             );
         }
         for value in self.participant_proxy.metatraffic_unicast_locator_list {
-            pl.write_non_optional_parameter(PID_METATRAFFIC_UNICAST_LOCATOR, value);
+            pl.write_cdr_parameter(PID_METATRAFFIC_UNICAST_LOCATOR, value);
         }
         for value in self.participant_proxy.metatraffic_multicast_locator_list {
-            pl.write_non_optional_parameter(PID_METATRAFFIC_MULTICAST_LOCATOR, value);
+            pl.write_cdr_parameter(PID_METATRAFFIC_MULTICAST_LOCATOR, value);
         }
         for value in self.participant_proxy.default_unicast_locator_list {
-            pl.write_non_optional_parameter(PID_DEFAULT_UNICAST_LOCATOR, value);
+            pl.write_cdr_parameter(PID_DEFAULT_UNICAST_LOCATOR, value);
         }
         for value in self.participant_proxy.default_multicast_locator_list {
-            pl.write_non_optional_parameter(PID_DEFAULT_MULTICAST_LOCATOR, value);
+            pl.write_cdr_parameter(PID_DEFAULT_MULTICAST_LOCATOR, value);
         }
 
-        pl.write_non_optional_parameter(
+        pl.write_cdr_parameter(
             PID_BUILTIN_ENDPOINT_SET,
             self.participant_proxy.available_builtin_endpoints,
         );
         if self.participant_proxy.manual_liveliness_count != Count::default() {
-            pl.write_non_optional_parameter(
+            pl.write_cdr_parameter(
                 PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
                 self.participant_proxy.manual_liveliness_count,
             );
         }
         if self.participant_proxy.builtin_endpoint_qos != BuiltinEndpointQos::default() {
-            pl.write_non_optional_parameter(
+            pl.write_cdr_parameter(
                 PID_BUILTIN_ENDPOINT_QOS,
                 self.participant_proxy.builtin_endpoint_qos,
             );
         }
-        if self.lease_duration != DEFAULT_PARTICIPANT_LEASE_DURATION {
-            pl.write_non_optional_parameter(PID_PARTICIPANT_LEASE_DURATION, self.lease_duration);
-        }
+        pl.write_cdr_parameter(PID_PARTICIPANT_LEASE_DURATION, self.lease_duration);
+
         pl.write_sentinel();
 
         buffer
     }
 
     pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        todo!()
-        // let pl = ParameterList::new(bytes)?;
+        let pl = ParameterList::new(bytes)?;
 
-        // let dds_participant_data = ParticipantBuiltinTopicData {
-        //     key: BuiltInTopicKey {
-        //         value: pl.get_non_optional_parameter(PID_PARTICIPANT_GUID)?,
-        //     },
-        //     user_data: UserDataQosPolicy {
-        //         value: pl.get_optional_parameter(PID_USER_DATA, Vec::new())?,
-        //     },
-        // };
+        let dds_participant_data = ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: pl.get_non_optional_parameter(PID_PARTICIPANT_GUID)?,
+            },
+            user_data: UserDataQosPolicy {
+                value: pl.get_optional_parameter(PID_USER_DATA, Vec::new())?,
+            },
+        };
 
-        // let participant_proxy = ParticipantProxy {
-        //     domain_id: pl.get_non_optional_parameter(PID_DOMAIN_ID).ok(),
-        //     domain_tag: pl
-        //         .get_optional_parameter(PID_DOMAIN_TAG, String::from(DEFAULT_DOMAIN_TAG))?,
-        //     protocol_version: pl.get_non_optional_parameter(PID_PROTOCOL_VERSION)?,
-        //     guid_prefix: Guid::from(dds_participant_data.key.value).prefix(),
-        //     vendor_id: pl.get_non_optional_parameter(PID_VENDORID)?,
-        //     expects_inline_qos: pl
-        //         .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
-        //     metatraffic_unicast_locator_list: pl
-        //         .get_locator_list(PID_METATRAFFIC_UNICAST_LOCATOR)?,
-        //     metatraffic_multicast_locator_list: pl
-        //         .get_locator_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
-        //     default_unicast_locator_list: pl.get_locator_list(PID_DEFAULT_UNICAST_LOCATOR)?,
-        //     default_multicast_locator_list: pl.get_locator_list(PID_DEFAULT_MULTICAST_LOCATOR)?,
-        //     available_builtin_endpoints: pl.get_non_optional_parameter(PID_BUILTIN_ENDPOINT_SET)?,
-        //     manual_liveliness_count: pl.get_optional_parameter(
-        //         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-        //         Count::default(),
-        //     )?,
-        //     builtin_endpoint_qos: pl
-        //         .get_optional_parameter(PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos::default())?,
-        // };
-        // Ok(SpdpDiscoveredParticipantData {
-        //     dds_participant_data,
-        //     participant_proxy,
-        //     lease_duration: pl.get_optional_parameter(
-        //         PID_PARTICIPANT_LEASE_DURATION,
-        //         DEFAULT_PARTICIPANT_LEASE_DURATION,
-        //     )?,
-        //     discovered_participant_list: vec![],
-        // })
+        let participant_proxy = ParticipantProxy {
+            domain_id: pl.get_non_optional_parameter(PID_DOMAIN_ID).ok(),
+            domain_tag: pl
+                .get_optional_parameter(PID_DOMAIN_TAG, String::from(DEFAULT_DOMAIN_TAG))?,
+            protocol_version: pl.get_non_optional_parameter(PID_PROTOCOL_VERSION)?,
+            guid_prefix: Guid::from(dds_participant_data.key.value).prefix(),
+            vendor_id: pl.get_non_optional_parameter(PID_VENDORID)?,
+            expects_inline_qos: pl
+                .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
+            metatraffic_unicast_locator_list: pl
+                .get_locator_list(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+            metatraffic_multicast_locator_list: pl
+                .get_locator_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: pl.get_locator_list(PID_DEFAULT_UNICAST_LOCATOR)?,
+            default_multicast_locator_list: pl.get_locator_list(PID_DEFAULT_MULTICAST_LOCATOR)?,
+            available_builtin_endpoints: pl.get_non_optional_parameter(PID_BUILTIN_ENDPOINT_SET)?,
+            manual_liveliness_count: pl.get_optional_parameter(
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+                Count::default(),
+            )?,
+            builtin_endpoint_qos: pl
+                .get_optional_parameter(PID_BUILTIN_ENDPOINT_QOS, BuiltinEndpointQos::default())?,
+        };
+        Ok(SpdpDiscoveredParticipantData {
+            dds_participant_data,
+            participant_proxy,
+            lease_duration: pl.get_optional_parameter(
+                PID_PARTICIPANT_LEASE_DURATION,
+                DEFAULT_PARTICIPANT_LEASE_DURATION,
+            )?,
+            discovered_participant_list: vec![],
+        })
     }
 }
 
