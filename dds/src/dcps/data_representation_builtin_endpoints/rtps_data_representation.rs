@@ -35,6 +35,51 @@ pub(crate) struct ParameterList<'a> {
     endianness: Endianness,
 }
 
+pub(crate) struct PidIterator<'a> {
+    data: &'a [u8],
+    endianness: Endianness,
+    position: usize,
+}
+
+impl<'a> PidIterator<'a> {
+    fn new(data: &'a [u8], endianness: Endianness) -> Self {
+        Self {
+            data,
+            endianness,
+            position: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for PidIterator<'a> {
+    type Item = CdrResult<(ParameterId, &'a [u8])>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position >= self.data.len() {
+            return None;
+        }
+
+        let mut de = CdrDeserializer::new(&self.data[self.position..], self.endianness);
+        let current_pid = match i16::cdr_deserialize(&mut de) {
+            Ok(pid) => pid,
+            Err(e) => return Some(Err(e)),
+        };
+        let length = match u16::cdr_deserialize(&mut de) {
+            Ok(len) => len as usize,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if current_pid == 1 || self.position + length + 4 > self.data.len() {
+            return None;
+        }
+
+        let pid_data = &self.data[self.position + 4..self.position + length + 4];
+        self.position += length + 4;
+
+        Some(Ok((current_pid, pid_data)))
+    }
+}
+
 impl<'a> ParameterList<'a> {
     pub(crate) fn new(data: &'a [u8]) -> CdrResult<Self> {
         let endianness = match data[1] {
@@ -78,33 +123,25 @@ impl<'a> ParameterList<'a> {
 
     fn get_list(&self, pid: ParameterId) -> CdrResult<Vec<&'a [u8]>> {
         let mut list = Vec::new();
-        let mut pointer = self.data;
-        loop {
-            let mut de = CdrDeserializer::new(pointer, self.endianness);
-            let current_pid = i16::cdr_deserialize(&mut de)?;
-            let length = u16::cdr_deserialize(&mut de)? as usize;
+        let iterator = PidIterator::new(self.data, self.endianness);
+        for item in iterator {
+            let (current_pid, pid_data) = item?;
             if current_pid == pid {
-                list.push(&pointer[4..length + 4]);
-            } else if current_pid == 1 || pointer.len() < length + 4 {
-                return Ok(list);
+                list.push(pid_data);
             }
-            pointer = &pointer[length + 4..]
         }
+        Ok(list)
     }
-    fn seek_to_pid(&self, pid: ParameterId) -> CdrResult<Option<&'a [u8]>> {
-        let mut pointer = self.data;
-        loop {
-            let mut de = CdrDeserializer::new(pointer, self.endianness);
-            let current_pid = i16::cdr_deserialize(&mut de)?;
-            let length = u16::cdr_deserialize(&mut de)? as usize;
 
+    fn seek_to_pid(&self, pid: ParameterId) -> CdrResult<Option<&'a [u8]>> {
+        let iterator = PidIterator::new(self.data, self.endianness);
+        for item in iterator {
+            let (current_pid, pid_data) = item?;
             if current_pid == pid {
-                return Ok(Some(&pointer[4..length + 4]));
-            } else if current_pid == 1 || pointer.len() < length + 4 {
-                return Ok(None);
+                return Ok(Some(pid_data));
             }
-            pointer = &pointer[length + 4..]
         }
+        Ok(None)
     }
 }
 
