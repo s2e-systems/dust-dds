@@ -109,8 +109,6 @@ impl DcpsDomainParticipant {
                     .map(|p| InstanceHandle::new(p.dds_participant_data.key().value))
                     .collect(),
             };
-            let mut data = DynamicDataFactory::create_data(SpdpDiscoveredParticipantData::TYPE);
-            spdp_discovered_participant_data.create_dynamic_sample(&mut data);
 
             if let Some(w) = self
                 .domain_participant
@@ -121,7 +119,7 @@ impl DcpsDomainParticipant {
             {
                 let timestamp = runtime.clock().now();
                 let sample_instance_handle = self.domain_participant.instance_handle;
-                let serialized_data = serialize_rtps(&data).expect("Must succeed");
+                let serialized_data = spdp_discovered_participant_data.to_bytes();
                 let sample_timestamp = timestamp;
                 let now = timestamp;
                 w.write_w_timestamp(
