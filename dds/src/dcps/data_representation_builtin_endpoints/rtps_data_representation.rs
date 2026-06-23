@@ -112,25 +112,17 @@ impl<'a> ParameterList<'a> {
     }
     pub(crate) fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {
         let mut locator_list = Vec::new();
-        for pid_data in self.get_list(pid)? {
-            locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
-                pid_data,
-                self.endianness,
-            ))?);
-        }
-        Ok(locator_list)
-    }
-
-    fn get_list(&self, pid: ParameterId) -> CdrResult<Vec<&'a [u8]>> {
-        let mut list = Vec::new();
         let iterator = PidIterator::new(self.data, self.endianness);
         for item in iterator {
             let (current_pid, pid_data) = item?;
             if current_pid == pid {
-                list.push(pid_data);
+                locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+                    pid_data,
+                    self.endianness,
+                ))?);
             }
         }
-        Ok(list)
+        Ok(locator_list)
     }
 
     fn seek_to_pid(&self, pid: ParameterId) -> CdrResult<Option<&'a [u8]>> {
