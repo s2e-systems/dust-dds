@@ -434,7 +434,7 @@ fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bo
 }
 
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
-    pub fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
+    fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
             reader: Reader { buffer, pos: 0 },
             _endianness: endianness,
@@ -551,7 +551,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    pub fn deserialize_as_nested<'b>(
+    fn deserialize_as_nested<'b>(
         &mut self,
         dynamic_type: DynamicType<'b>,
     ) -> XTypesResult<DynamicData<'b>> {
