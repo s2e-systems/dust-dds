@@ -567,7 +567,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
-            DiscoveredReaderData::TYPE,
+            SubscriptionBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
             sedp_data_writer_qos(),

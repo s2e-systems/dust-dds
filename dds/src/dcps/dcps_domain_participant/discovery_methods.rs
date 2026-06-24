@@ -51,7 +51,6 @@ use crate::{
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
-        serializer::serialize_rtps,
         type_support::{Type, TypeSupport},
     },
 };
@@ -389,9 +388,6 @@ impl DcpsDomainParticipant {
             reader_proxy,
         };
 
-        let mut data = DynamicDataFactory::create_data(DiscoveredReaderData::TYPE);
-        discovered_reader_data.create_dynamic_sample(&mut data);
-
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
@@ -401,7 +397,7 @@ impl DcpsDomainParticipant {
         {
             let now = runtime.clock().now();
             let sample_instance_handle = data_reader.transport_reader.guid().into();
-            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let serialized_data = discovered_reader_data.to_bytes();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
