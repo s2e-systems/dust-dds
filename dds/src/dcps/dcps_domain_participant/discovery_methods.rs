@@ -1070,7 +1070,7 @@ impl DcpsDomainParticipant {
                 }
             };
             let is_matched_topic_name =
-                &discovered_writer_data.dds_publication_data.topic_name() == reader_topic_name;
+                discovered_writer_data.dds_publication_data.topic_name() == reader_topic_name;
             let is_matched_type_name =
                 discovered_writer_data.dds_publication_data.get_type_name() == reader_type_name;
 
@@ -1453,13 +1453,13 @@ impl DcpsDomainParticipant {
                         &discovered_writer_data.dds_publication_data;
                     if self
                         .domain_participant
-                        .find_topic(&publication_builtin_topic_data.topic_name())
+                        .find_topic(publication_builtin_topic_data.topic_name())
                         .is_none()
                     {
                         let writer_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
-                            name: publication_builtin_topic_data.topic_name.clone().into(),
-                            type_name: publication_builtin_topic_data.type_name.clone().into(),
+                            name: publication_builtin_topic_data.topic_name.clone(),
+                            type_name: publication_builtin_topic_data.type_name.clone(),
                             type_information: None,
                             durability: publication_builtin_topic_data.durability().clone(),
                             deadline: publication_builtin_topic_data.deadline().clone(),
@@ -1558,7 +1558,7 @@ impl DcpsDomainParticipant {
                 {
                     if self
                         .domain_participant
-                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name())
+                        .find_topic(discovered_reader_data.dds_subscription_data.topic_name())
                         .is_none()
                     {
                         let reader_topic = TopicBuiltinTopicData {
