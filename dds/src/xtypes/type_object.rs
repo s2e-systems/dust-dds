@@ -162,7 +162,7 @@ pub type SBoundSeq = Vec<SBound>;
 pub const INVALID_SBOUND: SBound = 0;
 
 /// Unique identifier for a TypeObject based on its equivalence hash.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeObjectHashId {
     /// The hash for a complete TypeObject representation.
@@ -185,7 +185,7 @@ pub enum TypeObjectHashId {
 // When not all, the applicable member types are listed
 
 /// Flags that apply to struct/union/collection/enum/bitmask/bitset members/elements and affect type assignability.
-#[derive(Debug, Clone, Copy, DdsType)]
+#[derive(Debug, Clone, Copy, DdsType, Eq)]
 pub struct MemberFlag(u16);
 
 impl PartialEq for MemberFlag {
@@ -193,6 +193,7 @@ impl PartialEq for MemberFlag {
         self.0 & other.0 == other.0
     }
 }
+
 
 impl core::ops::BitOr for MemberFlag {
     type Output = MemberFlag;
@@ -310,7 +311,7 @@ pub const TYPE_FLAG_MINIMAL_MASK: TypeFlag = TypeFlag(0x0007); // Selects M, A, 
 
 // 1 Byte
 /// Definition of a small string type (bound <= 255).
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringSTypeDefn {
     /// The short bound (maximum length) of the string.
@@ -318,7 +319,7 @@ pub struct StringSTypeDefn {
 }
 // 4 Bytes
 /// Definition of a large string type (bound > 255).
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringLTypeDefn {
     /// The long bound (maximum length) of the string.
@@ -326,7 +327,7 @@ pub struct StringLTypeDefn {
 }
 
 /// Common header for plain collection types (sequence, array, map).
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainCollectionHeader {
     /// The equivalence kind of the collection.
@@ -336,7 +337,7 @@ pub struct PlainCollectionHeader {
 }
 
 /// Definition of a plain sequence with a small bound.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceSElemDefn {
     /// The header containing collection properties.
@@ -349,7 +350,7 @@ pub struct PlainSequenceSElemDefn {
 }
 
 /// Definition of a plain sequence with a large bound.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceLElemDefn {
     /// The header containing collection properties.
@@ -362,7 +363,7 @@ pub struct PlainSequenceLElemDefn {
 }
 
 /// Definition of a plain array with small bounds.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArraySElemDefn {
     /// The header containing collection properties.
@@ -375,7 +376,7 @@ pub struct PlainArraySElemDefn {
 }
 
 /// Definition of a plain array with large bounds.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArrayLElemDefn {
     /// The header containing collection properties.
@@ -388,7 +389,7 @@ pub struct PlainArrayLElemDefn {
 }
 
 /// Definition of a plain map with a small bound.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapSTypeDefn {
     /// The header containing collection properties.
@@ -406,7 +407,7 @@ pub struct PlainMapSTypeDefn {
 }
 
 /// Definition of a plain map with a large bound.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapLTypeDefn {
     /// The header containing collection properties.
@@ -424,7 +425,7 @@ pub struct PlainMapLTypeDefn {
 }
 
 /// Identifier for a type that belongs to a strongly connected component (has cyclic dependencies).
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct StronglyConnectedComponentId {
     /// The hash of the strongly connected component.
@@ -460,7 +461,7 @@ pub struct ExtendedTypeDefn {
 /// - COMMON indicates the TypeIdentifier identifies equivalent types
 ///   according to both the MINIMAL and the COMMON equivalence relation.
 ///   This means the TypeIdentifier is the same for both relationships
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeIdentifier {
     /// No type.
@@ -1690,7 +1691,7 @@ pub enum CompleteTypeObject {
 }
 
 /// Minimal extended type representation for future extensions.
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct MinimalExtendedType {
     // Empty. Available for future extension
@@ -1821,7 +1822,7 @@ pub struct TypeIdentifierPair {
 pub type TypeIdentifierPairSeq = Vec<TypeIdentifierPair>;
 
 /// A TypeIdentifier packaged with the serialized size of its corresponding TypeObject.
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithSize {
     /// The TypeIdentifier.
@@ -1833,7 +1834,7 @@ pub struct TypeIdentifierWithSize {
 pub type TypeIdentfierWithSizeSeq = Vec<TypeIdentifierWithSize>;
 
 /// A TypeIdentifier packaged with its size and all the dependent type identifiers it relies on.
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithDependencies {
     /// The TypeIdentifier with its serialized size.
@@ -1847,7 +1848,7 @@ pub struct TypeIdentifierWithDependencies {
 pub type TypeIdentifierWithDependenciesSeq = Vec<TypeIdentifierWithDependencies>;
 
 /// Complete type information containing both complete and minimal representations with their dependencies.
-#[derive(DdsType, Debug, Clone, PartialEq)]
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct TypeInformation {
     /// Minimal type representation with dependencies.

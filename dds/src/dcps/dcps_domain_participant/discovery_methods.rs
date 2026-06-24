@@ -221,6 +221,7 @@ impl DcpsDomainParticipant {
             },
             topic_name: data_writer.topic_name.clone().into(),
             type_name: data_writer.type_name.clone().into(),
+            type_information: Some(topic.type_support.into()),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
             latency_budget: data_writer.qos.latency_budget.clone(),

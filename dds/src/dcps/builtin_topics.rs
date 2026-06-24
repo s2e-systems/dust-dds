@@ -200,6 +200,8 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) topic_name: _String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
     pub(crate) type_name: _String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32)]
