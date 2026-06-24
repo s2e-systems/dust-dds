@@ -336,8 +336,8 @@ impl DcpsDomainParticipant {
             return;
         };
 
-        let (topic_name, type_name, topic_qos) = match topic {
-            TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name, &t.qos),
+        let topic = match topic {
+            TopicDescriptionKind::Topic(t) => t,
             TopicDescriptionKind::ContentFilteredTopic(t) => {
                 if let Some(TopicDescriptionKind::Topic(topic)) = self
                     .domain_participant
@@ -345,7 +345,7 @@ impl DcpsDomainParticipant {
                     .iter()
                     .find(|x| x.topic_name() == t.related_topic_name)
                 {
-                    (&topic.topic_name, &topic.type_name, &topic.qos)
+                    topic
                 } else {
                     return;
                 }
@@ -358,11 +358,12 @@ impl DcpsDomainParticipant {
                 value: self.domain_participant.instance_handle.into(),
             },
             topic_name: _String {
-                value: topic_name.clone(),
+                value: topic.topic_name.clone(),
             },
             type_name: _String {
-                value: type_name.clone(),
+                value: topic.type_name.clone(),
             },
+            type_information: Some(topic.type_support.into()),
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -374,7 +375,7 @@ impl DcpsDomainParticipant {
             time_based_filter: data_reader.qos.time_based_filter.clone(),
             presentation: subscriber.qos.presentation.clone(),
             partition: subscriber.qos.partition.clone(),
-            topic_data: topic_qos.topic_data.clone(),
+            topic_data: topic.qos.topic_data.clone(),
             group_data: subscriber.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
         };

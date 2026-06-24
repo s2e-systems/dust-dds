@@ -8,6 +8,7 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
+        parameter_id_values::PID_TYPE_INFORMATION,
         rtps_data_representation::{CdrResult, ParameterList},
         rtps_data_representation_serialization::ParameterListSerializer,
     },
@@ -132,6 +133,7 @@ impl DiscoveredReaderData {
                 .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
             topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
             type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            type_information: pl.get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)?,
             durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
             deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
             latency_budget: pl
@@ -199,6 +201,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -268,6 +271,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -355,6 +359,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -424,6 +429,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
