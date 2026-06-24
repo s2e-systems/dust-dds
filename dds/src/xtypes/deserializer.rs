@@ -577,7 +577,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 },
                 TypeKind::ENUM => deserializer.deserialize_enum_type(dynamic_type, dynamic_data),
 
-                TypeKind::UNION => todo!(),
+                TypeKind::UNION => match dynamic_type.get_descriptor().extensibility_kind {
+                    ExtensibilityKind::Final => {
+                        deserializer._deserialize_funion_type(dynamic_type, dynamic_data)
+                    }
+                    ExtensibilityKind::Appendable => todo!(),
+                    ExtensibilityKind::Mutable => todo!(),
+                },
                 kind => {
                     debug!("Expected structure, enum or union. Got kind {kind:?} ");
                     Err(XTypesError::InvalidType)
@@ -659,7 +665,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 member.get_id(),
                 self.deserialize_as_nested(member.descriptor.r#type)?,
             ),
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => dynamic_data.set_complex_value(
+                member.get_id(),
+                self.deserialize_as_nested(member.descriptor.r#type)?,
+            ),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
                 if is_element_type_kind_primitive(member)? {
@@ -779,8 +788,29 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (26)
-    fn _deserialize_funion_type(&mut self) -> XTypesResult<DynamicData<'_>> {
-        todo!()
+    fn _deserialize_funion_type(
+        &mut self,
+        dynamic_type: DynamicType,
+        dynamic_data: &mut DynamicData<'_>,
+    ) -> XTypesResult<()> {
+        // Deserialize the discriminator
+        let disc_member = dynamic_type.get_member_by_index(0)?;
+        self.deserialize_nopt_fmember(disc_member, dynamic_data)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = match dynamic_data.get_value(disc_member.get_id())? {
+            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::Int32(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as u32,
+            _ => return Err(XTypesError::InvalidType),
+        };
+
+        // Deserialize the member based on its discriminator
+        let m = dynamic_type.get_member(disc_id)?;
+        self.deserialize_nopt_fmember(m, dynamic_data)
     }
 }
 

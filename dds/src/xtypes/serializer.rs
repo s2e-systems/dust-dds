@@ -1568,13 +1568,14 @@ mod tests {
             serialize_cdr2_be(&v).unwrap(),
             vec![
                 0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
-                0, 0, 0, 28, // Dheader
+                0, 0, 0, 32, // Dheader
                 0, 0, 0, 5, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 0, 0, 0, 10, // x
                 0, 0, 0, 20, // y
                 0, 0, 0, 30, // shapesize
+                0, 0, 0, 4, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );
@@ -1582,13 +1583,14 @@ mod tests {
             serialize_cdr2_le(&v).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                28, 0, 0, 0, // Dheader
+                32, 0, 0, 0, // Dheader
                 5, 0, 0, 0, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 10, 0, 0, 0, // x
                 20, 0, 0, 0, // y
                 30, 0, 0, 0, // shapesize
+                4, 0, 0, 0, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );
