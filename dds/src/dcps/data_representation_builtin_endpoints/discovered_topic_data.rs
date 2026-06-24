@@ -21,6 +21,7 @@ use crate::{
         type_support::{Type, TypeSupport},
     },
 };
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DiscoveredTopicData {
