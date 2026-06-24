@@ -459,7 +459,7 @@ impl DcpsDomainParticipant {
                 let status_condition = DcpsStatusCondition::default();
                 let mut topic = TopicEntity::new(
                     qos,
-                    type_name.clone(),
+                    type_name.clone().into(),
                     topic_name.clone(),
                     topic_handle,
                     status_condition,
@@ -485,7 +485,7 @@ impl DcpsDomainParticipant {
                         .push(TopicDescriptionKind::Topic(topic)),
                 }
 
-                return Ok(Some((topic_handle, type_name)));
+                return Ok(Some((topic_handle, type_name.into())));
             }
             Ok(None)
         }

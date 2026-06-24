@@ -34,8 +34,8 @@ impl DiscoveredTopicData {
         let mut pl = ParameterListSerializer::new(&mut buffer);
         pl.write_header();
         pl.write_xcdr1_parameter(PID_ENDPOINT_GUID, self.topic_builtin_topic_data.key);
-        pl.write_cdr_parameter(PID_TOPIC_NAME, self.topic_builtin_topic_data.name);
-        pl.write_cdr_parameter(PID_TYPE_NAME, self.topic_builtin_topic_data.type_name);
+        pl.write_xcdr1_parameter(PID_TOPIC_NAME, self.topic_builtin_topic_data.name);
+        pl.write_xcdr1_parameter(PID_TYPE_NAME, self.topic_builtin_topic_data.type_name);
         if let Some(type_information) = self.topic_builtin_topic_data.type_information {
             pl.write_xcdr2_parameter(PID_TYPE_INFORMATION, type_information);
         }
@@ -123,8 +123,8 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
@@ -169,8 +169,8 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,
@@ -214,8 +214,8 @@ mod tests {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 type_information: None,
                 durability: topic_qos.durability,
                 deadline: topic_qos.deadline,

@@ -51,14 +51,10 @@ use crate::{
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
-        type_support::{Type, TypeSupport},
+        type_support::{_String, Type, TypeSupport},
     },
 };
-use alloc::{
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+use alloc::{string::String, vec, vec::Vec};
 use regex::Regex;
 
 impl DcpsDomainParticipant {
@@ -222,8 +218,8 @@ impl DcpsDomainParticipant {
             participant_key: BuiltInTopicKey {
                 value: self.domain_participant.instance_handle.into(),
             },
-            topic_name: data_writer.topic_name.clone(),
-            type_name: data_writer.type_name.clone(),
+            topic_name: data_writer.topic_name.clone().into(),
+            type_name: data_writer.type_name.clone().into(),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
             latency_budget: data_writer.qos.latency_budget.clone(),
@@ -359,8 +355,12 @@ impl DcpsDomainParticipant {
             participant_key: BuiltInTopicKey {
                 value: self.domain_participant.instance_handle.into(),
             },
-            topic_name: topic_name.clone(),
-            type_name: type_name.clone(),
+            topic_name: _String {
+                value: topic_name.clone(),
+            },
+            type_name: _String {
+                value: type_name.clone(),
+            },
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -459,9 +459,9 @@ impl DcpsDomainParticipant {
                 key: BuiltInTopicKey {
                     value: topic.instance_handle.into(),
                 },
-                name: topic.topic_name.clone(),
+                name: topic.topic_name.clone().into(),
                 type_information: None,
-                type_name: topic.type_name.clone(),
+                type_name: topic.type_name.clone().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
                 latency_budget: topic.qos.latency_budget.clone(),
@@ -600,8 +600,11 @@ impl DcpsDomainParticipant {
                 return;
             };
 
-            let is_matched_topic_name =
-                discovered_reader_data.dds_subscription_data.topic_name == data_writer.topic_name;
+            let is_matched_topic_name = discovered_reader_data
+                .dds_subscription_data
+                .topic_name
+                .value
+                == data_writer.topic_name;
             let is_matched_type_name = discovered_reader_data.dds_subscription_data.get_type_name()
                 == data_writer.type_name;
 
@@ -1058,7 +1061,7 @@ impl DcpsDomainParticipant {
                 }
             };
             let is_matched_topic_name =
-                &discovered_writer_data.dds_publication_data.topic_name == reader_topic_name;
+                discovered_writer_data.dds_publication_data.topic_name() == reader_topic_name;
             let is_matched_type_name =
                 discovered_writer_data.dds_publication_data.get_type_name() == reader_type_name;
 
@@ -1441,7 +1444,7 @@ impl DcpsDomainParticipant {
                         &discovered_writer_data.dds_publication_data;
                     if self
                         .domain_participant
-                        .find_topic(&publication_builtin_topic_data.topic_name)
+                        .find_topic(publication_builtin_topic_data.topic_name())
                         .is_none()
                     {
                         let writer_topic = TopicBuiltinTopicData {
@@ -1546,7 +1549,7 @@ impl DcpsDomainParticipant {
                 {
                     if self
                         .domain_participant
-                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
+                        .find_topic(discovered_reader_data.dds_subscription_data.topic_name())
                         .is_none()
                     {
                         let reader_topic = TopicBuiltinTopicData {
@@ -1554,11 +1557,11 @@ impl DcpsDomainParticipant {
                             name: discovered_reader_data
                                 .dds_subscription_data
                                 .topic_name
-                                .to_string(),
+                                .clone(),
                             type_name: discovered_reader_data
                                 .dds_subscription_data
-                                .get_type_name()
-                                .to_string(),
+                                .type_name
+                                .clone(),
                             type_information: None,
                             topic_data: discovered_reader_data
                                 .dds_subscription_data

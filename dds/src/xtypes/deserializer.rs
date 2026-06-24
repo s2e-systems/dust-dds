@@ -369,8 +369,20 @@ pub fn deserialize_top_level_type<'a>(
     if buffer.len() < 4 {
         return Err(XTypesError::NotEnoughData);
     }
-    let representation_identifier = [buffer[0], buffer[1]];
-    let data = &buffer[4..];
+    deserialize_top_level_type_from_representation_identifier(
+        dynamic_type,
+        [buffer[0], buffer[1]],
+        &buffer[4..],
+    )
+}
+
+/// This is an addidtional function to the "Serialization Rule (1)" deserialization function.
+/// It can be used if the representation identifier is already known
+pub fn deserialize_top_level_type_from_representation_identifier<'a>(
+    dynamic_type: DynamicType<'a>,
+    representation_identifier: RepresentationIdentifier,
+    data: &[u8],
+) -> XTypesResult<DynamicData<'a>> {
     match representation_identifier {
         CDR_BE | PL_CDR_BE => XTypesDeserializer::new(data, EncodingVersion1, BigEndian)
             .deserialize_as_nested(dynamic_type),

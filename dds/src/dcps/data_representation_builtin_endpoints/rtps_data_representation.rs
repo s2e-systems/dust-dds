@@ -5,7 +5,10 @@ use crate::{
     },
     infrastructure::time::Duration,
     transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
-    xtypes::error::XTypesError,
+    xtypes::{
+        deserializer::deserialize_top_level_type_from_representation_identifier,
+        error::XTypesError, type_support::TypeSupport,
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -32,17 +35,60 @@ pub(crate) enum Endianness {
 
 pub(crate) struct ParameterList<'a> {
     data: &'a [u8],
+}
+
+pub(crate) struct PidIterator<'a> {
+    data: &'a [u8],
     endianness: Endianness,
+    position: usize,
+}
+
+impl<'a> PidIterator<'a> {
+    fn new(data: &'a [u8], endianness: Endianness) -> Self {
+        Self {
+            data,
+            endianness,
+            position: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for PidIterator<'a> {
+    type Item = CdrResult<(ParameterId, &'a [u8])>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position >= self.data.len() {
+            return None;
+        }
+
+        let mut de = CdrDeserializer::new(&self.data[self.position..], self.endianness);
+        let current_pid = match i16::cdr_deserialize(&mut de) {
+            Ok(pid) => pid,
+            Err(e) => return Some(Err(e)),
+        };
+        let length = match u16::cdr_deserialize(&mut de) {
+            Ok(len) => len as usize,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if current_pid == 1 || self.position + length + 4 > self.data.len() {
+            return None;
+        }
+
+        let pid_data = &self.data[self.position + 4..self.position + length + 4];
+        self.position += length + 4;
+
+        Some(Ok((current_pid, pid_data)))
+    }
 }
 
 impl<'a> ParameterList<'a> {
     pub(crate) fn new(data: &'a [u8]) -> CdrResult<Self> {
-        let endianness = match data[1] {
-            2 => Endianness::Big,
-            3 => Endianness::Little,
-            _ => return Err(CdrError::InvalidData),
-        };
-        Ok(Self { data, endianness })
+        if data.len() < 4 {
+            Err(CdrError::NotEnoughData)
+        } else {
+            Ok(Self { data })
+        }
     }
 
     pub(crate) fn get_optional_parameter<T: CdrDeserialize>(
@@ -51,60 +97,83 @@ impl<'a> ParameterList<'a> {
         default: T,
     ) -> CdrResult<T> {
         if let Some(pid_data) = self.seek_to_pid(pid)? {
-            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data, self.endianness))
+            CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(pid_data, self.endianness()?))
         } else {
             Ok(default)
         }
     }
+
     pub(crate) fn get_non_optional_parameter<T: CdrDeserialize>(
         &self,
         pid: ParameterId,
     ) -> CdrResult<T> {
         CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
             self.seek_to_pid(pid)?.ok_or(CdrError::PidNotFound(pid))?,
-            self.endianness,
+            self.endianness()?,
         ))
+    }
+
+    pub(crate) fn get_optional_parameter_xdcr<T: TypeSupport>(
+        &self,
+        pid: ParameterId,
+        default: T,
+    ) -> CdrResult<T> {
+        if let Some(pid_data) = self.seek_to_pid(pid)? {
+            let mut dynamic_data = deserialize_top_level_type_from_representation_identifier(
+                T::TYPE,
+                [self.data[0], self.data[1]],
+                pid_data,
+            )?;
+            Ok(T::create_sample(&mut dynamic_data))
+        } else {
+            Ok(default)
+        }
+    }
+
+    pub(crate) fn get_non_optional_parameter_xdcr<T: TypeSupport>(
+        &self,
+        pid: ParameterId,
+    ) -> CdrResult<T> {
+        let pid_data = self.seek_to_pid(pid)?.ok_or(CdrError::PidNotFound(pid))?;
+        let mut dynamic_data = deserialize_top_level_type_from_representation_identifier(
+            T::TYPE,
+            [self.data[0], self.data[1]],
+            pid_data,
+        )?;
+        Ok(T::create_sample(&mut dynamic_data))
     }
 
     pub(crate) fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {
         let mut locator_list = Vec::new();
-        for pid_data in self.get_list(pid)? {
-            locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
-                pid_data,
-                self.endianness,
-            ))?);
+        let iterator = PidIterator::new(self.data, self.endianness()?);
+        for item in iterator {
+            let (current_pid, pid_data) = item?;
+            if current_pid == pid {
+                locator_list.push(CdrDeserialize::cdr_deserialize(&mut CdrDeserializer::new(
+                    pid_data,
+                    self.endianness()?,
+                ))?);
+            }
         }
         Ok(locator_list)
     }
 
-    fn get_list(&self, pid: ParameterId) -> CdrResult<Vec<&'a [u8]>> {
-        let mut list = Vec::new();
-        let mut pointer = self.data;
-        loop {
-            let mut de = CdrDeserializer::new(pointer, self.endianness);
-            let current_pid = i16::cdr_deserialize(&mut de)?;
-            let length = u16::cdr_deserialize(&mut de)? as usize;
-            if current_pid == pid {
-                list.push(&pointer[4..length + 4]);
-            } else if current_pid == 1 || pointer.len() < length + 4 {
-                return Ok(list);
-            }
-            pointer = &pointer[length + 4..]
-        }
-    }
     fn seek_to_pid(&self, pid: ParameterId) -> CdrResult<Option<&'a [u8]>> {
-        let mut pointer = self.data;
-        loop {
-            let mut de = CdrDeserializer::new(pointer, self.endianness);
-            let current_pid = i16::cdr_deserialize(&mut de)?;
-            let length = u16::cdr_deserialize(&mut de)? as usize;
-
+        let iterator = PidIterator::new(self.data, self.endianness()?);
+        for item in iterator {
+            let (current_pid, pid_data) = item?;
             if current_pid == pid {
-                return Ok(Some(&pointer[4..length + 4]));
-            } else if current_pid == 1 || pointer.len() < length + 4 {
-                return Ok(None);
+                return Ok(Some(pid_data));
             }
-            pointer = &pointer[length + 4..]
+        }
+        Ok(None)
+    }
+
+    fn endianness(&self) -> CdrResult<Endianness> {
+        match self.data[1] {
+            2 => Ok(Endianness::Big),
+            3 => Ok(Endianness::Little),
+            _ => Err(CdrError::InvalidData),
         }
     }
 }
@@ -170,7 +239,9 @@ impl CdrDeserialize for bool {
 }
 impl<const N: usize> CdrDeserialize for [u8; N] {
     fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        Ok(de.read_bytes(N)?.try_into().expect("must have size"))
+        let mut array = [0u8; N];
+        array.copy_from_slice(de.read_bytes(N)?);
+        Ok(array)
     }
 }
 impl CdrDeserialize for String {
@@ -179,12 +250,6 @@ impl CdrDeserialize for String {
         let character_data = de.read_bytes(length as usize - 1)?.to_vec();
         Octet::cdr_deserialize(de)?; // 0-termination
         String::from_utf8(character_data).map_err(|_| CdrError::InvalidData)
-    }
-}
-impl CdrDeserialize for Vec<u8> {
-    fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        let length = UnsignedLong::cdr_deserialize(de)?;
-        Ok(de.read_bytes(length as usize)?.to_vec())
     }
 }
 impl CdrDeserialize for Locator {
@@ -215,10 +280,10 @@ impl CdrDeserialize for BuiltinEndpointSet {
 }
 impl CdrDeserialize for Duration {
     fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        Ok(Duration::new(
-            CdrDeserialize::cdr_deserialize(de)?,
-            CdrDeserialize::cdr_deserialize(de)?,
-        ))
+        Ok(Duration {
+            sec: CdrDeserialize::cdr_deserialize(de)?,
+            nanosec: CdrDeserialize::cdr_deserialize(de)?,
+        })
     }
 }
 impl CdrDeserialize for EntityId {

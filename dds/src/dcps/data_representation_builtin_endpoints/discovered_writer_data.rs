@@ -19,10 +19,6 @@ use crate::{
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
-    xtypes::{
-        deserializer::deserialize_top_level_type,
-        type_support::{Type, TypeSupport},
-    },
 };
 use alloc::vec::Vec;
 
@@ -50,8 +46,8 @@ impl DiscoveredWriterData {
             PID_PARTICIPANT_GUID,
             self.dds_publication_data.participant_key,
         );
-        pl.write_cdr_parameter(PID_TOPIC_NAME, self.dds_publication_data.topic_name);
-        pl.write_cdr_parameter(PID_TYPE_NAME, self.dds_publication_data.type_name);
+        pl.write_xcdr1_parameter(PID_TOPIC_NAME, self.dds_publication_data.topic_name);
+        pl.write_xcdr1_parameter(PID_TYPE_NAME, self.dds_publication_data.type_name);
 
         if self.dds_publication_data.durability != DurabilityQosPolicy::default() {
             pl.write_xcdr1_parameter(PID_DURABILITY, self.dds_publication_data.durability);
@@ -124,9 +120,35 @@ impl DiscoveredWriterData {
     pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let pl = ParameterList::new(bytes)?;
 
-        let dds_publication_data = PublicationBuiltinTopicData::create_sample(
-            &mut deserialize_top_level_type(PublicationBuiltinTopicData::TYPE, bytes)?,
-        );
+        let dds_publication_data = PublicationBuiltinTopicData {
+            key: pl.get_optional_parameter_xdcr(PID_ENDPOINT_GUID, Default::default())?,
+            participant_key: pl
+                .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
+            topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
+            type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
+            deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
+            latency_budget: pl
+                .get_optional_parameter_xdcr(PID_LATENCY_BUDGET, Default::default())?,
+            liveliness: pl.get_optional_parameter_xdcr(PID_LIVELINESS, Default::default())?,
+            reliability: pl.get_optional_parameter_xdcr(
+                PID_RELIABILITY,
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+            )?,
+            lifespan: pl.get_optional_parameter_xdcr(PID_LIFESPAN, Default::default())?,
+            user_data: pl.get_optional_parameter_xdcr(PID_USER_DATA, Default::default())?,
+            ownership: pl.get_optional_parameter_xdcr(PID_OWNERSHIP, Default::default())?,
+            ownership_strength: pl
+                .get_optional_parameter_xdcr(PID_OWNERSHIP_STRENGTH, Default::default())?,
+            destination_order: pl
+                .get_optional_parameter_xdcr(PID_DESTINATION_ORDER, Default::default())?,
+            presentation: pl.get_optional_parameter_xdcr(PID_PRESENTATION, Default::default())?,
+            partition: pl.get_optional_parameter_xdcr(PID_PARTITION, Default::default())?,
+            topic_data: pl.get_optional_parameter_xdcr(PID_TOPIC_DATA, Default::default())?,
+            group_data: pl.get_optional_parameter_xdcr(PID_GROUP_DATA, Default::default())?,
+            representation: pl
+                .get_optional_parameter_xdcr(PID_DATA_REPRESENTATION, Default::default())?,
+        };
 
         let writer_proxy = WriterProxy {
             remote_writer_guid: Guid::from(dds_publication_data.key.value),
@@ -167,8 +189,8 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -233,8 +255,8 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -304,8 +326,8 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: "ab".to_string().into(),
+                type_name: "cd".to_string().into(),
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
