@@ -2203,7 +2203,7 @@ mod tests {
             shapesize: i32,
         }
 
-        let type_information = TypeInformation::try_from(ShapeType::get_type()).unwrap();
+        let type_information = TypeInformation::from(ShapeType::get_type());
         assert_eq!(
             type_information
                 .complete
