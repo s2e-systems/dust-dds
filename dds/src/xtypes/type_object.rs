@@ -1885,6 +1885,29 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                 };
                 MinimalTypeObject::TkStructure { struct_type }
             }
+            TypeKind::ENUM => {
+                let mut enum_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    enum_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = MinimalEnumeratedHeader {
+                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                };
+
+                let literal_seq = Vec::new(); // TODO: fill up
+
+                let enumerated_type = MinimalEnumeratedType {
+                    enum_flags,
+                    header,
+                    literal_seq,
+                };
+                MinimalTypeObject::TkEnum { enumerated_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
@@ -1920,6 +1943,34 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                 };
                 CompleteTypeObject::TkStructure { struct_type }
             }
+            TypeKind::ENUM => {
+                let mut enum_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    enum_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = CompleteEnumeratedHeader {
+                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    detail: CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: value.descriptor.name.to_string(),
+                    },
+                };
+
+                let literal_seq = Vec::new(); // TODO: fill up
+
+                let enumerated_type = CompleteEnumeratedType {
+                    enum_flags,
+                    header,
+                    literal_seq,
+                };
+                CompleteTypeObject::TkEnum { enumerated_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
@@ -1954,10 +2005,54 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
+            TypeKind::STRUCTURE => {
+                let complete_type_object = TypeObject::EkComplete {
+                    complete: CompleteTypeObject::from(*value),
+                };
+                let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
+                complete_type_object.create_dynamic_sample(&mut data);
+                let serialized_complete_type_object =
+                    serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+
+                let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
+                TypeIdentifier::EkComplete {
+                    equivalence_hash: [
+                        hash_complete_type_object[0],
+                        hash_complete_type_object[1],
+                        hash_complete_type_object[2],
+                        hash_complete_type_object[3],
+                        hash_complete_type_object[4],
+                        hash_complete_type_object[5],
+                        hash_complete_type_object[6],
+                        hash_complete_type_object[7],
+                        hash_complete_type_object[8],
+                        hash_complete_type_object[9],
+                        hash_complete_type_object[10],
+                        hash_complete_type_object[11],
+                        hash_complete_type_object[12],
+                        hash_complete_type_object[13],
+                    ],
+                }
+            }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
+            TypeKind::SEQUENCE => TypeIdentifier::TiPlainSequenceLarge {
+                seq_ldefn: PlainSequenceLElemDefn {
+                    header: PlainCollectionHeader {
+                        equiv_kind: EK_MINIMAL,
+                        element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    },
+                    bound: u32::MAX,
+                    element_identifier: Box::new(
+                        value
+                            .descriptor
+                            .element_type
+                            .as_ref()
+                            .expect("Sequence must have element type")
+                            .into(),
+                    ),
+                },
+            },
             TypeKind::ARRAY => todo!(),
             TypeKind::MAP => todo!(),
         }

@@ -436,7 +436,7 @@ trait XTypesSerializer<'a> {
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string_type(v.get_string_value(member_id)?),
             TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
+            TypeKind::ALIAS => (), // TODO: This is used for box so it might have to be something different
             TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),

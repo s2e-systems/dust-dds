@@ -11,6 +11,7 @@ use crate::{
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{instance::InstanceHandle, status::StatusKind, time::DurationKind},
     rtps::message_receiver::MessageReceiver,
@@ -210,7 +211,63 @@ impl DcpsDomainParticipant {
             }
 
             let participant_handle = self.domain_participant.instance_handle;
-            match data_reader.add_reader_change(cache_change, reception_timestamp) {
+            let (dynamic_data, change_instance_handle) = match cache_change.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                    let Ok(data_value) = deserialize_top_level_type(
+                        data_reader.type_support,
+                        cache_change.data_value.as_ref(),
+                    ) else {
+                        tracing::warn!("Failed to deserialize user defined data");
+                        return;
+                    };
+                    let Ok(instance_handle) =
+                        get_instance_handle_from_dynamic_data(data_value.clone())
+                    else {
+                        tracing::warn!("Failed to get instance handle from dynamic_data");
+                        return;
+                    };
+                    (Some(data_value), instance_handle)
+                }
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
+                    Some(i) => {
+                        let instance_handle = InstanceHandle::new(i);
+                        (None, instance_handle)
+                    }
+                    None => {
+                        let mut dispose_data_type_key_holder = data_reader.type_support;
+                        let mut member_list = data_reader.type_support.member_list.to_vec();
+                        member_list.retain(|f| f.descriptor.is_key);
+                        dispose_data_type_key_holder.member_list = &member_list;
+
+                        let Ok(data_value) = deserialize_top_level_type(
+                            dispose_data_type_key_holder,
+                            cache_change.data_value.as_ref(),
+                        ) else {
+                            tracing::warn!("Failed to deserialize disposed user defined data");
+                            return;
+                        };
+
+                        let Ok(instance_handle) =
+                            get_instance_handle_from_dynamic_data(data_value.clone())
+                        else {
+                            tracing::warn!("Failed to deserialize disposed key user defined data");
+                            return;
+                        };
+                        (None, instance_handle)
+                    }
+                },
+            };
+
+            match data_reader.add_reader_change(
+                cache_change.writer_guid,
+                dynamic_data,
+                cache_change.kind,
+                change_instance_handle.into(),
+                cache_change.source_timestamp.map(Into::into),
+                reception_timestamp,
+            ) {
                 Ok(AddChangeResult::Added(change_instance_handle)) => {
                     info!("New change added");
                     if let DurationKind::Finite(deadline_missed_period) =

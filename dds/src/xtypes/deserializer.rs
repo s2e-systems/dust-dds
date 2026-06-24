@@ -804,7 +804,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as u32,
             crate::xtypes::data_storage::DataStorage::Int16(x) => *x as u32,
             crate::xtypes::data_storage::DataStorage::Int32(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as u32,
+            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x,
             _ => return Err(XTypesError::InvalidType),
         };
 
