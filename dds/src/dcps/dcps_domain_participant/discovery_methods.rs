@@ -460,7 +460,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone().into(),
-                type_information: None,
+                type_information: Some(topic.type_support.into()),
                 type_name: topic.type_name.clone().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),

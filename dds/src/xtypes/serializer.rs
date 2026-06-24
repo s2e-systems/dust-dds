@@ -224,7 +224,7 @@ trait XTypesSerializer<'a> {
             TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
+            TypeKind::STRUCTURE => self.serialize_fstruct_type(v.get_complex_value(member_id)?)?,
             TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => self.serialize_sequence_type(v, member_id)?,
