@@ -18,7 +18,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    xtypes::{type_object::TypeInformation, type_support::TypeSupport},
+    xtypes::{type_object::TypeInformation, type_support::{TypeSupport, _String}},
 };
 use alloc::string::String;
 
@@ -336,9 +336,9 @@ pub struct SubscriptionBuiltinTopicData {
     #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
     pub(crate) participant_key: BuiltInTopicKey,
     #[dust_dds(id=PID_TOPIC_NAME as u32)]
-    pub(crate) topic_name: String,
+    pub(crate) topic_name: _String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
-    pub(crate) type_name: String,
+    pub(crate) type_name: _String,
     #[dust_dds(id=PID_DURABILITY as u32)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32)]
@@ -382,12 +382,12 @@ impl SubscriptionBuiltinTopicData {
 
     /// Get the name of the topic associated with the discovered reader.
     pub fn topic_name(&self) -> &str {
-        &self.topic_name
+        &self.topic_name.value
     }
 
     /// Get the name of the type associated with the discovered reader.
     pub fn get_type_name(&self) -> &str {
-        &self.type_name
+        &self.type_name.value
     }
 
     /// Get the durability QoS policy of the discovered reader.

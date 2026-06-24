@@ -235,7 +235,9 @@ impl CdrDeserialize for bool {
 }
 impl<const N: usize> CdrDeserialize for [u8; N] {
     fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        Ok(de.read_bytes(N)?.try_into().expect("must have size"))
+        let mut array = [0u8; N];
+        array.copy_from_slice(de.read_bytes(N)?);
+        Ok(array)
     }
 }
 impl CdrDeserialize for String {
@@ -274,10 +276,10 @@ impl CdrDeserialize for BuiltinEndpointSet {
 }
 impl CdrDeserialize for Duration {
     fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        Ok(Duration::new(
-            CdrDeserialize::cdr_deserialize(de)?,
-            CdrDeserialize::cdr_deserialize(de)?,
-        ))
+        Ok(Duration {
+            sec: CdrDeserialize::cdr_deserialize(de)?,
+            nanosec: CdrDeserialize::cdr_deserialize(de)?,
+        })
     }
 }
 impl CdrDeserialize for EntityId {

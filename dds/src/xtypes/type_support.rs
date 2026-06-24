@@ -1,10 +1,8 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
-
-pub use dust_dds_derive::TypeSupport;
-
 use crate::xtypes::dynamic_type::{
     DynamicData, DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind,
 };
+use alloc::{boxed::Box, string::String, vec::Vec};
+pub use dust_dds_derive::TypeSupport;
 
 /// The Type trait represents static type information of Rust types
 pub trait Type {
@@ -24,6 +22,23 @@ pub trait TypeSupport: Type {
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
     fn create_dynamic_sample(self, data: &mut DynamicData<'static>);
+}
+
+/// Preregistered String type as per Annex E: Built-in Types
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+pub struct _String {
+    /// value
+    pub value: String,
+}
+impl From<String> for _String {
+    fn from(value: String) -> Self {
+        Self { value }
+    }
+}
+impl From<_String> for String {
+    fn from(value: _String) -> Self {
+        value.value
+    }
 }
 
 impl Type for i8 {

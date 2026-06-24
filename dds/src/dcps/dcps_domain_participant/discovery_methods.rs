@@ -52,7 +52,7 @@ use crate::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_rtps,
-        type_support::{Type, TypeSupport},
+        type_support::{_String, Type, TypeSupport},
     },
 };
 use alloc::{
@@ -362,8 +362,8 @@ impl DcpsDomainParticipant {
             participant_key: BuiltInTopicKey {
                 value: self.domain_participant.instance_handle.into(),
             },
-            topic_name: topic_name.clone(),
-            type_name: type_name.clone(),
+            topic_name: _String { value: topic_name.clone() },
+            type_name:  _String { value: type_name.clone() },
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -610,7 +610,7 @@ impl DcpsDomainParticipant {
             };
 
             let is_matched_topic_name =
-                discovered_reader_data.dds_subscription_data.topic_name == data_writer.topic_name;
+                discovered_reader_data.dds_subscription_data.topic_name.value == data_writer.topic_name;
             let is_matched_type_name = discovered_reader_data.dds_subscription_data.get_type_name()
                 == data_writer.type_name;
 
@@ -1555,14 +1555,14 @@ impl DcpsDomainParticipant {
                 {
                     if self
                         .domain_participant
-                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name)
+                        .find_topic(&discovered_reader_data.dds_subscription_data.topic_name())
                         .is_none()
                     {
                         let reader_topic = TopicBuiltinTopicData {
                             key: BuiltInTopicKey::default(),
                             name: discovered_reader_data
                                 .dds_subscription_data
-                                .topic_name
+                                .topic_name()
                                 .to_string(),
                             type_name: discovered_reader_data
                                 .dds_subscription_data
