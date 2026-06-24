@@ -551,7 +551,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_publications_transport_writer),
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
-            DiscoveredWriterData::TYPE,
+            PublicationBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
             sedp_data_writer_qos(),

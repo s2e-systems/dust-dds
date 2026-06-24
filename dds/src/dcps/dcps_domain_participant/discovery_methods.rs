@@ -252,8 +252,6 @@ impl DcpsDomainParticipant {
             writer_proxy,
         };
 
-        let mut data = DynamicDataFactory::create_data(DiscoveredWriterData::TYPE);
-        discovered_writer_data.create_dynamic_sample(&mut data);
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
@@ -263,7 +261,7 @@ impl DcpsDomainParticipant {
         {
             let now = runtime.clock().now();
             let sample_instance_handle = data_writer.transport_writer.guid().into();
-            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let serialized_data = discovered_writer_data.to_bytes();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
