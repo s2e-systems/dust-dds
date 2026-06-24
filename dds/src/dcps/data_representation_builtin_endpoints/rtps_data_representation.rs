@@ -14,11 +14,24 @@ use alloc::{string::String, vec::Vec};
 
 pub type CdrResult<T> = Result<T, CdrError>;
 
+type RepresentationIdentifier = [u8; 2];
+const CDR_BE: RepresentationIdentifier = [0x00, 0x00];
+const CDR_LE: RepresentationIdentifier = [0x00, 0x01];
+const CDR2_BE: RepresentationIdentifier = [0x00, 0x06];
+const CDR2_LE: RepresentationIdentifier = [0x00, 0x07];
+const D_CDR2_BE: RepresentationIdentifier = [0x00, 0x08];
+const D_CDR2_LE: RepresentationIdentifier = [0x00, 0x09];
+const PL_CDR_BE: RepresentationIdentifier = [0x00, 0x02];
+const PL_CDR_LE: RepresentationIdentifier = [0x00, 0x03];
+const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
+const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
+
 #[derive(Debug, PartialEq)]
 pub enum CdrError {
     InvalidData,
     PidNotFound(i16),
     NotEnoughData,
+    Unsupported(RepresentationIdentifier),
     XTypes(XTypesError),
 }
 impl From<XTypesError> for CdrError {
@@ -111,6 +124,27 @@ impl<'a> ParameterList<'a> {
             self.seek_to_pid(pid)?.ok_or(CdrError::PidNotFound(pid))?,
             self.endianness()?,
         ))
+    }
+
+    pub(crate) fn get_optional_parameter_xdcr2<T: TypeSupport>(
+        &self,
+        pid: ParameterId,
+    ) -> CdrResult<Option<T>> {
+        if let Some(pid_data) = self.seek_to_pid(pid)? {
+            let representation_identifier = match [self.data[0], self.data[1]] {
+                CDR_BE | CDR2_BE| PL_CDR_BE | D_CDR2_BE | PL_CDR2_BE => CDR2_BE,
+                CDR_LE | CDR2_LE| PL_CDR_LE | D_CDR2_LE | PL_CDR2_LE => CDR2_LE,
+                unsupported => Err(CdrError::Unsupported(unsupported))?
+            };
+            let mut dynamic_data = deserialize_top_level_type_from_representation_identifier(
+                T::TYPE,
+                representation_identifier,
+                pid_data,
+            )?;
+            Ok(Some(T::create_sample(&mut dynamic_data)))
+        } else {
+            Ok(None)
+        }
     }
 
     pub(crate) fn get_optional_parameter_xdcr<T: TypeSupport>(
