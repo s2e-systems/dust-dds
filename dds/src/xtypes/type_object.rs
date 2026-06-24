@@ -2015,26 +2015,14 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
 
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
-        fn pad_entire_serialization(buffer: &mut Vec<u8>) {
-            let padding = match buffer.len() % 4 {
-                1 => &[0, 0, 0][..],
-                2 => &[0, 0][..],
-                3 => &[0][..],
-                _ => &[][..],
-            };
-            buffer.extend_from_slice(padding);
-            buffer[3] = padding.len() as u8;
-        }
-
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
         let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         minimal_type_object.create_dynamic_sample(&mut data);
 
-        let mut serialized_minimal_type_object =
+        let serialized_minimal_type_object =
             serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
-        pad_entire_serialization(&mut serialized_minimal_type_object);
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
 
         let complete_type_object = TypeObject::EkComplete {
@@ -2042,9 +2030,9 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
         };
         let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         complete_type_object.create_dynamic_sample(&mut data);
-        let mut serialized_complete_type_object =
+        let serialized_complete_type_object =
             serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
-        pad_entire_serialization(&mut serialized_complete_type_object);
+
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
 
         TypeInformation {
