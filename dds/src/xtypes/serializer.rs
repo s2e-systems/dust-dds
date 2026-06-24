@@ -1,6 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, DynamicType, TypeKind},
+    dynamic_type::{DynamicData, TypeKind},
     error::{XTypesError, XTypesResult},
     read_write::Write,
 };
@@ -35,13 +35,6 @@ pub fn serialize_cdr2_le(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
     serialize_cdr2(dynamic_data, LittleEndian)
 }
 
-pub fn serialize_rtps(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
-    let mut buffer = Vec::new();
-    RtpsPlCdrSerializer::serialize(&mut buffer, dynamic_data)?;
-    pad_entire_serialization(&mut buffer);
-    Ok(buffer)
-}
-
 pub fn serialize_final_without_header<W: Write>(
     mut buffer: W,
     dynamic_data: &DynamicData,
@@ -58,6 +51,17 @@ pub fn serialize_without_header_cdr1_le<W: Write>(
     dynamic_data: &DynamicData,
 ) -> XTypesResult<W> {
     let mut s = Xcdr1Serializer {
+        writer: CdrWriter::new(&mut buffer, LittleEndian),
+    };
+    s.serialize_t_as_nested(dynamic_data)?;
+    Ok(buffer)
+}
+
+pub fn serialize_without_header_cdr2_le<W: Write>(
+    mut buffer: W,
+    dynamic_data: &DynamicData,
+) -> XTypesResult<W> {
+    let mut s = Xcdr2Serializer {
         writer: CdrWriter::new(&mut buffer, LittleEndian),
     };
     s.serialize_t_as_nested(dynamic_data)?;
@@ -99,19 +103,6 @@ fn pad_entire_serialization(buffer: &mut Vec<u8>) {
     };
     buffer.extend_from_slice(padding);
     buffer[3] = padding.len() as u8;
-}
-
-struct RtpsPlCdrSerializer<'a, W> {
-    writer: CdrWriter<'a, W, LittleEndian>,
-}
-
-impl<'a, W: Write> RtpsPlCdrSerializer<'a, W> {
-    fn serialize(buffer: &'a mut W, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        Self {
-            writer: CdrWriter::new(buffer, LittleEndian),
-        }
-        .serialize_top_level_type(dynamic_data)
-    }
 }
 
 struct Xcdr1Serializer<'a, W, E> {
@@ -519,105 +510,6 @@ trait XTypesSerializer<'a> {
 }
 
 const PID_SENTINEL: u16 = 1;
-
-impl<'a, W: Write> XTypesSerializer<'a> for RtpsPlCdrSerializer<'a, W> {
-    fn align(&mut self, v: usize) {
-        self.writer.pad(v);
-    }
-
-    fn push_origin_0(&mut self) {
-        self.writer.position = 0;
-    }
-
-    fn serialize_enc_header(&mut self, _dynamic_data: &DynamicData) -> XTypesResult<()> {
-        self.serialize_p_array_type(&PL_CDR_LE);
-        Ok(())
-    }
-
-    fn serialize_mstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        // That differs in the if memeber_descriptor.kind == Sequence for Structure kinds
-
-        fn serialize_all_members<'a, W: Write>(
-            serializer: &mut RtpsPlCdrSerializer<'a, W>,
-            dynamic_type: &DynamicType,
-            v: &DynamicData,
-        ) -> Result<(), XTypesError> {
-            if let Some(b) = &dynamic_type.descriptor.base_type {
-                serialize_all_members(serializer, b, v)?;
-            }
-
-            for field_index in 0..dynamic_type.get_member_count() {
-                let member = dynamic_type.get_member_by_index(field_index)?;
-                let member_id = member.get_id();
-                let member_descriptor = &member.descriptor;
-
-                if v.get_value(member_id).is_err() {
-                    continue;
-                }
-
-                if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                    let element_type = member_descriptor
-                        .r#type
-                        .get_descriptor()
-                        .element_type
-                        .as_ref()
-                        .expect("sequence has element type");
-                    if element_type.get_descriptor().kind == TypeKind::STRUCTURE {
-                        for vi in v.get_complex_values(member_id)? {
-                            let mut byte_conter = ByteCounter::new();
-                            let mut byte_conter_serializer = RtpsPlCdrSerializer {
-                                writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-                            };
-                            byte_conter_serializer.serialize_fstruct_type(vi)?;
-                            byte_conter_serializer.align(4);
-
-                            serializer.serialize_primitive_type(&(member_id as u16));
-                            serializer.serialize_primitive_type(&(byte_conter.0 as u16));
-                            serializer.serialize_fstruct_type(vi)?;
-                            serializer.align(4);
-                        }
-                    } else {
-                        serializer.serialize_mmember(v, member_id)?;
-                    }
-                } else {
-                    serializer.serialize_mmember(v, member_id)?;
-                }
-            }
-            Ok(())
-        }
-        serialize_all_members(self, &v.r#type(), v)?;
-        self.align(4);
-        self.serialize_primitive_type(&PID_SENTINEL);
-        self.serialize_primitive_type(&0u16);
-        Ok(())
-    }
-
-    fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
-        // This differs from the Xcdr1LeSerializer in the counter that also adds the padding to the size
-
-        let mut byte_conter = ByteCounter::new();
-        let mut byte_conter_serializer = Xcdr1Serializer {
-            writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-        };
-        byte_conter_serializer.serialize_m_value(v, member_id)?;
-        byte_conter_serializer.align(4);
-
-        self.align(4);
-        self.serialize_primitive_type(&(member_id as u16));
-        self.serialize_primitive_type(&(byte_conter.0 as u16));
-        self.push_origin_0();
-        self.serialize_m_value(v, member_id)?;
-        self.align(4);
-        Ok(())
-    }
-    fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_t_as_final(v)
-    }
-
-    fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
-        v.serialize(&mut self.writer)
-    }
-}
 
 impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<'a, W, E> {
     fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
@@ -1755,213 +1647,6 @@ mod tests {
                 .unwrap()
                 .id,
             22
-        );
-    }
-}
-
-#[cfg(test)]
-mod rtps_pl_tests {
-    use super::*;
-    use crate::xtypes::{dynamic_type::DynamicDataFactory, type_support::TypeSupport};
-    extern crate std;
-
-    fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        v.create_dynamic_sample(&mut data);
-        let mut buffer = Vec::new();
-        RtpsPlCdrSerializer::serialize(&mut buffer, &data).unwrap();
-        buffer
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableBasicType {
-        #[dust_dds(id = 10)]
-        field_u16: u16,
-        #[dust_dds(id = 20)]
-        field_u8: u8,
-    }
-
-    #[test]
-    fn serialize_mutable_struct() {
-        let v = MutableBasicType {
-            field_u16: 7,
-            field_u8: 8,
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                10, 0, 4, 0, // PID | length
-                7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                20, 0, 4, 0, // PID | length
-                8, 0, 0, 0, // field_u8 | padding (3 bytes)
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[derive(TypeSupport, Default, PartialEq)]
-    struct Time {
-        sec: u32,
-        nanosec: i32,
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableTimeType {
-        #[dust_dds(id = 30)]
-        field_time: Time,
-    }
-
-    #[test]
-    fn serialize_mutable_time_struct() {
-        let v = MutableTimeType {
-            field_time: Time { sec: 5, nanosec: 6 },
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                30, 0, 8, 0, // PID | length
-                5, 0, 0, 0, // Time: sec
-                6, 0, 0, 0, // Time: nanosec
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableCollectionType {
-        #[dust_dds(id = 30)]
-        field_times: Vec<Time>,
-    }
-
-    #[test]
-    fn serialize_mutable_collection_struct() {
-        let v = MutableCollectionType {
-            field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                30, 0, 8, 0, // PID | length
-                5, 0, 0, 0, // Time: sec
-                6, 0, 0, 0, // Time: nanosec
-                30, 0, 8, 0, // PID | length
-                7, 0, 0, 0, // Time: sec
-                8, 0, 0, 0, // Time: nanosec
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_string() {
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct StringData {
-            #[dust_dds(id = 41)]
-            name: String,
-        }
-
-        let v = StringData {
-            name: "one".to_string(),
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 8, 0, // PID, length
-                4, 0, 0, 0, // String length
-                b'o', b'n', b'e', 0, // String
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_string_list() {
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct StringList {
-            #[dust_dds(id = 41)]
-            name: Vec<String>,
-        }
-
-        let v = StringList {
-            name: vec!["one".to_string(), "two".to_string()],
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 20, 0, // PID, length
-                2, 0, 0, 0, // vec length
-                4, 0, 0, 0, // String length
-                b'o', b'n', b'e', 0, // String
-                4, 0, 0, 0, // String length
-                b't', b'w', b'o', 0, // String
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_u8_array() {
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct U8Array {
-            #[dust_dds(id = 41)]
-            version: [u8; 2],
-        }
-
-        let v = U8Array { version: [1, 2] };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 4, 0, // PID, length
-                1, 2, 0, 0, // version | padding (2 bytres)
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_locator() {
-        #[derive(TypeSupport, Default, PartialEq)]
-        struct Locator {
-            kind: i32,
-            port: u32,
-            address: [u8; 4],
-        }
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct LocatorContainer {
-            #[dust_dds(id = 41)]
-            locator: Locator,
-        }
-
-        let v = LocatorContainer {
-            locator: Locator {
-                kind: 1,
-                port: 2,
-                address: [7; 4],
-            },
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 12, 0, // PID, length
-                1, 0, 0, 0, // kind
-                2, 0, 0, 0, // port
-                7, 7, 7, 7, // address
-                1, 0, 0, 0, // Sentinel
-            ]
         );
     }
 }
