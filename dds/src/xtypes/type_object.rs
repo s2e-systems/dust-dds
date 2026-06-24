@@ -3,7 +3,7 @@ use dust_dds_derive::DdsType;
 
 use crate::xtypes::{
     dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
-    serializer::serialize_cdr2_le,
+    serializer::serialize_without_header_cdr2_le,
     type_support::TypeSupport,
 };
 
@@ -2015,12 +2015,26 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
 
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
+        fn pad_entire_serialization(buffer: &mut Vec<u8>) {
+            let padding = match buffer.len() % 4 {
+                1 => &[0, 0, 0][..],
+                2 => &[0, 0][..],
+                3 => &[0][..],
+                _ => &[][..],
+            };
+            buffer.extend_from_slice(padding);
+            buffer[3] = padding.len() as u8;
+        }
+
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
         let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         minimal_type_object.create_dynamic_sample(&mut data);
-        let serialized_minimal_type_object = serialize_cdr2_le(&data).expect("Not fallible");
+
+        let mut serialized_minimal_type_object =
+            serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+        pad_entire_serialization(&mut serialized_minimal_type_object);
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
 
         let complete_type_object = TypeObject::EkComplete {
@@ -2028,7 +2042,9 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
         };
         let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         complete_type_object.create_dynamic_sample(&mut data);
-        let serialized_complete_type_object = serialize_cdr2_le(&data).expect("Not fallible");
+        let mut serialized_complete_type_object =
+            serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+        pad_entire_serialization(&mut serialized_complete_type_object);
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
 
         TypeInformation {
@@ -2079,7 +2095,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_complete_type_object.len() as u32,
                 },
-                dependent_typeid_count: -1,
+                dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
         }
@@ -2141,6 +2157,62 @@ mod tests {
     }
 
     #[test]
+    fn serialize_type_information() {
+        let mut dynamic_data = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [1; 14],
+                    },
+                    typeobject_serialized_size: 100,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [1; 14],
+                    },
+                    typeobject_serialized_size: 100,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            88, 0, 0, 0, // dheader
+            0x01, 0x10, 0, 0b100_0000, // Emheader: minimal
+            36, 0, 0, 0, // EMheader: nextint
+            32, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+            0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids: Dheader
+            0, 0, 0, 0, // dependent_typeids Length
+            // complete
+            0x02, 0x10, 0, 0b100_0000, // Emheader: minimal
+            36, 0, 0, 0, // EMheader: nextint
+            32, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+            0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids: Dheader
+            0, 0, 0, 0, // dependent_typeids Length
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
     fn serialize_type_identifier_with_dependencies() {
         let mut dynamic_data =
             DynamicDataFactory::create_data(TypeIdentifierWithDependencies::TYPE);
@@ -2158,12 +2230,13 @@ mod tests {
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
-            28, 0, 0, 0,    // DHeader
+            32, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
             100, 0, 0, 0, // typeobject_serialized_size
             0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids Dheader
             0, 0, 0, 0, // dependent_typeids Length
         ];
 
