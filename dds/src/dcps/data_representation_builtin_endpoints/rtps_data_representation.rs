@@ -132,9 +132,9 @@ impl<'a> ParameterList<'a> {
     ) -> CdrResult<Option<T>> {
         if let Some(pid_data) = self.seek_to_pid(pid)? {
             let representation_identifier = match [self.data[0], self.data[1]] {
-                CDR_BE | CDR2_BE| PL_CDR_BE | D_CDR2_BE | PL_CDR2_BE => CDR2_BE,
-                CDR_LE | CDR2_LE| PL_CDR_LE | D_CDR2_LE | PL_CDR2_LE => CDR2_LE,
-                unsupported => Err(CdrError::Unsupported(unsupported))?
+                CDR_BE | CDR2_BE | PL_CDR_BE | D_CDR2_BE | PL_CDR2_BE => CDR2_BE,
+                CDR_LE | CDR2_LE | PL_CDR_LE | D_CDR2_LE | PL_CDR2_LE => CDR2_LE,
+                unsupported => Err(CdrError::Unsupported(unsupported))?,
             };
             let mut dynamic_data = deserialize_top_level_type_from_representation_identifier(
                 T::TYPE,

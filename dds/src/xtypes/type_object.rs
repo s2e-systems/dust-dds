@@ -194,7 +194,6 @@ impl PartialEq for MemberFlag {
     }
 }
 
-
 impl core::ops::BitOr for MemberFlag {
     type Output = MemberFlag;
 
