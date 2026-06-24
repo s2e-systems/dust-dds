@@ -11,45 +11,18 @@ use crate::{
 pub fn get_instance_handle_from_dynamic_data<'a>(
     mut dynamic_data: DynamicData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    struct Md5 {
-        key: [u8; 16],
-        context: md5::Context,
-        length: usize,
-    }
 
-    impl Md5 {
-        fn into_key(mut self) -> [u8; 16] {
-            const ZEROS: [u8; 16] = [0; 16];
-            if self.length < ZEROS.len() {
-                self.context.consume(&ZEROS[self.length..]);
-            }
-            if self.length <= 16 {
-                self.key
-            } else {
-                self.context.compute().into()
-            }
-        }
-    }
-
-    impl Write for Md5 {
-        fn write(&mut self, buf: &[u8]) {
-            let total_new_length = self.length + buf.len();
-            if total_new_length <= self.key.len() {
-                self.key[self.length..total_new_length].copy_from_slice(buf);
-            }
-            self.context.consume(buf);
-            self.length += buf.len();
-        }
-    }
-
-    let md5_collection = Md5 {
-        key: [0; 16],
-        context: md5::Context::new(),
-        length: 0,
-    };
     let key = if dynamic_data.r#type().get_kind() == TypeKind::STRUCTURE {
         dynamic_data.clear_nonkey_values()?;
-        serialize_final_without_header(md5_collection, &dynamic_data)?.into_key()
+        let data = serialize_final_without_header(Vec::new(), &dynamic_data)?;
+
+        let mut context = md5::Context::new();
+        context.consume(&data);
+        const ZEROS: [u8; 16] = [0; 16];
+        if data.len() < ZEROS.len() {
+            context.consume(&ZEROS[data.len()..]);
+        }
+        context.compute().into()
     } else {
         [0; 16]
     };
