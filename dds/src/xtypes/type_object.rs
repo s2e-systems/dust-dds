@@ -1958,7 +1958,7 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     detail: CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
-                        type_name: value.descriptor.name.to_string(),
+                        type_name: String::from(value.descriptor.name),
                     },
                 };
 
