@@ -84,7 +84,11 @@ impl<'a> Iterator for PidIterator<'a> {
 
 impl<'a> ParameterList<'a> {
     pub(crate) fn new(data: &'a [u8]) -> CdrResult<Self> {
-        Ok(Self { data })
+        if data.len() < 4 {
+            Err(CdrError::NotEnoughData)
+        } else {
+            Ok(Self { data })
+        }
     }
 
     pub(crate) fn get_optional_parameter<T: CdrDeserialize>(
