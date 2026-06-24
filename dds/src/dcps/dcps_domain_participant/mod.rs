@@ -74,8 +74,7 @@ use crate::{
         },
     },
     xtypes::{
-        deserializer::deserialize_top_level_type,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType},
+        dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
         type_support::{Type, TypeSupport},
     },
@@ -1904,7 +1903,7 @@ struct ReaderSample {
     writer_guid: [u8; 16],
     instance_handle: InstanceHandle,
     source_timestamp: Option<Time>,
-    data_value: DynamicData<'static>,
+    data_value: Option<DynamicData<'static>>,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
@@ -2053,7 +2052,7 @@ impl DataReaderEntity {
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                    (Some(cache_change.data_value.clone()), true)
+                    (cache_change.data_value.clone(), true)
                 }
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
@@ -2159,61 +2158,29 @@ impl DataReaderEntity {
         }
     }
 
-    fn convert_cache_change_to_sample(
+    fn add_reader_change(
         &mut self,
-        cache_change: &CacheChange,
-    ) -> DdsResult<ReaderSample> {
-        let (data_value, instance_handle) = match cache_change.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                let data_value: DynamicData<'static> = deserialize_top_level_type(
-                    self.type_support,
-                    cache_change.data_value.as_ref(),
-                )?;
-                let instance_handle = get_instance_handle_from_dynamic_data(data_value.clone())?;
-                (data_value, instance_handle)
-            }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => match cache_change.instance_handle {
-                Some(i) => {
-                    let data_value = DynamicDataFactory::create_data(self.type_support);
-                    let instance_handle = InstanceHandle::new(i);
-                    (data_value, instance_handle)
-                }
-                None => {
-                    let mut dispose_data_type_key_holder = self.type_support;
-                    let mut member_list = self.type_support.member_list.to_vec();
-                    member_list.retain(|f| f.descriptor.is_key);
-                    dispose_data_type_key_holder.member_list = &member_list;
-
-                    let data_value = deserialize_top_level_type(
-                        dispose_data_type_key_holder,
-                        cache_change.data_value.as_ref(),
-                    )?;
-
-                    let instance_handle =
-                        get_instance_handle_from_dynamic_data(data_value.clone())?;
-                    (
-                        DynamicDataFactory::create_data(self.type_support),
-                        instance_handle,
-                    )
-                }
-            },
-        };
-
+        writer_guid: Guid,
+        data_value: Option<DynamicData<'static>>,
+        change_kind: ChangeKind,
+        change_instance_handle: [u8; 16],
+        change_source_timestamp: Option<Time>,
+        reception_timestamp: Time,
+    ) -> DdsResult<AddChangeResult> {
+        let instance_handle = InstanceHandle::new(change_instance_handle);
         // Update the state of the instance before creating since this has direct impact on
         // the information that is stored on the sample
-        match cache_change.kind {
+        match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                 match self
                     .instances
                     .iter_mut()
                     .find(|x| x.handle() == &instance_handle)
                 {
-                    Some(x) => x.update_state(cache_change.kind),
+                    Some(x) => x.update_state(change_kind),
                     None => {
                         let mut s = InstanceState::new(instance_handle);
-                        s.update_state(cache_change.kind);
+                        s.update_state(change_kind);
                         self.instances.push(s);
                     }
                 }
@@ -2228,7 +2195,7 @@ impl DataReaderEntity {
                     .find(|x| x.handle() == &instance_handle)
                 {
                     Some(instance) => {
-                        instance.update_state(cache_change.kind);
+                        instance.update_state(change_kind);
                         Ok(())
                     }
                     None => Err(DdsError::Error(
@@ -2242,24 +2209,17 @@ impl DataReaderEntity {
             .iter()
             .find(|x| x.handle() == &instance_handle)
             .expect("Sample with handle must exist");
-        Ok(ReaderSample {
-            kind: cache_change.kind,
-            writer_guid: cache_change.writer_guid.into(),
+        let sample = ReaderSample {
+            kind: change_kind,
+            writer_guid: writer_guid.into(),
             instance_handle,
-            source_timestamp: cache_change.source_timestamp.map(Into::into),
+            source_timestamp: change_source_timestamp,
             data_value,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: instance.most_recent_disposed_generation_count,
             no_writers_generation_count: instance.most_recent_no_writers_generation_count,
-        })
-    }
+        };
 
-    fn add_reader_change(
-        &mut self,
-        cache_change: &CacheChange,
-        reception_timestamp: Time,
-    ) -> DdsResult<AddChangeResult> {
-        let sample = self.convert_cache_change_to_sample(cache_change)?;
         let change_instance_handle = sample.instance_handle;
         // data_reader exclusive access if the writer is not the allowed to write the sample do an early return
         if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {

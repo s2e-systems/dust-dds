@@ -142,22 +142,23 @@ trait XTypesSerializer<'a> {
             writer: CdrWriter::new(&mut byte_conter, LittleEndian),
         };
         byte_conter_serializer.serialize_m_value(dynamic_data, member_id)?;
+        let m_flag = 0;
         let length = byte_conter.0;
-        if length == 1 || length == 2 || length == 4 || length == 8 {
-            let m_flag = 0;
-            let lc = match length {
-                1 => 0,
-                2 => 1,
-                4 => 2,
-                8 => 3,
-                _ => unreachable!(),
-            } as u32;
-            let emheader = (m_flag << 31) + (lc << 28) + (member_id & 0x0fffffff);
-            self.serialize_primitive_type(&emheader);
-        } else {
-            self.serialize_primitive_type(&member_id);
-            //todo!("LC (length code) not yet supproted")
-        };
+        let lc = match length {
+            1 => 0,
+            2 => 1,
+            4 => 2,
+            8 => 3,
+            _ => 4,
+        } as u32;
+
+        let emheader = (m_flag << 31) + (lc << 28) + (member_id & 0x0fffffff);
+        self.serialize_primitive_type(&emheader);
+
+        if lc == 4 {
+            self.serialize_primitive_type(&(length as u32));
+        }
+
         Ok(())
     }
 
@@ -225,7 +226,7 @@ trait XTypesSerializer<'a> {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
-            TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => self.serialize_sequence_type(v, member_id)?,
             TypeKind::ARRAY => self.serialize_array_type(v, member_id)?,
@@ -371,65 +372,7 @@ trait XTypesSerializer<'a> {
         &mut self,
         v: &DynamicData,
         member_id: u32,
-    ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("sequence has element type");
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_p_sequence_type(v.get_boolean_values(member_id)?),
-            TypeKind::BYTE => self.serialize_p_sequence_type(v.get_byte_values(member_id)?),
-            TypeKind::INT16 => self.serialize_p_sequence_type(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_p_sequence_type(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_p_sequence_type(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_p_sequence_type(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_p_sequence_type(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_p_sequence_type(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_p_sequence_type(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_p_sequence_type(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => self.serialize_p_sequence_type(v.get_float128_values(member_id)?),
-            TypeKind::INT8 => self.serialize_p_sequence_type(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_p_sequence_type(v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    self.serialize_string_type(v);
-                }
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
-                let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    self.serialize_t_as_nested(v)?;
-                }
-            }
-            TypeKind::UNION => {
-                let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    self.serialize_funion_type(v)?;
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-
-        Ok(())
-    }
+    ) -> Result<(), XTypesError>;
 
     /// Serialization Rule (14)
     fn _serialize_pmap_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
@@ -473,7 +416,38 @@ trait XTypesSerializer<'a> {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        self.serialize_m_value(v, member_id)
+        let member_descriptor = v.get_descriptor(member_id)?;
+        match member_descriptor.r#type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
+            TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),
+            TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
+            TypeKind::INT32 => self.serialize_primitive_type(v.get_int32_value(member_id)?),
+            TypeKind::INT64 => self.serialize_primitive_type(v.get_int64_value(member_id)?),
+            TypeKind::UINT16 => self.serialize_primitive_type(v.get_uint16_value(member_id)?),
+            TypeKind::UINT32 => self.serialize_primitive_type(v.get_uint32_value(member_id)?),
+            TypeKind::UINT64 => self.serialize_primitive_type(v.get_uint64_value(member_id)?),
+            TypeKind::FLOAT32 => self.serialize_primitive_type(v.get_float32_value(member_id)?),
+            TypeKind::FLOAT64 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
+            TypeKind::FLOAT128 => self.serialize_primitive_type(v.get_float128_value(member_id)?),
+            TypeKind::INT8 => self.serialize_primitive_type(v.get_int8_value(member_id)?),
+            TypeKind::UINT8 => self.serialize_primitive_type(v.get_uint8_value(member_id)?),
+            TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => self.serialize_string_type(v.get_string_value(member_id)?),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => (), // TODO: This is used for box so it might have to be something different
+            TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => self.serialize_fstruct_type(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => self.serialize_sequence_type(v, member_id)?,
+            TypeKind::ARRAY => self.serialize_array_type(v, member_id)?,
+            TypeKind::MAP => todo!(),
+        }
+        Ok(())
     }
 
     /// Serialization Rule (19) & (20)
@@ -570,6 +544,70 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<
     fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_t_as_final(v)
     }
+
+    fn serialize_sequence_type(
+        &mut self,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("sequence has element type");
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => self.serialize_p_sequence_type(v.get_boolean_values(member_id)?),
+            TypeKind::BYTE => self.serialize_p_sequence_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => self.serialize_p_sequence_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => self.serialize_p_sequence_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => self.serialize_p_sequence_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => self.serialize_p_sequence_type(v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => self.serialize_p_sequence_type(v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => self.serialize_p_sequence_type(v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => self.serialize_p_sequence_type(v.get_float32_values(member_id)?),
+            TypeKind::FLOAT64 => self.serialize_p_sequence_type(v.get_float64_values(member_id)?),
+            TypeKind::FLOAT128 => self.serialize_p_sequence_type(v.get_float128_values(member_id)?),
+            TypeKind::INT8 => self.serialize_p_sequence_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => self.serialize_p_sequence_type(v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                let list = v.get_string_values(member_id)?;
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    self.serialize_string_type(v);
+                }
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => {
+                let list = v.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    self.serialize_t_as_nested(v)?;
+                }
+            }
+            TypeKind::UNION => {
+                let list = v.get_complex_values(member_id)?;
+                self.serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    self.serialize_funion_type(v)?;
+                }
+            }
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<'a, W, E> {
@@ -637,6 +675,110 @@ impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<
         byte_counter_serializer.serialize_t_as_final(v)?;
         self.serialize_dheader(byte_counter.0);
         self.serialize_t_as_final(v)
+    }
+
+    fn serialize_sequence_type(
+        &mut self,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        fn serialize_this<'b, W: Write, E: EndiannessWrite>(
+            serializer: &mut Xcdr2Serializer<'b, W, E>,
+            v: &DynamicData,
+            member_id: u32,
+        ) -> Result<(), XTypesError> {
+            let member_descriptor = v.get_descriptor(member_id)?;
+            let element_type = member_descriptor
+                .r#type
+                .get_descriptor()
+                .element_type
+                .as_ref()
+                .expect("sequence has element type");
+            match element_type.get_descriptor().kind {
+                TypeKind::NONE => todo!(),
+                TypeKind::BOOLEAN => {
+                    serializer.serialize_p_sequence_type(v.get_boolean_values(member_id)?)
+                }
+                TypeKind::BYTE => {
+                    serializer.serialize_p_sequence_type(v.get_byte_values(member_id)?)
+                }
+                TypeKind::INT16 => {
+                    serializer.serialize_p_sequence_type(v.get_int16_values(member_id)?)
+                }
+                TypeKind::INT32 => {
+                    serializer.serialize_p_sequence_type(v.get_int32_values(member_id)?)
+                }
+                TypeKind::INT64 => {
+                    serializer.serialize_p_sequence_type(v.get_int64_values(member_id)?)
+                }
+                TypeKind::UINT16 => {
+                    serializer.serialize_p_sequence_type(v.get_uint16_values(member_id)?)
+                }
+                TypeKind::UINT32 => {
+                    serializer.serialize_p_sequence_type(v.get_uint32_values(member_id)?)
+                }
+                TypeKind::UINT64 => {
+                    serializer.serialize_p_sequence_type(v.get_uint64_values(member_id)?)
+                }
+                TypeKind::FLOAT32 => {
+                    serializer.serialize_p_sequence_type(v.get_float32_values(member_id)?)
+                }
+                TypeKind::FLOAT64 => {
+                    serializer.serialize_p_sequence_type(v.get_float64_values(member_id)?)
+                }
+                TypeKind::FLOAT128 => {
+                    serializer.serialize_p_sequence_type(v.get_float128_values(member_id)?)
+                }
+                TypeKind::INT8 => {
+                    serializer.serialize_p_sequence_type(v.get_int8_values(member_id)?)
+                }
+                TypeKind::UINT8 => {
+                    serializer.serialize_p_sequence_type(v.get_uint8_values(member_id)?)
+                }
+                TypeKind::CHAR8 => todo!(),
+                TypeKind::CHAR16 => todo!(),
+                TypeKind::STRING8 => {
+                    let list = v.get_string_values(member_id)?;
+                    serializer.serialize_primitive_type(&(list.len() as u32));
+                    for v in list {
+                        serializer.serialize_string_type(v);
+                    }
+                }
+                TypeKind::STRING16 => todo!(),
+                TypeKind::ALIAS => todo!(),
+                TypeKind::ENUM => todo!(),
+                TypeKind::BITMASK => todo!(),
+                TypeKind::ANNOTATION => todo!(),
+                TypeKind::STRUCTURE => {
+                    let list = v.get_complex_values(member_id)?;
+                    serializer.serialize_primitive_type(&(list.len() as u32));
+                    for v in list {
+                        serializer.serialize_t_as_nested(v)?;
+                    }
+                }
+                TypeKind::UNION => {
+                    let list = v.get_complex_values(member_id)?;
+                    serializer.serialize_primitive_type(&(list.len() as u32));
+                    for v in list {
+                        serializer.serialize_funion_type(v)?;
+                    }
+                }
+                TypeKind::BITSET => todo!(),
+                TypeKind::SEQUENCE => todo!(),
+                TypeKind::ARRAY => todo!(),
+                TypeKind::MAP => todo!(),
+            }
+
+            Ok(())
+        }
+
+        let mut byte_counter = ByteCounter::new();
+        let mut byte_counter_serializer = Xcdr2Serializer {
+            writer: CdrWriter::new(&mut byte_counter, LittleEndian),
+        };
+        serialize_this(&mut byte_counter_serializer, v, member_id)?;
+        self.serialize_dheader(byte_counter.0);
+        serialize_this(self, v, member_id)
     }
 }
 
@@ -1426,13 +1568,14 @@ mod tests {
             serialize_cdr2_be(&v).unwrap(),
             vec![
                 0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
-                0, 0, 0, 28, // Dheader
+                0, 0, 0, 32, // Dheader
                 0, 0, 0, 5, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 0, 0, 0, 10, // x
                 0, 0, 0, 20, // y
                 0, 0, 0, 30, // shapesize
+                0, 0, 0, 4, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );
@@ -1440,13 +1583,14 @@ mod tests {
             serialize_cdr2_le(&v).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                28, 0, 0, 0, // Dheader
+                32, 0, 0, 0, // Dheader
                 5, 0, 0, 0, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 10, 0, 0, 0, // x
                 20, 0, 0, 0, // y
                 30, 0, 0, 0, // shapesize
+                4, 0, 0, 0, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );

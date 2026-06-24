@@ -262,21 +262,8 @@ impl<T> Type for Box<T> {
     };
 }
 
-impl<T> Type for Option<T> {
-    const TYPE: DynamicType<'static> = DynamicType {
-        descriptor: &TypeDescriptor {
-            kind: TypeKind::ALIAS,
-            name: "",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Final,
-            is_nested: false,
-        },
-        member_list: &[],
-    };
+impl<T: Type> Type for Option<T> {
+    const TYPE: DynamicType<'static> = T::TYPE;
 }
 
 impl Type for String {

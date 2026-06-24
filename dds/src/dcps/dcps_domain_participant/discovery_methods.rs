@@ -24,6 +24,7 @@ use crate::{
             TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -460,7 +461,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.clone().into(),
-                type_information: None,
+                type_information: Some(topic.type_support.into()),
                 type_name: topic.type_name.clone().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
@@ -1394,7 +1395,39 @@ impl DcpsDomainParticipant {
                 if let Ok(discovered_participant_data) =
                     SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
                 {
-                    self.add_discovered_participant(discovered_participant_data, runtime);
+                    self.add_discovered_participant(&discovered_participant_data, runtime);
+
+                    let reception_timestamp = runtime.clock().now();
+                    if let Some(reader) = self
+                        .domain_participant
+                        .builtin_subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
+                    {
+                        let mut dynamic_data =
+                            DynamicDataFactory::create_data(ParticipantBuiltinTopicData::TYPE);
+                        discovered_participant_data
+                            .dds_participant_data
+                            .create_dynamic_sample(&mut dynamic_data);
+                        let change_instance_handle = match cache_change.instance_handle {
+                            Some(i) => i,
+                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                                .expect("Should not fail")
+                                .into(),
+                        };
+
+                        reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                Some(dynamic_data),
+                                cache_change.kind,
+                                change_instance_handle,
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
@@ -1412,21 +1445,28 @@ impl DcpsDomainParticipant {
                 };
 
                 self.remove_discovered_participant(&discovered_participant_handle);
+
+                let reception_timestamp = runtime.clock().now();
+                if let Some(reader) = self
+                    .domain_participant
+                    .builtin_subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
+                {
+                    reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            None,
+                            cache_change.kind,
+                            discovered_participant_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
-        }
-
-        let reception_timestamp = runtime.clock().now();
-        if let Some(reader) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
-        {
-            reader
-                .add_reader_change(cache_change, reception_timestamp)
-                .ok();
         }
     }
 
@@ -1487,6 +1527,38 @@ impl DcpsDomainParticipant {
                             &data_reader_handle,
                         );
                     }
+
+                    let reception_timestamp = runtime.clock().now();
+                    if let Some(reader) = self
+                        .domain_participant
+                        .builtin_subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+                    {
+                        let mut dynamic_data =
+                            DynamicDataFactory::create_data(PublicationBuiltinTopicData::TYPE);
+                        discovered_writer_data
+                            .dds_publication_data
+                            .create_dynamic_sample(&mut dynamic_data);
+                        let change_instance_handle = match cache_change.instance_handle {
+                            Some(i) => i,
+                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                                .expect("Should not fail")
+                                .into(),
+                        };
+
+                        reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                Some(dynamic_data),
+                                cache_change.kind,
+                                change_instance_handle,
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
@@ -1519,21 +1591,27 @@ impl DcpsDomainParticipant {
                         data_reader_handle,
                     );
                 }
+                let reception_timestamp = runtime.clock().now();
+                if let Some(reader) = self
+                    .domain_participant
+                    .builtin_subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+                {
+                    reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            None,
+                            cache_change.kind,
+                            discovered_writer_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
-        }
-
-        let reception_timestamp = runtime.clock().now();
-        if let Some(reader) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.topic_name == DCPS_PUBLICATION)
-        {
-            reader
-                .add_reader_change(cache_change, reception_timestamp)
-                .ok();
         }
     }
 
@@ -1623,6 +1701,38 @@ impl DcpsDomainParticipant {
                             &data_writer_handle,
                         );
                     }
+
+                    let reception_timestamp = runtime.clock().now();
+                    if let Some(reader) = self
+                        .domain_participant
+                        .builtin_subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+                    {
+                        let mut dynamic_data =
+                            DynamicDataFactory::create_data(SubscriptionBuiltinTopicData::TYPE);
+                        discovered_reader_data
+                            .dds_subscription_data
+                            .create_dynamic_sample(&mut dynamic_data);
+                        let change_instance_handle = match cache_change.instance_handle {
+                            Some(i) => i,
+                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                                .expect("Should not fail")
+                                .into(),
+                        };
+
+                        reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                Some(dynamic_data),
+                                cache_change.kind,
+                                change_instance_handle,
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
                 }
             }
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
@@ -1654,21 +1764,28 @@ impl DcpsDomainParticipant {
                         data_writer_handle,
                     );
                 }
+
+                let reception_timestamp = runtime.clock().now();
+                if let Some(reader) = self
+                    .domain_participant
+                    .builtin_subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+                {
+                    reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            None,
+                            cache_change.kind,
+                            discovered_reader_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
             }
             ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
-        }
-
-        let reception_timestamp = runtime.clock().now();
-        if let Some(reader) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
-        {
-            reader
-                .add_reader_change(cache_change, reception_timestamp)
-                .ok();
         }
     }
 
@@ -1702,6 +1819,29 @@ impl DcpsDomainParticipant {
                             }
                         }
                     }
+                    let reception_timestamp = runtime.clock().now();
+                    if let Some(reader) = self
+                        .domain_participant
+                        .builtin_subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|dr| dr.topic_name == DCPS_TOPIC)
+                    {
+                        let change_instance_handle = topic_builtin_topic_data.key.value;
+                        let mut dynamic_data =
+                            DynamicDataFactory::create_data(TopicBuiltinTopicData::TYPE);
+                        topic_builtin_topic_data.create_dynamic_sample(&mut dynamic_data);
+                        reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                Some(dynamic_data),
+                                cache_change.kind,
+                                change_instance_handle,
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
                 }
             }
             ChangeKind::NotAliveDisposed
@@ -1709,25 +1849,12 @@ impl DcpsDomainParticipant {
             | ChangeKind::NotAliveUnregistered
             | ChangeKind::NotAliveDisposedUnregistered => (),
         }
-
-        let reception_timestamp = runtime.clock().now();
-        if let Some(reader) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.topic_name == DCPS_TOPIC)
-        {
-            reader
-                .add_reader_change(cache_change, reception_timestamp)
-                .ok();
-        }
     }
 
     #[tracing::instrument(skip(self, runtime))]
     fn add_discovered_participant(
         &mut self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
         runtime: &impl DdsRuntime,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
@@ -1764,24 +1891,26 @@ impl DcpsDomainParticipant {
             && !is_participant_discovered
             && !is_participant_ignored
         {
-            self.add_matched_publications_detector(&discovered_participant_data);
-            self.add_matched_publications_announcer(&discovered_participant_data);
-            self.add_matched_subscriptions_detector(&discovered_participant_data);
-            self.add_matched_subscriptions_announcer(&discovered_participant_data);
-            self.add_matched_topics_detector(&discovered_participant_data);
-            self.add_matched_topics_announcer(&discovered_participant_data);
+            self.add_matched_publications_detector(discovered_participant_data);
+            self.add_matched_publications_announcer(discovered_participant_data);
+            self.add_matched_subscriptions_detector(discovered_participant_data);
+            self.add_matched_subscriptions_announcer(discovered_participant_data);
+            self.add_matched_topics_detector(discovered_participant_data);
+            self.add_matched_topics_announcer(discovered_participant_data);
 
             self.announce_participant(runtime);
 
             let discovered_participant_info = DiscoveredParticipantInfo {
-                dds_participant_data: discovered_participant_data.dds_participant_data,
+                dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
                 guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
                 default_unicast_locator_list: discovered_participant_data
                     .participant_proxy
-                    .default_unicast_locator_list,
+                    .default_unicast_locator_list
+                    .clone(),
                 default_multicast_locator_list: discovered_participant_data
                     .participant_proxy
-                    .default_multicast_locator_list,
+                    .default_multicast_locator_list
+                    .clone(),
                 lease_duration: discovered_participant_data.lease_duration,
                 reception_timestamp: runtime.clock().now(),
             };

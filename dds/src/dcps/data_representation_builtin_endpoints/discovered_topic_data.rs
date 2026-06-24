@@ -7,7 +7,7 @@ use crate::{
             PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
             PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION, PID_TYPE_NAME,
         },
-        rtps_data_representation::CdrResult,
+        rtps_data_representation::{CdrResult, ParameterList},
         rtps_data_representation_serialization::ParameterListSerializer,
     },
     infrastructure::qos_policy::{
@@ -15,10 +15,6 @@ use crate::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-    },
-    xtypes::{
-        deserializer::deserialize_top_level_type,
-        type_support::{Type, TypeSupport},
     },
 };
 use alloc::vec::Vec;
@@ -101,9 +97,35 @@ impl DiscoveredTopicData {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
-        let topic_builtin_topic_data = TopicBuiltinTopicData::create_sample(
-            &mut deserialize_top_level_type(TopicBuiltinTopicData::TYPE, bytes)?,
-        );
+        let pl = ParameterList::new(bytes)?;
+
+        let topic_builtin_topic_data = TopicBuiltinTopicData {
+            key: pl.get_optional_parameter_xdcr(PID_ENDPOINT_GUID, Default::default())?,
+            name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
+            type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            type_information: None, //pl.get_optional_parameter_xdcr(PID_TYPE_INFORMATION, Default::default())?,
+            durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
+            deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
+            latency_budget: pl
+                .get_optional_parameter_xdcr(PID_LATENCY_BUDGET, Default::default())?,
+            liveliness: pl.get_optional_parameter_xdcr(PID_LIVELINESS, Default::default())?,
+            reliability: pl.get_optional_parameter_xdcr(
+                PID_RELIABILITY,
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            )?,
+            transport_priority: pl
+                .get_optional_parameter_xdcr(PID_TRANSPORT_PRIORITY, Default::default())?,
+            lifespan: pl.get_optional_parameter_xdcr(PID_LIFESPAN, Default::default())?,
+            destination_order: pl
+                .get_optional_parameter_xdcr(PID_DESTINATION_ORDER, Default::default())?,
+            history: pl.get_optional_parameter_xdcr(PID_HISTORY, Default::default())?,
+            resource_limits: pl
+                .get_optional_parameter_xdcr(PID_RESOURCE_LIMITS, Default::default())?,
+            ownership: pl.get_optional_parameter_xdcr(PID_OWNERSHIP, Default::default())?,
+            topic_data: pl.get_optional_parameter_xdcr(PID_TOPIC_DATA, Default::default())?,
+            representation: pl
+                .get_optional_parameter_xdcr(PID_DATA_REPRESENTATION, Default::default())?,
+        };
         Ok(Self {
             topic_builtin_topic_data,
         })
