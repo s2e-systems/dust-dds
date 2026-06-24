@@ -369,8 +369,20 @@ pub fn deserialize_top_level_type<'a>(
     if buffer.len() < 4 {
         return Err(XTypesError::NotEnoughData);
     }
-    let representation_identifier = [buffer[0], buffer[1]];
-    let data = &buffer[4..];
+    deserialize_top_level_type_from_representation_identifier(
+        dynamic_type,
+        [buffer[0], buffer[1]],
+        &buffer[4..],
+    )
+}
+
+/// This is an addidtional function to the "Serialization Rule (1)" deserialization function.
+/// It can be used if the representation identifier is already known
+pub fn deserialize_top_level_type_from_representation_identifier<'a>(
+    dynamic_type: DynamicType<'a>,
+    representation_identifier: RepresentationIdentifier,
+    data: &[u8],
+) -> XTypesResult<DynamicData<'a>> {
     match representation_identifier {
         CDR_BE | PL_CDR_BE => XTypesDeserializer::new(data, EncodingVersion1, BigEndian)
             .deserialize_as_nested(dynamic_type),
@@ -422,7 +434,7 @@ fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bo
 }
 
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
-    fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
+    pub fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
             reader: Reader { buffer, pos: 0 },
             _endianness: endianness,
@@ -539,7 +551,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn deserialize_as_nested<'b>(
+    pub fn deserialize_as_nested<'b>(
         &mut self,
         dynamic_type: DynamicType<'b>,
     ) -> XTypesResult<DynamicData<'b>> {

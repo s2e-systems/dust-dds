@@ -9,7 +9,7 @@ use super::{
     rtps_data_representation::CdrResult,
 };
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
         rtps_data_representation::ParameterList,
@@ -213,12 +213,9 @@ impl SpdpDiscoveredParticipantData {
         let pl = ParameterList::new(bytes)?;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey {
-                value: pl.get_non_optional_parameter(PID_PARTICIPANT_GUID)?,
-            },
-            user_data: UserDataQosPolicy {
-                value: pl.get_optional_parameter(PID_USER_DATA, Vec::new())?,
-            },
+            key: pl.get_non_optional_parameter_xdcr(PID_PARTICIPANT_GUID)?,
+            user_data: pl
+                .get_optional_parameter_xdcr(PID_USER_DATA, UserDataQosPolicy::default())?,
         };
 
         let participant_proxy = ParticipantProxy {
