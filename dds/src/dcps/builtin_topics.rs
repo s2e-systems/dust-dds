@@ -18,7 +18,10 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
-    xtypes::{type_object::TypeInformation, type_support::{TypeSupport, _String}},
+    xtypes::{
+        type_object::TypeInformation,
+        type_support::{_String, TypeSupport},
+    },
 };
 
 /// Topic name of the built-in publication discovery topic
