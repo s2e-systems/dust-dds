@@ -21,12 +21,11 @@ use crate::{
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
     xtypes::{
         data_storage::DataStorageMapping,
-        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicType,
-        type_support::{Type, TypeSupport},
+        type_support::{_String, Type, TypeSupport},
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
@@ -47,9 +46,34 @@ impl DiscoveredReaderData {
     pub fn from_bytes(bytes: &[u8]) -> CdrResult<Self> {
         let pl = ParameterList::new(bytes)?;
 
-        let dds_subscription_data = SubscriptionBuiltinTopicData::create_sample(
-            &mut deserialize_top_level_type(SubscriptionBuiltinTopicData::TYPE, bytes)?,
-        );
+        let dds_subscription_data = SubscriptionBuiltinTopicData {
+            key: pl.get_optional_parameter_xdcr(PID_ENDPOINT_GUID, Default::default())?,
+            participant_key: pl
+                .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
+            topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
+            type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
+            deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
+            latency_budget: pl
+                .get_optional_parameter_xdcr(PID_LATENCY_BUDGET, Default::default())?,
+            liveliness: pl.get_optional_parameter_xdcr(PID_LIVELINESS, Default::default())?,
+            reliability: pl.get_optional_parameter_xdcr(
+                PID_RELIABILITY,
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            )?,
+            ownership: pl.get_optional_parameter_xdcr(PID_OWNERSHIP, Default::default())?,
+            destination_order: pl
+                .get_optional_parameter_xdcr(PID_DESTINATION_ORDER, Default::default())?,
+            user_data: pl.get_optional_parameter_xdcr(PID_USER_DATA, Default::default())?,
+            time_based_filter: pl
+                .get_optional_parameter_xdcr(PID_TIME_BASED_FILTER, Default::default())?,
+            presentation: pl.get_optional_parameter_xdcr(PID_PRESENTATION, Default::default())?,
+            partition: pl.get_optional_parameter_xdcr(PID_PARTITION, Default::default())?,
+            topic_data: pl.get_optional_parameter_xdcr(PID_TOPIC_DATA, Default::default())?,
+            group_data: pl.get_optional_parameter_xdcr(PID_GROUP_DATA, Default::default())?,
+            representation: pl
+                .get_optional_parameter_xdcr(PID_DATA_REPRESENTATION, Default::default())?,
+        };
 
         let reader_proxy = ReaderProxy {
             remote_reader_guid: Guid::from(dds_subscription_data.key.value),
@@ -78,8 +102,8 @@ impl Type for DiscoveredReaderData {
                 "participant_key",
                 PID_PARTICIPANT_GUID,
             ),
-            ConvenienceTypeBuilder::member::<String>(2, "topic_name", PID_TOPIC_NAME),
-            ConvenienceTypeBuilder::member::<String>(3, "type_name", PID_TYPE_NAME),
+            ConvenienceTypeBuilder::member::<_String>(2, "topic_name", PID_TOPIC_NAME),
+            ConvenienceTypeBuilder::member::<_String>(3, "type_name", PID_TYPE_NAME),
             ConvenienceTypeBuilder::member_with_default::<DurabilityQosPolicy>(
                 4,
                 "durability",
@@ -455,7 +479,7 @@ mod tests {
         xtypes::{
             dynamic_type::DynamicDataFactory,
             serializer::serialize_rtps,
-            type_support::{Type, TypeSupport},
+            type_support::{_String, Type, TypeSupport},
         },
     };
 
@@ -470,8 +494,12 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: _String {
+                    value: "ab".to_string(),
+                },
+                type_name: _String {
+                    value: "cd".to_string(),
+                },
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -536,8 +564,12 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: _String {
+                    value: "ab".to_string(),
+                },
+                type_name: _String {
+                    value: "cd".to_string(),
+                },
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -619,8 +651,12 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: _String {
+                    value: "ab".to_string(),
+                },
+                type_name: _String {
+                    value: "cd".to_string(),
+                },
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -684,8 +720,12 @@ mod tests {
                 participant_key: BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
+                topic_name: _String {
+                    value: "ab".to_string(),
+                },
+                type_name: _String {
+                    value: "cd".to_string(),
+                },
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
