@@ -419,10 +419,10 @@ mod tests {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
                 topic_name: _String {
-                    value: "ab".to_string().into(),
+                    value: "ab".to_string(),
                 },
                 type_name: _String {
-                    value: "cd".to_string().into(),
+                    value: "cd".to_string(),
                 },
                 durability: Default::default(),
                 deadline: Default::default(),
