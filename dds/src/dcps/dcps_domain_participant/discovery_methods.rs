@@ -484,9 +484,6 @@ impl DcpsDomainParticipant {
             },
         };
 
-        let mut data = DynamicDataFactory::create_data(DiscoveredTopicData::TYPE);
-        discovered_topic_data.create_dynamic_sample(&mut data);
-
         if let Some(dw) = self
             .domain_participant
             .builtin_publisher
@@ -495,7 +492,7 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_TOPIC)
         {
             let sample_instance_handle = topic.instance_handle;
-            let serialized_data = serialize_rtps(&data).expect("Must succeed");
+            let serialized_data = discovered_topic_data.to_bytes();
             let now = runtime.clock().now();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();

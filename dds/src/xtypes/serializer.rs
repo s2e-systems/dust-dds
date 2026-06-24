@@ -64,6 +64,17 @@ pub fn serialize_without_header_cdr1_le<W: Write>(
     Ok(buffer)
 }
 
+pub fn serialize_without_header_cdr2_le<W: Write>(
+    mut buffer: W,
+    dynamic_data: &DynamicData,
+) -> XTypesResult<W> {
+    let mut s = Xcdr2Serializer {
+        writer: CdrWriter::new(&mut buffer, LittleEndian),
+    };
+    s.serialize_t_as_nested(dynamic_data)?;
+    Ok(buffer)
+}
+
 fn serialize_cdr1(
     dynamic_data: &DynamicData,
     endianness: impl EndiannessWrite,

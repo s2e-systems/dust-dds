@@ -18,7 +18,6 @@ use crate::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
-            discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
@@ -535,7 +534,7 @@ impl DcpsDomainParticipant {
             RtpsWriterKind::Stateful(dcps_topics_transport_writer),
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
-            DiscoveredTopicData::TYPE,
+            TopicBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
             sedp_data_writer_qos(),
