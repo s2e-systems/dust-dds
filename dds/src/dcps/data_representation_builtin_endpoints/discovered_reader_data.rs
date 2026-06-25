@@ -133,7 +133,9 @@ impl DiscoveredReaderData {
                 .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
             topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
             type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
-            type_information: pl.get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)?,
+            type_information: pl
+                .get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)
+                .unwrap_or_default(),
             durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
             deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
             latency_budget: pl
