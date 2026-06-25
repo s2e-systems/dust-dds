@@ -14,7 +14,7 @@ pub fn get_instance_handle_from_dynamic_data<'a>(
     let key = if dynamic_data.r#type().get_kind() == TypeKind::STRUCTURE {
         dynamic_data.clear_nonkey_values()?;
         let data = serialize_final_without_header(Vec::new(), &dynamic_data)?;
-        if data.len() < 16 {
+        if data.len() <= 16 {
             let mut key = [0; 16];
             key[0..data.len()].copy_from_slice(&data);
             key
