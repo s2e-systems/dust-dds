@@ -50,6 +50,9 @@ impl DiscoveredReaderData {
         pl.write_xcdr1_parameter(PID_TOPIC_NAME, self.dds_subscription_data.topic_name);
         pl.write_xcdr1_parameter(PID_TYPE_NAME, self.dds_subscription_data.type_name);
 
+        if let Some(type_information) = self.dds_subscription_data.type_information {
+            pl.write_xcdr2_parameter(PID_TYPE_INFORMATION, type_information);
+        }
         if self.dds_subscription_data.durability != DurabilityQosPolicy::default() {
             pl.write_xcdr1_parameter(PID_DURABILITY, self.dds_subscription_data.durability);
         }
