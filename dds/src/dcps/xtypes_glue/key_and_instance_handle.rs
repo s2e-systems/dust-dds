@@ -3,7 +3,6 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, TypeKind},
         error::XTypesError,
-        read_write::Write,
         serializer::serialize_final_without_header,
     },
 };
