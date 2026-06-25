@@ -152,7 +152,7 @@ pub fn serialize_final_without_header(
 ) -> XTypesResult<Vec<u8>> {
     let mut s = XTypesSerializer {
         writer: CdrWriter::new(&mut buffer),
-        _endianness: LittleEndian,
+        _endianness: BigEndian,
         _encoding_version: EncodingVersion1,
     };
     s.serialize_fstruct_type(dynamic_data)?;
