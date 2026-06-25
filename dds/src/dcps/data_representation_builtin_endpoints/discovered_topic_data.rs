@@ -103,7 +103,7 @@ impl DiscoveredTopicData {
             key: pl.get_optional_parameter_xdcr(PID_ENDPOINT_GUID, Default::default())?,
             name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
             type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
-            type_information: None, //pl.get_optional_parameter_xdcr(PID_TYPE_INFORMATION, Default::default())?,
+            type_information: pl.get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)?,
             durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
             deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
             latency_budget: pl

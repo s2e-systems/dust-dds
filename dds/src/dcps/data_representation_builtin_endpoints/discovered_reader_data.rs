@@ -8,6 +8,7 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
+        parameter_id_values::PID_TYPE_INFORMATION,
         rtps_data_representation::{CdrResult, ParameterList},
         rtps_data_representation_serialization::ParameterListSerializer,
     },
@@ -49,6 +50,9 @@ impl DiscoveredReaderData {
         pl.write_xcdr1_parameter(PID_TOPIC_NAME, self.dds_subscription_data.topic_name);
         pl.write_xcdr1_parameter(PID_TYPE_NAME, self.dds_subscription_data.type_name);
 
+        if let Some(type_information) = self.dds_subscription_data.type_information {
+            pl.write_xcdr2_parameter(PID_TYPE_INFORMATION, type_information);
+        }
         if self.dds_subscription_data.durability != DurabilityQosPolicy::default() {
             pl.write_xcdr1_parameter(PID_DURABILITY, self.dds_subscription_data.durability);
         }
@@ -132,6 +136,9 @@ impl DiscoveredReaderData {
                 .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
             topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
             type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            type_information: pl
+                .get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)
+                .unwrap_or_default(),
             durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
             deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
             latency_budget: pl
@@ -199,6 +206,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -268,6 +276,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -355,6 +364,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -424,6 +434,7 @@ mod tests {
                 type_name: _String {
                     value: "cd".to_string(),
                 },
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),

@@ -8,7 +8,7 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
-        parameter_id_values::PID_TYPE_NAME,
+        parameter_id_values::{PID_TYPE_INFORMATION, PID_TYPE_NAME},
         rtps_data_representation::{CdrResult, ParameterList},
         rtps_data_representation_serialization::ParameterListSerializer,
     },
@@ -48,7 +48,9 @@ impl DiscoveredWriterData {
         );
         pl.write_xcdr1_parameter(PID_TOPIC_NAME, self.dds_publication_data.topic_name);
         pl.write_xcdr1_parameter(PID_TYPE_NAME, self.dds_publication_data.type_name);
-
+        if let Some(type_information) = self.dds_publication_data.type_information {
+            pl.write_xcdr2_parameter(PID_TYPE_INFORMATION, type_information);
+        }
         if self.dds_publication_data.durability != DurabilityQosPolicy::default() {
             pl.write_xcdr1_parameter(PID_DURABILITY, self.dds_publication_data.durability);
         }
@@ -126,6 +128,9 @@ impl DiscoveredWriterData {
                 .get_optional_parameter_xdcr(PID_PARTICIPANT_GUID, Default::default())?,
             topic_name: pl.get_optional_parameter_xdcr(PID_TOPIC_NAME, Default::default())?,
             type_name: pl.get_optional_parameter_xdcr(PID_TYPE_NAME, Default::default())?,
+            type_information: pl
+                .get_optional_parameter_xdcr2(PID_TYPE_INFORMATION)
+                .unwrap_or_default(),
             durability: pl.get_optional_parameter_xdcr(PID_DURABILITY, Default::default())?,
             deadline: pl.get_optional_parameter_xdcr(PID_DEADLINE, Default::default())?,
             latency_budget: pl
@@ -191,6 +196,7 @@ mod tests {
                 },
                 topic_name: "ab".to_string().into(),
                 type_name: "cd".to_string().into(),
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -257,6 +263,7 @@ mod tests {
                 },
                 topic_name: "ab".to_string().into(),
                 type_name: "cd".to_string().into(),
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
@@ -328,6 +335,7 @@ mod tests {
                 },
                 topic_name: "ab".to_string().into(),
                 type_name: "cd".to_string().into(),
+                type_information: None,
                 durability: Default::default(),
                 deadline: Default::default(),
                 latency_budget: Default::default(),
