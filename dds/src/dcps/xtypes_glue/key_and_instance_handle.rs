@@ -6,6 +6,7 @@ use crate::{
         serializer::serialize_final_without_header,
     },
 };
+use alloc::vec::Vec;
 
 pub fn get_instance_handle_from_dynamic_data<'a>(
     mut dynamic_data: DynamicData<'a>,
