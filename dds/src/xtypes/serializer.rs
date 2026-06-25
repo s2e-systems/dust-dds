@@ -1,6 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, DynamicTypeMember, TypeKind},
+    dynamic_type::{DynamicData, TypeKind},
     error::{XTypesError, XTypesResult},
 };
 use alloc::{string::ToString, vec::Vec};
@@ -225,35 +225,7 @@ fn pad_entire_serialization(buffer: &mut Vec<u8>) {
     buffer.extend_from_slice(padding);
     buffer[3] = padding.len() as u8;
 }
-
-fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bool> {
-    Ok(matches!(
-        member
-            .descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .ok_or(XTypesError::InvalidType)?
-            .get_kind(),
-        TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8
-            | TypeKind::CHAR8
-            | TypeKind::CHAR16
-    ))
-}
-
-// Trait for the serialization of types defined in the XTypes standard.
+// Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
 // defined in the DDS-XTypes, version 1.3 - 7.4.3.5.1 Notation used for the match criteria
 struct XTypesSerializer<'a, E, V> {
@@ -1033,7 +1005,6 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-
         let member_descriptor = v.get_descriptor(member_id)?;
         let element_type = member_descriptor
             .r#type
@@ -1047,34 +1018,28 @@ impl EncodingVersion for EncodingVersion2 {
 
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => serializer
-                .serialize_p_array_type(v.get_boolean_values(member_id)?),
-            TypeKind::BYTE => serializer
-                .serialize_p_array_type(v.get_byte_values(member_id)?),
-            TypeKind::INT16 => serializer
-                .serialize_p_array_type(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => serializer
-                .serialize_p_array_type(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => serializer
-                .serialize_p_array_type(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => serializer
-                .serialize_p_array_type(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => serializer
-                .serialize_p_array_type(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => serializer
-                .serialize_p_array_type(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => serializer
-                .serialize_p_array_type(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => serializer
-                .serialize_p_array_type(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => serializer
-                .serialize_p_array_type(v.get_float128_values(member_id)?),
-            TypeKind::INT8 => serializer
-                .serialize_p_array_type(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => serializer
-                .serialize_p_array_type(v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => serializer
-                .serialize_p_array_type(v.get_char8_values(member_id)?),
+            TypeKind::BOOLEAN => {
+                serializer.serialize_p_array_type(v.get_boolean_values(member_id)?)
+            }
+            TypeKind::BYTE => serializer.serialize_p_array_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => serializer.serialize_p_array_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => serializer.serialize_p_array_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => serializer.serialize_p_array_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => serializer.serialize_p_array_type(v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => serializer.serialize_p_array_type(v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => serializer.serialize_p_array_type(v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => {
+                serializer.serialize_p_array_type(v.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                serializer.serialize_p_array_type(v.get_float64_values(member_id)?)
+            }
+            TypeKind::FLOAT128 => {
+                serializer.serialize_p_array_type(v.get_float128_values(member_id)?)
+            }
+            TypeKind::INT8 => serializer.serialize_p_array_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => serializer.serialize_p_array_type(v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => serializer.serialize_p_array_type(v.get_char8_values(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 for v in v.get_string_values(member_id)? {
@@ -1285,7 +1250,7 @@ impl EncodingVersion for EncodingVersion2 {
     ///               << { O.disc : MMEMBER }
     ///               << { O.selected_member : MMEMBER }?
     fn serialize_munion_type<'a, E: EndiannessWrite>(
-        serializer: &mut XTypesSerializer<'a, E, Self>,
+        _serializer: &mut XTypesSerializer<'a, E, Self>,
         _v: &DynamicData,
     ) -> Result<(), XTypesError> {
         todo!()
@@ -1318,7 +1283,6 @@ trait EndiannessWrite {
     const ENDIANNESS: Endianness;
     fn to_bytes_u16(v: u16) -> [u8; 2];
     fn write_i16(v: &i16, writer: &mut CdrWriter);
-    fn write_u16(v: &u16, writer: &mut CdrWriter);
     fn write_i32(v: &i32, writer: &mut CdrWriter);
     fn write_u32(v: &u32, writer: &mut CdrWriter);
     fn to_bytes_u32(v: u32) -> [u8; 4];
@@ -1336,9 +1300,6 @@ impl EndiannessWrite for BigEndian {
         v.to_be_bytes()
     }
     fn write_i16(v: &i16, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
-    }
-    fn write_u16(v: &u16, writer: &mut CdrWriter) {
         writer.write_slice(&v.to_be_bytes())
     }
     fn write_i32(v: &i32, writer: &mut CdrWriter) {
@@ -1374,9 +1335,6 @@ impl EndiannessWrite for LittleEndian {
         v.to_le_bytes()
     }
     fn write_i16(v: &i16, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
-    }
-    fn write_u16(v: &u16, writer: &mut CdrWriter) {
         writer.write_slice(&v.to_le_bytes())
     }
     fn write_i32(v: &i32, writer: &mut CdrWriter) {
