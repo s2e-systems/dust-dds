@@ -24,9 +24,9 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REQ_READER,
-            ENTITYID_TL_SVC_REQ_WRITER, RtpsReaderKind, RtpsWriterKind,
-            TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
+            ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
+            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
@@ -1912,7 +1912,9 @@ impl DcpsDomainParticipant {
             self.add_matched_topics_announcer(discovered_participant_data);
 
             self.add_matched_service_request_data_reader(discovered_participant_data);
-            todo!("Finish adding all matching endpoints to the type lookup");
+            self.add_matched_service_request_data_writer(discovered_participant_data);
+            self.add_matched_service_reply_data_reader(discovered_participant_data);
+            self.add_matched_service_reply_data_writer(discovered_participant_data);
 
             self.announce_participant(runtime);
 
@@ -2449,6 +2451,142 @@ impl DcpsDomainParticipant {
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_service_request_data_writer(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_DATA_WRITER)
+        {
+            let remote_writer_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_TL_SVC_REQ_WRITER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+
+            let writer_proxy = transport::types::WriterProxy {
+                remote_writer_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::Volatile,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+            };
+            if let Some(dr) = self
+                .domain_participant
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
+            {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
+                }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_service_reply_data_reader(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER)
+        {
+            let remote_reader_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_TL_SVC_REPLY_READER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let reader_proxy = transport::types::ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::Volatile,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+                expects_inline_qos,
+            };
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REPLY_WRITER)
+            {
+                match &mut dw.transport_writer {
+                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_service_reply_data_writer(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_WRITER)
+        {
+            let remote_writer_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_TL_SVC_REPLY_WRITER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+
+            let writer_proxy = transport::types::WriterProxy {
+                remote_writer_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::Volatile,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+            };
+            if let Some(dr) = self
+                .domain_participant
+                .builtin_subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
+            {
+                match &mut dr.transport_reader {
+                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
             }
         }
