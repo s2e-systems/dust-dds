@@ -104,19 +104,19 @@ pub struct TypeLookupReply {
 // DDS RPC Types
 #[derive(DdsType)]
 pub struct RequestHeader {
-    request_id: SampleIdentity,
-    instance_name: InstanceName,
+    pub request_id: SampleIdentity,
+    pub instance_name: InstanceName,
 }
 
 #[derive(DdsType)]
 pub struct ReplyHeader {
-    related_request_id: SampleIdentity,
+    pub related_request_id: SampleIdentity,
 }
 
 #[derive(DdsType)]
 pub struct SampleIdentity {
-    writer_guid: Guid,
-    sequence_number: SequenceNumber,
+    pub writer_guid: Guid,
+    pub sequence_number: SequenceNumber,
 }
 
 pub type InstanceName = String; //typedef string<255> InstanceName;

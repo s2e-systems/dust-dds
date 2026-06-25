@@ -13,6 +13,10 @@ use crate::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
             },
+            type_lookup::{
+                RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn,
+                TypeLookupRequest,
+            },
         },
         dcps_domain_participant::{
             BuiltInKeyHolder, DataReaderEntity, DataWriterEntity, DcpsDomainParticipant,
@@ -20,8 +24,9 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, RtpsReaderKind, RtpsWriterKind,
-            TopicDescriptionKind,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REQ_READER,
+            ENTITYID_TL_SVC_REQ_WRITER, RtpsReaderKind, RtpsWriterKind,
+            TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
         xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
@@ -52,6 +57,7 @@ use crate::{
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
+        serializer::serialize_cdr1_le,
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -1642,7 +1648,10 @@ impl DcpsDomainParticipant {
                                 .dds_subscription_data
                                 .type_name
                                 .clone(),
-                            type_information: None,
+                            type_information: discovered_reader_data
+                                .dds_subscription_data
+                                .type_information
+                                .clone(),
                             topic_data: discovered_reader_data
                                 .dds_subscription_data
                                 .topic_data()
@@ -1686,6 +1695,8 @@ impl DcpsDomainParticipant {
                         };
                         self.domain_participant.add_discovered_topic(reader_topic);
                     }
+
+                    self.request_type_lookup(runtime);
 
                     self.domain_participant
                         .add_discovered_reader(discovered_reader_data.clone());
@@ -1899,6 +1910,9 @@ impl DcpsDomainParticipant {
             self.add_matched_subscriptions_announcer(discovered_participant_data);
             self.add_matched_topics_detector(discovered_participant_data);
             self.add_matched_topics_announcer(discovered_participant_data);
+
+            self.add_matched_service_request_data_reader(discovered_participant_data);
+            todo!("Finish adding all matching endpoints to the type lookup");
 
             self.announce_participant(runtime);
 
@@ -2391,6 +2405,95 @@ impl DcpsDomainParticipant {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_service_request_data_reader(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER)
+        {
+            let remote_reader_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_TL_SVC_REQ_READER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let reader_proxy = transport::types::ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::Volatile,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+                expects_inline_qos,
+            };
+            if let Some(dw) = self
+                .domain_participant
+                .builtin_publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REQ_WRITER)
+            {
+                match &mut dw.transport_writer {
+                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
+                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
+                }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn request_type_lookup(&mut self, runtime: &impl DdsRuntime) {
+        if let Some(w) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
+        {
+            let mut dynamic_data = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
+            let type_lookup_request = TypeLookupRequest {
+                header: RequestHeader {
+                    request_id: SampleIdentity {
+                        writer_guid: w.transport_writer.guid(),
+                        sequence_number: w.last_change_sequence_number + 1,
+                    },
+                    instance_name: String::from("Some name"),
+                },
+                call: TypeLookupCall::TypeLookupGetTypesHashId {
+                    get_types: TypeLookupGetTypesIn {
+                        type_ids: Vec::new(),
+                    },
+                },
+            };
+            type_lookup_request.create_dynamic_sample(&mut dynamic_data);
+
+            let timestamp = runtime.clock().now();
+            let sample_instance_handle = self.domain_participant.instance_handle;
+            let serialized_data = serialize_cdr1_le(&dynamic_data).unwrap();
+            let sample_timestamp = timestamp;
+            let now = timestamp;
+            w.write_w_timestamp(
+                sample_instance_handle,
+                serialized_data,
+                sample_timestamp,
+                now,
+                self.transport.message_writer.as_ref(),
+                runtime,
+            )
+            .ok();
         }
     }
 }

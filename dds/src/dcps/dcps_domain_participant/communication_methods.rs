@@ -6,8 +6,8 @@ use crate::{
         dcps_domain_participant::{
             AddChangeResult, DcpsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, RtpsReaderKind, RtpsWriterKind,
-            TopicDescriptionKind,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_TL_SVC_REPLY_READER,
+            ENTITYID_TL_SVC_REQ_READER, RtpsReaderKind, RtpsWriterKind, TopicDescriptionKind,
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -48,6 +48,12 @@ impl DcpsDomainParticipant {
             }
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR => {
                 self.add_builtin_topics_detector_cache_change(cache_change, runtime)
+            }
+            ENTITYID_TL_SVC_REQ_READER => {
+                todo!("Process the replies")
+            }
+            ENTITYID_TL_SVC_REPLY_READER => {
+                todo!("Process the replies")
             }
             _ => self.add_user_defined_cache_change(
                 cache_change,
