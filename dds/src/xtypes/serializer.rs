@@ -18,118 +18,6 @@ const PL_CDR2_BE: RepresentationIdentifier = [0x00, 0x0a];
 const PL_CDR2_LE: RepresentationIdentifier = [0x00, 0x0b];
 const REPRESENTATION_OPTIONS: [u8; 2] = [0x00, 0x00];
 
-trait Ossize {
-    const SSIZE: usize;
-}
-impl Ossize for u8 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for u16 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for u32 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for u64 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for i8 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for i16 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for i32 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for i64 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for i128 {
-    const SSIZE: usize = Self::BITS as usize / 8;
-}
-impl Ossize for f32 {
-    const SSIZE: usize = 4;
-}
-impl Ossize for f64 {
-    const SSIZE: usize = 8;
-}
-impl Ossize for bool {
-    const SSIZE: usize = 1;
-}
-impl Ossize for char {
-    const SSIZE: usize = 1;
-}
-
-trait AsBytes {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>);
-}
-impl AsBytes for bool {
-    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
-        writer.write_byte(if *self { 1 } else { 0 });
-    }
-}
-impl AsBytes for u8 {
-    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
-        writer.write_byte(*self);
-    }
-}
-impl AsBytes for u16 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        writer.write_slice(&E::to_bytes_u16(*self));
-    }
-}
-impl AsBytes for u32 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_u32(self, writer);
-    }
-}
-impl AsBytes for u64 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_u64(self, writer);
-    }
-}
-impl AsBytes for i8 {
-    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
-        writer.write_byte(*self as u8);
-    }
-}
-impl AsBytes for i16 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_i16(self, writer);
-    }
-}
-impl AsBytes for i32 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_i32(self, writer);
-    }
-}
-impl AsBytes for i64 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_i64(self, writer);
-    }
-}
-impl AsBytes for i128 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_i128(self, writer);
-    }
-}
-impl AsBytes for f32 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_f32(self, writer);
-    }
-}
-impl AsBytes for f64 {
-    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
-        E::write_f64(self, writer);
-    }
-}
-impl AsBytes for char {
-    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
-        writer.write_slice(self.to_string().as_bytes());
-    }
-}
-
 pub fn serialize_cdr1_be(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
     serialize_cdr1(dynamic_data, BigEndian)
 }
@@ -1275,6 +1163,119 @@ impl EncodingVersion for EncodingVersion2 {
     }
 }
 
+trait Ossize {
+    const SSIZE: usize;
+}
+impl Ossize for u8 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u16 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u32 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u64 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i8 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i16 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i32 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i64 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i128 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for f32 {
+    const SSIZE: usize = 4;
+}
+impl Ossize for f64 {
+    const SSIZE: usize = 8;
+}
+impl Ossize for bool {
+    const SSIZE: usize = 1;
+}
+impl Ossize for char {
+    const SSIZE: usize = 1;
+}
+
+
+trait AsBytes {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>);
+}
+impl AsBytes for bool {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(if *self { 1 } else { 0 });
+    }
+}
+impl AsBytes for u8 {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(*self);
+    }
+}
+impl AsBytes for u16 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u16(*self));
+    }
+}
+impl AsBytes for u32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u32(*self));
+    }
+}
+impl AsBytes for u64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u64(*self));
+    }
+}
+impl AsBytes for i8 {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(*self as u8);
+    }
+}
+impl AsBytes for i16 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i16(*self));
+    }
+}
+impl AsBytes for i32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i32(*self));
+    }
+}
+impl AsBytes for i64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i64(*self));
+    }
+}
+impl AsBytes for i128 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i128(*self));
+    }
+}
+impl AsBytes for f32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_f32(*self));
+    }
+}
+impl AsBytes for f64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_f64(*self));
+    }
+}
+impl AsBytes for char {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(self.to_string().as_bytes());
+    }
+}
+
 enum Endianness {
     Big,
     Little,
@@ -1282,15 +1283,14 @@ enum Endianness {
 trait EndiannessWrite {
     const ENDIANNESS: Endianness;
     fn to_bytes_u16(v: u16) -> [u8; 2];
-    fn write_i16(v: &i16, writer: &mut CdrWriter);
-    fn write_i32(v: &i32, writer: &mut CdrWriter);
-    fn write_u32(v: &u32, writer: &mut CdrWriter);
+    fn to_bytes_i16(v: i16) -> [u8; 2];
+    fn to_bytes_i32(v: i32) -> [u8; 4];
     fn to_bytes_u32(v: u32) -> [u8; 4];
-    fn write_i64(v: &i64, writer: &mut CdrWriter);
-    fn write_u64(v: &u64, writer: &mut CdrWriter);
-    fn write_i128(v: &i128, writer: &mut CdrWriter);
-    fn write_f32(v: &f32, writer: &mut CdrWriter);
-    fn write_f64(v: &f64, writer: &mut CdrWriter);
+    fn to_bytes_i64(v: i64) -> [u8; 8];
+    fn to_bytes_u64(v: u64) -> [u8; 8];
+    fn to_bytes_i128(v: i128) -> [u8; 16];
+    fn to_bytes_f32(v: f32) -> [u8; 4];
+    fn to_bytes_f64(v: f64) -> [u8; 8];
 }
 
 struct BigEndian;
@@ -1299,32 +1299,29 @@ impl EndiannessWrite for BigEndian {
     fn to_bytes_u16(v: u16) -> [u8; 2] {
         v.to_be_bytes()
     }
-    fn write_i16(v: &i16, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_i16(v: i16) -> [u8; 2] {
+        v.to_be_bytes()
     }
-    fn write_i32(v: &i32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
-    }
-    fn write_u32(v: &u32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_i32(v: i32) -> [u8; 4] {
+        v.to_be_bytes()
     }
     fn to_bytes_u32(v: u32) -> [u8; 4] {
         v.to_be_bytes()
     }
-    fn write_i64(v: &i64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_i64(v: i64) -> [u8; 8] {
+        v.to_be_bytes()
     }
-    fn write_u64(v: &u64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_u64(v: u64) -> [u8; 8] {
+        v.to_be_bytes()
     }
-    fn write_i128(v: &i128, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_i128(v: i128) -> [u8; 16] {
+        v.to_be_bytes()
     }
-    fn write_f32(v: &f32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_f32(v: f32) -> [u8; 4] {
+        v.to_be_bytes()
     }
-    fn write_f64(v: &f64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_be_bytes())
+    fn to_bytes_f64(v: f64) -> [u8; 8] {
+        v.to_be_bytes()
     }
 }
 
@@ -1334,32 +1331,29 @@ impl EndiannessWrite for LittleEndian {
     fn to_bytes_u16(v: u16) -> [u8; 2] {
         v.to_le_bytes()
     }
-    fn write_i16(v: &i16, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_i16(v: i16) -> [u8; 2] {
+        v.to_le_bytes()
     }
-    fn write_i32(v: &i32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
-    }
-    fn write_u32(v: &u32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_i32(v: i32) -> [u8; 4] {
+        v.to_le_bytes()
     }
     fn to_bytes_u32(v: u32) -> [u8; 4] {
         v.to_le_bytes()
     }
-    fn write_i64(v: &i64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_i64(v: i64) -> [u8; 8] {
+        v.to_le_bytes()
     }
-    fn write_u64(v: &u64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_u64(v: u64) -> [u8; 8] {
+        v.to_le_bytes()
     }
-    fn write_i128(v: &i128, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_i128(v: i128) -> [u8; 16] {
+        v.to_le_bytes()
     }
-    fn write_f32(v: &f32, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_f32(v: f32) -> [u8; 4] {
+        v.to_le_bytes()
     }
-    fn write_f64(v: &f64, writer: &mut CdrWriter) {
-        writer.write_slice(&v.to_le_bytes())
+    fn to_bytes_f64(v: f64) -> [u8; 8] {
+        v.to_le_bytes()
     }
 }
 
