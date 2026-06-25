@@ -1206,7 +1206,6 @@ impl Ossize for char {
     const SSIZE: usize = 1;
 }
 
-
 trait AsBytes {
     fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>);
 }
