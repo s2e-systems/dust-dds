@@ -1696,8 +1696,6 @@ impl DcpsDomainParticipant {
                         self.domain_participant.add_discovered_topic(reader_topic);
                     }
 
-                    self.request_type_lookup(runtime);
-
                     self.domain_participant
                         .add_discovered_reader(discovered_reader_data.clone());
                     let mut handle_list = Vec::new();
@@ -2662,7 +2660,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, runtime))]
-    pub fn request_type_lookup(&mut self, runtime: &impl DdsRuntime) {
+    pub fn _request_type_lookup(&mut self, runtime: &impl DdsRuntime) {
         if let Some(w) = self
             .domain_participant
             .builtin_publisher
