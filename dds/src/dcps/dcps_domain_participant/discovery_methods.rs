@@ -2703,7 +2703,7 @@ impl DcpsDomainParticipant {
                         writer_guid: w.transport_writer.guid(),
                         sequence_number: w.last_change_sequence_number + 1,
                     },
-                    instance_name: String::from("Some name"),
+                    instance_name: String::new(),
                 },
                 call: TypeLookupCall::TypeLookupGetTypesHashId {
                     get_types: TypeLookupGetTypesIn { type_ids },
