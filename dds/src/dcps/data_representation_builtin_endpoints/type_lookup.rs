@@ -1,14 +1,29 @@
 use dust_dds_derive::DdsType;
 
 use crate::{
-    transport::types::{Guid, SequenceNumber},
+    transport::types::Guid,
     xtypes::type_object::{
         TypeIdentifier, TypeIdentifierPair, TypeIdentifierTypeObjectPair, TypeIdentifierWithSize,
     },
 };
 use alloc::{string::String, vec::Vec};
 
-// // computed from @hashid("getTypes")
+#[derive(DdsType)]
+pub struct SequenceNumber {
+    pub high: i32,
+    pub low: u32,
+}
+
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        Self {
+            high: ((value as u64 & 0xFFFFFFFF00000000u64) >> 32) as i32,
+            low: value as u32,
+        }
+    }
+}
+
+// computed from @hashid("getTypes")
 pub const TYPE_LOOKUP_GET_TYPES_HASH_ID: i32 = 0x018252d3;
 // computed from @hashid("getDependencies");
 pub const TYPE_LOOKUP_GET_DEPENDENCIES_HASH_ID: i32 = 0x05aafb31;
@@ -67,7 +82,7 @@ pub enum TypeLookupGetTypeDependenciesResult {
 
 // Service Request
 #[derive(DdsType)]
-#[dust_dds(switch(i32))]
+#[dust_dds(switch(i32), extensibility = "appendable")]
 pub enum TypeLookupCall {
     #[dust_dds(case=TYPE_LOOKUP_GET_TYPES_HASH_ID)]
     TypeLookupGetTypesHashId { get_types: TypeLookupGetTypesIn },
@@ -78,6 +93,7 @@ pub enum TypeLookupCall {
 }
 
 #[derive(DdsType)]
+#[dust_dds(extensibility = "final")]
 pub struct TypeLookupRequest {
     pub header: RequestHeader,
     pub call: TypeLookupCall,
@@ -96,6 +112,7 @@ pub enum TypeLookupReturn {
 }
 
 #[derive(DdsType)]
+#[dust_dds(extensibility = "final")]
 pub struct TypeLookupReply {
     pub header: RequestHeader,
     pub r#return: TypeLookupReturn,
@@ -103,17 +120,20 @@ pub struct TypeLookupReply {
 
 // DDS RPC Types
 #[derive(DdsType)]
+#[dust_dds(extensibility = "final")]
 pub struct RequestHeader {
     pub request_id: SampleIdentity,
     pub instance_name: InstanceName,
 }
 
 #[derive(DdsType)]
+#[dust_dds(extensibility = "final")]
 pub struct ReplyHeader {
     pub related_request_id: SampleIdentity,
 }
 
 #[derive(DdsType)]
+#[dust_dds(extensibility = "final")]
 pub struct SampleIdentity {
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
