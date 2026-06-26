@@ -50,10 +50,10 @@ impl DcpsDomainParticipant {
                 self.add_builtin_topics_detector_cache_change(cache_change, runtime)
             }
             ENTITYID_TL_SVC_REQ_READER => {
-                todo!("Process the replies")
+                tracing::info!("Received a type lookup request. Nothing is done with it yet.")
             }
             ENTITYID_TL_SVC_REPLY_READER => {
-                todo!("Process the replies")
+                tracing::info!("Received a type lookup reply. Nothing is done with it yet.")
             }
             _ => self.add_user_defined_cache_change(
                 cache_change,
