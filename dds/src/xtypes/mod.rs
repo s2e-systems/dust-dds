@@ -1,5 +1,4 @@
 pub(crate) mod deserializer;
-pub(crate) mod read_write;
 pub(crate) mod serializer;
 
 #[doc(hidden)]
