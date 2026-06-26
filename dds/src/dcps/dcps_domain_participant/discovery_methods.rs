@@ -1706,6 +1706,19 @@ impl DcpsDomainParticipant {
                         self.domain_participant.add_discovered_topic(reader_topic);
                     }
 
+                    if let Some(t) = &discovered_reader_data
+                        .dds_subscription_data
+                        .type_information
+                    {
+                        let type_identifiers = t
+                            .complete
+                            .dependent_typeids
+                            .iter()
+                            .map(|x| x.type_id.clone())
+                            .collect();
+                        self._request_type_lookup(type_identifiers, runtime);
+                    }
+
                     self.domain_participant
                         .add_discovered_reader(discovered_reader_data.clone());
                     let mut handle_list = Vec::new();
