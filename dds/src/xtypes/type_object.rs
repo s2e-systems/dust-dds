@@ -2153,7 +2153,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count: -1,
+                dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
             complete: TypeIdentifierWithDependencies {
