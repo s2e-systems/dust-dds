@@ -1388,9 +1388,16 @@ impl<'a> CdrWriter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::xtypes::{
-        dynamic_type::DynamicDataFactory,
-        type_support::{Type, TypeSupport},
+    use crate::{
+        dcps::data_representation_builtin_endpoints::type_lookup::{
+            RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn, TypeLookupRequest,
+        },
+        transport::types::{EntityId, Guid},
+        xtypes::{
+            dynamic_type::DynamicDataFactory,
+            type_object::TypeIdentifier,
+            type_support::{Type, TypeSupport},
+        },
     };
     extern crate std;
 
@@ -2188,5 +2195,125 @@ mod tests {
                 .id,
             22
         );
+    }
+
+    #[test]
+    fn serialize_mutable_struct_with_sequence() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableTypeWithSequence {
+            #[dust_dds(hash_id)]
+            my_sequence: Vec<u32>,
+        }
+
+        let mut data = DynamicDataFactory::create_data(MutableTypeWithSequence::TYPE);
+        MutableTypeWithSequence {
+            my_sequence: vec![1, 2, 3],
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // PL_CDR2_LE
+                28, 0, 0, 0, // Struct DHEADER
+                0, 0, 0, 64, // my_sequence EMHEADER
+                20, 0, 0, 0, // my_sequence: NEXTINT
+                16, 0, 0, 0, // Vec DHEADER
+                3, 0, 0, 0, // Vec length
+                1, 0, 0, 0, // Vec[0]
+                2, 0, 0, 0, // Vec[1]
+                3, 0, 0, 0, // Vec[2]
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_appendable_union_with_mutable_struct() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableTypeWithSequence {
+            #[dust_dds(hash_id)]
+            my_sequence: Vec<u32>,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(switch(i32), extensibility = "appendable")]
+        pub enum AppendableUnion {
+            #[dust_dds(case = 10)]
+            MyVariant { a: MutableTypeWithSequence },
+        }
+
+        let mut data = DynamicDataFactory::create_data(AppendableUnion::TYPE);
+        AppendableUnion::MyVariant {
+            a: MutableTypeWithSequence {
+                my_sequence: vec![1, 2, 3],
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                36, 0, 0, 0, //AppendableUnion DHEADER
+                10, 0, 0, 0, // MyVariant discriminator
+                0, 0, 0, 64, // my_sequence EMHEADER
+                20, 0, 0, 0, // my_sequence: NEXTINT
+                16, 0, 0, 0, // Vec DHEADER
+                3, 0, 0, 0, // Vec length
+                1, 0, 0, 0, // Vec[0]
+                2, 0, 0, 0, // Vec[1]
+                3, 0, 0, 0, // Vec[2]
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_request() {
+        let mut data = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
+        TypeLookupRequest {
+            header: RequestHeader {
+                request_id: SampleIdentity {
+                    writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
+                    sequence_number: 5.into(),
+                },
+                instance_name: String::from("abc"),
+            },
+            call: TypeLookupCall::TypeLookupGetTypesHashId {
+                get_types: TypeLookupGetTypesIn {
+                    type_ids: vec![TypeIdentifier::EkComplete {
+                        equivalence_hash: [5; 14],
+                    }],
+                },
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x07, 0x00, 0x01, // CDR2_LE + padding
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
+                0, 0, 0, 0, // sequence_number: high
+                5, 0, 0, 0, // sequence_number: low
+                4, 0, 0, 0, // instance_name: length
+                b'a', b'b', b'c', 0, // instance_name: length
+                39, 0, 0, 0, //TypeLookupCall DHEADER
+                211, 82, 130, 1, // TypeLookupGetTypesHashId Discriminator
+                101, 96, 83, 76, // type_ids EMHEADER
+                23, 0, 0, 0, // type_ids NEXTINT
+                19, 0, 0, 0, // type_ids: DHEADER
+                1, 0, 0, 0,   // type_ids: Length
+                242, //EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+            ]
+        );
+
+        // 0xd3, 0x52, 0x82, 0x01 // Discriminator (GET_TYPES)
+        // 0x00, 0x00, 0x00, 0x00 //
+        // 0x07, 0x01, 0x1c, 0x00
+        // 00 03 00 c4
     }
 }
