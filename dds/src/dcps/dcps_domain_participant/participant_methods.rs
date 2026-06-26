@@ -572,7 +572,7 @@ impl DcpsDomainParticipant {
             .drain(..)
             .collect();
         for mut subscriber in deleted_subscriber_list {
-            for data_reader in subscriber.data_reader_list.drain(..) {
+            for data_reader in subscriber.data_reader_list.drain() {
                 self.announce_deleted_data_reader(data_reader, runtime);
             }
         }
@@ -743,7 +743,12 @@ impl DcpsDomainParticipant {
             }
             self.domain_participant.builtin_publisher.enabled = true;
 
-            for dr in &mut self.domain_participant.builtin_subscriber.data_reader_list {
+            for dr in &mut self
+                .domain_participant
+                .builtin_subscriber
+                .data_reader_list
+                .0
+            {
                 dr.enabled = true;
             }
             self.domain_participant.builtin_subscriber.enabled = true;

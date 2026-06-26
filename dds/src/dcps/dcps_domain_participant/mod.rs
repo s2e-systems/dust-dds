@@ -333,7 +333,7 @@ impl DcpsDomainParticipant {
 
         const NUMBER_BUILTIN_ENTITIES: usize = 6;
         let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
-        let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
+        let mut builtin_data_reader_list = DataReaderList::with_capacity(NUMBER_BUILTIN_ENTITIES);
         let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
         topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
@@ -939,8 +939,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return;
         };
@@ -977,8 +976,7 @@ impl DcpsDomainParticipant {
             };
             let Some(data_reader) = subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
+                .get_mut_by_handle(data_reader_handle)
             else {
                 return;
             };
@@ -1005,8 +1003,7 @@ impl DcpsDomainParticipant {
             };
             let Some(data_reader) = subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
+                .get_mut_by_handle(data_reader_handle)
             else {
                 return;
             };
@@ -1035,8 +1032,7 @@ impl DcpsDomainParticipant {
             };
             let Some(data_reader) = subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
+                .get_mut_by_handle(data_reader_handle)
             else {
                 return;
             };
@@ -1056,8 +1052,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return;
         };
@@ -1273,10 +1268,62 @@ impl ContentFilteredTopicEntity {
     }
 }
 
+#[derive(Default)]
+struct DataReaderList(Vec<DataReaderEntity>);
+
+impl DataReaderList {
+    fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
+    }
+
+    fn push(&mut self, value: DataReaderEntity) {
+        self.0.push(value);
+    }
+
+    fn drain(&mut self) -> impl Iterator<Item = DataReaderEntity> {
+        self.0.drain(..)
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn remove_by_handle(&mut self, handle: &InstanceHandle) -> Option<DataReaderEntity> {
+        let index = self.0.iter().position(|x| &x.instance_handle == handle)?;
+        Some(self.0.remove(index))
+    }
+
+    pub fn get_by_handle(&self, handle: &InstanceHandle) -> Option<&DataReaderEntity> {
+        self.0.iter().find(|x| &x.instance_handle == handle)
+    }
+
+    pub fn get_mut_by_handle(&mut self, handle: &InstanceHandle) -> Option<&mut DataReaderEntity> {
+        self.0.iter_mut().find(|x| &x.instance_handle == handle)
+    }
+
+    pub fn get_mut_by_entity_id(&mut self, entity_id: &EntityId) -> Option<&mut DataReaderEntity> {
+        self.0
+            .iter_mut()
+            .find(|x| &x.transport_reader.guid().entity_id() == entity_id)
+    }
+
+    pub fn get_mut_by_topic_name(&mut self, topic_name: &str) -> Option<&mut DataReaderEntity> {
+        self.0.iter_mut().find(|dr| dr.topic_name == topic_name)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &DataReaderEntity> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut DataReaderEntity> {
+        self.0.iter_mut()
+    }
+}
+
 struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity>,
+    data_reader_list: DataReaderList,
     enabled: bool,
     default_data_reader_qos: DataReaderQos,
     status_condition: DcpsStatusCondition,
@@ -1288,7 +1335,7 @@ impl SubscriberEntity {
     fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        data_reader_list: Vec<DataReaderEntity>,
+        data_reader_list: DataReaderList,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
     ) -> Self {

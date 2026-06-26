@@ -51,8 +51,7 @@ impl DcpsDomainParticipant {
 
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -88,8 +87,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -124,8 +122,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -160,8 +157,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -190,8 +186,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -327,8 +322,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -363,8 +357,7 @@ impl DcpsDomainParticipant {
 
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -390,8 +383,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -460,8 +452,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(data_reader_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

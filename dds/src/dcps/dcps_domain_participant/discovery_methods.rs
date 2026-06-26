@@ -328,8 +328,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter()
-            .find(|x| &x.instance_handle == data_reader_handle)
+            .get_by_handle(data_reader_handle)
         else {
             return;
         };
@@ -1041,8 +1040,7 @@ impl DcpsDomainParticipant {
             let subscriber_qos = subscriber.qos.clone();
             let Some(data_reader) = subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
+                .get_mut_by_handle(data_reader_handle)
             else {
                 return;
             };
@@ -1152,8 +1150,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1181,8 +1178,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1211,8 +1207,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1233,8 +1228,7 @@ impl DcpsDomainParticipant {
                     };
                     let Some(data_reader) = subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|x| &x.instance_handle == data_reader_handle)
+                        .get_mut_by_handle(data_reader_handle)
                     else {
                         return;
                     };
@@ -1269,8 +1263,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1297,8 +1290,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1327,8 +1319,7 @@ impl DcpsDomainParticipant {
                         };
                         let Some(data_reader) = subscriber
                             .data_reader_list
-                            .iter_mut()
-                            .find(|x| &x.instance_handle == data_reader_handle)
+                            .get_mut_by_handle(data_reader_handle)
                         else {
                             return;
                         };
@@ -1349,8 +1340,7 @@ impl DcpsDomainParticipant {
                     };
                     let Some(data_reader) = subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|x| &x.instance_handle == data_reader_handle)
+                        .get_mut_by_handle(data_reader_handle)
                     else {
                         return;
                     };
@@ -1379,8 +1369,7 @@ impl DcpsDomainParticipant {
         };
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
+            .get_mut_by_handle(&data_reader_handle)
         else {
             return;
         };
@@ -1410,8 +1399,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .builtin_subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
+                        .get_mut_by_topic_name(DCPS_PARTICIPANT)
                     {
                         let mut dynamic_data =
                             DynamicDataFactory::create_data(ParticipantBuiltinTopicData::TYPE);
@@ -1459,8 +1447,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_subscriber
                     .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
+                    .get_mut_by_topic_name(DCPS_PARTICIPANT)
                 {
                     reader
                         .add_reader_change(
@@ -1541,8 +1528,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .builtin_subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+                        .get_mut_by_topic_name(DCPS_PUBLICATION)
                     {
                         let mut dynamic_data =
                             DynamicDataFactory::create_data(PublicationBuiltinTopicData::TYPE);
@@ -1604,8 +1590,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_subscriber
                     .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_PUBLICATION)
+                    .get_mut_by_topic_name(DCPS_PUBLICATION)
                 {
                     reader
                         .add_reader_change(
@@ -1718,8 +1703,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .builtin_subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+                        .get_mut_by_topic_name(DCPS_SUBSCRIPTION)
                     {
                         let mut dynamic_data =
                             DynamicDataFactory::create_data(SubscriptionBuiltinTopicData::TYPE);
@@ -1781,8 +1765,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_subscriber
                     .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
+                    .get_mut_by_topic_name(DCPS_SUBSCRIPTION)
                 {
                     reader
                         .add_reader_change(
@@ -1835,8 +1818,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .builtin_subscriber
                         .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_TOPIC)
+                        .get_mut_by_topic_name(DCPS_TOPIC)
                     {
                         let change_instance_handle = topic_builtin_topic_data.key.value;
                         let mut dynamic_data =
@@ -1958,7 +1940,7 @@ impl DcpsDomainParticipant {
         let prefix = Guid::from(<[u8; 16]>::from(*handle)).prefix();
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            for data_reader in &mut subscriber.data_reader_list {
+            for data_reader in &mut subscriber.data_reader_list.0 {
                 // Remove samples
                 data_reader
                     .sample_list
@@ -2114,11 +2096,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
-                })
+                .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
             {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
@@ -2134,11 +2112,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .builtin_subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
-            })
+            .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
         {
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
@@ -2249,11 +2223,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
-                })
+                .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR)
             {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
@@ -2269,11 +2239,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .builtin_subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
-            })
+            .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR)
         {
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -2382,10 +2348,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
-                })
+                .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
             {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
@@ -2401,10 +2364,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .builtin_subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
-            })
+            .get_mut_by_entity_id(&ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)
         {
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
@@ -2509,8 +2469,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
+                .get_mut_by_entity_id(&ENTITYID_TL_SVC_REQ_READER)
             {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
@@ -2526,8 +2485,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .builtin_subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
+            .get_mut_by_entity_id(&ENTITYID_TL_SVC_REQ_READER)
         {
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_WRITER);
@@ -2632,8 +2590,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_subscriber
                 .data_reader_list
-                .iter_mut()
-                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
+                .get_mut_by_entity_id(&ENTITYID_TL_SVC_REPLY_READER)
             {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
@@ -2649,8 +2606,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .builtin_subscriber
             .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
+            .get_mut_by_entity_id(&ENTITYID_TL_SVC_REPLY_READER)
         {
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_WRITER);

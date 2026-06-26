@@ -164,12 +164,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if let Some(index) = subscriber
+        if let Some(data_reader) = subscriber
             .data_reader_list
-            .iter()
-            .position(|x| &x.instance_handle == datareader_handle)
+            .remove_by_handle(datareader_handle)
         {
-            let data_reader = subscriber.data_reader_list.remove(index);
             self.announce_deleted_data_reader(data_reader, runtime);
         } else {
             return Err(DdsError::AlreadyDeleted);
