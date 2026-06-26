@@ -201,6 +201,9 @@ jobs:
   interoperability_tests:
     docker:
       - image: s2esystems/dust_dds_interoperability:1.87.0
+    # CycloneDDS sends incompatible TypeInformation message which appear on Wireshark as malformed. This is explicitly ignore to allow interoperability
+    environment:
+      CYCLONEDDS_URI: <CycloneDDS><Domain Id="any"><Compatibility><IgnoreTypeInformation>1.20</IgnoreTypeInformation></Compatibility></Domain></CycloneDDS>
     steps:
       - checkout
       - run:
