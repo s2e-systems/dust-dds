@@ -110,14 +110,11 @@ impl DiscoveredReaderData {
                 self.dds_subscription_data.representation,
             );
         }
-        if self.dds_subscription_data.type_consistency
-            != TypeConsistencyEnforcementQosPolicy::default()
-        {
-            pl.write_xcdr1_parameter(
-                PID_TYPE_CONSISTENCY_ENFORCEMENT,
-                self.dds_subscription_data.type_consistency,
-            );
-        }
+
+        pl.write_xcdr1_parameter(
+            PID_TYPE_CONSISTENCY_ENFORCEMENT,
+            self.dds_subscription_data.type_consistency,
+        );
 
         if self.reader_proxy.remote_group_entity_id != ENTITYID_UNKNOWN {
             pl.write_cdr_parameter(PID_GROUP_ENTITYID, self.reader_proxy.remote_group_entity_id);

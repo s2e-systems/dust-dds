@@ -717,6 +717,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 let value = self.deserialize_primitive_type::<i8>()?;
                 dynamic_data.set_int8_value(0, value)
             }
+            TypeKind::INT16 => {
+                let value = self.deserialize_primitive_type::<i16>()?;
+                dynamic_data.set_int16_value(0, value)
+            }
             TypeKind::INT32 => {
                 let value = self.deserialize_primitive_type::<i32>()?;
                 dynamic_data.set_int32_value(0, value)
