@@ -58,6 +58,7 @@ use crate::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr1_le,
+        type_object::TypeIdentifier,
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -1518,6 +1519,15 @@ impl DcpsDomainParticipant {
                         };
                         self.domain_participant.add_discovered_topic(writer_topic);
                     }
+                    if let Some(t) = &discovered_writer_data.dds_publication_data.type_information {
+                        let type_identifiers = t
+                            .complete
+                            .dependent_typeids
+                            .iter()
+                            .map(|x| x.type_id.clone())
+                            .collect();
+                        self._request_type_lookup(type_identifiers, runtime);
+                    }
 
                     self.domain_participant
                         .add_discovered_writer(discovered_writer_data.clone());
@@ -2660,7 +2670,11 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, runtime))]
-    pub fn _request_type_lookup(&mut self, runtime: &impl DdsRuntime) {
+    pub fn _request_type_lookup(
+        &mut self,
+        type_ids: Vec<TypeIdentifier>,
+        runtime: &impl DdsRuntime,
+    ) {
         if let Some(w) = self
             .domain_participant
             .builtin_publisher
@@ -2678,9 +2692,7 @@ impl DcpsDomainParticipant {
                     instance_name: String::from("Some name"),
                 },
                 call: TypeLookupCall::TypeLookupGetTypesHashId {
-                    get_types: TypeLookupGetTypesIn {
-                        type_ids: Vec::new(),
-                    },
+                    get_types: TypeLookupGetTypesIn { type_ids },
                 },
             };
             type_lookup_request.create_dynamic_sample(&mut dynamic_data);
