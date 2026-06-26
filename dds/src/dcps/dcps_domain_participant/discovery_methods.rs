@@ -2007,6 +2007,11 @@ impl DcpsDomainParticipant {
 
         self.remove_matched_topics_detector(prefix);
         self.remove_matched_topics_announcer(prefix);
+
+        self.remove_matched_service_request_data_reader(prefix);
+        self.remove_matched_service_request_data_writer(prefix);
+        self.remove_matched_service_reply_data_reader(prefix);
+        self.remove_matched_service_reply_data_writer(prefix);
     }
 
     #[tracing::instrument(skip(self))]
@@ -2457,6 +2462,22 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
+    fn remove_matched_service_request_data_reader(&mut self, prefix: GuidPrefix) {
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REQ_WRITER)
+        {
+            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
+                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
+                w.delete_matched_reader(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     fn add_matched_service_request_data_writer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -2497,6 +2518,22 @@ impl DcpsDomainParticipant {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_service_request_data_writer(&mut self, prefix: GuidPrefix) {
+        if let Some(dr) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
+        {
+            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
+                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_WRITER);
+                r.delete_matched_writer(guid);
             }
         }
     }
@@ -2548,6 +2585,22 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
+    fn remove_matched_service_reply_data_reader(&mut self, prefix: GuidPrefix) {
+        if let Some(dw) = self
+            .domain_participant
+            .builtin_publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REPLY_WRITER)
+        {
+            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
+                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
+                w.delete_matched_reader(guid);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     fn add_matched_service_reply_data_writer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -2588,6 +2641,22 @@ impl DcpsDomainParticipant {
                     RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
                     RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
                 }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_service_reply_data_writer(&mut self, prefix: GuidPrefix) {
+        if let Some(dr) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
+        {
+            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
+                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_WRITER);
+                r.delete_matched_writer(guid);
             }
         }
     }
