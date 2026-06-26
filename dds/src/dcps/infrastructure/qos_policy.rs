@@ -141,6 +141,7 @@ const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
 const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
 const DATA_REPRESENTATION_QOS_POLICY_NAME: &str = "DataRepresentation";
+const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME: &str = "TypeConsistencyEnforcement";
 
 /// QosPolicy Id representing an invalid QoS policy
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
@@ -190,6 +191,8 @@ pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// Id for the DataRepresentationQosPolicy
 pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
+/// Id for the TypeConsistencyEnforcementQosPolicy
+pub const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID: QosPolicyId = 24;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
@@ -1523,6 +1526,49 @@ impl QosPolicy for DataRepresentationQosPolicy {
 }
 
 impl Default for DataRepresentationQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
+/// Enumeration representing the different types of Type Consistency QoS policies.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[dust_dds(bit_bound = "16")]
+pub enum TypeConsistencyKind {
+    DisallowTypeCoercion,
+    AllowTypeCoercion,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
+pub struct TypeConsistencyEnforcementQosPolicy {
+    pub kind: TypeConsistencyKind,
+    pub ignore_sequence_bounds: bool,
+    pub ignore_string_bounds: bool,
+    pub ignore_member_names: bool,
+    pub prevent_type_widening: bool,
+    pub force_type_validation: bool,
+}
+
+impl TypeConsistencyEnforcementQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: TypeConsistencyKind::AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: false,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        }
+    }
+}
+
+impl QosPolicy for TypeConsistencyEnforcementQosPolicy {
+    fn name(&self) -> &str {
+        TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME
+    }
+}
+impl Default for TypeConsistencyEnforcementQosPolicy {
     fn default() -> Self {
         Self::const_default()
     }

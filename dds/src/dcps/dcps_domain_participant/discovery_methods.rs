@@ -385,6 +385,7 @@ impl DcpsDomainParticipant {
             topic_data: topic.qos.topic_data.clone(),
             group_data: subscriber.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
+            type_consistency: data_reader.qos.type_consistency.clone(),
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),

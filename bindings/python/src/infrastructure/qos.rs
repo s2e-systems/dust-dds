@@ -500,6 +500,7 @@ impl DataReaderQos {
             time_based_filter: time_based_filter.into(),
             reader_data_lifecycle: reader_data_lifecycle.into(),
             representation: representation.into(),
+            type_consistency: todo!(),
         })
     }
 

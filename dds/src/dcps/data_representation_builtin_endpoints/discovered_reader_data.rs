@@ -8,7 +8,7 @@ use super::parameter_id_values::{
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
-        parameter_id_values::PID_TYPE_INFORMATION,
+        parameter_id_values::{PID_TYPE_CONSISTENCY_ENFORCEMENT, PID_TYPE_INFORMATION},
         rtps_data_representation::{CdrResult, ParameterList},
         rtps_data_representation_serialization::ParameterListSerializer,
     },
@@ -16,7 +16,8 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+        TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
 };
@@ -109,6 +110,14 @@ impl DiscoveredReaderData {
                 self.dds_subscription_data.representation,
             );
         }
+        if self.dds_subscription_data.type_consistency
+            != TypeConsistencyEnforcementQosPolicy::default()
+        {
+            pl.write_xcdr1_parameter(
+                PID_TYPE_CONSISTENCY_ENFORCEMENT,
+                self.dds_subscription_data.type_consistency,
+            );
+        }
 
         if self.reader_proxy.remote_group_entity_id != ENTITYID_UNKNOWN {
             pl.write_cdr_parameter(PID_GROUP_ENTITYID, self.reader_proxy.remote_group_entity_id);
@@ -160,6 +169,10 @@ impl DiscoveredReaderData {
             group_data: pl.get_optional_parameter_xdcr(PID_GROUP_DATA, Default::default())?,
             representation: pl
                 .get_optional_parameter_xdcr(PID_DATA_REPRESENTATION, Default::default())?,
+            type_consistency: pl.get_optional_parameter_xdcr(
+                PID_TYPE_CONSISTENCY_ENFORCEMENT,
+                Default::default(),
+            )?,
         };
 
         let reader_proxy = ReaderProxy {
@@ -221,6 +234,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -293,6 +307,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -379,6 +394,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
         };
 
@@ -449,6 +465,7 @@ mod tests {
                 topic_data: Default::default(),
                 group_data: Default::default(),
                 representation: Default::default(),
+                type_consistency: Default::default(),
             },
         };
 
