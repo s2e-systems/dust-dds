@@ -380,8 +380,8 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
             TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => self.serialize_fstruct_type(v.get_complex_value(member_id)?)?,
-            TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
+            TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => V::serialize_sequence_type(self, v, member_id)?,
             TypeKind::ARRAY => V::serialize_array_type(self, v, member_id)?,
@@ -474,16 +474,28 @@ impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
             initial_pos,
         }
     }
-    fn write_header(self, member_id: u32) {
+    fn write_header(self, member_id: u32, v: &DynamicData) -> XTypesResult<()> {
         let ssize = (self.serializer.writer.buffer.len() - self.initial_pos) as u32;
-
-        let m_flag = 0;
-        let lc = match ssize {
-            1 => 0,
-            2 => 1,
-            4 => 2,
-            8 => 3,
-            _ => 4,
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let m_flag = member_descriptor.is_must_understand as u32;
+        let is_next_member_having_dheader = (matches!(
+            member_descriptor.r#type.get_kind(),
+            TypeKind::STRUCTURE | TypeKind::UNION
+        ) && matches!(
+            member_descriptor.r#type.descriptor.extensibility_kind,
+            ExtensibilityKind::Appendable | ExtensibilityKind::Mutable
+        )) || member_descriptor.r#type.get_kind()
+            == TypeKind::SEQUENCE;
+        let lc = if is_next_member_having_dheader {
+            5
+        } else {
+            match ssize {
+                1 => 0,
+                2 => 1,
+                4 => 2,
+                8 => 3,
+                _ => 4,
+            }
         } as u32;
 
         let emheader = (m_flag << 31) + (lc << 28) + (member_id & 0x0fffffff);
@@ -499,6 +511,8 @@ impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
                 .splice(self.initial_pos..self.initial_pos, E::to_bytes_u32(ssize));
             self.serializer.writer.position += 4;
         }
+
+        Ok(())
     }
 }
 
@@ -1123,7 +1137,7 @@ impl EncodingVersion for EncodingVersion2 {
     ) -> Result<(), XTypesError> {
         let emheader = EMheader1::new(serializer);
         emheader.serializer.serialize_value(v, member_id).unwrap();
-        emheader.write_header(member_id);
+        emheader.write_header(member_id, v)?;
         Ok(())
     }
 
@@ -1395,7 +1409,10 @@ mod tests {
         transport::types::{EntityId, Guid},
         xtypes::{
             dynamic_type::DynamicDataFactory,
-            type_object::TypeIdentifier,
+            type_object::{
+                TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
+                TypeInformation,
+            },
             type_support::{Type, TypeSupport},
         },
     };
@@ -2216,9 +2233,8 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x0b, 0x00, 0x00, // PL_CDR2_LE
-                28, 0, 0, 0, // Struct DHEADER
-                0, 0, 0, 64, // my_sequence EMHEADER
-                20, 0, 0, 0, // my_sequence: NEXTINT
+                24, 0, 0, 0, // Struct DHEADER
+                0, 0, 0, 80, // my_sequence EMHEADER
                 16, 0, 0, 0, // Vec DHEADER
                 3, 0, 0, 0, // Vec length
                 1, 0, 0, 0, // Vec[0]
@@ -2256,15 +2272,45 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                36, 0, 0, 0, //AppendableUnion DHEADER
+                32, 0, 0, 0, //AppendableUnion DHEADER
                 10, 0, 0, 0, // MyVariant discriminator
-                0, 0, 0, 64, // my_sequence EMHEADER
-                20, 0, 0, 0, // my_sequence: NEXTINT
+                24, 0, 0, 0, // MutableTypeWithSequence DHEADER
+                0, 0, 0, 80, // my_sequence EMHEADER
                 16, 0, 0, 0, // Vec DHEADER
                 3, 0, 0, 0, // Vec length
                 1, 0, 0, 0, // Vec[0]
                 2, 0, 0, 0, // Vec[1]
                 3, 0, 0, 0, // Vec[2]
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_get_types_in() {
+        let mut data = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
+        TypeLookupCall::TypeLookupGetTypesHashId {
+            get_types: TypeLookupGetTypesIn {
+                type_ids: vec![TypeIdentifier::EkComplete {
+                    equivalence_hash: [5; 14],
+                }],
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x09, 0x00, 0x01, // D_CDR2_LE + padding
+                35, 0, 0, 0, // TypeLookupCall DHEADER
+                0xd3, 0x52, 0x82, 0x01, // TypeLookupGetTypesHashId DISCRIMINATOR
+                27, 0, 0, 0, // type_ids: DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER
+                // 23, 0, 0, 0, // type_ids NEXTINT
+                19, 0, 0, 0, // type_ids: DHEADER
+                1, 0, 0, 0,   // type_ids: Length
+                242, //EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
             ]
         );
     }
@@ -2278,13 +2324,14 @@ mod tests {
                     writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
                     sequence_number: 5.into(),
                 },
-                instance_name: String::from("abc"),
+                instance_name: String::from(""),
             },
             call: TypeLookupCall::TypeLookupGetTypesHashId {
                 get_types: TypeLookupGetTypesIn {
-                    type_ids: vec![TypeIdentifier::EkComplete {
-                        equivalence_hash: [5; 14],
-                    }],
+                    type_ids: vec![],
+                    //TypeIdentifier::EkComplete {
+                    // equivalence_hash: [5; 14],
+                    // }
                 },
             },
         }
@@ -2293,27 +2340,84 @@ mod tests {
         assert_eq!(
             serialize_cdr2_le(&data).unwrap(),
             vec![
-                0x00u8, 0x07, 0x00, 0x01, // CDR2_LE + padding
+                0x00u8, 0x07, 0x00, 0x00, // CDR2_LE + padding
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
                 0, 0, 0, 0, // sequence_number: high
                 5, 0, 0, 0, // sequence_number: low
-                4, 0, 0, 0, // instance_name: length
-                b'a', b'b', b'c', 0, // instance_name: length
-                39, 0, 0, 0, //TypeLookupCall DHEADER
+                1, 0, 0, 0, // instance_name: length
+                0, // instance_name: length
+                0, 0, 0, // Padding
+                20, 0, 0, 0, //TypeLookupCall DHEADER
                 211, 82, 130, 1, // TypeLookupGetTypesHashId Discriminator
-                101, 96, 83, 76, // type_ids EMHEADER
-                23, 0, 0, 0, // type_ids NEXTINT
-                19, 0, 0, 0, // type_ids: DHEADER
-                1, 0, 0, 0,   // type_ids: Length
+                12, 0, 0, 0, // type_ids: DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER
+                // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
+                4, 0, 0, 0, // type_ids: DHEADER
+                0, 0, 0,
+                0, // type_ids: Length
+                   // 242, //EK_COMPLETE
+                   // 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                   // 0, // padding
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_identifier() {
+        let mut data = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &data).unwrap();
+        assert_eq!(
+            buffer,
+            vec![
+                // 0x00u8, 0x0B, 0x00, 0x00, // PL_CDR2_LE + 0 padding
+                88, 0, 0, 0, // DHEADER
+                0x01, 0x10, 0, 80, // EMHEADER
+                // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                36, 0, 0, 0, // DHEADER
+                20, 0, 0, 0,   // DHEADER
+                241, //EK_MINIMAL
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+                10, 0, 0, 0, // typeobject_serialized_size
+                0, 0, 0, 0, // dependent_typeid_count
+                4, 0, 0, 0, // Sequence DHEADER
+                0, 0, 0, 0, // Sequence length
+                0x02, 0x10, 0, 80, // EMHEADER
+                // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                36, 0, 0, 0, // DHEADER
+                20, 0, 0, 0,   // DHEADER
                 242, //EK_COMPLETE
                 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
                 0, // padding
+                10, 0, 0, 0, // typeobject_serialized_size
+                0, 0, 0, 0, // dependent_typeid_count
+                4, 0, 0, 0, // Sequence DHEADER
+                0, 0, 0, 0, // Sequence length
             ]
         );
-
-        // 0xd3, 0x52, 0x82, 0x01 // Discriminator (GET_TYPES)
-        // 0x00, 0x00, 0x00, 0x00 //
-        // 0x07, 0x01, 0x1c, 0x00
-        // 00 03 00 c4
     }
 }
