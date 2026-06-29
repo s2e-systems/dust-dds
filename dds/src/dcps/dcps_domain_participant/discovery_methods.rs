@@ -1521,12 +1521,7 @@ impl DcpsDomainParticipant {
                         self.domain_participant.add_discovered_topic(writer_topic);
                     }
                     if let Some(t) = &discovered_writer_data.dds_publication_data.type_information {
-                        let type_identifiers = t
-                            .complete
-                            .dependent_typeids
-                            .iter()
-                            .map(|x| x.type_id.clone())
-                            .collect();
+                        let type_identifiers = vec![t.complete.typeid_with_size.type_id.clone()];
                         self._request_type_lookup(type_identifiers, runtime);
                     }
 
@@ -1711,12 +1706,7 @@ impl DcpsDomainParticipant {
                         .dds_subscription_data
                         .type_information
                     {
-                        let type_identifiers = t
-                            .complete
-                            .dependent_typeids
-                            .iter()
-                            .map(|x| x.type_id.clone())
-                            .collect();
+                        let type_identifiers = vec![t.complete.typeid_with_size.type_id.clone()];
                         self._request_type_lookup(type_identifiers, runtime);
                     }
 
