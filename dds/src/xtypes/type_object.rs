@@ -2269,9 +2269,9 @@ mod tests {
 
         let expected = [
             88, 0, 0, 0, // dheader
-            0x01, 0x10, 0, 0b100_0000, // Emheader: minimal
-            36, 0, 0, 0, // EMheader: nextint
-            32, 0, 0, 0,    // DHeader
+            0x01, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
@@ -2280,9 +2280,9 @@ mod tests {
             4, 0, 0, 0, // dependent_typeids: Dheader
             0, 0, 0, 0, // dependent_typeids Length
             // complete
-            0x02, 0x10, 0, 0b100_0000, // Emheader: minimal
-            36, 0, 0, 0, // EMheader: nextint
-            32, 0, 0, 0,    // DHeader
+            0x02, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
@@ -2313,7 +2313,8 @@ mod tests {
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
-            32, 0, 0, 0,    // DHeader
+            36, 0, 0, 0, // DHeader
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
