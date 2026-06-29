@@ -112,7 +112,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 label: None,
                                 is_key: #is_key,
                                 is_optional: #is_optional,
-                                is_must_understand: false,
+                                is_must_understand: #is_key,
                                 is_shared: false,
                                 is_default_label: false,
                                 is_external: #is_external,
