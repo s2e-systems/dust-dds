@@ -2198,17 +2198,19 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
 
 #[cfg(test)]
 mod tests {
-    use crate::xtypes::{serializer::serialize_without_header_cdr2_le, type_support::Type};
+    use crate::xtypes::{
+        serializer::serialize_without_header_cdr2_le,
+        type_support::{BoundedString, Type},
+    };
 
     use super::*;
     #[test]
-    #[ignore]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
-        #[dust_dds(extensibility = "final")]
+        #[dust_dds(extensibility = "appendable")]
         struct ShapeType {
             #[dust_dds(key)]
-            color: String,
+            color: BoundedString<128>,
             x: i32,
             y: i32,
             shapesize: i32,
