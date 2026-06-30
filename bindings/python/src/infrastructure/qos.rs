@@ -7,8 +7,8 @@ use super::qos_policy::{
     HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
     OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
     ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy,
+    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+    TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
 
 #[pyclass(from_py_object)]
@@ -469,6 +469,7 @@ impl DataReaderQos {
         time_based_filter = TimeBasedFilterQosPolicy::default(),
         reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
         representation = DataRepresentationQosPolicy::default(),
+        type_consistency = TypeConsistencyEnforcementQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -485,6 +486,7 @@ impl DataReaderQos {
         time_based_filter: TimeBasedFilterQosPolicy,
         reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
         representation: DataRepresentationQosPolicy,
+        type_consistency: TypeConsistencyEnforcementQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::DataReaderQos {
             durability: durability.into(),
@@ -500,7 +502,7 @@ impl DataReaderQos {
             time_based_filter: time_based_filter.into(),
             reader_data_lifecycle: reader_data_lifecycle.into(),
             representation: representation.into(),
-            type_consistency: todo!(),
+            type_consistency: type_consistency.into(),
         })
     }
 
@@ -550,5 +552,13 @@ impl DataReaderQos {
 
     fn get_reader_data_lifecycle(&self) -> ReaderDataLifecycleQosPolicy {
         self.0.reader_data_lifecycle.clone().into()
+    }
+
+    fn get_representation(&self) -> DataRepresentationQosPolicy {
+        self.0.representation.clone().into()
+    }
+
+    fn get_type_consistency(&self) -> TypeConsistencyEnforcementQosPolicy {
+        self.0.type_consistency.clone().into()
     }
 }

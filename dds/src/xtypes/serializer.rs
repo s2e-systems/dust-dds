@@ -320,23 +320,24 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     ///           XCDR
     ///           << { O.member[i] : FMEMBER }*
     fn serialize_fstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        let dynamic_type = v.r#type();
-        for field_index in 0..dynamic_type.get_member_count() {
-            let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
-            if let Some(base_type) = dynamic_type.descriptor.base_type {
-                let member_descriptor = &base_type.get_member(member_id)?.descriptor;
+        for field_index in 0..v.get_item_count() {
+            let dynamic_type = v.r#type();
+            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
+                if let Some(base_type) = dynamic_type.descriptor.base_type {
+                    let member_descriptor = &base_type.get_member(member_id)?.descriptor;
 
-                if member_descriptor.is_optional {
-                    V::serialize_opt_fmember(self, v, member_id)?;
-                } else {
-                    self.serialize_nopt_fmember(v, member_id)?;
+                    if member_descriptor.is_optional {
+                        V::serialize_opt_fmember(self, v, member_id)?;
+                    } else {
+                        self.serialize_nopt_fmember(v, member_id)?;
+                    }
                 }
-            }
-            if let Ok(member) = &dynamic_type.get_member(member_id) {
-                if member.descriptor.is_optional {
-                    V::serialize_opt_fmember(self, v, member_id)?;
-                } else {
-                    self.serialize_nopt_fmember(v, member_id)?;
+                if let Ok(member) = &dynamic_type.get_member(member_id) {
+                    if member.descriptor.is_optional {
+                        V::serialize_opt_fmember(self, v, member_id)?;
+                    } else {
+                        self.serialize_nopt_fmember(v, member_id)?;
+                    }
                 }
             }
         }

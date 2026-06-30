@@ -1137,3 +1137,27 @@ impl From<dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy>
         Self(value)
     }
 }
+
+#[pyclass(from_py_object)]
+#[derive(Clone, Default)]
+pub struct TypeConsistencyEnforcementQosPolicy(
+    dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+);
+
+impl From<TypeConsistencyEnforcementQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy
+{
+    fn from(value: TypeConsistencyEnforcementQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy>
+    for TypeConsistencyEnforcementQosPolicy
+{
+    fn from(
+        value: dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+    ) -> Self {
+        Self(value)
+    }
+}
