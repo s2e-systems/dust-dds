@@ -1642,7 +1642,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(&dynamic_data)?;
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
 
         if !self.registered_instance_list.contains(&instance_handle) {
@@ -1690,7 +1690,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(&dynamic_data)?;
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);

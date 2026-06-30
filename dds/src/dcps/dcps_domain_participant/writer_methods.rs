@@ -196,7 +196,7 @@ impl DcpsDomainParticipant {
         };
 
         data_writer.unregister_w_timestamp(
-            &dynamic_data,
+            dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,
@@ -230,7 +230,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_data = match KeyHolderData::from_dynamic_data(&dynamic_data) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -290,7 +290,7 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let key_holder_data = match KeyHolderData::from_dynamic_data(&dynamic_data) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
