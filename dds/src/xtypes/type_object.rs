@@ -2202,7 +2202,6 @@ mod tests {
 
     use super::*;
     #[test]
-    #[ignore = "Optional fields are not yet handled"]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "final")]
@@ -2356,6 +2355,28 @@ mod tests {
         let expected = [
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn serialize_complete_member_detail() {
+        let mut dynamic_data = DynamicDataFactory::create_data(CompleteMemberDetail::TYPE);
+        CompleteMemberDetail {
+            name: String::from("a"),
+            ann_builtin: None,
+            ann_custom: None,
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            2, 0, 0, 0, // Name length
+            b'a', 0, // Name
+            0, // ann_builtin optional not present
+            0, // ann_custom optional not present
         ];
 
         assert_eq!(buffer, expected.to_vec())
