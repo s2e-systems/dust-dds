@@ -105,14 +105,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #member_name,
                                 id: #member_id,
-                                r#type: <#member_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                r#type: <#member_type as dust_dds::xtypes::type_support::Type>::TYPE,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: None,
                                 is_key: #is_key,
                                 is_optional: #is_optional,
-                                is_must_understand: false,
+                                is_must_understand: #is_key,
                                 is_shared: false,
                                 is_default_label: false,
                                 is_external: #is_external,
@@ -121,14 +121,26 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }
                 );
 
-                if !struct_member_attributes.non_serialized {
-                    let member_type = &member.ty;
-                    let member_default_value = default_value
-                        .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                let member_type = &member.ty;
+                let member_default_value = default_value
+                    .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                if struct_member_attributes.non_serialized {
                     match &member.ident {
                         Some(member_ident) => {
-                            // In Mutable structs every member is optional even when not explicitly marked as such
-                            if r#struct.extensibility == Extensibility::Mutable || is_optional {
+                            member_sample_seq.push(quote! {
+                                #member_ident: #member_default_value,
+                            });
+                        }
+                        None => {
+                            member_sample_seq.push(quote! {
+                                #member_default_value,
+                            });
+                        }
+                    }
+                } else {
+                    match &member.ident {
+                        Some(member_ident) => {
+                            if is_optional {
                                 member_sample_seq.push(quote! {
                                     #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
@@ -179,7 +191,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let get_type_quote = quote! {
-                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #struct_descriptor,
                         member_list: &[#(#member_list,)*]
@@ -230,7 +242,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::UNION,
                     name: #type_name,
                     base_type: None,
-                    discriminator_type: ::core::option::Option::Some(<#discriminator_type as ::dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION),
+                    discriminator_type: ::core::option::Option::Some(<#discriminator_type as ::dust_dds::xtypes::type_support::Type>::TYPE),
                     bound: None,
                     element_type: None,
                     key_element_type: None,
@@ -245,7 +257,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                         name: "disc",
                         id: 0u32,
-                        r#type: <#discriminator_type as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                        r#type: <#discriminator_type as dust_dds::xtypes::type_support::Type>::TYPE,
                         default_value: None,
                         index: 0u32,
                         try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
@@ -272,8 +284,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
 
                 let variant_ident = &variant.ident;
                 let variant_name = variant_ident.to_string();
-                let index = variant_index + 1;
                 let variant_index_unsuffixed = syn::Index::from(variant_index);
+                let disc_expr = match &variant_attributes.case {
+                    Some(e) => quote! {#e},
+                    None => quote! {#variant_index_unsuffixed},
+                };
 
                 match &variant.fields {
                     // If there is a single field we handle this as the single type wrapper which is the most common case
@@ -284,13 +299,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 "Field of named variant must have defined name",
                             ))?;
                         let variant_ty = &fields_named.named[0].ty;
+
                         variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #index as u32,
-                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                id: #disc_expr as u32,
+                                r#type: <#variant_ty as dust_dds::xtypes::type_support::Type>::TYPE,
                                 default_value: None,
-                                index: #index as u32,
+                                index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: None,
                                 is_key: false,
@@ -304,13 +320,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         let variant_sample = quote! {
                             Self::#variant_ident {#variant_field_name: <#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                              src.remove_value(#index as u32).expect("Must exist"),
+                              src.remove_value(#disc_expr as u32).expect("Must exist"),
                             ).expect("Must match")},
                         };
-                        let disc_expr = match &variant_attributes.case {
-                            Some(e) => quote! {#e},
-                            None => quote! {#variant_index_unsuffixed},
-                        };
+
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
@@ -319,18 +332,19 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident {#variant_field_name} => {
                                 data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#disc_expr));
-                                data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#variant_field_name));
+                                data.set_value(#disc_expr as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#variant_field_name));
                             }});
                     }
                     Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
                         let variant_ty = &fields_unnamed.unnamed[0].ty;
+
                         variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #index as u32,
-                                r#type: <#variant_ty as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+                                id: #disc_expr as u32,
+                                r#type: <#variant_ty as dust_dds::xtypes::type_support::Type>::TYPE,
                                 default_value: None,
-                                index: #index as u32,
+                                index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: None,
                                 is_key: false,
@@ -344,13 +358,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         let variant_sample = quote! {
                             Self::#variant_ident(<#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                              src.remove_value(#index as u32).expect("Must exist"),
+                              src.remove_value(#disc_expr as u32).expect("Must exist"),
                             ).expect("Must match")),
                         };
-                        let disc_expr = match &variant_attributes.case {
-                            Some(e) => quote! {#e},
-                            None => quote! {#variant_index_unsuffixed},
-                        };
+
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
@@ -359,14 +370,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident (a) => {
                                 data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#disc_expr));
-                                data.set_value(#index as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
+                                data.set_value(#disc_expr as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
                             }});
                     }
                     Fields::Unit => {
                         variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #index as u32,
+                                id: #disc_expr as u32,
                                 r#type: dust_dds::xtypes::dynamic_type::DynamicType {
                                     descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                                         kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
@@ -382,7 +393,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     member_list: &[],
                                 },
                                 default_value: None,
-                                index: #index as u32,
+                                index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: None,
                                 is_key: false,
@@ -397,10 +408,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         let variant_sample = quote! {
                             Self::#variant_ident,
                         };
-                        let disc_expr = match &variant_attributes.case {
-                            Some(e) => quote! {#e},
-                            None => quote! {#variant_index_unsuffixed},
-                        };
+
                         variant_sample_seq.push(if variant_attributes.is_default {
                             quote! {_ => #variant_sample}
                         } else {
@@ -424,7 +432,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             let get_type_quote = quote! {
-                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #union_descriptor,
                         member_list: &[#(#variant_list,)*]
@@ -461,13 +469,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             // be consuming it.
             let discriminator_type = match enum_type_attributes.bit_bound {
                 BitBound::I8 => {
-                    quote! {<i8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i8 as dust_dds::xtypes::type_support::Type>::TYPE}
                 }
                 BitBound::I16 => {
-                    quote! {<i16 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i16 as dust_dds::xtypes::type_support::Type>::TYPE}
                 }
                 BitBound::I32 => {
-                    quote! {<i32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION}
+                    quote! {<i32 as dust_dds::xtypes::type_support::Type>::TYPE}
                 }
             };
 
@@ -497,7 +505,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let get_type_quote = quote! {
-                const r#TYPE: dust_dds::xtypes::dynamic_type::DynamicType =
+                const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #enum_descriptor,
                         member_list: &[]
@@ -535,9 +543,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics dust_dds::infrastructure::type_support::TypeSupport for #ident #type_generics #where_clause {
-            #get_type_quote
-
+        impl #impl_generics dust_dds::xtypes::type_support::TypeSupport for #ident #type_generics #where_clause {
             fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
                 #create_sample_quote
             }
@@ -545,6 +551,11 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
                 #create_dynamic_sample_quote
             }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics dust_dds::xtypes::type_support::Type for #ident #type_generics #where_clause {
+            #get_type_quote
         }
     })
 }

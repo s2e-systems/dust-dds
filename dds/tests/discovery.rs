@@ -531,7 +531,8 @@ fn publisher_and_subscriber_different_partition_not_matched() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
 
-    assert!(wait_set.wait(Duration::new(5, 0)).is_err());
+    // Maximum amount of time that it needs to wait to verify absence of matching.
+    assert!(wait_set.wait(Duration::new(1, 0)).is_err());
 }
 
 #[test]

@@ -45,11 +45,14 @@ fn module_generation() {
 
         pub mod foo{
             pub type Bar=i32;
+            pub type Car=i32;
             pub mod frob{
                 #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "foo::frob::Baz")]
                 pub struct Baz {
+                    #[dust_dds(key)]
                     pub qux: super::super::foo::Bar,
+                    pub qix: super::super::foo::Car,
                 }
             }
         }

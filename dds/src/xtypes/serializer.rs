@@ -1,8 +1,7 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
-    dynamic_type::{DynamicData, DynamicType, TypeKind},
+    dynamic_type::{DynamicData, TypeKind},
     error::{XTypesError, XTypesResult},
-    read_write::Write,
 };
 use alloc::{string::ToString, vec::Vec};
 
@@ -35,21 +34,42 @@ pub fn serialize_cdr2_le(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
     serialize_cdr2(dynamic_data, LittleEndian)
 }
 
-pub fn serialize_rtps(dynamic_data: &DynamicData) -> XTypesResult<Vec<u8>> {
-    let mut buffer = Vec::new();
-    RtpsPlCdrSerializer::serialize(&mut buffer, dynamic_data)?;
-    pad_entire_serialization(&mut buffer);
+pub fn serialize_final_without_header(
+    mut buffer: Vec<u8>,
+    dynamic_data: &DynamicData,
+) -> XTypesResult<Vec<u8>> {
+    let mut s = XTypesSerializer {
+        writer: CdrWriter::new(&mut buffer),
+        _endianness: BigEndian,
+        _encoding_version: EncodingVersion1,
+    };
+    s.serialize_fstruct_type(dynamic_data)?;
     Ok(buffer)
 }
 
-pub fn serialize_final_without_header<W: Write>(
-    mut buffer: W,
+pub fn serialize_without_header_cdr1_le(
+    mut buffer: Vec<u8>,
     dynamic_data: &DynamicData,
-) -> XTypesResult<W> {
-    let mut s = Xcdr2Serializer {
-        writer: CdrWriter::new(&mut buffer, BigEndian),
+) -> XTypesResult<Vec<u8>> {
+    let mut s = XTypesSerializer {
+        writer: CdrWriter::new(&mut buffer),
+        _endianness: LittleEndian,
+        _encoding_version: EncodingVersion1,
     };
-    s.serialize_fstruct_type(dynamic_data)?;
+    s.serialize_t_as_nested(dynamic_data)?;
+    Ok(buffer)
+}
+
+pub fn serialize_without_header_cdr2_le(
+    mut buffer: Vec<u8>,
+    dynamic_data: &DynamicData,
+) -> XTypesResult<Vec<u8>> {
+    let mut s = XTypesSerializer {
+        writer: CdrWriter::new(&mut buffer),
+        _endianness: LittleEndian,
+        _encoding_version: EncodingVersion2,
+    };
+    s.serialize_t_as_nested(dynamic_data)?;
     Ok(buffer)
 }
 
@@ -58,8 +78,10 @@ fn serialize_cdr1(
     endianness: impl EndiannessWrite,
 ) -> XTypesResult<Vec<u8>> {
     let mut buffer = Vec::new();
-    Xcdr1Serializer {
-        writer: CdrWriter::new(&mut buffer, endianness),
+    XTypesSerializer {
+        writer: CdrWriter::new(&mut buffer),
+        _endianness: endianness,
+        _encoding_version: EncodingVersion1,
     }
     .serialize_top_level_type(dynamic_data)?;
     pad_entire_serialization(&mut buffer);
@@ -71,8 +93,10 @@ fn serialize_cdr2(
     endianness: impl EndiannessWrite,
 ) -> XTypesResult<Vec<u8>> {
     let mut buffer = Vec::new();
-    Xcdr2Serializer {
-        writer: CdrWriter::new(&mut buffer, endianness),
+    XTypesSerializer {
+        writer: CdrWriter::new(&mut buffer),
+        _endianness: endianness,
+        _encoding_version: EncodingVersion2,
     }
     .serialize_top_level_type(dynamic_data)?;
     pad_entire_serialization(&mut buffer);
@@ -89,76 +113,27 @@ fn pad_entire_serialization(buffer: &mut Vec<u8>) {
     buffer.extend_from_slice(padding);
     buffer[3] = padding.len() as u8;
 }
-
-struct RtpsPlCdrSerializer<'a, W> {
-    writer: CdrWriter<'a, W, LittleEndian>,
-}
-
-impl<'a, W: Write> RtpsPlCdrSerializer<'a, W> {
-    fn serialize(buffer: &'a mut W, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        Self {
-            writer: CdrWriter::new(buffer, LittleEndian),
-        }
-        .serialize_top_level_type(dynamic_data)
-    }
-}
-
-struct Xcdr1Serializer<'a, W, E> {
-    writer: CdrWriter<'a, W, E>,
-}
-
-struct Xcdr2Serializer<'a, W, E> {
-    writer: CdrWriter<'a, W, E>,
-}
-
-// Trait for the serialization of types defined in the XTypes standard.
+// Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
 // defined in the DDS-XTypes, version 1.3 - 7.4.3.5.1 Notation used for the match criteria
-trait XTypesSerializer<'a> {
-    fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize);
+struct XTypesSerializer<'a, E, V> {
+    writer: CdrWriter<'a>,
+    _endianness: E,
+    _encoding_version: V,
+}
+impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
+    /// Rule: PUSH( ORIGIN = 0 )
+    fn push_origin_0(&mut self) {
+        self.writer.position = 0;
+    }
 
-    fn align(&mut self, v: usize);
-    fn push_origin_0(&mut self);
-
-    fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()>;
-
+    /// Serialization Rule: { <OPTIONS> : Byte[2] }
     fn serialize_options(&mut self) -> XTypesResult<()> {
         self.serialize_p_array_type(&REPRESENTATION_OPTIONS);
         Ok(())
     }
-    fn serialize_dheader(&mut self, ssize: usize) {
-        self.serialize_primitive_type(&(ssize as u32))
-    }
 
-    fn serialize_emheader1(
-        &mut self,
-        dynamic_data: &DynamicData,
-        member_id: u32,
-    ) -> XTypesResult<()> {
-        let mut byte_conter = ByteCounter::new();
-        let mut byte_conter_serializer = Xcdr2Serializer {
-            writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-        };
-        byte_conter_serializer.serialize_m_value(dynamic_data, member_id)?;
-        let length = byte_conter.0;
-        if length == 1 || length == 2 || length == 4 || length == 8 {
-            let m_flag = 0;
-            let lc = match length {
-                1 => 0,
-                2 => 1,
-                4 => 2,
-                8 => 3,
-                _ => unreachable!(),
-            } as u32;
-            let emheader = (m_flag << 31) + (lc << 28) + (member_id & 0x0fffffff);
-            self.serialize_primitive_type(&emheader);
-        } else {
-            self.serialize_primitive_type(&member_id);
-            //todo!("LC (length code) not yet supproted")
-        };
-        Ok(())
-    }
-
+    /// Serialization Rule: { O : AsFinal(O.type) }
     fn serialize_t_as_final(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
         match dynamic_data.r#type().get_kind() {
             TypeKind::ENUM => {
@@ -175,6 +150,7 @@ trait XTypesSerializer<'a> {
         Ok(())
     }
 
+    /// Serialization Rule: { O : AsNested(O.type) }
     fn serialize_t_as_nested(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
         match dynamic_data.r#type().get_kind() {
             TypeKind::ENUM => {
@@ -183,21 +159,24 @@ trait XTypesSerializer<'a> {
             TypeKind::STRUCTURE => {
                 match dynamic_data.r#type().get_descriptor().extensibility_kind {
                     ExtensibilityKind::Final => self.serialize_fstruct_type(dynamic_data),
-                    ExtensibilityKind::Appendable => self.serialize_appendable_type(dynamic_data),
-                    ExtensibilityKind::Mutable => self.serialize_mstruct_type(dynamic_data),
+                    ExtensibilityKind::Appendable => {
+                        V::serialize_appendable_type(self, dynamic_data)
+                    }
+                    ExtensibilityKind::Mutable => V::serialize_mstruct_type(self, dynamic_data),
                 }?
             }
             TypeKind::UNION => match dynamic_data.r#type().get_descriptor().extensibility_kind {
                 ExtensibilityKind::Final => self.serialize_funion_type(dynamic_data),
-                ExtensibilityKind::Appendable => self.serialize_appendable_type(dynamic_data),
-                ExtensibilityKind::Mutable => self.serialize_munion_type(dynamic_data),
+                ExtensibilityKind::Appendable => V::serialize_appendable_type(self, dynamic_data),
+                ExtensibilityKind::Mutable => V::serialize_munion_type(self, dynamic_data),
             }?,
             kind => unimplemented!("Should not reach for {kind:?}"),
         }
         Ok(())
     }
 
-    fn serialize_m_value(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
+    /// Serialization Rule: { M.value : M.value.type }
+    fn serialize_value(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
             TypeKind::NONE => todo!(),
@@ -223,18 +202,29 @@ trait XTypesSerializer<'a> {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
-            TypeKind::UNION => self.serialize_funion_type(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => self.serialize_sequence_type(v, member_id)?,
-            TypeKind::ARRAY => self.serialize_array_type(v, member_id)?,
+            TypeKind::SEQUENCE => V::serialize_sequence_type(self, v, member_id)?,
+            TypeKind::ARRAY => V::serialize_array_type(self, v, member_id)?,
             TypeKind::MAP => todo!(),
         }
         Ok(())
     }
 
     /// Serialization Rule (1)
+    ///
+    /// XCDR << {O : TOP_LEVEL_TYPE} =
+    ///            XCDR
+    ///              << INIT( OFFSET=0, ORIGIN=0,
+    ///                       CENDIAN=<E>, EVERSION=<eversion> )
+    ///              << { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+    ///              << PUSH( EVERSION = <eversion> )
+    ///              << PUSH( MAXALIGN = MAXALIGN(<eversion>) )
+    ///              << PUSH( ORIGIN = 0 )
+    ///              << { <OPTIONS> : Byte[2] }
+    ///              << { O : AsNested(O.type) }
     fn serialize_top_level_type(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        self.serialize_enc_header(dynamic_data)?;
+        V::serialize_enc_header(self, dynamic_data)?;
         self.serialize_options()?;
         self.push_origin_0();
         self.serialize_t_as_nested(dynamic_data)?;
@@ -242,24 +232,33 @@ trait XTypesSerializer<'a> {
     }
 
     /// Serialization Rule (2)
-    fn serialize_primitive_type<C: CdrPrimitiveTypeSerialize>(&mut self, v: &C) {
-        self.align(C::BYTES);
-        self.as_bytes(v);
+    ///
+    /// XCDR << {O : PRIMITIVE_TYPE} =
+    ///          XCDR
+    ///             << ALIGN( O.ssize )
+    ///             << ESWAP( AsBytes(O) )
+    fn serialize_primitive_type<O: Ossize + AsBytes>(&mut self, v: &O) {
+        V::align(self, O::SSIZE);
+        v.as_bytes::<E>(&mut self.writer);
     }
 
     /// Serialization Rule (3)
+    ///
+    /// XCDR << {O : STRING_TYPE} =
+    ///            XCDR
+    ///              << { O.ssize : UInt32 } // includes NUL
+    ///              << { O[i] : Byte }* // includes NUL
     fn serialize_string_type(&mut self, v: &str) {
         self.serialize_primitive_type(&(v.len() as u32 + 1));
-        self.serialize_primitive_type(&v.as_bytes());
-        self.serialize_primitive_type(&0u8);
-    }
-
-    /// Serialization Rule (4)
-    fn _serialize_wstring_type(&mut self, _v: &str) {
-        todo!()
+        self.writer.write_slice(v.as_bytes());
+        self.writer.write_byte(0);
     }
 
     /// Serialization Rule (5)
+    ///
+    /// XCDR << {O : ENUM_TYPE} =
+    ///          XCDR
+    ///            << { O.value : O.holder_type }
     fn serialize_enum_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         let holder_type = v
             .r#type()
@@ -283,25 +282,339 @@ trait XTypesSerializer<'a> {
         }
     }
 
-    /// Serialization Rule (6)
-    fn _serialize_bitmask_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    /// Serialization Rule (7)
-    fn _serialize_alias_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
+    /// Arrays of primitive element type (version 1 and 2 encoding)
+    ///
     /// Serialization Rule (8)
-    fn serialize_p_array_type(&mut self, v: &[impl CdrPrimitiveTypeSerialize]) {
+    ///
+    /// XCDR << {O : PARRAY_TYPE} =
+    ///           XCDR
+    ///             << { O[i] : O.element_type }*
+    fn serialize_p_array_type(&mut self, v: &[impl AsBytes + Ossize]) {
         for vi in v {
             self.serialize_primitive_type(vi);
         }
     }
 
+    /// Sequences of primitive element type (version 1 and 2 encoding)
+    ///
+    /// Serialization Rule (11)
+    ///
+    /// XCDR << { O : PSEQUENCE_TYPE } =
+    ///            XCDR
+    ///              << { O.length : UInt32 }
+    ///              << { O[i] : O.element_type }*
+    fn serialize_p_sequence_type(&mut self, v: &[impl AsBytes + Ossize]) {
+        self.serialize_primitive_type(&(v.len() as u32));
+
+        for vi in v {
+            self.serialize_primitive_type(vi);
+        }
+    }
+
+    /// Structures with extensibility FINAL (version 1 and 2 encoding)
+    /// FMMEBER can be NOPT_FMEMBER (18) or OPT_FMEMBER (19)
+    ///
+    /// Serialization Rule (17)
+    ///
+    /// XCDR << {O : FSTRUCT_TYPE} =
+    ///           XCDR
+    ///           << { O.member[i] : FMEMBER }*
+    fn serialize_fstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        let dynamic_type = v.r#type();
+
+        for field_index in 0..dynamic_type.get_member_count() {
+            let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
+
+            if let Some(base_type) = dynamic_type.descriptor.base_type {
+                let member_descriptor = &base_type.get_member(member_id)?.descriptor;
+
+                if member_descriptor.is_optional {
+                    V::serialize_opt_fmember(self, v, member_id)?;
+                } else {
+                    self.serialize_nopt_fmember(v, member_id)?;
+                }
+            }
+            if let Ok(member) = &dynamic_type.get_member(member_id) {
+                if member.descriptor.is_optional {
+                    V::serialize_opt_fmember(self, v, member_id)?;
+                } else {
+                    self.serialize_nopt_fmember(v, member_id)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Non-optional member of final Aggregated type (structure, union)
+    ///
+    /// Serialization Rule (18)
+    ///
+    /// XCDR << {M : NOPT_FMEMBER} =
+    ///           XCDR
+    ///            << { M.value : M.value.type }
+    fn serialize_nopt_fmember(
+        &mut self,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        match member_descriptor.r#type.get_kind() {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
+            TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),
+            TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
+            TypeKind::INT32 => self.serialize_primitive_type(v.get_int32_value(member_id)?),
+            TypeKind::INT64 => self.serialize_primitive_type(v.get_int64_value(member_id)?),
+            TypeKind::UINT16 => self.serialize_primitive_type(v.get_uint16_value(member_id)?),
+            TypeKind::UINT32 => self.serialize_primitive_type(v.get_uint32_value(member_id)?),
+            TypeKind::UINT64 => self.serialize_primitive_type(v.get_uint64_value(member_id)?),
+            TypeKind::FLOAT32 => self.serialize_primitive_type(v.get_float32_value(member_id)?),
+            TypeKind::FLOAT64 => self.serialize_primitive_type(v.get_float64_value(member_id)?),
+            TypeKind::FLOAT128 => self.serialize_primitive_type(v.get_float128_value(member_id)?),
+            TypeKind::INT8 => self.serialize_primitive_type(v.get_int8_value(member_id)?),
+            TypeKind::UINT8 => self.serialize_primitive_type(v.get_uint8_value(member_id)?),
+            TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => self.serialize_string_type(v.get_string_value(member_id)?),
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => (),
+            TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
+            TypeKind::UNION => self.serialize_t_as_nested(v.get_complex_value(member_id)?)?,
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => V::serialize_sequence_type(self, v, member_id)?,
+            TypeKind::ARRAY => V::serialize_array_type(self, v, member_id)?,
+            TypeKind::MAP => todo!(),
+        }
+        Ok(())
+    }
+
+    /// Unions with extensibility FINAL (version 1 and 2 encoding)
+    /// see (18) to (20) for NOPT_FMEMBER and FMEMBER serialization
+    ///
+    /// Serialization Rule (26)
+    ///
+    /// XCDR << {O : FUNION_TYPE} =
+    ///           XCDR
+    ///             << { O.disc : NOPT_FMEMBER }
+    ///             << { O.selected_member : FMEMBER }?
+    fn serialize_funion_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        self.serialize_nopt_fmember(v, 0)?;
+        if let Ok(member_id) = v.get_member_id_at_index(1) {
+            self.serialize_nopt_fmember(v, member_id)?;
+        }
+        Ok(())
+    }
+}
+
+const PID_SENTINEL: u16 = 1;
+
+struct Ssize<'a, 'b, E, V> {
+    serializer: &'a mut XTypesSerializer<'b, E, V>,
+    initial_pos: usize,
+}
+
+impl<'a, 'b, E: EndiannessWrite, V> Ssize<'a, 'b, E, V> {
+    fn new(serializer: &'a mut XTypesSerializer<'b, E, V>) -> Self {
+        // Place holder:
+        serializer.writer.write_slice(&[0, 0]);
+        let initial_pos = serializer.writer.buffer.len();
+
+        Self {
+            serializer,
+            initial_pos,
+        }
+    }
+    fn write_ssize(self) {
+        let ssize = (self.serializer.writer.buffer.len() - self.initial_pos) as u16;
+        self.serializer
+            .writer
+            .write_slice_at_position(E::to_bytes_u16(ssize).as_slice(), self.initial_pos - 2);
+    }
+}
+
+struct Dheader<'a, 'b, E, V> {
+    serializer: &'a mut XTypesSerializer<'b, E, V>,
+    initial_pos: usize,
+}
+
+impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> Dheader<'a, 'b, E, V> {
+    fn new(serializer: &'a mut XTypesSerializer<'b, E, V>) -> Self {
+        // Place holder:
+        serializer.serialize_primitive_type(&0u32);
+        let initial_pos = serializer.writer.buffer.len();
+
+        Self {
+            serializer,
+            initial_pos,
+        }
+    }
+    fn write_header(self) {
+        let ssize = (self.serializer.writer.buffer.len() - self.initial_pos) as u32;
+        self.serializer
+            .writer
+            .write_slice_at_position(&E::to_bytes_u32(ssize), self.initial_pos - 4);
+    }
+}
+
+struct EMheader1<'a, 'b, E, V> {
+    serializer: &'a mut XTypesSerializer<'b, E, V>,
+    initial_pos: usize,
+}
+
+impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
+    fn new(serializer: &'a mut XTypesSerializer<'b, E, V>) -> Self {
+        // Place holder:
+        serializer.serialize_primitive_type(&0u32);
+        let initial_pos = serializer.writer.buffer.len();
+
+        Self {
+            serializer,
+            initial_pos,
+        }
+    }
+    fn write_header(self, member_id: u32, v: &DynamicData) -> XTypesResult<()> {
+        let ssize = (self.serializer.writer.buffer.len() - self.initial_pos) as u32;
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let m_flag = member_descriptor.is_must_understand as u32;
+        let is_next_member_having_dheader = (matches!(
+            member_descriptor.r#type.get_kind(),
+            TypeKind::STRUCTURE | TypeKind::UNION
+        ) && matches!(
+            member_descriptor.r#type.descriptor.extensibility_kind,
+            ExtensibilityKind::Appendable | ExtensibilityKind::Mutable
+        )) || member_descriptor.r#type.get_kind()
+            == TypeKind::SEQUENCE;
+        let lc = if is_next_member_having_dheader {
+            5
+        } else {
+            match ssize {
+                1 => 0,
+                2 => 1,
+                4 => 2,
+                8 => 3,
+                _ => 4,
+            }
+        } as u32;
+
+        let emheader = (m_flag << 31) + (lc << 28) + (member_id & 0x0fffffff);
+
+        self.serializer
+            .writer
+            .write_slice_at_position(&E::to_bytes_u32(emheader), self.initial_pos - 4);
+
+        if lc == 4 {
+            self.serializer
+                .writer
+                .buffer
+                .splice(self.initial_pos..self.initial_pos, E::to_bytes_u32(ssize));
+            self.serializer.writer.position += 4;
+        }
+
+        Ok(())
+    }
+}
+
+trait EncodingVersion: Sized {
+    /// Rule: ALIGN( O.ssize )
+    fn align<'a, E>(serializer: &mut XTypesSerializer<'a, E, Self>, v: usize);
+
+    /// Serialization Rule: { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+    fn serialize_enc_header<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        dynamic_data: &DynamicData,
+    ) -> XTypesResult<()>;
+
     /// Serialization Rule (9) & (10)
-    fn serialize_array_type(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
+    fn serialize_array_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (12) & (13)
+    fn serialize_sequence_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (19) & (20)
+    fn serialize_opt_fmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (21) & (23)
+    fn serialize_mstruct_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (22) & (24) & (25)
+    fn serialize_mmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (27) & (28)
+    fn serialize_munion_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        _v: &DynamicData,
+    ) -> Result<(), XTypesError>;
+
+    /// Serialization Rule (29) & (30)
+    fn serialize_appendable_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError>;
+}
+
+struct EncodingVersion1;
+impl EncodingVersion for EncodingVersion1 {
+    /// Rule: ALIGN( O.ssize )
+    fn align<'a, E>(serializer: &mut XTypesSerializer<'a, E, Self>, v: usize) {
+        serializer.writer.pad(core::cmp::min(v, 8))
+    }
+
+    /// Serialization Rule: { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+    fn serialize_enc_header<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        dynamic_data: &DynamicData,
+    ) -> XTypesResult<()> {
+        serializer.serialize_p_array_type(&match dynamic_data
+            .r#type()
+            .get_descriptor()
+            .extensibility_kind
+        {
+            ExtensibilityKind::Final | ExtensibilityKind::Appendable => match E::ENDIANNESS {
+                Endianness::Big => CDR_BE,
+                Endianness::Little => CDR_LE,
+            },
+            ExtensibilityKind::Mutable => match E::ENDIANNESS {
+                Endianness::Big => PL_CDR_BE,
+                Endianness::Little => PL_CDR_LE,
+            },
+        });
+        Ok(())
+    }
+
+    /// Arrays (any extensibility) using version 1 encoding
+    ///
+    /// Serialization Rule (10)
+    ///
+    ///   XCDR[1] << {O : ARRAY_TYPE} =
+    ///                XCDR
+    ///                  << { O[i] : O.element_type }*
+    fn serialize_array_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
         let element_type = member_descriptor
             .r#type
@@ -311,24 +624,32 @@ trait XTypesSerializer<'a> {
             .expect("array has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_p_array_type(v.get_boolean_values(member_id)?),
-            TypeKind::BYTE => self.serialize_p_array_type(v.get_byte_values(member_id)?),
-            TypeKind::INT16 => self.serialize_p_array_type(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_p_array_type(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_p_array_type(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_p_array_type(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_p_array_type(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_p_array_type(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_p_array_type(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_p_array_type(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => self.serialize_p_array_type(v.get_float128_values(member_id)?),
-            TypeKind::INT8 => self.serialize_p_array_type(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_p_array_type(v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => self.serialize_p_array_type(v.get_char8_values(member_id)?),
+            TypeKind::BOOLEAN => {
+                serializer.serialize_p_array_type(v.get_boolean_values(member_id)?)
+            }
+            TypeKind::BYTE => serializer.serialize_p_array_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => serializer.serialize_p_array_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => serializer.serialize_p_array_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => serializer.serialize_p_array_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => serializer.serialize_p_array_type(v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => serializer.serialize_p_array_type(v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => serializer.serialize_p_array_type(v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => {
+                serializer.serialize_p_array_type(v.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                serializer.serialize_p_array_type(v.get_float64_values(member_id)?)
+            }
+            TypeKind::FLOAT128 => {
+                serializer.serialize_p_array_type(v.get_float128_values(member_id)?)
+            }
+            TypeKind::INT8 => serializer.serialize_p_array_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => serializer.serialize_p_array_type(v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => serializer.serialize_p_array_type(v.get_char8_values(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 for v in v.get_string_values(member_id)? {
-                    self.serialize_string_type(v);
+                    serializer.serialize_string_type(v);
                 }
             }
             TypeKind::STRING16 => todo!(),
@@ -338,12 +659,12 @@ trait XTypesSerializer<'a> {
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
                 for v in v.get_complex_values(member_id)? {
-                    self.serialize_t_as_nested(v)?;
+                    serializer.serialize_t_as_nested(v)?;
                 }
             }
             TypeKind::UNION => {
                 for v in v.get_complex_values(member_id)? {
-                    self.serialize_funion_type(v)?;
+                    serializer.serialize_funion_type(v)?;
                 }
             }
             TypeKind::BITSET => todo!(),
@@ -355,18 +676,16 @@ trait XTypesSerializer<'a> {
         Ok(())
     }
 
-    /// Serialization Rule (11)
-    fn serialize_p_sequence_type(&mut self, v: &[impl CdrPrimitiveTypeSerialize]) {
-        self.serialize_primitive_type(&(v.len() as u32));
-
-        for vi in v {
-            self.serialize_primitive_type(vi);
-        }
-    }
-
-    /// Serialization Rule (12) & (13)
-    fn serialize_sequence_type(
-        &mut self,
+    /// Sequences (any extensibility) using version 1 encoding
+    ///
+    /// Serialization Rule (13)
+    ///
+    /// XCDR[1] << {O : SEQUENCE_TYPE} =
+    ///              XCDR
+    ///                << { O.length : UInt32 }
+    ///                << { O[i] : O.element_type }*
+    fn serialize_sequence_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
@@ -379,26 +698,40 @@ trait XTypesSerializer<'a> {
             .expect("sequence has element type");
         match element_type.get_descriptor().kind {
             TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => self.serialize_p_sequence_type(v.get_boolean_values(member_id)?),
-            TypeKind::BYTE => self.serialize_p_sequence_type(v.get_byte_values(member_id)?),
-            TypeKind::INT16 => self.serialize_p_sequence_type(v.get_int16_values(member_id)?),
-            TypeKind::INT32 => self.serialize_p_sequence_type(v.get_int32_values(member_id)?),
-            TypeKind::INT64 => self.serialize_p_sequence_type(v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => self.serialize_p_sequence_type(v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => self.serialize_p_sequence_type(v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => self.serialize_p_sequence_type(v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => self.serialize_p_sequence_type(v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => self.serialize_p_sequence_type(v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => self.serialize_p_sequence_type(v.get_float128_values(member_id)?),
-            TypeKind::INT8 => self.serialize_p_sequence_type(v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => self.serialize_p_sequence_type(v.get_uint8_values(member_id)?),
+            TypeKind::BOOLEAN => {
+                serializer.serialize_p_sequence_type(v.get_boolean_values(member_id)?)
+            }
+            TypeKind::BYTE => serializer.serialize_p_sequence_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => serializer.serialize_p_sequence_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => serializer.serialize_p_sequence_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => serializer.serialize_p_sequence_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => {
+                serializer.serialize_p_sequence_type(v.get_uint16_values(member_id)?)
+            }
+            TypeKind::UINT32 => {
+                serializer.serialize_p_sequence_type(v.get_uint32_values(member_id)?)
+            }
+            TypeKind::UINT64 => {
+                serializer.serialize_p_sequence_type(v.get_uint64_values(member_id)?)
+            }
+            TypeKind::FLOAT32 => {
+                serializer.serialize_p_sequence_type(v.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                serializer.serialize_p_sequence_type(v.get_float64_values(member_id)?)
+            }
+            TypeKind::FLOAT128 => {
+                serializer.serialize_p_sequence_type(v.get_float128_values(member_id)?)
+            }
+            TypeKind::INT8 => serializer.serialize_p_sequence_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => serializer.serialize_p_sequence_type(v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let list = v.get_string_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
+                serializer.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
-                    self.serialize_string_type(v);
+                    serializer.serialize_string_type(v);
                 }
             }
             TypeKind::STRING16 => todo!(),
@@ -408,16 +741,16 @@ trait XTypesSerializer<'a> {
             TypeKind::ANNOTATION => todo!(),
             TypeKind::STRUCTURE => {
                 let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
+                serializer.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
-                    self.serialize_t_as_nested(v)?;
+                    serializer.serialize_t_as_nested(v)?;
                 }
             }
             TypeKind::UNION => {
                 let list = v.get_complex_values(member_id)?;
-                self.serialize_primitive_type(&(list.len() as u32));
+                serializer.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
-                    self.serialize_funion_type(v)?;
+                    serializer.serialize_funion_type(v)?;
                 }
             }
             TypeKind::BITSET => todo!(),
@@ -429,527 +762,647 @@ trait XTypesSerializer<'a> {
         Ok(())
     }
 
-    /// Serialization Rule (14)
-    fn _serialize_pmap_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    /// Serialization Rule (15) & (16)
-    fn _serialize_map_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    /// Serialization Rule (17)
-    fn serialize_fstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        for field_index in 0..v.get_item_count() {
-            let dynamic_type = v.r#type();
-            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
-                if let Some(base_type) = dynamic_type.descriptor.base_type {
-                    let member_descriptor = &base_type.get_member(member_id)?.descriptor;
-
-                    if member_descriptor.is_optional {
-                        self.serialize_opt_fmember(v, member_id)?;
-                    } else {
-                        self.serialize_nopt_fmember(v, member_id)?;
-                    }
-                }
-                if let Ok(member) = &dynamic_type.get_member(member_id) {
-                    if member.descriptor.is_optional {
-                        self.serialize_opt_fmember(v, member_id)?;
-                    } else {
-                        self.serialize_nopt_fmember(v, member_id)?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Serialization Rule (18)
-    fn serialize_nopt_fmember(
-        &mut self,
+    /// Optional member of final Aggregated type (structure, union), version 1
+    /// see (26) and (27) for MMEMBER serialization
+    ///
+    /// Serialization Rule (19)
+    ///
+    /// XCDR[1] << {M : OPT_FMEMBER} =
+    ///             XCDR
+    ///              << { M : MMEMBER }
+    fn serialize_opt_fmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        self.serialize_m_value(v, member_id)
+        Self::serialize_mmember(serializer, v, member_id)
     }
 
-    /// Serialization Rule (19) & (20)
-    fn serialize_opt_fmember(
-        &mut self,
+    /// Structures with extensibility MUTABLE, version 2 encoding
+    ///
+    /// Serialization Rule (23)
+    ///
+    /// XCDR[1] << {O : MSTRUCT_TYPE} =
+    ///               XCDR
+    ///                 << { O.member[i] : MMEMBER }*
+    ///                 << { PID_SENTINEL : UInt16 }
+    ///                                      << { length = 0 : UInt16 }
+    fn serialize_mstruct_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
-        member_id: u32,
     ) -> Result<(), XTypesError> {
-        self.serialize_mmember(v, member_id)
-    }
-
-    /// Serialization Rule (21) & (23)
-    fn serialize_mstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
-
-    /// Serialization Rule (22) & (24) & (25)
-    fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError>;
-
-    /// Serialization Rule (26)
-    fn serialize_funion_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_nopt_fmember(v, 0)?;
-        if let Ok(member_id) = v.get_member_id_at_index(1) {
-            self.serialize_nopt_fmember(v, member_id)?;
-        }
-        Ok(())
-    }
-
-    /// Serialization Rule (27) & (28)
-    fn serialize_munion_type(&mut self, _v: &DynamicData) -> Result<(), XTypesError> {
-        todo!()
-    }
-
-    /// Serialization Rule (29) & (30)
-    fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError>;
-}
-
-const PID_SENTINEL: u16 = 1;
-
-impl<'a, W: Write> XTypesSerializer<'a> for RtpsPlCdrSerializer<'a, W> {
-    fn align(&mut self, v: usize) {
-        self.writer.pad(v);
-    }
-
-    fn push_origin_0(&mut self) {
-        self.writer.position = 0;
-    }
-
-    fn serialize_enc_header(&mut self, _dynamic_data: &DynamicData) -> XTypesResult<()> {
-        self.serialize_p_array_type(&PL_CDR_LE);
-        Ok(())
-    }
-
-    fn serialize_mstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        // That differs in the if memeber_descriptor.kind == Sequence for Structure kinds
-
-        fn serialize_all_members<'a, W: Write>(
-            serializer: &mut RtpsPlCdrSerializer<'a, W>,
-            dynamic_type: &DynamicType,
-            v: &DynamicData,
-        ) -> Result<(), XTypesError> {
-            if let Some(b) = &dynamic_type.descriptor.base_type {
-                serialize_all_members(serializer, b, v)?;
-            }
-
-            for field_index in 0..dynamic_type.get_member_count() {
-                let member = dynamic_type.get_member_by_index(field_index)?;
-                let member_id = member.get_id();
-                let member_descriptor = &member.descriptor;
-
-                if v.get_value(member_id).is_err() {
-                    continue;
-                }
-
-                if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE {
-                    let element_type = member_descriptor
-                        .r#type
-                        .get_descriptor()
-                        .element_type
-                        .as_ref()
-                        .expect("sequence has element type");
-                    if element_type.get_descriptor().kind == TypeKind::STRUCTURE {
-                        for vi in v.get_complex_values(member_id)? {
-                            let mut byte_conter = ByteCounter::new();
-                            let mut byte_conter_serializer = RtpsPlCdrSerializer {
-                                writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-                            };
-                            byte_conter_serializer.serialize_fstruct_type(vi)?;
-                            byte_conter_serializer.align(4);
-
-                            serializer.serialize_primitive_type(&(member_id as u16));
-                            serializer.serialize_primitive_type(&(byte_conter.0 as u16));
-                            serializer.serialize_fstruct_type(vi)?;
-                            serializer.align(4);
-                        }
-                    } else {
-                        serializer.serialize_mmember(v, member_id)?;
-                    }
-                } else {
-                    serializer.serialize_mmember(v, member_id)?;
-                }
-            }
-            Ok(())
-        }
-        serialize_all_members(self, &v.r#type(), v)?;
-        self.align(4);
-        self.serialize_primitive_type(&PID_SENTINEL);
-        self.serialize_primitive_type(&0u16);
-        Ok(())
-    }
-
-    fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
-        // This differs from the Xcdr1LeSerializer in the counter that also adds the padding to the size
-
-        let mut byte_conter = ByteCounter::new();
-        let mut byte_conter_serializer = Xcdr1Serializer {
-            writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-        };
-        byte_conter_serializer.serialize_m_value(v, member_id)?;
-        byte_conter_serializer.align(4);
-
-        self.align(4);
-        self.serialize_primitive_type(&(member_id as u16));
-        self.serialize_primitive_type(&(byte_conter.0 as u16));
-        self.push_origin_0();
-        self.serialize_m_value(v, member_id)?;
-        self.align(4);
-        Ok(())
-    }
-    fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_t_as_final(v)
-    }
-
-    fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
-        v.serialize(&mut self.writer)
-    }
-}
-
-impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr1Serializer<'a, W, E> {
-    fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
-        v.serialize(&mut self.writer)
-    }
-    fn align(&mut self, v: usize) {
-        self.writer.pad(core::cmp::min(v, 8))
-    }
-    fn push_origin_0(&mut self) {
-        self.writer.position = 0;
-    }
-
-    fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        self.serialize_p_array_type(
-            &match dynamic_data.r#type().get_descriptor().extensibility_kind {
-                ExtensibilityKind::Final | ExtensibilityKind::Appendable => match E::ENDIANNESS {
-                    Endianness::Big => CDR_BE,
-                    Endianness::Little => CDR_LE,
-                },
-                ExtensibilityKind::Mutable => match E::ENDIANNESS {
-                    Endianness::Big => PL_CDR_BE,
-                    Endianness::Little => PL_CDR_LE,
-                },
-            },
-        );
-        Ok(())
-    }
-
-    fn serialize_mstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         for field_index in 0..v.r#type().get_member_count() {
             if let Ok(member_id) = v.get_member_id_at_index(field_index) {
-                self.serialize_mmember(v, member_id)?;
+                Self::serialize_mmember(serializer, v, member_id)?;
             }
         }
         // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
-        self.align(4);
-        self.serialize_primitive_type(&PID_SENTINEL);
-        self.serialize_primitive_type(&0u16);
+        Self::align(serializer, 4);
+        serializer.serialize_primitive_type(&PID_SENTINEL);
+        serializer.serialize_primitive_type(&0u16);
         Ok(())
     }
 
-    fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
-        // using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
-
-        let mut byte_conter = ByteCounter::new();
-        let mut byte_conter_serializer = Xcdr1Serializer {
-            writer: CdrWriter::new(&mut byte_conter, LittleEndian),
-        };
-        byte_conter_serializer.serialize_m_value(v, member_id)?;
-
-        self.align(4);
-        self.serialize_primitive_type(&(member_id as u16));
-        self.serialize_primitive_type(&(byte_conter.0 as u16));
-        self.push_origin_0();
-        self.serialize_m_value(v, member_id)
+    /// Member of mutable aggregated type (structure, union), version 1 encoding
+    /// using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
+    ///
+    /// Serialization Rule (24)
+    ///
+    /// XCDR[1] << {M : MMEMBER} =
+    ///             XCDR
+    ///               << ALIGN(4)
+    ///               << { FLAG_I + FLAG_M + M.id : UInt16 }
+    ///               << { M.value.ssize : UInt16 }
+    ///               << PUSH( ORIGIN=0 )
+    ///               << { M.value : M.value.type }
+    fn serialize_mmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        Self::align(serializer, 4);
+        serializer.serialize_primitive_type(&(member_id as u16));
+        let ssize = Ssize::new(serializer);
+        ssize.serializer.push_origin_0();
+        ssize.serializer.serialize_value(v, member_id).unwrap();
+        ssize.write_ssize();
+        Ok(())
     }
 
-    fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        self.serialize_t_as_final(v)
+    /// Unions with extensibility MUTABLE, version 1 encoding
+    /// see (25)-(26) for serialization of MMEMBER using version 1 encoding
+    ///
+    /// Serialization Rule (28)
+    ///
+    /// XCDR[1] << {O : MUNION_TYPE} =
+    ///             XCDR
+    ///               << { O.disc : MMEMBER }
+    ///               << { O.selected_member : MMEMBER }?
+    ///               << { PID_SENTINEL : UInt16 }
+    ///               << { length = 0 : UInt16 }
+    fn serialize_munion_type<'a, E: EndiannessWrite>(
+        _serializer: &mut XTypesSerializer<'a, E, Self>,
+        _v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 1 encoding
+    ///
+    /// Serialization Rule (29)
+    ///
+    /// XCDR[1] << {O : APPENDABLE_TYPE} =
+    ///               XCDR
+    ///                 << { O : AsFinal(O.type) }
+    fn serialize_appendable_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        serializer.serialize_t_as_final(v)
     }
 }
 
-impl<'a, W: Write, E: EndiannessWrite> XTypesSerializer<'a> for Xcdr2Serializer<'a, W, E> {
-    fn as_bytes(&mut self, v: &impl CdrPrimitiveTypeSerialize) {
-        v.serialize(&mut self.writer)
-    }
-    fn align(&mut self, v: usize) {
-        self.writer.pad(core::cmp::min(v, 4))
-    }
-    fn push_origin_0(&mut self) {
-        self.writer.position = 0;
+struct EncodingVersion2;
+impl EncodingVersion for EncodingVersion2 {
+    /// Rule: ALIGN( O.ssize )
+    fn align<'a, E>(serializer: &mut XTypesSerializer<'a, E, Self>, v: usize) {
+        serializer.writer.pad(core::cmp::min(v, 4))
     }
 
-    fn serialize_enc_header(&mut self, dynamic_data: &DynamicData) -> XTypesResult<()> {
-        self.serialize_p_array_type(
-            &match dynamic_data.r#type().get_descriptor().extensibility_kind {
-                ExtensibilityKind::Final => match E::ENDIANNESS {
-                    Endianness::Big => CDR2_BE,
-                    Endianness::Little => CDR2_LE,
-                },
-                ExtensibilityKind::Appendable => match E::ENDIANNESS {
-                    Endianness::Big => D_CDR2_BE,
-                    Endianness::Little => D_CDR2_LE,
-                },
-                ExtensibilityKind::Mutable => match E::ENDIANNESS {
-                    Endianness::Big => PL_CDR2_BE,
-                    Endianness::Little => PL_CDR2_LE,
-                },
+    /// Serialization Rule: { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+    fn serialize_enc_header<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        dynamic_data: &DynamicData,
+    ) -> XTypesResult<()> {
+        serializer.serialize_p_array_type(&match dynamic_data
+            .r#type()
+            .get_descriptor()
+            .extensibility_kind
+        {
+            ExtensibilityKind::Final => match E::ENDIANNESS {
+                Endianness::Big => CDR2_BE,
+                Endianness::Little => CDR2_LE,
             },
-        );
+            ExtensibilityKind::Appendable => match E::ENDIANNESS {
+                Endianness::Big => D_CDR2_BE,
+                Endianness::Little => D_CDR2_LE,
+            },
+            ExtensibilityKind::Mutable => match E::ENDIANNESS {
+                Endianness::Big => PL_CDR2_BE,
+                Endianness::Little => PL_CDR2_LE,
+            },
+        });
         Ok(())
     }
 
-    fn serialize_mstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        fn serialize_this<'b, W: Write, E: EndiannessWrite>(
-            serializer: &mut Xcdr2Serializer<'b, W, E>,
-            v: &DynamicData,
-        ) -> Result<(), XTypesError> {
-            for field_index in 0..v.get_item_count() {
-                if let Ok(member_id) = v.get_member_id_at_index(field_index) {
-                    serializer.serialize_mmember(v, member_id)?;
+    /// Arrays (any extensibility) using version 2 encoding
+    ///
+    /// Serialization Rule (9)
+    ///
+    /// XCDR[2] << {O : ARRAY_TYPE} =
+    ///              XCDR
+    ///                << { DHEADER(O) : UINT32 }
+    ///                << { O[i] : O.element_type }*
+    fn serialize_array_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("array has element type");
+
+        // TODO: DHEADER
+        // let dheader = Dheader::new(serializer);
+
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => {
+                serializer.serialize_p_array_type(v.get_boolean_values(member_id)?)
+            }
+            TypeKind::BYTE => serializer.serialize_p_array_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => serializer.serialize_p_array_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => serializer.serialize_p_array_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => serializer.serialize_p_array_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => serializer.serialize_p_array_type(v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => serializer.serialize_p_array_type(v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => serializer.serialize_p_array_type(v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => {
+                serializer.serialize_p_array_type(v.get_float32_values(member_id)?)
+            }
+            TypeKind::FLOAT64 => {
+                serializer.serialize_p_array_type(v.get_float64_values(member_id)?)
+            }
+            TypeKind::FLOAT128 => {
+                serializer.serialize_p_array_type(v.get_float128_values(member_id)?)
+            }
+            TypeKind::INT8 => serializer.serialize_p_array_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => serializer.serialize_p_array_type(v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => serializer.serialize_p_array_type(v.get_char8_values(member_id)?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                for v in v.get_string_values(member_id)? {
+                    serializer.serialize_string_type(v);
                 }
             }
-            Ok(())
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => {
+                for v in v.get_complex_values(member_id)? {
+                    serializer.serialize_t_as_nested(v)?;
+                }
+            }
+            TypeKind::UNION => {
+                for v in v.get_complex_values(member_id)? {
+                    serializer.serialize_funion_type(v)?;
+                }
+            }
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
         }
-        let mut byte_counter = ByteCounter::new();
-        let mut byte_counter_serializer = Xcdr2Serializer {
-            writer: CdrWriter::new(&mut byte_counter, LittleEndian),
-        };
-        serialize_this(&mut byte_counter_serializer, v)?;
-        self.serialize_dheader(byte_counter.0);
-        serialize_this(self, v)
+
+        // dheader.write_header();
+
+        Ok(())
     }
 
-    fn serialize_mmember(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
-        self.serialize_emheader1(v, member_id)?;
-        self.serialize_m_value(v, member_id)
+    /// Sequences (any extensibility) using version 1 encoding
+    ///
+    /// Serialization Rule (12)
+    ///
+    /// XCDR[2] << {O : SEQUENCE_TYPE} =
+    ///             XCDR
+    ///              << { DHEADER(O) : UINT32 }
+    ///              << { O.length : UInt32 }
+    ///              << { O[i] : O.element_type }*
+    fn serialize_sequence_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let dheader = Dheader::new(serializer);
+
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .get_descriptor()
+            .element_type
+            .as_ref()
+            .expect("sequence has element type");
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_boolean_values(member_id)?),
+            TypeKind::BYTE => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_byte_values(member_id)?),
+            TypeKind::INT16 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_int16_values(member_id)?),
+            TypeKind::INT32 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_int32_values(member_id)?),
+            TypeKind::INT64 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_float32_values(member_id)?),
+            TypeKind::FLOAT64 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_float64_values(member_id)?),
+            TypeKind::FLOAT128 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_float128_values(member_id)?),
+            TypeKind::INT8 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => dheader
+                .serializer
+                .serialize_p_sequence_type(v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                let list = v.get_string_values(member_id)?;
+                dheader
+                    .serializer
+                    .serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    dheader.serializer.serialize_string_type(v);
+                }
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::STRUCTURE => {
+                let list = v.get_complex_values(member_id)?;
+                dheader
+                    .serializer
+                    .serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    dheader.serializer.serialize_t_as_nested(v)?;
+                }
+            }
+            TypeKind::UNION => {
+                let list = v.get_complex_values(member_id)?;
+                dheader
+                    .serializer
+                    .serialize_primitive_type(&(list.len() as u32));
+                for v in list {
+                    dheader.serializer.serialize_funion_type(v)?;
+                }
+            }
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        }
+
+        dheader.write_header();
+        Ok(())
     }
 
-    fn serialize_appendable_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        let mut byte_counter = ByteCounter::new();
-        let mut byte_counter_serializer = Xcdr2Serializer {
-            writer: CdrWriter::new(&mut byte_counter, LittleEndian),
-        };
-        byte_counter_serializer.serialize_t_as_final(v)?;
-        self.serialize_dheader(byte_counter.0);
-        self.serialize_t_as_final(v)
+    /// Optional member of final aggregated type (structure, union), version 2
+    ///
+    /// Serialization Rule (20)
+    ///
+    /// XCDR[2] << {M : OPT_FMEMBER} =
+    ///             XCDR
+    ///               << { <is_present> : BOOLEAN }
+    ///               << IF (<is_present>) { M.value : M.value.type }
+    fn serialize_opt_fmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let is_present = v.get_data_kind(member_id).is_ok();
+        serializer.serialize_primitive_type(&is_present);
+        if is_present {
+            serializer.serialize_value(v, member_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Structures with extensibility MUTABLE, version 2 encoding
+    ///
+    /// Serialization Rule (21)
+    ///
+    /// XCDR[2] << {O : MSTRUCT_TYPE} =
+    ///             XCDR
+    ///               << { DHEADER(O) : UInt32 }
+    ///               << { O.member[i] : MMEMBER }*
+    fn serialize_mstruct_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        let dheader = Dheader::new(serializer);
+        for field_index in 0..v.get_item_count() {
+            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
+                Self::serialize_mmember(dheader.serializer, v, member_id)?;
+            }
+        }
+        dheader.write_header();
+        Ok(())
+    }
+
+    /// Member of mutable aggregated type (structure, union), version 2 encoding
+    ///
+    /// Serialization Rule (22)
+    ///
+    /// XCDR[2] << {M : MMEMBER} =
+    ///              XCDR
+    ///                << { EMHEADER1(M) : UInt32 }
+    ///                << IF (LC(M)>=4) { NEXTINT(M) : UInt32 }
+    ///                << IF (LC(M)>=5) XCDR.offset = XCDR.offset-4
+    ///                << { M.value : M.value.type }
+    fn serialize_mmember<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> Result<(), XTypesError> {
+        let emheader = EMheader1::new(serializer);
+        emheader.serializer.serialize_value(v, member_id).unwrap();
+        emheader.write_header(member_id, v)?;
+        Ok(())
+    }
+
+    /// Unions with extensibility MUTABLE, version 2 encoding
+    /// see (22) for serialization of MMEMBER using version 2 encoding
+    ///
+    /// Serialization Rule (27)
+    ///
+    /// XCDR[2] << {O : MUNION_TYPE} =
+    ///             XCDR
+    ///               << { DHEADER(O) : UInt32 }
+    ///               << { O.disc : MMEMBER }
+    ///               << { O.selected_member : MMEMBER }?
+    fn serialize_munion_type<'a, E: EndiannessWrite>(
+        _serializer: &mut XTypesSerializer<'a, E, Self>,
+        _v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        todo!()
+    }
+
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 2 encoding
+    ///
+    /// Serialization Rule (30)
+    ///
+    /// XCDR[2] << {O : APPENDABLE_TYPE} =
+    ///              XCDR
+    ///              << { DHEADER(O) : UInt32 }
+    ///              << { O : AsFinal(O.type) }
+    fn serialize_appendable_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        let dheader = Dheader::new(serializer);
+        dheader.serializer.serialize_t_as_final(v)?;
+        dheader.write_header();
+        Ok(())
     }
 }
 
-trait CdrPrimitiveTypeSerialize {
-    const BYTES: usize;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>);
+trait Ossize {
+    const SSIZE: usize;
 }
-impl CdrPrimitiveTypeSerialize for bool {
-    const BYTES: usize = u8::BITS as usize / 8;
+impl Ossize for u8 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u16 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u32 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for u64 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i8 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i16 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i32 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i64 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for i128 {
+    const SSIZE: usize = Self::BITS as usize / 8;
+}
+impl Ossize for f32 {
+    const SSIZE: usize = 4;
+}
+impl Ossize for f64 {
+    const SSIZE: usize = 8;
+}
+impl Ossize for bool {
+    const SSIZE: usize = 1;
+}
+impl Ossize for char {
+    const SSIZE: usize = 1;
+}
 
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        writer.write(&[*self as u8]);
+trait AsBytes {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>);
+}
+impl AsBytes for bool {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(if *self { 1 } else { 0 });
     }
 }
-impl CdrPrimitiveTypeSerialize for i8 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        writer.write(&[*self as u8]);
+impl AsBytes for u8 {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(*self);
     }
 }
-impl CdrPrimitiveTypeSerialize for u8 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        writer.write(&[*self]);
+impl AsBytes for u16 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u16(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for i16 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_i16(self, writer);
+impl AsBytes for u32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u32(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for u16 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_u16(self, writer);
+impl AsBytes for u64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_u64(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for i32 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_i32(self, writer);
+impl AsBytes for i8 {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_byte(*self as u8);
     }
 }
-impl CdrPrimitiveTypeSerialize for u32 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_u32(self, writer);
+impl AsBytes for i16 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i16(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for i64 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_i64(self, writer);
+impl AsBytes for i32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i32(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for u64 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_u64(self, writer);
+impl AsBytes for i64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i64(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for i128 {
-    const BYTES: usize = Self::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_i128(self, writer);
+impl AsBytes for i128 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_i128(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for f32 {
-    const BYTES: usize = 32 / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_f32(self, writer);
+impl AsBytes for f32 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_f32(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for f64 {
-    const BYTES: usize = 64 / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        E::write_f64(self, writer);
+impl AsBytes for f64 {
+    fn as_bytes<'a, E: EndiannessWrite>(&self, writer: &mut CdrWriter<'a>) {
+        writer.write_slice(&E::to_bytes_f64(*self));
     }
 }
-impl CdrPrimitiveTypeSerialize for char {
-    const BYTES: usize = u8::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
+impl AsBytes for char {
+    fn as_bytes<'a, E>(&self, writer: &mut CdrWriter<'a>) {
         writer.write_slice(self.to_string().as_bytes());
     }
 }
-impl CdrPrimitiveTypeSerialize for &[u8] {
-    const BYTES: usize = u8::BITS as usize / 8;
-    fn serialize<W: Write, E: EndiannessWrite>(&self, writer: &mut CdrWriter<W, E>) {
-        writer.write_slice(self);
-    }
-}
+
 enum Endianness {
     Big,
     Little,
 }
 trait EndiannessWrite {
     const ENDIANNESS: Endianness;
-    fn write_i16<C: Write>(v: &i16, writer: &mut C);
-    fn write_u16<C: Write>(v: &u16, writer: &mut C);
-    fn write_i32<C: Write>(v: &i32, writer: &mut C);
-    fn write_u32<C: Write>(v: &u32, writer: &mut C);
-    fn write_i64<C: Write>(v: &i64, writer: &mut C);
-    fn write_u64<C: Write>(v: &u64, writer: &mut C);
-    fn write_i128<C: Write>(v: &i128, writer: &mut C);
-    fn write_f32<C: Write>(v: &f32, writer: &mut C);
-    fn write_f64<C: Write>(v: &f64, writer: &mut C);
+    fn to_bytes_u16(v: u16) -> [u8; 2];
+    fn to_bytes_i16(v: i16) -> [u8; 2];
+    fn to_bytes_i32(v: i32) -> [u8; 4];
+    fn to_bytes_u32(v: u32) -> [u8; 4];
+    fn to_bytes_i64(v: i64) -> [u8; 8];
+    fn to_bytes_u64(v: u64) -> [u8; 8];
+    fn to_bytes_i128(v: i128) -> [u8; 16];
+    fn to_bytes_f32(v: f32) -> [u8; 4];
+    fn to_bytes_f64(v: f64) -> [u8; 8];
 }
 
 struct BigEndian;
 impl EndiannessWrite for BigEndian {
     const ENDIANNESS: Endianness = Endianness::Big;
-
-    fn write_i16<C: Write>(v: &i16, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_u16(v: u16) -> [u8; 2] {
+        v.to_be_bytes()
     }
-    fn write_u16<C: Write>(v: &u16, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_i16(v: i16) -> [u8; 2] {
+        v.to_be_bytes()
     }
-    fn write_i32<C: Write>(v: &i32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_i32(v: i32) -> [u8; 4] {
+        v.to_be_bytes()
     }
-    fn write_u32<C: Write>(v: &u32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_u32(v: u32) -> [u8; 4] {
+        v.to_be_bytes()
     }
-    fn write_i64<C: Write>(v: &i64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_i64(v: i64) -> [u8; 8] {
+        v.to_be_bytes()
     }
-    fn write_u64<C: Write>(v: &u64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_u64(v: u64) -> [u8; 8] {
+        v.to_be_bytes()
     }
-    fn write_i128<C: Write>(v: &i128, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_i128(v: i128) -> [u8; 16] {
+        v.to_be_bytes()
     }
-    fn write_f32<C: Write>(v: &f32, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_f32(v: f32) -> [u8; 4] {
+        v.to_be_bytes()
     }
-
-    fn write_f64<C: Write>(v: &f64, writer: &mut C) {
-        writer.write(&v.to_be_bytes())
+    fn to_bytes_f64(v: f64) -> [u8; 8] {
+        v.to_be_bytes()
     }
 }
 
 struct LittleEndian;
 impl EndiannessWrite for LittleEndian {
     const ENDIANNESS: Endianness = Endianness::Little;
-
-    fn write_i16<C: Write>(v: &i16, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_u16(v: u16) -> [u8; 2] {
+        v.to_le_bytes()
     }
-    fn write_u16<C: Write>(v: &u16, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_i16(v: i16) -> [u8; 2] {
+        v.to_le_bytes()
     }
-    fn write_i32<C: Write>(v: &i32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_i32(v: i32) -> [u8; 4] {
+        v.to_le_bytes()
     }
-    fn write_u32<C: Write>(v: &u32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_u32(v: u32) -> [u8; 4] {
+        v.to_le_bytes()
     }
-    fn write_i64<C: Write>(v: &i64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_i64(v: i64) -> [u8; 8] {
+        v.to_le_bytes()
     }
-    fn write_u64<C: Write>(v: &u64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_u64(v: u64) -> [u8; 8] {
+        v.to_le_bytes()
     }
-    fn write_i128<C: Write>(v: &i128, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_i128(v: i128) -> [u8; 16] {
+        v.to_le_bytes()
     }
-    fn write_f32<C: Write>(v: &f32, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_f32(v: f32) -> [u8; 4] {
+        v.to_le_bytes()
     }
-    fn write_f64<C: Write>(v: &f64, writer: &mut C) {
-        writer.write(&v.to_le_bytes())
+    fn to_bytes_f64(v: f64) -> [u8; 8] {
+        v.to_le_bytes()
     }
 }
 
-struct CdrWriter<'a, W, E> {
-    buffer: &'a mut W,
+struct CdrWriter<'a> {
+    buffer: &'a mut Vec<u8>,
     position: usize,
-    _endianness: E,
 }
-impl<'a, W: Write, E> CdrWriter<'a, W, E> {
-    fn new(buffer: &'a mut W, endianness: E) -> Self {
+impl<'a> CdrWriter<'a> {
+    fn new(buffer: &'a mut Vec<u8>) -> Self {
         Self {
             buffer,
             position: 0,
-            _endianness: endianness,
         }
     }
-
-    fn write_slice(&mut self, data: &[u8]) {
-        self.buffer.write(data);
-        self.position += data.len();
+    fn write_byte(&mut self, value: u8) {
+        self.buffer.push(value);
+        self.position += 1;
     }
-
+    fn write_slice(&mut self, value: &[u8]) {
+        self.buffer.extend_from_slice(value);
+        self.position += value.len();
+    }
+    fn write_slice_at_position(&mut self, value: &[u8], position: usize) {
+        self.buffer[position..position + value.len()].copy_from_slice(value);
+    }
     fn pad(&mut self, alignment: usize) {
         const ZEROS: [u8; 8] = [0; 8];
-        let alignment = self.position.div_ceil(alignment) * alignment - self.position;
-        self.write_slice(&ZEROS[..alignment]);
-    }
-}
-impl<'a, W: Write, E> Write for CdrWriter<'a, W, E> {
-    fn write(&mut self, buf: &[u8]) {
-        self.write_slice(buf);
-    }
-}
-
-struct ByteCounter(usize);
-impl ByteCounter {
-    fn new() -> Self {
-        Self(0)
-    }
-}
-impl Write for ByteCounter {
-    fn write(&mut self, buf: &[u8]) {
-        self.0 += buf.len();
+        let padding = self.position.div_ceil(alignment) * alignment - self.position;
+        self.write_slice(&ZEROS[..padding]);
     }
 }
 
@@ -957,7 +1410,18 @@ impl Write for ByteCounter {
 mod tests {
     use super::*;
     use crate::{
-        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
+        dcps::data_representation_builtin_endpoints::type_lookup::{
+            RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn, TypeLookupRequest,
+        },
+        transport::types::{EntityId, Guid},
+        xtypes::{
+            dynamic_type::DynamicDataFactory,
+            type_object::{
+                TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
+                TypeInformation,
+            },
+            type_support::{Type, TypeSupport},
+        },
     };
     extern crate std;
 
@@ -1343,30 +1807,30 @@ mod tests {
         );
     }
 
-    #[derive(TypeSupport, Clone, Default, PartialEq)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableType {
-        #[dust_dds(id = 90, key)]
-        one_byte: u8,
-        #[dust_dds(id = 80)]
-        two_bytes: u16,
-    }
-
     #[test]
     fn serialize_mutable_struct() {
+        #[derive(TypeSupport, Clone, Default, PartialEq)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 0x9091, key)]
+            one_byte: u8,
+            #[dust_dds(id = 0x8081)]
+            two_bytes: u16,
+        }
+
         let mut v = DynamicDataFactory::create_data(MutableType::TYPE);
         MutableType {
             one_byte: 7,
-            two_bytes: 8,
+            two_bytes: 0x0809,
         }
         .create_dynamic_sample(&mut v);
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
-                0x00, 80, 0, 2, // PID | length
-                0, 8, 0, 0, // two_bytes | padding (2 bytes)
-                0x00, 90, 0, 1, // PID | length
+                0x80, 0x81, 0, 2, // PID | length
+                0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
+                0x90, 0x91, 0, 1, // PID | length
                 7, 0, 0, 0, // one_byte | padding
                 0, 1, 0, 0, // Sentinel
             ]
@@ -1375,9 +1839,9 @@ mod tests {
             serialize_cdr1_le(&v).unwrap(),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
-                80, 0x00, 2, 0, // PID | length
-                8, 0, 0, 0, // two_bytes | padding (2 bytes)
-                90, 0x00, 1, 0, // PID | length
+                0x81, 0x80, 2, 0, // PID | length
+                0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
+                0x91, 0x90, 1, 0, // PID | length
                 7, 0, 0, 0, // one_byte | padding
                 1, 0, 0, 0, // Sentinel
             ]
@@ -1387,9 +1851,9 @@ mod tests {
             vec![
                 0x00, 0x0a, 0x00, 0x03, // CDR Header
                 0, 0, 0, 13, // DHEADER (length)
-                0x10, 0, 0, 80, // EMHEADER1 incl. LC 0b001 (2 bytes)
-                0, 8, 0, 0, // two_bytes | padding (2 bytes)
-                0, 0, 0, 90, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                0b001_0000, 0, 0x80, 0x81, // EMHEADER1 incl. LC 0b001 (2 bytes)
+                0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
+                128, 0, 0x90, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
@@ -1398,32 +1862,41 @@ mod tests {
             vec![
                 0x00, 0x0b, 0x00, 0x03, // CDR Header
                 13, 0, 0, 0, // DHEADER (length)
-                80, 0, 0, 0x10, // EMHEADER1 incl. LC 0b001 (2 bytes)
-                8, 0, 0, 0, // two_bytes | padding (2 bytes)
-                90, 0, 0, 0, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                0x81, 0x80, 0, 0b001_0000, // EMHEADER1 incl. LC 0b001 (2 bytes)
+                0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
+                0x91, 0x90, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
     }
 
-    #[derive(TypeSupport, Clone, Default, PartialEq)]
-    struct TinyFinalType {
-        primitive: u16,
-    }
-
-    #[derive(TypeSupport, Clone)]
-    #[dust_dds(extensibility = "mutable")]
-    struct NestedMutableType {
-        #[dust_dds(id = 96, key)]
-        field_primitive: u8,
-        #[dust_dds(id = 97)]
-        field_mutable: MutableType,
-        #[dust_dds(id = 98)]
-        field_final: TinyFinalType,
-    }
-
     #[test]
     fn serialize_nested_mutable_struct() {
+        #[derive(TypeSupport, Clone, Default, PartialEq)]
+        struct TinyFinalType {
+            primitive: u16,
+        }
+
+        #[derive(TypeSupport, Clone, Default, PartialEq)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 90, key)]
+            one_byte: u8,
+            #[dust_dds(id = 80)]
+            two_bytes: u16,
+        }
+
+        #[derive(TypeSupport, Clone)]
+        #[dust_dds(extensibility = "mutable")]
+        struct NestedMutableType {
+            #[dust_dds(id = 96, key)]
+            field_primitive: u8,
+            #[dust_dds(id = 97)]
+            field_mutable: MutableType,
+            #[dust_dds(id = 98)]
+            field_final: TinyFinalType,
+        }
+
         let mut v = DynamicDataFactory::create_data(NestedMutableType::TYPE);
         NestedMutableType {
             field_primitive: 5,
@@ -1522,13 +1995,14 @@ mod tests {
             serialize_cdr2_be(&v).unwrap(),
             vec![
                 0x00, 0x08, 0x00, 0x00, // D_CDR2_BE
-                0, 0, 0, 28, // Dheader
+                0, 0, 0, 32, // Dheader
                 0, 0, 0, 5, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 0, 0, 0, 10, // x
                 0, 0, 0, 20, // y
                 0, 0, 0, 30, // shapesize
+                0, 0, 0, 4, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );
@@ -1536,13 +2010,14 @@ mod tests {
             serialize_cdr2_le(&v).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                28, 0, 0, 0, // Dheader
+                32, 0, 0, 0, // Dheader
                 5, 0, 0, 0, // color: length
                 b'B', b'L', b'U', b'E', // color
                 0, 0, 0, 0, // color: terminating 0 | padding
                 10, 0, 0, 0, // x
                 20, 0, 0, 0, // y
                 30, 0, 0, 0, // shapesize
+                4, 0, 0, 0, // additional_payload_size: dheader
                 0, 0, 0, 0, // additional_payload_size: length
             ]
         );
@@ -1745,212 +2220,210 @@ mod tests {
             22
         );
     }
-}
-
-#[cfg(test)]
-mod rtps_pl_tests {
-    use super::*;
-    use crate::{
-        infrastructure::type_support::TypeSupport, xtypes::dynamic_type::DynamicDataFactory,
-    };
-    extern crate std;
-
-    fn test_serialize_type_support<T: TypeSupport>(v: T) -> std::vec::Vec<u8> {
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        v.create_dynamic_sample(&mut data);
-        let mut buffer = Vec::new();
-        RtpsPlCdrSerializer::serialize(&mut buffer, &data).unwrap();
-        buffer
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableBasicType {
-        #[dust_dds(id = 10)]
-        field_u16: u16,
-        #[dust_dds(id = 20)]
-        field_u8: u8,
-    }
 
     #[test]
-    fn serialize_mutable_struct() {
-        let v = MutableBasicType {
-            field_u16: 7,
-            field_u8: 8,
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                10, 0, 4, 0, // PID | length
-                7, 0, 0, 0, // field_u16 | padding (2 bytes)
-                20, 0, 4, 0, // PID | length
-                8, 0, 0, 0, // field_u8 | padding (3 bytes)
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[derive(TypeSupport, Default, PartialEq)]
-    struct Time {
-        sec: u32,
-        nanosec: i32,
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableTimeType {
-        #[dust_dds(id = 30)]
-        field_time: Time,
-    }
-
-    #[test]
-    fn serialize_mutable_time_struct() {
-        let v = MutableTimeType {
-            field_time: Time { sec: 5, nanosec: 6 },
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                30, 0, 8, 0, // PID | length
-                5, 0, 0, 0, // Time: sec
-                6, 0, 0, 0, // Time: nanosec
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[derive(TypeSupport)]
-    #[dust_dds(extensibility = "mutable")]
-    struct MutableCollectionType {
-        #[dust_dds(id = 30)]
-        field_times: Vec<Time>,
-    }
-
-    #[test]
-    fn serialize_mutable_collection_struct() {
-        let v = MutableCollectionType {
-            field_times: vec![Time { sec: 5, nanosec: 6 }, Time { sec: 7, nanosec: 8 }],
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                30, 0, 8, 0, // PID | length
-                5, 0, 0, 0, // Time: sec
-                6, 0, 0, 0, // Time: nanosec
-                30, 0, 8, 0, // PID | length
-                7, 0, 0, 0, // Time: sec
-                8, 0, 0, 0, // Time: nanosec
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_string() {
-        #[derive(TypeSupport)]
+    fn serialize_mutable_struct_with_sequence() {
+        #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        struct StringData {
-            #[dust_dds(id = 41)]
-            name: String,
+        struct MutableTypeWithSequence {
+            #[dust_dds(hash_id)]
+            my_sequence: Vec<u32>,
         }
 
-        let v = StringData {
-            name: "one".to_string(),
-        };
+        let mut data = DynamicDataFactory::create_data(MutableTypeWithSequence::TYPE);
+        MutableTypeWithSequence {
+            my_sequence: vec![1, 2, 3],
+        }
+        .create_dynamic_sample(&mut data);
+
         assert_eq!(
-            test_serialize_type_support(v),
+            serialize_cdr2_le(&data).unwrap(),
             vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 8, 0, // PID, length
-                4, 0, 0, 0, // String length
-                b'o', b'n', b'e', 0, // String
-                1, 0, 0, 0, // Sentinel
+                0x00, 0x0b, 0x00, 0x00, // PL_CDR2_LE
+                24, 0, 0, 0, // Struct DHEADER
+                0, 0, 0, 80, // my_sequence EMHEADER
+                16, 0, 0, 0, // Vec DHEADER
+                3, 0, 0, 0, // Vec length
+                1, 0, 0, 0, // Vec[0]
+                2, 0, 0, 0, // Vec[1]
+                3, 0, 0, 0, // Vec[2]
             ]
         );
     }
 
     #[test]
-    fn serialize_string_list() {
-        #[derive(TypeSupport)]
+    fn serialize_appendable_union_with_mutable_struct() {
+        #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
-        struct StringList {
-            #[dust_dds(id = 41)]
-            name: Vec<String>,
+        struct MutableTypeWithSequence {
+            #[dust_dds(hash_id)]
+            my_sequence: Vec<u32>,
         }
 
-        let v = StringList {
-            name: vec!["one".to_string(), "two".to_string()],
-        };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 20, 0, // PID, length
-                2, 0, 0, 0, // vec length
-                4, 0, 0, 0, // String length
-                b'o', b'n', b'e', 0, // String
-                4, 0, 0, 0, // String length
-                b't', b'w', b'o', 0, // String
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_u8_array() {
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct U8Array {
-            #[dust_dds(id = 41)]
-            version: [u8; 2],
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(switch(i32), extensibility = "appendable")]
+        pub enum AppendableUnion {
+            #[dust_dds(case = 10)]
+            MyVariant { a: MutableTypeWithSequence },
         }
 
-        let v = U8Array { version: [1, 2] };
-        assert_eq!(
-            test_serialize_type_support(v),
-            vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 4, 0, // PID, length
-                1, 2, 0, 0, // version | padding (2 bytres)
-                1, 0, 0, 0, // Sentinel
-            ]
-        );
-    }
-
-    #[test]
-    fn serialize_locator() {
-        #[derive(TypeSupport, Default, PartialEq)]
-        struct Locator {
-            kind: i32,
-            port: u32,
-            address: [u8; 4],
-        }
-        #[derive(TypeSupport)]
-        #[dust_dds(extensibility = "mutable")]
-        struct LocatorContainer {
-            #[dust_dds(id = 41)]
-            locator: Locator,
-        }
-
-        let v = LocatorContainer {
-            locator: Locator {
-                kind: 1,
-                port: 2,
-                address: [7; 4],
+        let mut data = DynamicDataFactory::create_data(AppendableUnion::TYPE);
+        AppendableUnion::MyVariant {
+            a: MutableTypeWithSequence {
+                my_sequence: vec![1, 2, 3],
             },
-        };
+        }
+        .create_dynamic_sample(&mut data);
+
         assert_eq!(
-            test_serialize_type_support(v),
+            serialize_cdr2_le(&data).unwrap(),
             vec![
-                0x00, 0x03, 0x00, 0x00, // CDR Header
-                41, 0x00, 12, 0, // PID, length
-                1, 0, 0, 0, // kind
-                2, 0, 0, 0, // port
-                7, 7, 7, 7, // address
-                1, 0, 0, 0, // Sentinel
+                0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
+                32, 0, 0, 0, //AppendableUnion DHEADER
+                10, 0, 0, 0, // MyVariant discriminator
+                24, 0, 0, 0, // MutableTypeWithSequence DHEADER
+                0, 0, 0, 80, // my_sequence EMHEADER
+                16, 0, 0, 0, // Vec DHEADER
+                3, 0, 0, 0, // Vec length
+                1, 0, 0, 0, // Vec[0]
+                2, 0, 0, 0, // Vec[1]
+                3, 0, 0, 0, // Vec[2]
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_get_types_in() {
+        let mut data = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
+        TypeLookupCall::TypeLookupGetTypesHashId {
+            get_types: TypeLookupGetTypesIn {
+                type_ids: vec![TypeIdentifier::EkComplete {
+                    equivalence_hash: [5; 14],
+                }],
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x09, 0x00, 0x01, // D_CDR2_LE + padding
+                35, 0, 0, 0, // TypeLookupCall DHEADER
+                0xd3, 0x52, 0x82, 0x01, // TypeLookupGetTypesHashId DISCRIMINATOR
+                27, 0, 0, 0, // type_ids: DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER
+                // 23, 0, 0, 0, // type_ids NEXTINT
+                19, 0, 0, 0, // type_ids: DHEADER
+                1, 0, 0, 0,   // type_ids: Length
+                242, //EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_request() {
+        let mut data = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
+        TypeLookupRequest {
+            header: RequestHeader {
+                request_id: SampleIdentity {
+                    writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
+                    sequence_number: 5.into(),
+                },
+                instance_name: String::from(""),
+            },
+            call: TypeLookupCall::TypeLookupGetTypesHashId {
+                get_types: TypeLookupGetTypesIn {
+                    type_ids: vec![],
+                    //TypeIdentifier::EkComplete {
+                    // equivalence_hash: [5; 14],
+                    // }
+                },
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x07, 0x00, 0x00, // CDR2_LE + padding
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
+                0, 0, 0, 0, // sequence_number: high
+                5, 0, 0, 0, // sequence_number: low
+                1, 0, 0, 0, // instance_name: length
+                0, // instance_name: length
+                0, 0, 0, // Padding
+                20, 0, 0, 0, //TypeLookupCall DHEADER
+                211, 82, 130, 1, // TypeLookupGetTypesHashId Discriminator
+                12, 0, 0, 0, // type_ids: DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER
+                // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
+                4, 0, 0, 0, // type_ids: DHEADER
+                0, 0, 0,
+                0, // type_ids: Length
+                   // 242, //EK_COMPLETE
+                   // 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                   // 0, // padding
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_identifier() {
+        let mut data = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        }
+        .create_dynamic_sample(&mut data);
+
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &data).unwrap();
+        assert_eq!(
+            buffer,
+            vec![
+                // 0x00u8, 0x0B, 0x00, 0x00, // PL_CDR2_LE + 0 padding
+                88, 0, 0, 0, // DHEADER
+                0x01, 0x10, 0, 80, // EMHEADER
+                // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                36, 0, 0, 0, // DHEADER
+                20, 0, 0, 0,   // DHEADER
+                241, //EK_MINIMAL
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+                10, 0, 0, 0, // typeobject_serialized_size
+                0, 0, 0, 0, // dependent_typeid_count
+                4, 0, 0, 0, // Sequence DHEADER
+                0, 0, 0, 0, // Sequence length
+                0x02, 0x10, 0, 80, // EMHEADER
+                // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                36, 0, 0, 0, // DHEADER
+                20, 0, 0, 0,   // DHEADER
+                242, //EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+                10, 0, 0, 0, // typeobject_serialized_size
+                0, 0, 0, 0, // dependent_typeid_count
+                4, 0, 0, 0, // Sequence DHEADER
+                0, 0, 0, 0, // Sequence length
             ]
         );
     }

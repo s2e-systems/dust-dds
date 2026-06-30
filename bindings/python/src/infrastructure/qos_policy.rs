@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use super::time::DurationKind;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum Length {
     Unlimited {},
@@ -31,7 +31,7 @@ impl From<dust_dds::infrastructure::qos_policy::Length> for Length {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct UserDataQosPolicy(dust_dds::infrastructure::qos_policy::UserDataQosPolicy);
 
@@ -63,7 +63,7 @@ impl UserDataQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct EntityFactoryQosPolicy(dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy);
 
@@ -99,7 +99,7 @@ impl EntityFactoryQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct TopicDataQosPolicy(dust_dds::infrastructure::qos_policy::TopicDataQosPolicy);
 
@@ -132,7 +132,7 @@ impl TopicDataQosPolicy {
 }
 
 #[derive(Clone, Copy)]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub enum DurabilityQosPolicyKind {
     Volatile,
     TransientLocal,
@@ -182,7 +182,7 @@ impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind>
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct DurabilityQosPolicy(dust_dds::infrastructure::qos_policy::DurabilityQosPolicy);
 
@@ -214,7 +214,7 @@ impl DurabilityQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct DeadlineQosPolicy(dust_dds::infrastructure::qos_policy::DeadlineQosPolicy);
 
@@ -248,7 +248,7 @@ impl DeadlineQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct LatencyBudgetQosPolicy(dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy);
 
@@ -284,7 +284,7 @@ impl LatencyBudgetQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum LivelinessQosPolicyKind {
     Automatic,
@@ -328,7 +328,7 @@ impl From<dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind>
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct LivelinessQosPolicy(dust_dds::infrastructure::qos_policy::LivelinessQosPolicy);
 
@@ -371,7 +371,7 @@ impl LivelinessQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum ReliabilityQosPolicyKind {
     BestEffort,
@@ -408,7 +408,7 @@ impl From<dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind>
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct ReliabilityQosPolicy(dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy);
 
@@ -451,7 +451,7 @@ impl ReliabilityQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum DestinationOrderQosPolicyKind {
     ByReceptionTimestamp,
@@ -480,7 +480,7 @@ impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind>
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct DestinationOrderQosPolicy(
     dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy,
@@ -518,7 +518,7 @@ impl DestinationOrderQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum HistoryQosPolicyKind {
     KeepLast { depth: u32 },
@@ -551,7 +551,7 @@ impl From<dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind> for Histor
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct HistoryQosPolicy(dust_dds::infrastructure::qos_policy::HistoryQosPolicy);
 
@@ -583,7 +583,7 @@ impl HistoryQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct ResourceLimitsQosPolicy(dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy);
 
@@ -645,7 +645,7 @@ impl ResourceLimitsQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct TransportPriorityQosPolicy(
     dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy,
@@ -683,7 +683,7 @@ impl TransportPriorityQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct LifespanQosPolicy(dust_dds::infrastructure::qos_policy::LifespanQosPolicy);
 
@@ -717,7 +717,7 @@ impl LifespanQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum OwnershipQosPolicyKind {
     Shared,
@@ -750,7 +750,7 @@ impl From<dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind> for Owne
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct OwnershipQosPolicy(dust_dds::infrastructure::qos_policy::OwnershipQosPolicy);
 
@@ -782,7 +782,7 @@ impl OwnershipQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct OwnershipStrengthQosPolicy(
     dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy,
@@ -804,7 +804,7 @@ impl From<dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy>
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct GroupDataQosPolicy(dust_dds::infrastructure::qos_policy::GroupDataQosPolicy);
 
@@ -836,7 +836,7 @@ impl GroupDataQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct PartitionQosPolicy(dust_dds::infrastructure::qos_policy::PartitionQosPolicy);
 
@@ -868,7 +868,7 @@ impl PartitionQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum PresentationQosPolicyAccessScopeKind {
     Instance,
@@ -903,7 +903,7 @@ impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScope
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct PresentationQosPolicy(dust_dds::infrastructure::qos_policy::PresentationQosPolicy);
 
@@ -961,7 +961,7 @@ impl PresentationQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct WriterDataLifecycleQosPolicy(
     dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy,
@@ -1003,7 +1003,7 @@ impl WriterDataLifecycleQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct TimeBasedFilterQosPolicy(dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy);
 
@@ -1043,7 +1043,7 @@ impl TimeBasedFilterQosPolicy {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct ReaderDataLifecycleQosPolicy(
     dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy,
@@ -1116,7 +1116,7 @@ pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy =
         ),
     });
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Default)]
 pub struct DataRepresentationQosPolicy(
     dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy,
@@ -1134,6 +1134,30 @@ impl From<dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy>
     for DataRepresentationQosPolicy
 {
     fn from(value: dust_dds::infrastructure::qos_policy::DataRepresentationQosPolicy) -> Self {
+        Self(value)
+    }
+}
+
+#[pyclass(from_py_object)]
+#[derive(Clone, Default)]
+pub struct TypeConsistencyEnforcementQosPolicy(
+    dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+);
+
+impl From<TypeConsistencyEnforcementQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy
+{
+    fn from(value: TypeConsistencyEnforcementQosPolicy) -> Self {
+        value.0
+    }
+}
+
+impl From<dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy>
+    for TypeConsistencyEnforcementQosPolicy
+{
+    fn from(
+        value: dust_dds::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+    ) -> Self {
         Self(value)
     }
 }

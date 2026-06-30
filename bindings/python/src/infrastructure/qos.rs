@@ -7,11 +7,11 @@ use super::qos_policy::{
     HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
     OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
     ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy,
+    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+    TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DomainParticipantFactoryQos(dust_dds::infrastructure::qos::DomainParticipantFactoryQos);
 
@@ -46,7 +46,7 @@ impl DomainParticipantFactoryQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DomainParticipantQos(dust_dds::infrastructure::qos::DomainParticipantQos);
 
@@ -82,7 +82,7 @@ impl DomainParticipantQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct PublisherQos(dust_dds::infrastructure::qos::PublisherQos);
 
@@ -154,7 +154,7 @@ impl PublisherQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SubscriberQos(dust_dds::infrastructure::qos::SubscriberQos);
 
@@ -194,7 +194,7 @@ impl SubscriberQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct TopicQos(dust_dds::infrastructure::qos::TopicQos);
 
@@ -310,7 +310,7 @@ impl TopicQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DataWriterQos(dust_dds::infrastructure::qos::DataWriterQos);
 
@@ -436,7 +436,7 @@ impl DataWriterQos {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct DataReaderQos(dust_dds::infrastructure::qos::DataReaderQos);
 
@@ -469,6 +469,7 @@ impl DataReaderQos {
         time_based_filter = TimeBasedFilterQosPolicy::default(),
         reader_data_lifecycle = ReaderDataLifecycleQosPolicy::default(),
         representation = DataRepresentationQosPolicy::default(),
+        type_consistency = TypeConsistencyEnforcementQosPolicy::default(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -485,6 +486,7 @@ impl DataReaderQos {
         time_based_filter: TimeBasedFilterQosPolicy,
         reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
         representation: DataRepresentationQosPolicy,
+        type_consistency: TypeConsistencyEnforcementQosPolicy,
     ) -> Self {
         Self(dust_dds::infrastructure::qos::DataReaderQos {
             durability: durability.into(),
@@ -500,6 +502,7 @@ impl DataReaderQos {
             time_based_filter: time_based_filter.into(),
             reader_data_lifecycle: reader_data_lifecycle.into(),
             representation: representation.into(),
+            type_consistency: type_consistency.into(),
         })
     }
 
@@ -549,5 +552,13 @@ impl DataReaderQos {
 
     fn get_reader_data_lifecycle(&self) -> ReaderDataLifecycleQosPolicy {
         self.0.reader_data_lifecycle.clone().into()
+    }
+
+    fn get_representation(&self) -> DataRepresentationQosPolicy {
+        self.0.representation.clone().into()
+    }
+
+    fn get_type_consistency(&self) -> TypeConsistencyEnforcementQosPolicy {
+        self.0.type_consistency.clone().into()
     }
 }

@@ -1,27 +1,18 @@
 use crate::{
     dcps::{
-        channels::oneshot::{OneshotSender, oneshot},
+        channels::{notification::NotificationSender, oneshot::oneshot},
         dcps_mail::{DcpsMail, StatusConditionMail},
         status_condition::StatusConditionEntity,
     },
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{error::DdsResult, status::StatusKind},
 };
-use alloc::vec::Vec;
 
 /// Async version of [`StatusCondition`](crate::infrastructure::condition::StatusCondition).
+#[derive(Clone)]
 pub struct StatusConditionAsync {
     dcps_sender: DcpsSender,
     entity: StatusConditionEntity,
-}
-
-impl Clone for StatusConditionAsync {
-    fn clone(&self) -> Self {
-        Self {
-            dcps_sender: self.dcps_sender,
-            entity: self.entity.clone(),
-        }
-    }
 }
 
 impl StatusConditionAsync {
@@ -34,7 +25,7 @@ impl StatusConditionAsync {
 
     pub(crate) async fn register_notification(
         &self,
-        notification_sender: OneshotSender<()>,
+        notification_sender: NotificationSender,
     ) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
@@ -53,7 +44,7 @@ impl StatusConditionAsync {
 impl StatusConditionAsync {
     /// Async version of [`get_enabled_statuses`](crate::infrastructure::condition::StatusCondition::get_enabled_statuses).
     #[tracing::instrument(skip(self))]
-    pub async fn get_enabled_statuses(&self) -> DdsResult<Vec<StatusKind>> {
+    pub async fn get_enabled_statuses(&self) -> DdsResult<impl IntoIterator<Item = StatusKind>> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::StatusCondition(
@@ -74,7 +65,7 @@ impl StatusConditionAsync {
             .send(DcpsMail::StatusCondition(
                 StatusConditionMail::SetStatusConditionEnabledStatuses {
                     entity: self.entity.clone(),
-                    status_mask: mask.to_vec(),
+                    status_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))

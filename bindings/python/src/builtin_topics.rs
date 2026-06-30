@@ -8,7 +8,7 @@ use crate::infrastructure::qos_policy::{
     TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct BuiltInTopicKey(dust_dds::builtin_topics::BuiltInTopicKey);
 
@@ -25,7 +25,7 @@ impl BuiltInTopicKey {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct ParticipantBuiltinTopicData(dust_dds::builtin_topics::ParticipantBuiltinTopicData);
 
@@ -46,7 +46,7 @@ impl ParticipantBuiltinTopicData {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct TopicBuiltinTopicData(dust_dds::builtin_topics::TopicBuiltinTopicData);
 
@@ -119,7 +119,7 @@ impl TopicBuiltinTopicData {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct PublicationBuiltinTopicData(dust_dds::builtin_topics::PublicationBuiltinTopicData);
 
@@ -200,7 +200,7 @@ impl PublicationBuiltinTopicData {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SubscriptionBuiltinTopicData(dust_dds::builtin_topics::SubscriptionBuiltinTopicData);
 

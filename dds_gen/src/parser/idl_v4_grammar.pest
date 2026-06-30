@@ -175,7 +175,7 @@ definition = {
 // (3)
 module_dcl = { "module" ~ identifier ~ "{" ~ definition+ ~ "}" }
 // (4)
-scoped_name = { "::"? ~ identifier ~ ("::" ~ identifier)* }
+scoped_name = ${ "::"? ~ identifier ~ ("::" ~ identifier)* }
 // (5)
 const_dcl = { "const" ~ const_type ~ identifier ~ "=" ~ const_expr }
 // (6)

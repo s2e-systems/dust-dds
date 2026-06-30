@@ -9,13 +9,12 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
-        type_support::TypeSupport,
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     std_runtime::executor::{block_on, block_timeout},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
-    xtypes::dynamic_type::DynamicType,
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -37,6 +36,7 @@ use alloc::{string::String, vec::Vec};
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 ///   [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
+#[derive(Clone)]
 pub struct DomainParticipant {
     participant_async: DomainParticipantAsync,
 }
@@ -161,7 +161,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-        dynamic_type_representation: DynamicType,
+        dynamic_type_representation: DynamicType<'static>,
     ) -> DdsResult<TopicDescription> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,

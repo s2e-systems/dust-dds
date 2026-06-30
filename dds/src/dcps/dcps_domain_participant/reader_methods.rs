@@ -8,6 +8,7 @@ use crate::{
         dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
+        status_mask::StatusMask,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -34,7 +35,7 @@ impl DcpsDomainParticipant {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let subscriber = if subscriber_handle == &self.domain_participant.instance_handle {
             Some(&mut self.domain_participant.builtin_subscriber)
         } else {
@@ -76,7 +77,7 @@ impl DcpsDomainParticipant {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -112,7 +113,7 @@ impl DcpsDomainParticipant {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -148,7 +149,7 @@ impl DcpsDomainParticipant {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData>, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -376,7 +377,7 @@ impl DcpsDomainParticipant {
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataReaderListener>,
-        listener_mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self

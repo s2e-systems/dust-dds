@@ -1,13 +1,10 @@
 use alloc::{boxed::Box, string::String, vec::Vec};
 use dust_dds_derive::DdsType;
 
-use crate::{
-    infrastructure::type_support::TypeSupport,
-    xtypes::{
-        dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
-        error::XTypesError,
-        serializer::serialize_cdr2_le,
-    },
+use crate::xtypes::{
+    dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+    serializer::serialize_without_header_cdr2_le,
+    type_support::TypeSupport,
 };
 
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
@@ -15,107 +12,171 @@ use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
 /* Manually created from dds-xtypes_typeobject.idl */
 
 // ---------- Equivalence Kinds -------------------
+/// The kind of equivalence relation used for a type representation.
 pub type EquivalenceKind = u8;
+/// Represents the minimal equivalence kind.
 pub const EK_MINIMAL: EquivalenceKind = 0xF1; // 0x1111 0001
+/// Represents the complete equivalence kind.
 pub const EK_COMPLETE: EquivalenceKind = 0xF2; // 0x1111 0010
+/// Represents both minimal and complete equivalence kinds.
 pub const EK_BOTH: EquivalenceKind = 0xF3; // 0x1111 0011
 
 // ---------- TypeKinds (begin) -------------------
 // Primitive TKs
+/// Represents no type kind.
 pub const TK_NONE: u8 = 0x00;
+/// Represents the boolean type kind.
 pub const TK_BOOLEAN: u8 = 0x01;
+/// Represents the byte type kind.
 pub const TK_BYTE: u8 = 0x02;
+/// Represents the signed 16-bit integer type kind.
 pub const TK_INT16: u8 = 0x03;
+/// Represents the signed 32-bit integer type kind.
 pub const TK_INT32: u8 = 0x04;
+/// Represents the signed 64-bit integer type kind.
 pub const TK_INT64: u8 = 0x05;
+/// Represents the unsigned 16-bit integer type kind.
 pub const TK_UINT16: u8 = 0x06;
+/// Represents the unsigned 32-bit integer type kind.
 pub const TK_UINT32: u8 = 0x07;
+/// Represents the unsigned 64-bit integer type kind.
 pub const TK_UINT64: u8 = 0x08;
+/// Represents the single-precision floating-point type kind.
 pub const TK_FLOAT32: u8 = 0x09;
+/// Represents the double-precision floating-point type kind.
 pub const TK_FLOAT64: u8 = 0x0A;
+/// Represents the 128-bit floating-point type kind.
 pub const TK_FLOAT128: u8 = 0x0B;
+/// Represents the signed 8-bit integer type kind.
 pub const TK_INT8: u8 = 0x0C;
+/// Represents the unsigned 8-bit integer type kind.
 pub const TK_UINT8: u8 = 0x0D;
+/// Represents the 8-bit character type kind.
 pub const TK_CHAR8: u8 = 0x10;
+/// Represents the 16-bit character type kind.
 pub const TK_CHAR16: u8 = 0x11;
 
 // String TKs
+/// Represents the 8-bit string type kind.
 pub const TK_STRING8: u8 = 0x20;
+/// Represents the 16-bit string type kind.
 pub const TK_STRING16: u8 = 0x21;
 
 // Constructed/Named types
+/// Represents the alias type kind.
 pub const TK_ALIAS: u8 = 0x30;
 
 // Enumerated TKs
+/// Represents the enumeration type kind.
 pub const TK_ENUM: u8 = 0x40;
+/// Represents the bitmask type kind.
 pub const TK_BITMASK: u8 = 0x41;
 
 // Structured TKs
+/// Represents the annotation type kind.
 pub const TK_ANNOTATION: u8 = 0x50;
+/// Represents the structure type kind.
 pub const TK_STRUCTURE: u8 = 0x51;
+/// Represents the union type kind.
 pub const TK_UNION: u8 = 0x52;
+/// Represents the bitset type kind.
 pub const TK_BITSET: u8 = 0x53;
 
 // Collection TKs
+/// Represents the sequence type kind.
 pub const TK_SEQUENCE: u8 = 0x60;
+/// Represents the array type kind.
 pub const TK_ARRAY: u8 = 0x61;
+/// Represents the map type kind.
 pub const TK_MAP: u8 = 0x62;
 // ---------- TypeKinds (end) -------------------
 
 // ---------- Extra TypeIdentifiers (begin) ------------
+/// The kind of extra type identifiers.
 pub type TypeIdentiferKind = u8;
+/// Represents a small 8-bit string type identifier.
 pub const TI_STRING8_SMALL: u8 = 0x70;
+/// Represents a large 8-bit string type identifier.
 pub const TI_STRING8_LARGE: u8 = 0x71;
+/// Represents a small 16-bit string type identifier.
 pub const TI_STRING16_SMALL: u8 = 0x72;
+/// Represents a large 16-bit string type identifier.
 pub const TI_STRING16_LARGE: u8 = 0x73;
+/// Represents a small plain sequence type identifier.
 pub const TI_PLAIN_SEQUENCE_SMALL: u8 = 0x80;
+/// Represents a large plain sequence type identifier.
 pub const TI_PLAIN_SEQUENCE_LARGE: u8 = 0x81;
+/// Represents a small plain array type identifier.
 pub const TI_PLAIN_ARRAY_SMALL: u8 = 0x90;
+/// Represents a large plain array type identifier.
 pub const TI_PLAIN_ARRAY_LARGE: u8 = 0x91;
+/// Represents a small plain map type identifier.
 pub const TI_PLAIN_MAP_SMALL: u8 = 0xA0;
+/// Represents a large plain map type identifier.
 pub const TI_PLAIN_MAP_LARGE: u8 = 0xA1;
+/// Represents a strongly connected component type identifier.
 pub const TI_STRONGLY_CONNECTED_COMPONENT: u8 = 0xB0;
 // ---------- Extra TypeIdentifiers (end) --------------
 
 // The name of some element (e.g. type, type member, module)
 // Valid characters are alphanumeric plus the "_" cannot start with digit
+/// The maximum length of a member name.
 pub const MEMBER_NAME_MAX_LENGTH: i32 = 256;
+/// Type alias for a member name.
 pub type MemberName = String; //string<MEMBER_NAME_MAX_LENGTH>
 
 // Qualified type name includes the name of containing modules
 // using "::" as separator. No leading "::". E.g. "MyModule::MyType"
+/// The maximum length of a type name.
 pub const TYPE_NAME_MAX_LENGTH: i32 = 256;
+/// Type alias for a qualified type name.
 pub type QualifiedTypeName = String; //string<TYPE_NAME_MAX_LENGTH>
 
+/// Type alias for a primitive type ID.
 // Every type has an ID. Those of the primitive types are pre-defined.
 pub type PrimitiveTypeId = u8;
 
+/// Hash representing the equivalence of a TypeObject.
 // First 14 bytes of MD5 of the serialized TypeObject using XCDR
 // version 2 with Little Endian encoding
 pub type EquivalenceHash = [u8; 14];
 
+/// Hash representing a member name.
 // First 4 bytes of MD5 of of a member name converted to bytes
 // using UTF-8 encoding and without a 'nul' terminator.
 // Example: the member name "color" has NameHash {0x70, 0xDD, 0xA5, 0xDF}
 pub type NameHash = [u8; 4];
 
-// Long Bound of a collection type
+/// Long bound representation.
 pub type LBound = u32;
+/// Sequence of long bounds.
 pub type LBoundSeq = Vec<LBound>;
+/// Value representing an invalid long bound.
 pub const INVALID_LBOUND: LBound = 0;
 
-// Short Bound of a collection type
+/// Short bound representation.
 pub type SBound = u8;
+/// Sequence of short bounds.
 pub type SBoundSeq = Vec<SBound>;
+/// Value representing an invalid short bound.
 pub const INVALID_SBOUND: SBound = 0;
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Unique identifier for a TypeObject based on its equivalence hash.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeObjectHashId {
+    /// The hash for a complete TypeObject representation.
     #[dust_dds(case=EK_COMPLETE)]
-    EkComplete { hash: EquivalenceHash },
+    EkComplete {
+        /// The 14-byte MD5 equivalence hash of the complete TypeObject.
+        hash: EquivalenceHash,
+    },
+    /// The hash for a minimal TypeObject representation.
     #[dust_dds(case=EK_MINIMAL)]
-    EkMinimal { hash: EquivalenceHash },
+    EkMinimal {
+        /// The 14-byte MD5 equivalence hash of the minimal TypeObject.
+        hash: EquivalenceHash,
+    },
 }
 
 // Flags that apply to struct/union/collection/enum/bitmask/bitset
@@ -123,7 +184,8 @@ pub enum TypeObjectHashId {
 // Depending on the flag it may not apply to members of all types
 // When not all, the applicable member types are listed
 
-#[derive(Debug, Clone, Copy, DdsType)]
+/// Flags that apply to struct/union/collection/enum/bitmask/bitset members/elements and affect type assignability.
+#[derive(Debug, Clone, Copy, DdsType, Eq)]
 pub struct MemberFlag(u16);
 
 impl PartialEq for MemberFlag {
@@ -146,33 +208,51 @@ impl core::ops::BitOrAssign for MemberFlag {
     }
 }
 
+/// Flag indicating try construct behavior bit 1.
 pub const MEMBER_FLAG_TRY_CONSTRUCT1: MemberFlag = MemberFlag(1 << 0); // T1 | 00 = INVALID, 01 = DISCARD
+/// Flag indicating try construct behavior bit 2.
 pub const MEMBER_FLAG_TRY_CONSTRUCT2: MemberFlag = MemberFlag(1 << 1); // T2 | 10 = USE_DEFAULT, 11 = TRIM
+/// Flag indicating the member is external (allocated out-of-line).
 pub const MEMBER_FLAG_IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructMember, UnionMember,
 // CollectionElement
+/// Flag indicating the member is optional.
 pub const MEMBER_FLAG_IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
+/// Flag indicating the member must be understood by the reader.
 pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
+/// Flag indicating the member is part of the type's key.
 pub const MEMBER_FLAG_IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
+/// Flag indicating the member is the default member (e.g. for unions).
 pub const MEMBER_FLAG_IS_DEFAULT: MemberFlag = MemberFlag(1 << 6); // D UnionMember, EnumerationLiteral
 
+/// Flags that apply to collection elements.
 pub type CollectionElementFlag = MemberFlag; // T1, T2, X
 
+/// Flags that apply to structure members.
 pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
+/// Flags that apply to union members.
 pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
+/// Flags that apply to union discriminator.
 pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
+/// Flags that apply to enumerated literals.
 pub type EnumeratedLiteralFlag = MemberFlag; // D
+/// Flags that apply to annotation parameters.
 pub type AnnotationParameterFlag = MemberFlag; // Unused. No flags apply
+/// Flags that apply to alias members.
 pub type AliasMemberFlag = MemberFlag; // Unused. No flags apply
+/// Flags that apply to bitflags.
 pub type BitflagFlag = MemberFlag; // Unused. No flags apply
+/// Flags that apply to bitset members.
 pub type BitsetMemberFlag = MemberFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
 // Selects T1, T2, O, M, K, D
+/// Mask selecting member flags that affect minimal equivalence checking.
 pub const MEMBER_FLAG_MINIMAL_MASK: MemberFlag = MemberFlag(0x003f);
 // Flags that apply to type declarationa and DO affect assignability
 // Depending on the flag it may not apply to all types
 // When not all, the applicable types are listed
 
+/// Flags that apply to type declarations and affect type assignability.
 #[derive(DdsType, Debug, Clone)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct TypeFlag(u16);
@@ -196,209 +276,330 @@ impl core::ops::BitOrAssign for TypeFlag {
     }
 }
 
+/// Flag indicating the type is final (cannot be extended).
 pub const TYPE_FLAG_IS_FINAL: TypeFlag = TypeFlag(1 << 0); // F
+/// Flag indicating the type is appendable (new members can be added at the end).
 pub const TYPE_FLAG_IS_APPENDABLE: TypeFlag = TypeFlag(1 << 1); // A |- Struct, Union
+/// Flag indicating the type is mutable (members can be added, removed, or reordered).
 pub const TYPE_FLAG_IS_MUTABLE: TypeFlag = TypeFlag(1 << 2); // M | (exactly one flag)
+/// Flag indicating the type is nested inside another type.
 pub const TYPE_FLAG_IS_NESTED: TypeFlag = TypeFlag(1 << 3); // N Struct, Union
+/// Flag indicating member IDs are automatically assigned based on hash.
 pub const TYPE_FLAG_IS_AUTOID_HASH: TypeFlag = TypeFlag(1 << 4); // H Struct
 
+/// Type flags that apply to structures.
 pub type StructTypeFlag = TypeFlag; // All flags apply
+/// Type flags that apply to unions.
 pub type UnionTypeFlag = TypeFlag; // All flags apply
+/// Type flags that apply to collections.
 pub type CollectionTypeFlag = TypeFlag; // Unused. No flags apply
+/// Type flags that apply to annotations.
 pub type AnnotationTypeFlag = TypeFlag; // Unused. No flags apply
+/// Type flags that apply to aliases.
 pub type AliasTypeFlag = TypeFlag; // Unused. No flags apply
+/// Type flags that apply to enumerations.
 pub type EnumTypeFlag = TypeFlag; // Unused. No flags apply
+/// Type flags that apply to bitmasks.
 pub type BitmaskTypeFlag = TypeFlag; // Unused. No flags apply
+/// Type flags that apply to bitsets.
 pub type BitsetTypeFlag = TypeFlag; // Unused. No flags apply
 
 // Mask used to remove the flags that do no affect assignability
+/// Mask selecting type flags that affect minimal equivalence checking.
 pub const TYPE_FLAG_MINIMAL_MASK: TypeFlag = TypeFlag(0x0007); // Selects M, A, F
 
 // 1 Byte
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a small string type (bound <= 255).
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringSTypeDefn {
+    /// The short bound (maximum length) of the string.
     pub bound: SBound,
 }
 // 4 Bytes
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a large string type (bound > 255).
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct StringLTypeDefn {
+    /// The long bound (maximum length) of the string.
     pub bound: LBound,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Common header for plain collection types (sequence, array, map).
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainCollectionHeader {
+    /// The equivalence kind of the collection.
     pub equiv_kind: EquivalenceKind,
+    /// Flags that apply to the elements of the collection.
     pub element_flags: CollectionElementFlag,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain sequence with a small bound.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceSElemDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The small bound (maximum number of elements).
     pub bound: SBound,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain sequence with a large bound.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainSequenceLElemDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The large bound (maximum number of elements).
     pub bound: LBound,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain array with small bounds.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArraySElemDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The sequence of small bounds for each dimension.
     pub array_bound_seq: SBoundSeq,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain array with large bounds.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainArrayLElemDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The sequence of large bounds for each dimension.
     pub array_bound_seq: LBoundSeq,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain map with a small bound.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapSTypeDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The small bound (maximum number of key-value pairs).
     pub bound: SBound,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
+    /// Flags that apply to the keys of the map.
     pub key_flags: CollectionElementFlag,
+    /// The identifier of the key type.
     #[dust_dds(external)]
     pub key_identifier: Box<TypeIdentifier>,
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Definition of a plain map with a large bound.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct PlainMapLTypeDefn {
+    /// The header containing collection properties.
     pub header: PlainCollectionHeader,
+    /// The large bound (maximum number of key-value pairs).
     pub bound: LBound,
+    /// The identifier of the element type.
     #[dust_dds(external)]
     pub element_identifier: Box<TypeIdentifier>,
+    /// Flags that apply to the keys of the map.
     pub key_flags: CollectionElementFlag,
+    /// The identifier of the key type.
     #[dust_dds(external)]
     pub key_identifier: Box<TypeIdentifier>,
 }
 
-// Used for Types that have cyclic depencencies with other types
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Identifier for a type that belongs to a strongly connected component (has cyclic dependencies).
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct StronglyConnectedComponentId {
+    /// The hash of the strongly connected component.
     pub sc_component_id: TypeObjectHashId, // Hash StronglyConnectedComponent
-    pub scc_length: i32,                   // StronglyConnectedComponent.length
-    pub scc_index: i32,                    // identify type in Strongly Connected Comp.
+    /// The number of types in the strongly connected component.
+    pub scc_length: i32, // StronglyConnectedComponent.length
+    /// The 0-based index identifying this specific type within the strongly connected component.
+    pub scc_index: i32, // identify type in Strongly Connected Comp.
 }
-// Future extensibility
+/// Structure representing future extensions to type definitions.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct ExtendedTypeDefn {
     // Empty. Available for future extension
 }
 
-// The TypeIdentifier uniquely identifies a type (a set of equivalent
-// types according to an equivalence relationship: COMPLETE, MNIMAL).
-//
-// In some cases (primitive types, strings, plain types) the identifier
-// is a explicit description of the type.
-// In other cases the Identifier is a Hash of the type description
-//
-// In the of primitive types and strings the implied equivalence
-// relation is the identity.
-//
-// For Plain Types and Hash-defined TypeIdentifiers there are three
-// possibilities: MINIMAL, COMPLETE, and COMMON:
-// - MINIMAL indicates the TypeIdentifier identifies equivalent types
-// according to the MINIMAL equivalence relation
-// - COMPLETE indicates the TypeIdentifier identifies equivalent types
-// according to the COMPLETE equivalence relation
-// - COMMON indicates the TypeIdentifier identifies equivalent types
-// according to both the MINIMAL and the COMMON equivalence relation.
-// This means the TypeIdentifier is the same for both relationships
-//
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// The TypeIdentifier uniquely identifies a type (a set of equivalent
+/// types according to an equivalence relationship: COMPLETE, MNIMAL).
+///
+/// In some cases (primitive types, strings, plain types) the identifier
+/// is a explicit description of the type.
+/// In other cases the Identifier is a Hash of the type description
+///
+/// In the of primitive types and strings the implied equivalence
+/// relation is the identity.
+///
+/// For Plain Types and Hash-defined TypeIdentifiers there are three
+/// possibilities: MINIMAL, COMPLETE, and COMMON:
+/// - MINIMAL indicates the TypeIdentifier identifies equivalent types
+///   according to the MINIMAL equivalence relation
+/// - COMPLETE indicates the TypeIdentifier identifies equivalent types
+///   according to the COMPLETE equivalence relation
+/// - COMMON indicates the TypeIdentifier identifies equivalent types
+///   according to both the MINIMAL and the COMMON equivalence relation.
+///   This means the TypeIdentifier is the same for both relationships
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum TypeIdentifier {
+    /// No type.
     #[dust_dds(case=TK_NONE)]
     TkNone,
+    /// Boolean type.
     #[dust_dds(case=TK_BOOLEAN)]
     TkBoolean,
+    /// Byte type.
     #[dust_dds(case=TK_BYTE)]
     TkByteType,
+    /// Signed 8-bit integer type.
     #[dust_dds(case=TK_INT8)]
     TkInt8Type,
+    /// Signed 16-bit integer type.
     #[dust_dds(case=TK_INT16)]
     TkInt16Type,
+    /// Signed 32-bit integer type.
     #[dust_dds(case=TK_INT32)]
     TkInt32Type,
+    /// Signed 64-bit integer type.
     #[dust_dds(case=TK_INT64)]
     TkInt64Type,
+    /// Unsigned 8-bit integer type.
     #[dust_dds(case=TK_UINT8)]
     TkUint8Type,
+    /// Unsigned 16-bit integer type.
     #[dust_dds(case=TK_UINT16)]
     TkUint16Type,
+    /// Unsigned 32-bit integer type.
     #[dust_dds(case=TK_UINT32)]
     TkUint32Type,
+    /// Unsigned 64-bit integer type.
     #[dust_dds(case=TK_UINT64)]
     TkUint64Type,
+    /// Single-precision floating-point type.
     #[dust_dds(case=TK_FLOAT32)]
     TkFloat32Type,
+    /// Double-precision floating-point type.
     #[dust_dds(case=TK_FLOAT64)]
     TkFloat64Type,
+    /// 128-bit floating-point type.
     #[dust_dds(case=TK_FLOAT128)]
     TkFloat128Type,
+    /// 8-bit character type.
     #[dust_dds(case=TK_CHAR8)]
     TkChar8Type,
+    /// 16-bit character type.
     #[dust_dds(case=TK_CHAR16)]
     TkChar16Type,
     // ============ Strings - use TypeIdentifierKind ===================
+    /// Small 8-bit string type definition.
     #[dust_dds(case=TI_STRING8_SMALL)]
-    TiString8Small { string_sdefn: StringSTypeDefn },
+    TiString8Small {
+        /// The string definition.
+        string_sdefn: StringSTypeDefn,
+    },
+    /// Small 16-bit string type definition.
     #[dust_dds(case=TI_STRING16_SMALL)]
-    TiString16Small { string_sdefn: StringSTypeDefn },
+    TiString16Small {
+        /// The string definition.
+        string_sdefn: StringSTypeDefn,
+    },
+    /// Large 8-bit string type definition.
     #[dust_dds(case=TI_STRING8_LARGE)]
-    TiString8Large { string_ldefn: StringLTypeDefn },
+    TiString8Large {
+        /// The string definition.
+        string_ldefn: StringLTypeDefn,
+    },
+    /// Large 16-bit string type definition.
     #[dust_dds(case=TI_STRING16_LARGE)]
-    TiString16Large { string_ldefn: StringLTypeDefn },
+    TiString16Large {
+        /// The string definition.
+        string_ldefn: StringLTypeDefn,
+    },
     // ============ Plain collectios - use TypeIdentifierKind =========
+    /// Small plain sequence type identifier.
     #[dust_dds(case=TI_PLAIN_SEQUENCE_SMALL)]
-    TiPlainSequenceSmall { seq_sdefn: PlainSequenceSElemDefn },
+    TiPlainSequenceSmall {
+        /// The sequence definition.
+        seq_sdefn: PlainSequenceSElemDefn,
+    },
+    /// Large plain sequence type identifier.
     #[dust_dds(case=TI_PLAIN_SEQUENCE_LARGE)]
-    TiPlainSequenceLarge { seq_ldefn: PlainSequenceLElemDefn },
+    TiPlainSequenceLarge {
+        /// The sequence definition.
+        seq_ldefn: PlainSequenceLElemDefn,
+    },
+    /// Small plain array type identifier.
     #[dust_dds(case=TI_PLAIN_ARRAY_SMALL)]
-    TiPlainArraySmall { array_sdefn: PlainArraySElemDefn },
+    TiPlainArraySmall {
+        /// The array definition.
+        array_sdefn: PlainArraySElemDefn,
+    },
+    /// Large plain array type identifier.
     #[dust_dds(case=TI_PLAIN_ARRAY_LARGE)]
-    TiPlainArrayLarge { array_ldefn: PlainArrayLElemDefn },
+    TiPlainArrayLarge {
+        /// The array definition.
+        array_ldefn: PlainArrayLElemDefn,
+    },
+    /// Small plain map type identifier.
     #[dust_dds(case=TI_PLAIN_MAP_SMALL)]
-    TiPlainMapSmall { map_sdefn: PlainMapSTypeDefn },
+    TiPlainMapSmall {
+        /// The map definition.
+        map_sdefn: PlainMapSTypeDefn,
+    },
+    /// Large plain map type identifier.
     #[dust_dds(case=TI_PLAIN_MAP_LARGE)]
-    TiPlainMapLarge { map_ldefn: PlainMapLTypeDefn },
+    TiPlainMapLarge {
+        /// The map definition.
+        map_ldefn: PlainMapLTypeDefn,
+    },
     // ============ Types that are mutually dependent on each other ===
+    /// Type identifier for a strongly connected component.
     #[dust_dds(case=TI_STRONGLY_CONNECTED_COMPONENT)]
     TiStronglyConnectedComponent {
+        /// The strongly connected component ID.
         sc_component_id: StronglyConnectedComponentId,
     },
     // ============ The remaining cases - use EquivalenceKind =========
+    /// Type identifier based on the complete equivalence hash.
     #[dust_dds(case=EK_COMPLETE)]
-    EkComplete { equivalence_hash: EquivalenceHash },
+    EkComplete {
+        /// The complete equivalence hash.
+        equivalence_hash: EquivalenceHash,
+    },
+    /// Type identifier based on the minimal equivalence hash.
     #[dust_dds(case=EK_MINIMAL)]
-    EkMinimal { equivalence_hash: EquivalenceHash },
+    EkMinimal {
+        /// The minimal equivalence hash.
+        equivalence_hash: EquivalenceHash,
+    },
     // =================== Future extensibility ============
+    /// Default case for future extensibility.
     #[dust_dds(default)]
-    Default { extended_type: MinimalExtendedType },
+    Default {
+        /// The extended type information.
+        extended_type: MinimalExtendedType,
+    },
 }
 
 impl Default for TypeIdentifier {
@@ -409,845 +610,1258 @@ impl Default for TypeIdentifier {
     }
 }
 
+/// Sequence of type identifiers.
 pub type TypeIdentifierSeq = Vec<TypeIdentifier>;
 
 // --- Annotation usage: -----------------------------------------------
-// ID of a type member
+/// Unique ID of a type member.
 pub type MemberId = u32;
+/// Maximum length of an annotation string value.
 pub const ANNOTATION_STR_VALUE_MAX_LEN: u32 = 128;
+/// Maximum length of an annotation octet sequence value.
 pub const ANNOTATION_OCTETSEC_VALUE_MAX_LEN: u32 = 128;
 
+/// Structure representing future extensions to annotation parameter values.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct ExtendedAnnotationParameterValue {
     // Empty. Available for future extension
 }
 
-/* Literal value of an annotation member: either the default value in its
-* definition or the value applied in its usage.
-*/
+/// Literal value of an annotation member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum AnnotationParameterValue {
+    /// Boolean value.
     #[dust_dds(case=TK_BOOLEAN)]
-    TkBoolean { boolean_value: bool },
+    TkBoolean {
+        /// The boolean value.
+        boolean_value: bool,
+    },
+    /// Byte value.
     #[dust_dds(case=TK_BYTE)]
-    TkByte { byte_value: u8 },
+    TkByte {
+        /// The byte value.
+        byte_value: u8,
+    },
+    /// Signed 8-bit integer value.
     #[dust_dds(case=TK_INT8)]
-    TkInt8 { int8_value: i8 },
+    TkInt8 {
+        /// The signed 8-bit integer value.
+        int8_value: i8,
+    },
+    /// Unsigned 8-bit integer value.
     #[dust_dds(case=TK_UINT8)]
-    TkUint8 { uint8_value: u8 },
+    TkUint8 {
+        /// The unsigned 8-bit integer value.
+        uint8_value: u8,
+    },
+    /// Signed 16-bit integer value.
     #[dust_dds(case=TK_INT16)]
-    TkInt16 { int16_value: i16 },
+    TkInt16 {
+        /// The signed 16-bit integer value.
+        int16_value: i16,
+    },
+    /// Unsigned 16-bit integer value.
     #[dust_dds(case=TK_UINT16)]
-    TkUint16 { uint_16_value: u16 },
+    TkUint16 {
+        /// The unsigned 16-bit integer value.
+        uint_16_value: u16,
+    },
+    /// Signed 32-bit integer value.
     #[dust_dds(case=TK_INT32)]
-    TkInt32 { int32_value: i32 },
+    TkInt32 {
+        /// The signed 32-bit integer value.
+        int32_value: i32,
+    },
+    /// Unsigned 32-bit integer value.
     #[dust_dds(case=TK_UINT32)]
-    TkUint32 { uint32_value: u32 },
+    TkUint32 {
+        /// The unsigned 32-bit integer value.
+        uint32_value: u32,
+    },
+    /// Signed 64-bit integer value.
     #[dust_dds(case=TK_INT64)]
-    TkInt64 { int64_value: i64 },
+    TkInt64 {
+        /// The signed 64-bit integer value.
+        int64_value: i64,
+    },
+    /// Unsigned 64-bit integer value.
     #[dust_dds(case=TK_UINT64)]
-    TkUint64 { uint64_value: u64 },
+    TkUint64 {
+        /// The unsigned 64-bit integer value.
+        uint64_value: u64,
+    },
+    /// Single-precision floating-point value.
     #[dust_dds(case=TK_FLOAT32)]
-    TkFloat32 { float32_value: f32 },
+    TkFloat32 {
+        /// The single-precision floating-point value.
+        float32_value: f32,
+    },
+    /// Double-precision floating-point value.
     #[dust_dds(case=TK_FLOAT64)]
-    TkFloat64 { float64_value: f64 },
+    TkFloat64 {
+        /// The double-precision floating-point value.
+        float64_value: f64,
+    },
     // TkFloat128 {
     //     float128_value: i128,
     // },
+    /// 8-bit character value.
     #[dust_dds(case=TK_CHAR8)]
-    TkChar8 { char_value: char },
+    TkChar8 {
+        /// The 8-bit character value.
+        char_value: char,
+    },
     // TypeKind::CHAR16 {
     // wchar_value: char16},
+    /// Enumerated value represented as an integer.
     #[dust_dds(case=TK_ENUM)]
-    TkEnum { enumerated_value: i32 },
+    TkEnum {
+        /// The enumerated value.
+        enumerated_value: i32,
+    },
+    /// 8-bit string value.
     #[dust_dds(case=TK_STRING8)]
     TkString8 {
+        /// The string value.
         string8_value: String, /*string<ANNOTATION_STR_VALUE_MAX_LEN>  */
     },
     // TypeKind::STRING16:
     // wstring<ANNOTATION_STR_VALUE_MAX_LEN> string16_value;
+    /// Default case for future extensibility.
     #[dust_dds(default)]
     Default {
+        /// The extended value.
         extended_value: ExtendedAnnotationParameterValue,
     },
 }
 
-// The application of an annotation to some type or type member
+/// The application of an annotation parameter to a member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedAnnotationParameter {
+    /// Hash of the parameter name.
     pub paramname_hash: NameHash,
+    /// Value of the annotation parameter.
     pub value: AnnotationParameterValue,
 }
-// Sorted by AppliedAnnotationParameter.paramname_hash
+
+/// Sequence of applied annotation parameters.
 pub type AppliedAnnotationParameterSeq = Vec<AppliedAnnotationParameter>;
 
+/// The application of an annotation to a type or type member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedAnnotation {
+    /// The type identifier of the annotation.
     pub annotation_typeid: TypeIdentifier,
+    /// Sequence of parameters applied to the annotation.
     #[dust_dds(optional)]
     pub param_seq: Option<AppliedAnnotationParameterSeq>,
 }
-// Sorted by AppliedAnnotation.annotation_typeid
+/// Sequence of applied annotations.
 pub type AppliedAnnotationSeq = Vec<AppliedAnnotation>;
-// @verbatim(placement="<placement>", language="<lang>", text="<text>")
+/// Verbatim annotation representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct AppliedVerbatimAnnotation {
+    /// Where the verbatim text should be placed.
     pub placement: String, //string<32>
-    pub language: String,  //string<32>
+    /// The language/format of the verbatim text.
+    pub language: String, //string<32>
+    /// The verbatim text content.
     pub text: String,
 }
 
 // --- Aggregate types: ------------------------------------------------
+/// Applied builtin annotations for a member (e.g., unit, min, max, hash_id).
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedBuiltinMemberAnnotations {
+    /// The unit associated with the member.
     #[dust_dds(optional)]
     pub unit: Option<String>, // @unit("<unit>")
+    /// The minimum value allowed for the member.
     #[dust_dds(optional)]
     pub min: Option<AnnotationParameterValue>, // @min , @range
+    /// The maximum value allowed for the member.
     #[dust_dds(optional)]
     pub max: Option<AnnotationParameterValue>, // @max , @range
+    /// The hash ID of the member name.
     #[dust_dds(optional)]
     pub hash_id: Option<String>, // @hashid("<membername>")
 }
 
+/// Common properties for a struct member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonStructMember {
+    /// The unique ID of the member.
     pub member_id: MemberId,
+    /// Flags associated with the structure member.
     pub member_flags: StructMemberFlag,
+    /// The TypeIdentifier of the member type.
     pub member_type_id: TypeIdentifier,
 }
 
-// COMPLETE Details for a member of an aggregate type
+/// Complete details of a member in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteMemberDetail {
+    /// The name of the member.
     pub name: MemberName,
+    /// Builtin annotations applied to the member.
     #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    /// Custom annotations applied to the member.
     #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
-// MINIMAL Details for a member of an aggregate type
+/// Minimal details of a member in a minimal TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalMemberDetail {
+    /// The hash of the member name.
     pub name_hash: NameHash,
 }
 
-// Member of an aggregate type
+/// Complete structure representing a struct member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteStructMember {
+    /// Common member properties.
     pub common: CommonStructMember,
+    /// Detailed complete properties (name, annotations).
     pub detail: CompleteMemberDetail,
 }
-// Ordered by the member_index
+/// Sequence of complete struct members.
 pub type CompleteStructMemberSeq = Vec<CompleteStructMember>;
-// Member of an aggregate type
+/// Minimal structure representing a struct member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalStructMember {
+    /// Common member properties.
     pub common: CommonStructMember,
+    /// Detailed minimal properties (name hash).
     pub detail: MinimalMemberDetail,
 }
-// Ordered by common.member_id
+/// Sequence of minimal struct members.
 pub type MinimalStructMemberSeq = Vec<MinimalStructMember>;
+/// Builtin annotations applied to a type definition.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct AppliedBuiltinTypeAnnotations {
+    /// Verbatim annotation applied to the type.
     #[dust_dds(optional)]
     pub verbatim: Option<AppliedVerbatimAnnotation>, // @verbatim(...)
 }
 
+/// Minimal details of a type definition.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalTypeDetail {
     // Empty. Available for future extension
 }
 
+/// Complete details of a type definition.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteTypeDetail {
+    /// Builtin annotations applied to the type.
     #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinTypeAnnotations>,
+    /// Custom annotations applied to the type.
     #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
+    /// The qualified name of the type.
     pub type_name: QualifiedTypeName,
 }
 
+/// Header for a complete struct type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteStructHeader {
+    /// The TypeIdentifier of the base type, if any.
     pub base_type: TypeIdentifier,
+    /// Detailed complete properties of the struct type.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal struct type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalStructHeader {
+    /// The TypeIdentifier of the base type, if any.
     pub base_type: TypeIdentifier,
+    /// Detailed minimal properties of the struct type.
     pub detail: MinimalTypeDetail,
 }
 
+/// Complete struct type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteStructType {
+    /// Flags associated with the structure type.
     pub struct_flags: StructTypeFlag,
+    /// The header containing base type and details.
     pub header: CompleteStructHeader,
+    /// The sequence of members in the structure.
     pub member_seq: CompleteStructMemberSeq,
 }
 
+/// Minimal struct type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalStructType {
+    /// Flags associated with the structure type.
     pub struct_flags: StructTypeFlag,
+    /// The header containing base type and details.
     pub header: MinimalStructHeader,
+    /// The sequence of members in the structure.
     pub member_seq: MinimalStructMemberSeq,
 }
 
 // --- Union: ----------------------------------------------------------
-// labels that apply to a member of a union type
-// Ordered by their values
+/// Sequence of union case labels.
 pub type UnionCaseLabelSeq = Vec<i32>;
 
+/// Common properties of a union member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonUnionMember {
+    /// The unique ID of the member.
     pub member_id: MemberId,
+    /// Flags associated with the union member.
     pub member_flags: UnionMemberFlag,
+    /// The TypeIdentifier of the member type.
     pub type_id: TypeIdentifier,
+    /// The case labels associated with this union member.
     pub label_seq: UnionCaseLabelSeq,
 }
 
-// Member of a union type
+/// Complete details of a union member in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteUnionMember {
+    /// Common union member properties.
     pub common: CommonUnionMember,
+    /// Detailed complete properties (name, annotations) of the union member.
     pub detail: CompleteMemberDetail,
 }
-// Ordered by member_index
+/// Sequence of complete union members.
 pub type CompleteUnionMemberSeq = Vec<CompleteUnionMember>;
 
-// Member of a union type
+/// Minimal details of a union member in a minimal TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalUnionMember {
+    /// Common union member properties.
     pub common: CommonUnionMember,
+    /// Detailed minimal properties (name hash) of the union member.
     pub detail: MinimalMemberDetail,
 }
-// Ordered by MinimalUnionMember.common.member_id
+/// Sequence of minimal union members.
 pub type MinimalUnionMemberSeq = Vec<MinimalUnionMember>;
 
+/// Common properties of a union discriminator member.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonDiscriminatorMember {
+    /// Flags associated with the union discriminator.
     pub member_flags: UnionDiscriminatorFlag,
+    /// The TypeIdentifier of the discriminator type.
     pub type_id: TypeIdentifier,
 }
-// Member of a union type
+/// Complete details of a union discriminator member in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteDiscriminatorMember {
+    /// Common discriminator properties.
     pub common: CommonDiscriminatorMember,
+    /// Builtin annotations applied to the discriminator.
     #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinTypeAnnotations>,
+    /// Custom annotations applied to the discriminator.
     #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
-// Member of a union type
+/// Minimal details of a union discriminator member in a minimal TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalDiscriminatorMember {
+    /// Common discriminator properties.
     pub common: CommonDiscriminatorMember,
 }
 
+/// Header for a complete union type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteUnionHeader {
+    /// Detailed complete properties of the union type.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal union type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalUnionHeader {
+    /// Detailed minimal properties of the union type.
     pub detail: MinimalTypeDetail,
 }
 
+/// Complete union type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteUnionType {
+    /// Flags associated with the union type.
     pub union_flags: UnionTypeFlag,
+    /// The header containing details.
     pub header: CompleteUnionHeader,
+    /// The discriminator member details.
     pub discriminator: CompleteDiscriminatorMember,
+    /// The sequence of union members.
     pub member_seq: CompleteUnionMemberSeq,
 }
 
+/// Minimal union type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalUnionType {
+    /// Flags associated with the union type.
     pub union_flags: UnionTypeFlag,
+    /// The header containing details.
     pub header: MinimalUnionHeader,
+    /// The discriminator member details.
     pub discriminator: MinimalDiscriminatorMember,
+    /// The sequence of union members.
     pub member_seq: MinimalUnionMemberSeq,
 }
 
 // --- Annotation: ----------------------------------------------------
+/// Common properties of an annotation parameter.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonAnnotationParameter {
+    /// Flags associated with the annotation parameter.
     pub member_flags: AnnotationParameterFlag,
+    /// The TypeIdentifier of the parameter type.
     pub member_type_id: TypeIdentifier,
 }
 
-// Member of an annotation type
+/// Complete details of an annotation parameter in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteAnnotationParameter {
+    /// Common annotation parameter properties.
     pub common: CommonAnnotationParameter,
+    /// The name of the parameter.
     pub name: MemberName,
+    /// The default value of the parameter.
     pub default_value: AnnotationParameterValue,
 }
-// Ordered by CompleteAnnotationParameter.name
+/// Sequence of complete annotation parameters.
 pub type CompleteAnnotationParameterSeq = Vec<CompleteAnnotationParameter>;
 
+/// Minimal details of an annotation parameter in a minimal TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalAnnotationParameter {
+    /// Common annotation parameter properties.
     pub common: CommonAnnotationParameter,
+    /// The hash of the parameter name.
     pub name_hash: NameHash,
+    /// The default value of the parameter.
     pub default_value: AnnotationParameterValue,
 }
-// Ordered by MinimalAnnotationParameter.name_hash
+/// Sequence of minimal annotation parameters.
 pub type MinimalAnnotationParameterSeq = Vec<MinimalAnnotationParameter>;
+/// Header for a complete annotation type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteAnnotationHeader {
+    /// The qualified name of the annotation type.
     pub annotation_name: QualifiedTypeName,
 }
 
+/// Header for a minimal annotation type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalAnnotationHeader {
     // Empty. Available for future extension
 }
 
+/// Complete annotation type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteAnnotationType {
+    /// Flags associated with the annotation type.
     pub annotation_flag: AnnotationTypeFlag,
+    /// The header containing annotation name.
     pub header: CompleteAnnotationHeader,
+    /// The sequence of annotation parameters.
     pub member_seq: CompleteAnnotationParameterSeq,
 }
 
+/// Minimal annotation type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalAnnotationType {
+    /// Flags associated with the annotation type.
     pub annotation_flag: AnnotationTypeFlag,
+    /// The header containing details.
     pub header: MinimalAnnotationHeader,
+    /// The sequence of annotation parameters.
     pub member_seq: MinimalAnnotationParameterSeq,
 }
 
 // --- Alias: ----------------------------------------------------------
+/// Common properties of an alias type.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonAliasBody {
+    /// Flags associated with the related type.
     pub related_flags: AliasMemberFlag,
+    /// The TypeIdentifier of the related type.
     pub related_type: TypeIdentifier,
 }
 
+/// Complete body of an alias in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteAliasBody {
+    /// Common alias properties.
     pub common: CommonAliasBody,
+    /// Builtin annotations applied to the alias.
     #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    /// Custom annotations applied to the alias.
     #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 
+/// Minimal body of an alias in a minimal TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalAliasBody {
+    /// Common alias properties.
     pub common: CommonAliasBody,
 }
 
+/// Header for a complete alias type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteAliasHeader {
+    /// Detailed complete properties of the alias type.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal alias type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalAliasHeader {
     // Empty. Available for future extension
 }
 
+/// Complete alias type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteAliasType {
+    /// Flags associated with the alias type.
     pub alias_flags: AliasTypeFlag,
+    /// The header containing details.
     pub header: CompleteAliasHeader,
+    /// The alias body containing the related type.
     pub body: CompleteAliasBody,
 }
 
+/// Minimal alias type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalAliasType {
+    /// Flags associated with the alias type.
     pub alias_flags: AliasTypeFlag,
+    /// The header containing details.
     pub header: MinimalAliasHeader,
+    /// The alias body containing the related type.
     pub body: MinimalAliasBody,
 }
 
 // --- Collections: ----------------------------------------------------
+/// Complete details of a collection element in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteElementDetail {
+    /// Builtin annotations applied to the collection element.
     #[dust_dds(optional)]
     pub ann_builtin: Option<AppliedBuiltinMemberAnnotations>,
+    /// Custom annotations applied to the collection element.
     #[dust_dds(optional)]
     pub ann_custom: Option<AppliedAnnotationSeq>,
 }
 
+/// Common properties of a collection element.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonCollectionElement {
+    /// Flags associated with the collection element.
     pub element_flags: CollectionElementFlag,
+    /// The TypeIdentifier of the element type.
     pub _type: TypeIdentifier,
 }
 
+/// Complete details of a collection element.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteCollectionElement {
+    /// Common collection element properties.
     pub common: CommonCollectionElement,
+    /// Detailed complete properties (annotations) of the element.
     pub detail: CompleteElementDetail,
 }
 
+/// Minimal details of a collection element.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalCollectionElement {
+    /// Common collection element properties.
     pub common: CommonCollectionElement,
 }
 
+/// Common header for collection types.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonCollectionHeader {
+    /// The bound (maximum number of elements) of the collection.
     pub bound: LBound,
 }
 
+/// Header for a complete collection representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteCollectionHeader {
+    /// Common collection header properties.
     pub common: CommonCollectionHeader,
+    /// Detailed complete properties of the collection.
     #[dust_dds(optional)]
     pub detail: Option<CompleteTypeDetail>, // not present for anonymous
 }
 
+/// Header for a minimal collection representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalCollectionHeader {
+    /// Common collection header properties.
     pub common: CommonCollectionHeader,
 }
 
 // --- Sequence: ------------------------------------------------------
+/// Complete sequence type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteSequenceType {
+    /// Flags associated with the sequence collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing sequence properties.
     pub header: CompleteCollectionHeader,
+    /// The details of the sequence elements.
     pub element: CompleteCollectionElement,
 }
 
+/// Minimal sequence type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalSequenceType {
+    /// Flags associated with the sequence collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing sequence properties.
     pub header: MinimalCollectionHeader,
+    /// The details of the sequence elements.
     pub element: MinimalCollectionElement,
 }
 
 // --- Array: ------------------------------------------------------
+/// Common header for array types.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonArrayHeader {
+    /// The sequence of bounds for each dimension.
     pub bound_seq: LBoundSeq,
 }
 
+/// Header for a complete array representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteArrayHeader {
+    /// Common array header properties.
     pub common: CommonArrayHeader,
+    /// Detailed complete properties of the array.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal array representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalArrayHeader {
+    /// Common array header properties.
     pub common: CommonArrayHeader,
 }
 
+/// Complete array type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteArrayType {
+    /// Flags associated with the array collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing array properties.
     pub header: CompleteArrayHeader,
+    /// The details of the array elements.
     pub element: CompleteCollectionElement,
 }
 
+/// Minimal array type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalArrayType {
+    /// Flags associated with the array collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing array properties.
     pub header: MinimalArrayHeader,
+    /// The details of the array elements.
     pub element: MinimalCollectionElement,
 }
 
 // --- Map: ------------------------------------------------------
+/// Complete map type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteMapType {
+    /// Flags associated with the map collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing map properties.
     pub header: CompleteCollectionHeader,
+    /// The details of the map keys.
     pub key: CompleteCollectionElement,
+    /// The details of the map elements.
     pub element: CompleteCollectionElement,
 }
 
+/// Minimal map type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalMapType {
+    /// Flags associated with the map collection type.
     pub collection_flag: CollectionTypeFlag,
+    /// The header containing map properties.
     pub header: MinimalCollectionHeader,
+    /// The details of the map keys.
     pub key: MinimalCollectionElement,
+    /// The details of the map elements.
     pub element: MinimalCollectionElement,
 }
 
 // --- Enumeration: ----------------------------------------------------
+/// The bit bound (e.g. 8, 16, 32) of an enumerated type or bitmask.
 pub type BitBound = u16;
 // Constant in an enumerated type
+/// Common properties of an enumerated literal.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CommonEnumeratedLiteral {
+    /// The integer value of the enumerated literal.
     pub value: i32,
+    /// Flags associated with the enumerated literal.
     pub flags: EnumeratedLiteralFlag,
 }
 
 // Constant in an enumerated type
+/// Complete details of an enumerated literal.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteEnumeratedLiteral {
+    /// Common enumerated literal properties.
     pub common: CommonEnumeratedLiteral,
+    /// Detailed complete properties of the literal.
     pub detail: CompleteMemberDetail,
 }
 
-// Ordered by EnumeratedLiteral.common.value
+/// Sequence of complete enumerated literals.
 pub type CompleteEnumeratedLiteralSeq = Vec<CompleteEnumeratedLiteral>;
 
 // Constant in an enumerated type
+/// Minimal details of an enumerated literal.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalEnumeratedLiteral {
+    /// Common enumerated literal properties.
     pub common: CommonEnumeratedLiteral,
+    /// Detailed minimal properties of the literal.
     pub detail: MinimalMemberDetail,
 }
 
-// Ordered by EnumeratedLiteral.common.value
+/// Sequence of minimal enumerated literals.
 pub type MinimalEnumeratedLiteralSeq = Vec<MinimalEnumeratedLiteral>;
 
+/// Common header for enumerated types.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonEnumeratedHeader {
+    /// The bit bound of the enumerated type.
     pub bit_bound: BitBound,
 }
 
+/// Header for a complete enumerated type.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteEnumeratedHeader {
+    /// Common enumerated header properties.
     pub common: CommonEnumeratedHeader,
+    /// Detailed complete properties of the enumerated type.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal enumerated type.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalEnumeratedHeader {
+    /// Common enumerated header properties.
     pub common: CommonEnumeratedHeader,
 }
 
 // Enumerated type
+/// Complete enumerated type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CompleteEnumeratedType {
+    /// Flags associated with the enumerated type.
     pub enum_flags: EnumTypeFlag, // unused
+    /// The header containing details.
     pub header: CompleteEnumeratedHeader,
+    /// The sequence of literals in the enumeration.
     pub literal_seq: CompleteEnumeratedLiteralSeq,
 }
 
 // Enumerated type
+/// Minimal enumerated type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct MinimalEnumeratedType {
+    /// Flags associated with the enumerated type.
     pub enum_flags: EnumTypeFlag, // unused
+    /// The header containing details.
     pub header: MinimalEnumeratedHeader,
+    /// The sequence of literals in the enumeration.
     pub literal_seq: MinimalEnumeratedLiteralSeq,
 }
 
 // --- Bitmask: --------------------------------------------------------
 // Bit in a bit mask
+/// Common properties of a bitflag inside a bitmask.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonBitflag {
+    /// The position (0-based) of the bit flag.
     pub position: u16,
+    /// Flags associated with the bit flag.
     pub flags: BitflagFlag,
 }
 
+/// Complete details of a bitflag inside a bitmask.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteBitflag {
+    /// Common bitflag properties.
     pub common: CommonBitflag,
+    /// Detailed complete properties of the bitflag.
     pub detail: CompleteMemberDetail,
 }
-// Ordered by Bitflag.position
+/// Sequence of complete bitflags.
 pub type CompleteBitflagSeq = Vec<CompleteBitflag>;
 
+/// Minimal details of a bitflag inside a bitmask.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalBitflag {
+    /// Common bitflag properties.
     pub common: CommonBitflag,
+    /// Detailed minimal properties of the bitflag.
     pub detail: MinimalMemberDetail,
 }
-// Ordered by Bitflag.position
+/// Sequence of minimal bitflags.
 pub type MinimalBitflagSeq = Vec<MinimalBitflag>;
 
+/// Common header for bitmask types.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonBitmaskHeader {
+    /// The bit bound of the bitmask type.
     pub bit_bound: BitBound,
 }
+/// Header for a complete bitmask type representation.
 pub type CompleteBitmaskHeader = CompleteEnumeratedHeader;
+/// Header for a minimal bitmask type representation.
 pub type MinimalBitmaskHeader = MinimalEnumeratedHeader;
 
+/// Complete bitmask type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteBitmaskType {
+    /// Flags associated with the bitmask type.
     pub bitmask_flags: BitmaskTypeFlag, // unused
+    /// The header containing details.
     pub header: CompleteBitmaskHeader,
+    /// The sequence of bitflags.
     pub flag_seq: CompleteBitflagSeq,
 }
 
+/// Minimal bitmask type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalBitmaskType {
+    /// Flags associated with the bitmask type.
     pub bitmask_flags: BitmaskTypeFlag, // unused
+    /// The header containing details.
     pub header: MinimalBitmaskHeader,
+    /// The sequence of bitflags.
     pub flag_seq: MinimalBitflagSeq,
 }
 
 // --- Bitset: ----------------------------------------------------------
+/// Common properties of a bitfield inside a bitset.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct CommonBitfield {
+    /// The position (0-based) of the bitfield.
     pub position: u16,
+    /// Flags associated with the bitfield.
     pub flags: BitsetMemberFlag,
+    /// The number of bits used by the bitfield.
     pub bitcount: u8,
+    /// The TypeKind of the primitive integer type holding this bitfield.
     pub holder_type: u8, // Original in IDL: TypeKind which for us is a Rust enum but in IDL is an octet // Must be primitive integer type
 }
 
+/// Complete details of a bitfield inside a bitset.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteBitfield {
+    /// Common bitfield properties.
     pub common: CommonBitfield,
+    /// Detailed complete properties of the bitfield.
     pub detail: CompleteMemberDetail,
 }
 
-// Ordered by Bitfield.position
+/// Sequence of complete bitfields.
 pub type CompleteBitfieldSeq = Vec<CompleteBitfield>;
 
+/// Minimal details of a bitfield inside a bitset.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalBitfield {
+    /// Common bitfield properties.
     pub common: CommonBitfield,
+    /// The hash of the bitfield name.
     pub name_hash: NameHash,
 }
 
-// Ordered by Bitfield.position
+/// Sequence of minimal bitfields.
 pub type MinimalBitfieldSeq = Vec<MinimalBitfield>;
 
+/// Header for a complete bitset type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteBitsetHeader {
+    /// Detailed complete properties of the bitset.
     pub detail: CompleteTypeDetail,
 }
 
+/// Header for a minimal bitset type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalBitsetHeader {
     // Empty. Available for future extension
 }
 
+/// Complete bitset type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct CompleteBitsetType {
+    /// Flags associated with the bitset type.
     pub bitset_flags: BitsetTypeFlag, // unused
+    /// The header containing details.
     pub header: CompleteBitsetHeader,
+    /// The sequence of bitfields in the bitset.
     pub field_seq: CompleteBitfieldSeq,
 }
 
+/// Minimal bitset type representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct MinimalBitsetType {
+    /// Flags associated with the bitset type.
     pub bitset_flags: BitsetTypeFlag, // unused
+    /// The header containing details.
     pub header: MinimalBitsetHeader,
+    /// The sequence of bitfields in the bitset.
     pub field_seq: MinimalBitfieldSeq,
 }
 
 // --- Type Object: ---------------------------------------------------
 // The types associated with each selection must have extensibility
 // kind APPENDABLE or MUTABLE so that they can be extended in the future
+/// Complete extended type representation for future extensions.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct CompleteExtendedType {
     // Empty. Available for future extension
 }
 
+/// Complete TypeObject representation switchable by TypeKind.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum CompleteTypeObject {
+    /// The alias type object representation.
     #[dust_dds(case = TK_ALIAS)]
-    TkAlias { alias_type: CompleteAliasType },
+    TkAlias {
+        /// Detailed complete alias type properties.
+        alias_type: CompleteAliasType,
+    },
+    /// The annotation type object representation.
     #[dust_dds(case = TK_ANNOTATION)]
     TkAnnotation {
+        /// Detailed complete annotation type properties.
         annotation_type: CompleteAnnotationType,
     },
+    /// The structure type object representation.
     #[dust_dds(case = TK_STRUCTURE)]
-    TkStructure { struct_type: CompleteStructType },
+    TkStructure {
+        /// Detailed complete struct type properties.
+        struct_type: CompleteStructType,
+    },
+    /// The union type object representation.
     #[dust_dds(case = TK_UNION)]
-    TkUnion { union_type: CompleteUnionType },
+    TkUnion {
+        /// Detailed complete union type properties.
+        union_type: CompleteUnionType,
+    },
+    /// The bitset type object representation.
     #[dust_dds(case = TK_BITSET)]
-    TkBitset { bitset_type: CompleteBitsetType },
+    TkBitset {
+        /// Detailed complete bitset type properties.
+        bitset_type: CompleteBitsetType,
+    },
+    /// The sequence type object representation.
     #[dust_dds(case = TK_SEQUENCE)]
-    TkSequence { sequence_type: CompleteSequenceType },
+    TkSequence {
+        /// Detailed complete sequence type properties.
+        sequence_type: CompleteSequenceType,
+    },
+    /// The array type object representation.
     #[dust_dds(case = TK_ARRAY)]
-    TkArray { array_type: CompleteArrayType },
+    TkArray {
+        /// Detailed complete array type properties.
+        array_type: CompleteArrayType,
+    },
+    /// The map type object representation.
     #[dust_dds(case = TK_MAP)]
-    TkMap { map_type: CompleteMapType },
+    TkMap {
+        /// Detailed complete map type properties.
+        map_type: CompleteMapType,
+    },
+    /// The enumeration type object representation.
     #[dust_dds(case = TK_ENUM)]
     TkEnum {
+        /// Detailed complete enumerated type properties.
         enumerated_type: CompleteEnumeratedType,
     },
+    /// The bitmask type object representation.
     #[dust_dds(case = TK_BITMASK)]
-    TkBitmask { bitmask_type: CompleteBitmaskType },
+    TkBitmask {
+        /// Detailed complete bitmask type properties.
+        bitmask_type: CompleteBitmaskType,
+    },
     // =================== Future extensibility ============
+    /// Default case for future extensibility.
     #[dust_dds(default)]
-    Default { extended_type: CompleteExtendedType },
+    Default {
+        /// The complete extended type properties.
+        extended_type: CompleteExtendedType,
+    },
 }
 
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+/// Minimal extended type representation for future extensions.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct MinimalExtendedType {
     // Empty. Available for future extension
 }
 
+/// Minimal TypeObject representation switchable by TypeKind.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested, switch(u8))]
 pub enum MinimalTypeObject {
+    /// The alias type object representation.
     #[dust_dds(case = TK_ALIAS)]
-    TkAlias { alias_type: MinimalAliasType },
+    TkAlias {
+        /// Detailed minimal alias type properties.
+        alias_type: MinimalAliasType,
+    },
+    /// The annotation type object representation.
     #[dust_dds(case = TK_ANNOTATION)]
     TkAnnotation {
+        /// Detailed minimal annotation type properties.
         annotation_type: MinimalAnnotationType,
     },
+    /// The structure type object representation.
     #[dust_dds(case = TK_STRUCTURE)]
-    TkStructure { struct_type: MinimalStructType },
+    TkStructure {
+        /// Detailed minimal struct type properties.
+        struct_type: MinimalStructType,
+    },
+    /// The union type object representation.
     #[dust_dds(case = TK_UNION)]
-    TkUnion { union_type: MinimalUnionType },
+    TkUnion {
+        /// Detailed minimal union type properties.
+        union_type: MinimalUnionType,
+    },
+    /// The bitset type object representation.
     #[dust_dds(case = TK_BITSET)]
-    TkBitset { bitset_type: MinimalBitsetType },
+    TkBitset {
+        /// Detailed minimal bitset type properties.
+        bitset_type: MinimalBitsetType,
+    },
+    /// The sequence type object representation.
     #[dust_dds(case = TK_SEQUENCE)]
-    TkSequence { sequence_type: MinimalSequenceType },
+    TkSequence {
+        /// Detailed minimal sequence type properties.
+        sequence_type: MinimalSequenceType,
+    },
+    /// The array type object representation.
     #[dust_dds(case = TK_ARRAY)]
-    TkArray { array_type: MinimalArrayType },
+    TkArray {
+        /// Detailed minimal array type properties.
+        array_type: MinimalArrayType,
+    },
+    /// The map type object representation.
     #[dust_dds(case = TK_MAP)]
-    TkMap { map_type: MinimalMapType },
+    TkMap {
+        /// Detailed minimal map type properties.
+        map_type: MinimalMapType,
+    },
+    /// The enumeration type object representation.
     #[dust_dds(case = TK_ENUM)]
     TkEnum {
+        /// Detailed minimal enumerated type properties.
         enumerated_type: MinimalEnumeratedType,
     },
+    /// The bitmask type object representation.
     #[dust_dds(case = TK_BITMASK)]
-    TkBitmask { bitmask_type: MinimalBitmaskType },
+    TkBitmask {
+        /// Detailed minimal bitmask type properties.
+        bitmask_type: MinimalBitmaskType,
+    },
     // =================== Future extensibility ============
+    /// Default case for future extensibility.
     #[dust_dds(default)]
-    Default { extended_type: MinimalExtendedType },
+    Default {
+        /// The minimal extended type properties.
+        extended_type: MinimalExtendedType,
+    },
 }
 
+/// The TypeObject is the ultimate representation of a type in XTypes, containing complete or minimal type descriptions.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested, switch(u8))]
 #[allow(clippy::large_enum_variant)]
 pub enum TypeObject {
+    /// Complete type representation.
     #[dust_dds(case=EK_COMPLETE)]
-    EkComplete { complete: CompleteTypeObject },
+    EkComplete {
+        /// The complete type object.
+        complete: CompleteTypeObject,
+    },
+    /// Minimal type representation.
     #[dust_dds(case=EK_MINIMAL)]
-    EkMinimal { minimal: MinimalTypeObject },
+    EkMinimal {
+        /// The minimal type object.
+        minimal: MinimalTypeObject,
+    },
 }
+/// Sequence of TypeObjects.
 pub type TypeObjectSeq = Vec<TypeObject>;
 // Set of TypeObjects representing a strong component: Equivalence class
 // for the Strong Connectivity relationship (mutual reachability between
 // types).
 // Ordered by fully qualified typename lexicographic order
+/// Set of TypeObjects representing a strongly connected component (equivalence class for mutual reachability).
 pub type StronglyConnectedComponent = TypeObjectSeq;
 
+/// A pair of TypeIdentifier and TypeObject, used in discovery.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct TypeIdentifierTypeObjectPair {
+    /// The TypeIdentifier of the type.
     pub type_identifier: TypeIdentifier,
+    /// The TypeObject description of the type.
     pub type_object: TypeObject,
 }
+/// Sequence of TypeIdentifier and TypeObject pairs.
 pub type TypeIdentifierTypeObjectPairSeq = Vec<TypeIdentifierTypeObjectPair>;
 
+/// A pair of TypeIdentifiers, used to represent relationships or mappings.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct TypeIdentifierPair {
+    /// The first type identifier.
     pub type_identifier1: TypeIdentifier,
+    /// The second type identifier.
     pub type_identifier2: TypeIdentifier,
 }
+/// Sequence of TypeIdentifier pairs.
 pub type TypeIdentifierPairSeq = Vec<TypeIdentifierPair>;
 
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+/// A TypeIdentifier packaged with the serialized size of its corresponding TypeObject.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithSize {
+    /// The TypeIdentifier.
     pub type_id: TypeIdentifier,
+    /// The serialized size in bytes of the TypeObject.
     pub typeobject_serialized_size: u32,
 }
+/// Sequence of TypeIdentifiers packaged with sizes.
 pub type TypeIdentfierWithSizeSeq = Vec<TypeIdentifierWithSize>;
 
-#[derive(DdsType, Debug, Clone, PartialEq, Default)]
+/// A TypeIdentifier packaged with its size and all the dependent type identifiers it relies on.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq, Default)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeIdentifierWithDependencies {
+    /// The TypeIdentifier with its serialized size.
     pub typeid_with_size: TypeIdentifierWithSize,
-    // The total additional types related to minimal_type
+    /// The count of dependent type IDs.
     pub dependent_typeid_count: i32,
+    /// The sequence of dependent type IDs with sizes.
     pub dependent_typeids: Vec<TypeIdentifierWithSize>,
 }
+/// Sequence of TypeIdentifiers with dependencies.
 pub type TypeIdentifierWithDependenciesSeq = Vec<TypeIdentifierWithDependencies>;
 
-#[derive(DdsType, Debug, Clone, PartialEq)]
+/// Complete type information containing both complete and minimal representations with their dependencies.
+#[derive(DdsType, Debug, Clone, PartialEq, Eq)]
 #[dust_dds(extensibility = "mutable", nested)]
 pub struct TypeInformation {
+    /// Minimal type representation with dependencies.
     #[dust_dds(id = 0x1001)]
     pub minimal: TypeIdentifierWithDependencies,
+    /// Complete type representation with dependencies.
     #[dust_dds(id = 0x1002)]
     pub complete: TypeIdentifierWithDependencies,
 }
+/// Sequence of TypeInformation.
 pub type TypeInformationSeq = Vec<TypeInformation>;
 
-impl From<&DynamicType> for MinimalTypeObject {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
+    fn from(value: DynamicType<'a>) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -1271,13 +1885,36 @@ impl From<&DynamicType> for MinimalTypeObject {
                 };
                 MinimalTypeObject::TkStructure { struct_type }
             }
+            TypeKind::ENUM => {
+                let mut enum_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    enum_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = MinimalEnumeratedHeader {
+                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                };
+
+                let literal_seq = Vec::new(); // TODO: fill up
+
+                let enumerated_type = MinimalEnumeratedType {
+                    enum_flags,
+                    header,
+                    literal_seq,
+                };
+                MinimalTypeObject::TkEnum { enumerated_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
 }
 
-impl From<&DynamicType> for CompleteTypeObject {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
+    fn from(value: DynamicType<'a>) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -1306,13 +1943,41 @@ impl From<&DynamicType> for CompleteTypeObject {
                 };
                 CompleteTypeObject::TkStructure { struct_type }
             }
+            TypeKind::ENUM => {
+                let mut enum_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    enum_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = CompleteEnumeratedHeader {
+                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    detail: CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: String::from(value.descriptor.name),
+                    },
+                };
+
+                let literal_seq = Vec::new(); // TODO: fill up
+
+                let enumerated_type = CompleteEnumeratedType {
+                    enum_flags,
+                    header,
+                    literal_seq,
+                };
+                CompleteTypeObject::TkEnum { enumerated_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
 }
 
-impl From<&DynamicType> for TypeIdentifier {
-    fn from(value: &DynamicType) -> Self {
+impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
+    fn from(value: &DynamicType<'a>) -> Self {
         match value.descriptor.kind {
             TypeKind::NONE => TypeIdentifier::TkNone,
             TypeKind::BOOLEAN => TypeIdentifier::TkBoolean,
@@ -1330,20 +1995,76 @@ impl From<&DynamicType> for TypeIdentifier {
             TypeKind::UINT8 => TypeIdentifier::TkUint8Type,
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
-            TypeKind::STRING8 => TypeIdentifier::TiString8Large {
-                string_ldefn: StringLTypeDefn { bound: u32::MAX },
-            },
-            TypeKind::STRING16 => TypeIdentifier::TiString16Small {
-                string_sdefn: StringSTypeDefn { bound: u8::MAX },
-            },
+            TypeKind::STRING8 => {
+                if let Some(b) = value.descriptor.bound {
+                    if b <= u8::MAX as u32 {
+                        TypeIdentifier::TiString8Small {
+                            string_sdefn: StringSTypeDefn { bound: b as u8 },
+                        }
+                    } else {
+                        TypeIdentifier::TiString8Large {
+                            string_ldefn: StringLTypeDefn { bound: b },
+                        }
+                    }
+                } else {
+                    TypeIdentifier::TiString8Large {
+                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                    }
+                }
+            }
+            TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
+            TypeKind::STRUCTURE => {
+                let complete_type_object = TypeObject::EkComplete {
+                    complete: CompleteTypeObject::from(*value),
+                };
+                let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
+                complete_type_object.create_dynamic_sample(&mut data);
+                let serialized_complete_type_object =
+                    serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+
+                let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
+                TypeIdentifier::EkComplete {
+                    equivalence_hash: [
+                        hash_complete_type_object[0],
+                        hash_complete_type_object[1],
+                        hash_complete_type_object[2],
+                        hash_complete_type_object[3],
+                        hash_complete_type_object[4],
+                        hash_complete_type_object[5],
+                        hash_complete_type_object[6],
+                        hash_complete_type_object[7],
+                        hash_complete_type_object[8],
+                        hash_complete_type_object[9],
+                        hash_complete_type_object[10],
+                        hash_complete_type_object[11],
+                        hash_complete_type_object[12],
+                        hash_complete_type_object[13],
+                    ],
+                }
+            }
             TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
+            TypeKind::SEQUENCE => TypeIdentifier::TiPlainSequenceLarge {
+                seq_ldefn: PlainSequenceLElemDefn {
+                    header: PlainCollectionHeader {
+                        equiv_kind: EK_MINIMAL,
+                        element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    },
+                    bound: u32::MAX,
+                    element_identifier: Box::new(
+                        value
+                            .descriptor
+                            .element_type
+                            .as_ref()
+                            .expect("Sequence must have element type")
+                            .into(),
+                    ),
+                },
+            },
             TypeKind::ARRAY => todo!(),
             TypeKind::MAP => todo!(),
         }
@@ -1391,7 +2112,6 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
         let common = value.into();
         let detail = CompleteMemberDetail {
             name: String::from(value.get_name()),
-            // TODO: Applied builtin and custom annotations
             ann_builtin: None,
             ann_custom: None,
         };
@@ -1399,27 +2119,29 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
     }
 }
 
-impl TryFrom<&DynamicType> for TypeInformation {
-    type Error = XTypesError;
-
-    fn try_from(value: &DynamicType) -> Result<Self, Self::Error> {
+impl<'a> From<DynamicType<'a>> for TypeInformation {
+    fn from(value: DynamicType<'a>) -> Self {
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         minimal_type_object.create_dynamic_sample(&mut data);
-        let serialized_minimal_type_object = serialize_cdr2_le(&data)?;
+
+        let serialized_minimal_type_object =
+            serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
         let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
 
         let complete_type_object = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::TYPE);
+        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
         complete_type_object.create_dynamic_sample(&mut data);
-        let serialized_complete_type_object = serialize_cdr2_le(&data)?;
+        let serialized_complete_type_object =
+            serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+
         let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
 
-        Ok(TypeInformation {
+        TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
                     type_id: TypeIdentifier::EkMinimal {
@@ -1442,7 +2164,7 @@ impl TryFrom<&DynamicType> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count: -1,
+                dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
             complete: TypeIdentifierWithDependencies {
@@ -1467,31 +2189,34 @@ impl TryFrom<&DynamicType> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_complete_type_object.len() as u32,
                 },
-                dependent_typeid_count: -1,
+                dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
-        })
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::xtypes::{
+        serializer::serialize_without_header_cdr2_le,
+        type_support::{BoundedString, Type},
+    };
 
+    use super::*;
     #[test]
-    #[ignore]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
-        #[dust_dds(extensibility = "final")]
+        #[dust_dds(extensibility = "appendable")]
         struct ShapeType {
             #[dust_dds(key)]
-            color: String,
+            color: BoundedString<128>,
             x: i32,
             y: i32,
             shapesize: i32,
         }
 
-        let type_information = TypeInformation::try_from(&ShapeType::TYPE).unwrap();
+        let type_information = TypeInformation::from(ShapeType::get_type());
         assert_eq!(
             type_information
                 .complete
@@ -1499,31 +2224,164 @@ mod tests {
                 .typeobject_serialized_size,
             132
         );
-        // assert_eq!(
-        //     type_information.complete.typeid_with_size.type_id,
-        //     TypeIdentifier::EkComplete {
-        //         equivalence_hash: [
-        //             0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
-        //             0x96
-        //         ]
-        //     }
-        // );
-
         assert_eq!(
-            type_information
-                .minimal
-                .typeid_with_size
-                .typeobject_serialized_size,
-            92
+            type_information.complete.typeid_with_size.type_id,
+            TypeIdentifier::EkComplete {
+                equivalence_hash: [
+                    0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
+                    0x96
+                ]
+            }
         );
-        // assert_eq!(
-        //     type_information.minimal.typeid_with_size.type_id,
-        //     TypeIdentifier::EkMinimal {
-        //         equivalence_hash: [
-        //             0xd3, 0xd5, 0x89, 0xfb, 0x12, 0x8b, 0x55, 0xdb, 0x4b, 0x83, 0x3d, 0x99, 0xa4,
-        //             0x02
-        //         ]
-        //     }
-        // );
+    }
+
+    #[test]
+    fn serialize_type_information() {
+        let mut dynamic_data = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [1; 14],
+                    },
+                    typeobject_serialized_size: 100,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [1; 14],
+                    },
+                    typeobject_serialized_size: 100,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            88, 0, 0, 0, // dheader
+            0x01, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+            0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids: Dheader
+            0, 0, 0, 0, // dependent_typeids Length
+            // complete
+            0x02, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+            0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids: Dheader
+            0, 0, 0, 0, // dependent_typeids Length
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn serialize_type_identifier_with_dependencies() {
+        let mut dynamic_data =
+            DynamicDataFactory::create_data(TypeIdentifierWithDependencies::TYPE);
+        TypeIdentifierWithDependencies {
+            typeid_with_size: TypeIdentifierWithSize {
+                type_id: TypeIdentifier::EkComplete {
+                    equivalence_hash: [1; 14],
+                },
+                typeobject_serialized_size: 100,
+            },
+            dependent_typeid_count: 0,
+            dependent_typeids: Vec::new(),
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            36, 0, 0, 0, // DHeader
+            20, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+            0, 0, 0, 0, //dependent_typeid_count
+            4, 0, 0, 0, // dependent_typeids Dheader
+            0, 0, 0, 0, // dependent_typeids Length
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn serialize_type_identifier_with_size() {
+        let mut dynamic_data = DynamicDataFactory::create_data(TypeIdentifierWithSize::TYPE);
+        TypeIdentifierWithSize {
+            type_id: TypeIdentifier::EkComplete {
+                equivalence_hash: [1; 14],
+            },
+            typeobject_serialized_size: 100,
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            20, 0, 0, 0,    // DHeader
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+            0, // Padding
+            100, 0, 0, 0, // typeobject_serialized_size
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn serialize_type_identifier() {
+        let mut dynamic_data = DynamicDataFactory::create_data(TypeIdentifier::TYPE);
+        TypeIdentifier::EkComplete {
+            equivalence_hash: [1; 14],
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            0xF2, // Discriminator
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn serialize_complete_member_detail() {
+        let mut dynamic_data = DynamicDataFactory::create_data(CompleteMemberDetail::TYPE);
+        CompleteMemberDetail {
+            name: String::from("a"),
+            ann_builtin: None,
+            ann_custom: None,
+        }
+        .create_dynamic_sample(&mut dynamic_data);
+
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            2, 0, 0, 0, // Name length
+            b'a', 0, // Name
+            0, // ann_builtin optional not present
+            0, // ann_custom optional not present
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
     }
 }

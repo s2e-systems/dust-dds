@@ -39,9 +39,9 @@ critical-section = { version = "1.2.0", default-features = false, features = [
 	"std",
 ] }
 
-opentelemetry = "0.31.0"
-opentelemetry-otlp = "0.31.0"
-opentelemetry_sdk = "0.31.0"
+opentelemetry = "0.31"
+opentelemetry-otlp = "0.31"
+opentelemetry_sdk = "0.31"
 tracing-opentelemetry = "0.32.0"
 
 [features]
