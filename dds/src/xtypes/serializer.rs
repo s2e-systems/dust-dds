@@ -1851,7 +1851,7 @@ mod tests {
                 0, 0, 0, 13, // DHEADER (length)
                 0b001_0000, 0, 0x80, 0x81, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
-                0, 0, 0x90, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                128, 0, 0x90, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
@@ -1862,7 +1862,7 @@ mod tests {
                 13, 0, 0, 0, // DHEADER (length)
                 0x81, 0x80, 0, 0b001_0000, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
-                0x91, 0x90, 0, 0, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                0x91, 0x90, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
