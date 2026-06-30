@@ -1,8 +1,12 @@
-use crate::xtypes::dynamic_type::{
-    DynamicData, DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind,
+use crate::xtypes::{
+    data_storage::DataStorageMapping,
+    dynamic_type::{DynamicData, DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
+    error::XTypesError,
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
 pub use dust_dds_derive::TypeSupport;
+
+use super::{data_storage::DataStorage, error::XTypesResult};
 
 /// The Type trait represents static type information of Rust types
 pub trait Type {
@@ -536,6 +540,58 @@ impl Type for Vec<String> {
         },
         member_list: &[],
     };
+}
+
+/// Type used to represent bounded strings on DDS Types
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BoundedString<const N: u32>(String);
+
+impl<const N: u32> TryFrom<String> for BoundedString<N> {
+    type Error = XTypesError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.len() < N as usize - 1 {
+            Ok(Self(value))
+        } else {
+            Err(XTypesError::InvalidData)
+        }
+    }
+}
+
+impl<const N: u32> From<BoundedString<N>> for String {
+    fn from(value: BoundedString<N>) -> Self {
+        value.0
+    }
+}
+
+impl<const N: u32> Type for BoundedString<N> {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRING8,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(N),
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl<const N: u32> DataStorageMapping for BoundedString<N> {
+    fn into_storage(self) -> DataStorage {
+        DataStorage::String(self.0)
+    }
+
+    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
+        match data_storage {
+            DataStorage::String(x) => Ok(Self(x)),
+            _ => Err(XTypesError::InvalidType),
+        }
+    }
 }
 
 #[cfg(test)]

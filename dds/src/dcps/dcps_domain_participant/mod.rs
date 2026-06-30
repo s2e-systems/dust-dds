@@ -24,7 +24,9 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        xtypes_glue::key_and_instance_handle::{
+            KeyHolderData, get_instance_handle_from_key_holder_data,
+        },
     },
     dds_async::{
         content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
@@ -1453,7 +1455,6 @@ struct DataWriterEntity {
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: StatusMask,
-    max_seq_num: Option<i64>,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
     registered_instance_list: Vec<InstanceHandle>,
@@ -1494,7 +1495,6 @@ impl DataWriterEntity {
             status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
-            max_seq_num: None,
             last_change_sequence_number: 0,
             qos,
             registered_instance_list: Vec::new(),
@@ -1580,11 +1580,6 @@ impl DataWriterEntity {
             instance_handle: Some(sample_instance_handle.into()),
             data_value: serialized_data.into(),
         };
-        let seq_num = change.sequence_number;
-
-        if seq_num > self.max_seq_num.unwrap_or(0) {
-            self.max_seq_num = Some(seq_num)
-        }
 
         match self
             .instance_publication_time
@@ -1634,7 +1629,7 @@ impl DataWriterEntity {
 
     fn dispose_w_timestamp(
         &mut self,
-        mut dynamic_data: DynamicData<'static>,
+        dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1647,10 +1642,15 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
+
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
+
+        let serialized_key =
+            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
 
         if let Some(i) = self
             .instance_publication_time
@@ -1659,9 +1659,6 @@ impl DataWriterEntity {
         {
             self.instance_publication_time.remove(i);
         }
-
-        dynamic_data.clear_nonkey_values()?;
-        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -1680,7 +1677,7 @@ impl DataWriterEntity {
 
     fn unregister_w_timestamp(
         &mut self,
-        mut dynamic_data: DynamicData<'static>,
+        dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1693,7 +1690,8 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -1706,8 +1704,8 @@ impl DataWriterEntity {
             self.instance_publication_time.remove(i);
         }
 
-        dynamic_data.clear_nonkey_values()?;
-        let serialized_key = serialize(&dynamic_data, &self.qos.representation)?;
+        let serialized_key =
+            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let kind = if self
@@ -2715,8 +2713,8 @@ impl DataReaderEntity {
     }
 }
 
-fn serialize(
-    dynamic_data: &DynamicData<'static>,
+fn serialize<'a>(
+    dynamic_data: &DynamicData<'a>,
     representation: &DataRepresentationQosPolicy,
 ) -> DdsResult<Vec<u8>> {
     Ok(
