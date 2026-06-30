@@ -112,7 +112,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 label: None,
                                 is_key: #is_key,
                                 is_optional: #is_optional,
-                                is_must_understand: false,
+                                is_must_understand: #is_key,
                                 is_shared: false,
                                 is_default_label: false,
                                 is_external: #is_external,
@@ -140,8 +140,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 } else {
                     match &member.ident {
                         Some(member_ident) => {
-                            // In Mutable structs every member is optional even when not explicitly marked as such
-                            if r#struct.extensibility == Extensibility::Mutable || is_optional {
+                            if is_optional {
                                 member_sample_seq.push(quote! {
                                     #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
                                         dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")

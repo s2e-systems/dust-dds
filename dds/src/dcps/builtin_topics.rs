@@ -11,12 +11,12 @@ use crate::{
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
         PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_INFORMATION,
-        PID_TYPE_NAME, PID_USER_DATA,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
+        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
     },
     xtypes::{
         type_object::TypeInformation,
@@ -78,31 +78,31 @@ pub struct TopicBuiltinTopicData {
     pub(crate) type_name: _String,
     #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
     pub(crate) type_information: Option<TypeInformation>,
-    #[dust_dds(id=PID_DURABILITY as u32)]
+    #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
-    #[dust_dds(id=PID_DEADLINE as u32)]
+    #[dust_dds(id=PID_DEADLINE as u32, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[dust_dds(id=PID_LATENCY_BUDGET as u32)]
+    #[dust_dds(id=PID_LATENCY_BUDGET as u32, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[dust_dds(id=PID_LIVELINESS as u32)]
+    #[dust_dds(id=PID_LIVELINESS as u32, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[dust_dds(id=PID_TRANSPORT_PRIORITY as u32)]
+    #[dust_dds(id=PID_TRANSPORT_PRIORITY as u32, optional)]
     pub(crate) transport_priority: TransportPriorityQosPolicy,
-    #[dust_dds(id=PID_LIFESPAN as u32)]
+    #[dust_dds(id=PID_LIFESPAN as u32, optional)]
     pub(crate) lifespan: LifespanQosPolicy,
-    #[dust_dds(id=PID_DESTINATION_ORDER as u32)]
+    #[dust_dds(id=PID_DESTINATION_ORDER as u32, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[dust_dds(id=PID_HISTORY as u32)]
+    #[dust_dds(id=PID_HISTORY as u32, optional)]
     pub(crate) history: HistoryQosPolicy,
-    #[dust_dds(id=PID_RESOURCE_LIMITS as u32)]
+    #[dust_dds(id=PID_RESOURCE_LIMITS as u32, optional)]
     pub(crate) resource_limits: ResourceLimitsQosPolicy,
-    #[dust_dds(id=PID_OWNERSHIP as u32)]
+    #[dust_dds(id=PID_OWNERSHIP as u32, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[dust_dds(id=PID_TOPIC_DATA as u32)]
+    #[dust_dds(id=PID_TOPIC_DATA as u32, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[dust_dds(id=PID_DATA_REPRESENTATION as u32)]
+    #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
@@ -202,35 +202,35 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) type_name: _String,
     #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
     pub(crate) type_information: Option<TypeInformation>,
-    #[dust_dds(id=PID_DURABILITY as u32)]
+    #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
-    #[dust_dds(id=PID_DEADLINE as u32)]
+    #[dust_dds(id=PID_DEADLINE as u32, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[dust_dds(id=PID_LATENCY_BUDGET as u32)]
+    #[dust_dds(id=PID_LATENCY_BUDGET as u32, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[dust_dds(id=PID_LIVELINESS as u32)]
+    #[dust_dds(id=PID_LIVELINESS as u32, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
+    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[dust_dds(id=PID_LIFESPAN as u32)]
+    #[dust_dds(id=PID_LIFESPAN as u32, optional)]
     pub(crate) lifespan: LifespanQosPolicy,
-    #[dust_dds(id=PID_USER_DATA as u32)]
+    #[dust_dds(id=PID_USER_DATA as u32, optional)]
     pub(crate) user_data: UserDataQosPolicy,
-    #[dust_dds(id=PID_OWNERSHIP as u32)]
+    #[dust_dds(id=PID_OWNERSHIP as u32, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[dust_dds(id=PID_OWNERSHIP_STRENGTH as u32)]
+    #[dust_dds(id=PID_OWNERSHIP_STRENGTH as u32, optional)]
     pub(crate) ownership_strength: OwnershipStrengthQosPolicy,
-    #[dust_dds(id=PID_DESTINATION_ORDER as u32)]
+    #[dust_dds(id=PID_DESTINATION_ORDER as u32, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[dust_dds(id=PID_PRESENTATION as u32)]
+    #[dust_dds(id=PID_PRESENTATION as u32, optional)]
     pub(crate) presentation: PresentationQosPolicy,
-    #[dust_dds(id=PID_PARTITION as u32)]
+    #[dust_dds(id=PID_PARTITION as u32, optional)]
     pub(crate) partition: PartitionQosPolicy,
-    #[dust_dds(id=PID_TOPIC_DATA as u32)]
+    #[dust_dds(id=PID_TOPIC_DATA as u32, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[dust_dds(id=PID_GROUP_DATA as u32)]
+    #[dust_dds(id=PID_GROUP_DATA as u32, optional)]
     pub(crate) group_data: GroupDataQosPolicy,
-    #[dust_dds(id=PID_DATA_REPRESENTATION as u32)]
+    #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
 }
 
@@ -345,34 +345,36 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) type_name: _String,
     #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
     pub(crate) type_information: Option<TypeInformation>,
-    #[dust_dds(id=PID_DURABILITY as u32)]
+    #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
-    #[dust_dds(id=PID_DEADLINE as u32)]
+    #[dust_dds(id=PID_DEADLINE as u32, optional)]
     pub(crate) deadline: DeadlineQosPolicy,
-    #[dust_dds(id=PID_LATENCY_BUDGET as u32)]
+    #[dust_dds(id=PID_LATENCY_BUDGET as u32, optional)]
     pub(crate) latency_budget: LatencyBudgetQosPolicy,
-    #[dust_dds(id=PID_LIVELINESS as u32)]
+    #[dust_dds(id=PID_LIVELINESS as u32, optional)]
     pub(crate) liveliness: LivelinessQosPolicy,
-    #[dust_dds(id=PID_RELIABILITY as u32, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
+    #[dust_dds(id=PID_RELIABILITY as u32, optional, default_value=DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)]
     pub(crate) reliability: ReliabilityQosPolicy,
-    #[dust_dds(id=PID_OWNERSHIP as u32)]
+    #[dust_dds(id=PID_OWNERSHIP as u32, optional)]
     pub(crate) ownership: OwnershipQosPolicy,
-    #[dust_dds(id=PID_DESTINATION_ORDER as u32)]
+    #[dust_dds(id=PID_DESTINATION_ORDER as u32, optional)]
     pub(crate) destination_order: DestinationOrderQosPolicy,
-    #[dust_dds(id=PID_USER_DATA as u32)]
+    #[dust_dds(id=PID_USER_DATA as u32, optional)]
     pub(crate) user_data: UserDataQosPolicy,
-    #[dust_dds(id=PID_TIME_BASED_FILTER as u32)]
+    #[dust_dds(id=PID_TIME_BASED_FILTER as u32, optional)]
     pub(crate) time_based_filter: TimeBasedFilterQosPolicy,
-    #[dust_dds(id=PID_PRESENTATION as u32)]
+    #[dust_dds(id=PID_PRESENTATION as u32, optional)]
     pub(crate) presentation: PresentationQosPolicy,
-    #[dust_dds(id=PID_PARTITION as u32)]
+    #[dust_dds(id=PID_PARTITION as u32, optional)]
     pub(crate) partition: PartitionQosPolicy,
-    #[dust_dds(id=PID_TOPIC_DATA as u32)]
+    #[dust_dds(id=PID_TOPIC_DATA as u32, optional)]
     pub(crate) topic_data: TopicDataQosPolicy,
-    #[dust_dds(id=PID_GROUP_DATA as u32)]
+    #[dust_dds(id=PID_GROUP_DATA as u32, optional)]
     pub(crate) group_data: GroupDataQosPolicy,
-    #[dust_dds(id=PID_DATA_REPRESENTATION as u32)]
+    #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
+    #[dust_dds(id=PID_TYPE_CONSISTENCY_ENFORCEMENT as u32, optional)]
+    pub(crate) type_consistency: TypeConsistencyEnforcementQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -464,5 +466,10 @@ impl SubscriptionBuiltinTopicData {
     /// Get the data representation QoS policy of the discovered reader.
     pub fn representation(&self) -> &DataRepresentationQosPolicy {
         &self.representation
+    }
+
+    /// Get the type consistency enforcement QoS policy of the discovered reader
+    pub fn type_consistency(&self) -> &TypeConsistencyEnforcementQosPolicy {
+        &self.type_consistency
     }
 }

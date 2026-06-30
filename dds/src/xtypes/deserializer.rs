@@ -543,7 +543,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 }
                 dynamic_data.set_complex_values(member.get_id(), values)
             }
-            TypeKind::UNION => todo!(),
+            TypeKind::UNION => {
+                let mut values = Vec::with_capacity(length);
+                for _ in 0..length {
+                    values.push(self.deserialize_as_nested(element_type)?);
+                }
+                dynamic_data.set_complex_values(member.get_id(), values)
+            }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => todo!(),
             TypeKind::ARRAY => todo!(),
@@ -579,9 +585,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 
                 TypeKind::UNION => match dynamic_type.get_descriptor().extensibility_kind {
                     ExtensibilityKind::Final => {
-                        deserializer._deserialize_funion_type(dynamic_type, dynamic_data)
+                        deserializer.deserialize_funion_type(dynamic_type, dynamic_data)
                     }
-                    ExtensibilityKind::Appendable => todo!(),
+                    ExtensibilityKind::Appendable => {
+                        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
+                        deserializer.deserialize_funion_type(dynamic_type, dynamic_data)
+                    }
                     ExtensibilityKind::Mutable => todo!(),
                 },
                 kind => {
@@ -717,6 +726,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 let value = self.deserialize_primitive_type::<i8>()?;
                 dynamic_data.set_int8_value(0, value)
             }
+            TypeKind::INT16 => {
+                let value = self.deserialize_primitive_type::<i16>()?;
+                dynamic_data.set_int16_value(0, value)
+            }
             TypeKind::INT32 => {
                 let value = self.deserialize_primitive_type::<i32>()?;
                 dynamic_data.set_int32_value(0, value)
@@ -788,7 +801,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization Rule (26)
-    fn _deserialize_funion_type(
+    fn deserialize_funion_type(
         &mut self,
         dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData<'_>,
@@ -975,8 +988,21 @@ impl<'a> Reader<'a> {
 mod tests {
     use super::*;
     use crate::{
-        dcps::xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
-        xtypes::type_support::{Type, TypeSupport},
+        dcps::{
+            data_representation_builtin_endpoints::type_lookup::{
+                RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn,
+                TypeLookupRequest,
+            },
+            xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        },
+        transport::types::{EntityId, Guid},
+        xtypes::{
+            type_object::{
+                TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
+                TypeInformation,
+            },
+            type_support::{Type, TypeSupport},
+        },
     };
 
     #[test]
@@ -1564,6 +1590,148 @@ mod tests {
                     0, 0, 0, 30, // shapesize
                     0, 0, 0, 0, // additional_payload_size: length
                 ],
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_type_lookup_get_types_in() {
+        let mut expected = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
+        TypeLookupCall::TypeLookupGetTypesHashId {
+            get_types: TypeLookupGetTypesIn {
+                type_ids: vec![TypeIdentifier::EkComplete {
+                    equivalence_hash: [5; 14],
+                }],
+            },
+        }
+        .create_dynamic_sample(&mut expected);
+
+        assert_eq!(
+            deserialize_top_level_type(
+                TypeLookupCall::TYPE,
+                &[
+                    0x00u8, 0x09, 0x00, 0x01, // D_CDR2_LE + padding
+                    35, 0, 0, 0, // TypeLookupCall DHEADER
+                    0xd3, 0x52, 0x82, 0x01, // TypeLookupGetTypesHashId DISCRIMINATOR
+                    27, 0, 0, 0, // type_ids: DHEADER
+                    101, 96, 83, 92, // type_ids EMHEADER
+                    // 23, 0, 0, 0, // type_ids NEXTINT
+                    19, 0, 0, 0, // type_ids: DHEADER
+                    1, 0, 0, 0,   // type_ids: Length
+                    242, //EK_COMPLETE
+                    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                    0, // padding
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_type_lookup_request() {
+        let mut expected = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
+        TypeLookupRequest {
+            header: RequestHeader {
+                request_id: SampleIdentity {
+                    writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
+                    sequence_number: 5.into(),
+                },
+                instance_name: String::from(""),
+            },
+            call: TypeLookupCall::TypeLookupGetTypesHashId {
+                get_types: TypeLookupGetTypesIn { type_ids: vec![] },
+            },
+        }
+        .create_dynamic_sample(&mut expected);
+
+        assert_eq!(
+            deserialize_top_level_type(
+                TypeLookupRequest::TYPE,
+                &[
+                    0x00u8, 0x07, 0x00, 0x00, // CDR2_LE + padding
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
+                    0, 0, 0, 0, // sequence_number: high
+                    5, 0, 0, 0, // sequence_number: low
+                    1, 0, 0, 0, // instance_name: length
+                    0, // instance_name: length
+                    0, 0, 0, // Padding
+                    20, 0, 0, 0, //TypeLookupCall DHEADER
+                    211, 82, 130, 1, // TypeLookupGetTypesHashId Discriminator
+                    12, 0, 0, 0, // type_ids: DHEADER
+                    101, 96, 83, 92, // type_ids EMHEADER
+                    // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
+                    4, 0, 0, 0, // type_ids: DHEADER
+                    0, 0, 0,
+                    0, // type_ids: Length
+                       // 242, //EK_COMPLETE
+                       // 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                       // 0, // padding
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_type_identifier() {
+        let mut expected = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        }
+        .create_dynamic_sample(&mut expected);
+
+        assert_eq!(
+            deserialize_top_level_type(
+                TypeInformation::TYPE,
+                &[
+                    0x00u8, 0x0B, 0x00, 0x00, // PL_CDR2_LE + 0 padding
+                    88, 0, 0, 0, // DHEADER
+                    0x01, 0x10, 0, 80, // EMHEADER
+                    // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                    36, 0, 0, 0, // DHEADER
+                    20, 0, 0, 0,   // DHEADER
+                    241, //EK_MINIMAL
+                    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                    0, // padding
+                    10, 0, 0, 0, // typeobject_serialized_size
+                    0, 0, 0, 0, // dependent_typeid_count
+                    4, 0, 0, 0, // Sequence DHEADER
+                    0, 0, 0, 0, // Sequence length
+                    0x02, 0x10, 0, 80, // EMHEADER
+                    // 40, 0, 0, 0, // NEXTINT (Reused in the EMHEADER)
+                    36, 0, 0, 0, // DHEADER
+                    20, 0, 0, 0,   // DHEADER
+                    242, //EK_COMPLETE
+                    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                    0, // padding
+                    10, 0, 0, 0, // typeobject_serialized_size
+                    0, 0, 0, 0, // dependent_typeid_count
+                    4, 0, 0, 0, // Sequence DHEADER
+                    0, 0, 0, 0, // Sequence length
+                ]
             )
             .unwrap(),
             expected

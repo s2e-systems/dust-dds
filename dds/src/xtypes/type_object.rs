@@ -1995,12 +1995,24 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::UINT8 => TypeIdentifier::TkUint8Type,
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
-            TypeKind::STRING8 => TypeIdentifier::TiString8Large {
-                string_ldefn: StringLTypeDefn { bound: u32::MAX },
-            },
-            TypeKind::STRING16 => TypeIdentifier::TiString16Small {
-                string_sdefn: StringSTypeDefn { bound: u8::MAX },
-            },
+            TypeKind::STRING8 => {
+                if let Some(b) = value.descriptor.bound {
+                    if b <= u8::MAX as u32 {
+                        TypeIdentifier::TiString8Small {
+                            string_sdefn: StringSTypeDefn { bound: b as u8 },
+                        }
+                    } else {
+                        TypeIdentifier::TiString8Large {
+                            string_ldefn: StringLTypeDefn { bound: b },
+                        }
+                    }
+                } else {
+                    TypeIdentifier::TiString8Large {
+                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                    }
+                }
+            }
+            TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
@@ -2100,7 +2112,6 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
         let common = value.into();
         let detail = CompleteMemberDetail {
             name: String::from(value.get_name()),
-            // TODO: Applied builtin and custom annotations
             ann_builtin: None,
             ann_custom: None,
         };
@@ -2153,7 +2164,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count: -1,
+                dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
             complete: TypeIdentifierWithDependencies {
@@ -2191,7 +2202,7 @@ mod tests {
 
     use super::*;
     #[test]
-    #[ignore]
+    #[ignore = "Optional fields are not yet handled"]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "final")]
@@ -2211,32 +2222,15 @@ mod tests {
                 .typeobject_serialized_size,
             132
         );
-        // assert_eq!(
-        //     type_information.complete.typeid_with_size.type_id,
-        //     TypeIdentifier::EkComplete {
-        //         equivalence_hash: [
-        //             0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
-        //             0x96
-        //         ]
-        //     }
-        // );
-
         assert_eq!(
-            type_information
-                .minimal
-                .typeid_with_size
-                .typeobject_serialized_size,
-            92
+            type_information.complete.typeid_with_size.type_id,
+            TypeIdentifier::EkComplete {
+                equivalence_hash: [
+                    0xce, 0x6d, 0x79, 0x13, 0x05, 0x8d, 0xaa, 0x30, 0x78, 0xa8, 0x8f, 0x98, 0x21,
+                    0x96
+                ]
+            }
         );
-        // assert_eq!(
-        //     type_information.minimal.typeid_with_size.type_id,
-        //     TypeIdentifier::EkMinimal {
-        //         equivalence_hash: [
-        //             0xd3, 0xd5, 0x89, 0xfb, 0x12, 0x8b, 0x55, 0xdb, 0x4b, 0x83, 0x3d, 0x99, 0xa4,
-        //             0x02
-        //         ]
-        //     }
-        // );
     }
 
     #[test]
@@ -2269,9 +2263,9 @@ mod tests {
 
         let expected = [
             88, 0, 0, 0, // dheader
-            0x01, 0x10, 0, 0b100_0000, // Emheader: minimal
-            36, 0, 0, 0, // EMheader: nextint
-            32, 0, 0, 0,    // DHeader
+            0x01, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
@@ -2280,9 +2274,9 @@ mod tests {
             4, 0, 0, 0, // dependent_typeids: Dheader
             0, 0, 0, 0, // dependent_typeids Length
             // complete
-            0x02, 0x10, 0, 0b100_0000, // Emheader: minimal
-            36, 0, 0, 0, // EMheader: nextint
-            32, 0, 0, 0,    // DHeader
+            0x02, 0x10, 0, 0b101_0000, // Emheader: minimal
+            36, 0, 0, 0, // DHeader (replaces nextint)
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding
@@ -2313,7 +2307,8 @@ mod tests {
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
-            32, 0, 0, 0,    // DHeader
+            36, 0, 0, 0, // DHeader
+            20, 0, 0, 0,    // DHeader
             0xF2, // Discriminator
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // equivalence_hash
             0, // Padding

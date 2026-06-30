@@ -57,7 +57,8 @@ use crate::{
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
-        serializer::serialize_cdr1_le,
+        serializer::serialize_cdr2_le,
+        type_object::TypeIdentifier,
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -384,6 +385,7 @@ impl DcpsDomainParticipant {
             topic_data: topic.qos.topic_data.clone(),
             group_data: subscriber.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
+            type_consistency: data_reader.qos.type_consistency.clone(),
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
@@ -2660,7 +2662,11 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, runtime))]
-    pub fn _request_type_lookup(&mut self, runtime: &impl DdsRuntime) {
+    pub fn _request_type_lookup(
+        &mut self,
+        type_ids: Vec<TypeIdentifier>,
+        runtime: &impl DdsRuntime,
+    ) {
         if let Some(w) = self
             .domain_participant
             .builtin_publisher
@@ -2673,21 +2679,19 @@ impl DcpsDomainParticipant {
                 header: RequestHeader {
                     request_id: SampleIdentity {
                         writer_guid: w.transport_writer.guid(),
-                        sequence_number: w.last_change_sequence_number + 1,
+                        sequence_number: (w.last_change_sequence_number + 1).into(),
                     },
-                    instance_name: String::from("Some name"),
+                    instance_name: String::from(""),
                 },
                 call: TypeLookupCall::TypeLookupGetTypesHashId {
-                    get_types: TypeLookupGetTypesIn {
-                        type_ids: Vec::new(),
-                    },
+                    get_types: TypeLookupGetTypesIn { type_ids },
                 },
             };
             type_lookup_request.create_dynamic_sample(&mut dynamic_data);
 
             let timestamp = runtime.clock().now();
             let sample_instance_handle = self.domain_participant.instance_handle;
-            let serialized_data = serialize_cdr1_le(&dynamic_data).unwrap();
+            let serialized_data = serialize_cdr2_le(&dynamic_data).unwrap();
             let sample_timestamp = timestamp;
             let now = timestamp;
             w.write_w_timestamp(

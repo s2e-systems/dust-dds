@@ -47,8 +47,9 @@ use crate::{
             LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
             OwnershipStrengthQosPolicy, QosPolicyId, ReaderDataLifecycleQosPolicy,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
-            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-            WriterDataLifecycleQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
+            TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{
@@ -163,6 +164,7 @@ const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
     time_based_filter: TimeBasedFilterQosPolicy::const_default(),
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
+    type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
 const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
@@ -186,6 +188,7 @@ const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
     time_based_filter: TimeBasedFilterQosPolicy::const_default(),
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
+    type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
 fn spdp_writer_qos() -> DataWriterQos {
@@ -244,6 +247,7 @@ const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
     time_based_filter: TimeBasedFilterQosPolicy::const_default(),
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
+    type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
 const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
