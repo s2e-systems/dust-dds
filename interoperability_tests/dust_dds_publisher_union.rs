@@ -12,9 +12,9 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::TypeSupport,
     },
     wait_set::{Condition, WaitSet},
+    xtypes::type_support::TypeSupport,
 };
 
 // TODO: remove when dust_dds_gen adds support for union
@@ -186,7 +186,7 @@ fn main() {
     let topic = participant
         .create_topic::<UnionTypeWrapper>(
             "Union",
-            UnionTypeWrapper::TYPE.get_name(),
+            UnionTypeWrapper::get_type().get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
