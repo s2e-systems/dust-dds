@@ -1422,7 +1422,7 @@ impl DcpsDomainParticipant {
                             .create_dynamic_sample(&mut dynamic_data);
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
                                 .expect("Should not fail")
                                 .into(),
                         };
@@ -1553,7 +1553,7 @@ impl DcpsDomainParticipant {
                             .create_dynamic_sample(&mut dynamic_data);
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
                                 .expect("Should not fail")
                                 .into(),
                         };
@@ -1730,7 +1730,7 @@ impl DcpsDomainParticipant {
                             .create_dynamic_sample(&mut dynamic_data);
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(dynamic_data.clone())
+                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
                                 .expect("Should not fail")
                                 .into(),
                         };

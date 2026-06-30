@@ -228,7 +228,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(&dynamic_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -282,7 +282,7 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(dynamic_data.clone()) {
+        let instance_handle = match get_instance_handle_from_dynamic_data(&dynamic_data) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));

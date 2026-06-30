@@ -226,8 +226,7 @@ impl DcpsDomainParticipant {
                         tracing::warn!("Failed to deserialize user defined data");
                         return;
                     };
-                    let Ok(instance_handle) =
-                        get_instance_handle_from_dynamic_data(data_value.clone())
+                    let Ok(instance_handle) = get_instance_handle_from_dynamic_data(&data_value)
                     else {
                         tracing::warn!("Failed to get instance handle from dynamic_data");
                         return;
@@ -256,7 +255,7 @@ impl DcpsDomainParticipant {
                         };
 
                         let Ok(instance_handle) =
-                            get_instance_handle_from_dynamic_data(data_value.clone())
+                            get_instance_handle_from_dynamic_data(&data_value)
                         else {
                             tracing::warn!("Failed to deserialize disposed key user defined data");
                             return;

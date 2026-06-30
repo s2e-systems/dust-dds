@@ -16,7 +16,7 @@ pub type ObjectName<'a> = &'a str;
 
 // ---------- TypeKinds (begin) -------------------
 /// Represents the kind of a dynamic type (e.g., primitive, constructed, or collection type).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum TypeKind {
     /// No type kind.
@@ -519,7 +519,7 @@ impl DynamicTypeBuilderFactory {
 pub type Parameters = BTreeMap<ObjectName<'static>, ObjectName<'static>>;
 
 /// Defines how a type can be extended or modified in future versions.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtensibilityKind {
     /// Cannot be extended or modified.
     Final,
@@ -530,7 +530,7 @@ pub enum ExtensibilityKind {
 }
 
 /// Defines the behavior when constructing an object of a type that fails some validation or constraints.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TryConstructKind {
     /// Fall back to the default value.
     UseDefault,
@@ -541,6 +541,7 @@ pub enum TryConstructKind {
 }
 
 /// Describes the properties and characteristics of a [`DynamicType`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeDescriptor {
     /// The kind of the type.
     pub kind: TypeKind,
@@ -568,7 +569,7 @@ pub type MemberId = u32;
 pub type UnionCaseLabelSeq = Option<i32>;
 
 /// Describes a member of a constructed type.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemberDescriptor {
     /// The name of the member.
     pub name: ObjectName<'static>,
@@ -599,7 +600,7 @@ pub struct MemberDescriptor {
 }
 
 /// Represents a member of a [`DynamicType`].
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DynamicTypeMember {
     /// The descriptor describing this member.
     pub descriptor: MemberDescriptor,
@@ -718,19 +719,12 @@ impl DynamicTypeBuilder {
 }
 
 /// Represents a data type's schema at runtime.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DynamicType<'a> {
     /// The type descriptor.
     pub descriptor: &'a TypeDescriptor,
     /// The list of members belonging to this type.
     pub member_list: &'a [DynamicTypeMember],
-}
-
-impl<'a> PartialEq for DynamicType<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        core::ptr::addr_eq(self.descriptor, other.descriptor)
-            && core::ptr::addr_eq(self.member_list, other.member_list)
-    }
 }
 
 impl<'a> DynamicType<'a> {

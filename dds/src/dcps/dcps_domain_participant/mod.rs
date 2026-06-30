@@ -1647,7 +1647,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(&dynamic_data)?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }
@@ -1693,7 +1693,7 @@ impl DataWriterEntity {
             return Err(DdsError::IllegalOperation);
         }
 
-        let instance_handle = get_instance_handle_from_dynamic_data(dynamic_data.clone())?;
+        let instance_handle = get_instance_handle_from_dynamic_data(&dynamic_data)?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);
         }

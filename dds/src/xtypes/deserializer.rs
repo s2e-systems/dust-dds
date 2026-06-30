@@ -1032,7 +1032,7 @@ mod tests {
         )
         .unwrap();
         let instance_handle =
-            get_instance_handle_from_dynamic_data(dispose_serialized_key_from_data_message)
+            get_instance_handle_from_dynamic_data(&dispose_serialized_key_from_data_message)
                 .unwrap();
         assert_eq!(
             instance_handle,
