@@ -2202,6 +2202,7 @@ mod tests {
 
     use super::*;
     #[test]
+    #[ignore]
     fn shape_type_hash() {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "final")]

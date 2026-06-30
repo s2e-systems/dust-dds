@@ -8,7 +8,9 @@ use crate::{
         dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        xtypes_glue::key_and_instance_handle::{
+            KeyHolderData, get_instance_handle_from_key_holder_data,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -173,7 +175,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: DynamicData<'static>,
+        dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
@@ -194,7 +196,7 @@ impl DcpsDomainParticipant {
         };
 
         data_writer.unregister_w_timestamp(
-            dynamic_data,
+            &dynamic_data,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,
@@ -228,7 +230,13 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(&dynamic_data) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(&dynamic_data) {
+            Ok(k) => k,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -282,7 +290,14 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let instance_handle = match get_instance_handle_from_dynamic_data(&dynamic_data) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(&dynamic_data) {
+            Ok(h) => h,
+            Err(e) => {
+                reply_sender.send(Err(e.into()));
+                return;
+            }
+        };
+        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
@@ -448,7 +463,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        dynamic_data: DynamicData<'static>,
+        dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {

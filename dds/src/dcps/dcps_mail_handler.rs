@@ -583,7 +583,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.unregister_instance(
                     &publisher_handle,
                     &data_writer_handle,
-                    dynamic_data,
+                    &dynamic_data,
                     timestamp,
                     &self.runtime,
                 )),
@@ -638,7 +638,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.dispose_w_timestamp(
                     &publisher_handle,
                     &data_writer_handle,
-                    dynamic_data,
+                    &dynamic_data,
                     timestamp,
                     &self.runtime,
                 )),

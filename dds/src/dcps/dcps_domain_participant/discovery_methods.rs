@@ -159,7 +159,7 @@ impl DcpsDomainParticipant {
                 dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
                 dw.unregister_w_timestamp(
-                    dynamic_data,
+                    &dynamic_data,
                     timestamp,
                     self.transport.message_writer.as_ref(),
                     runtime,
@@ -303,7 +303,7 @@ impl DcpsDomainParticipant {
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
             dw.unregister_w_timestamp(
-                dynamic_data,
+                &dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,
@@ -445,7 +445,7 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample(&mut topic_key_data);
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
             dw.unregister_w_timestamp(
-                dynamic_data,
+                &dynamic_data,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,
