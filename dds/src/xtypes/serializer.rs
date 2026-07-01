@@ -901,7 +901,6 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-
         let dheader = Dheader::new(serializer);
         dheader.serializer.serialize_length(v, member_id)?;
         dheader.serializer.serialize_elements(v, member_id)?;
