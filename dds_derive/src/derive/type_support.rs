@@ -548,8 +548,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #create_sample_quote
             }
 
-            fn create_dynamic_sample(self, data: &mut dust_dds::xtypes::dynamic_type::DynamicData) {
+            fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData<'static> {
+                let mut data = dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
                 #create_dynamic_sample_quote
+                data
             }
         }
 

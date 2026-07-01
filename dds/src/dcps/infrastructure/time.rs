@@ -25,12 +25,12 @@ impl TypeSupport for DurationKind {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
         let value = match self {
             DurationKind::Finite(duration) => duration,
             DurationKind::Infinite => DURATION_INFINITE,
         };
-        value.create_dynamic_sample(data)
+        value.create_dynamic_sample()
     }
 }
 

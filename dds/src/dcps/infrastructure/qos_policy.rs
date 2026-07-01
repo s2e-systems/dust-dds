@@ -1071,12 +1071,14 @@ impl TypeSupport for HistoryQosPolicyKind {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         let value = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
         data.set_int8_value(0, value).unwrap();
+        data
     }
 }
 
@@ -1175,9 +1177,9 @@ impl TypeSupport for HistoryQosPolicy {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
-        let mut kind_data = DynamicDataFactory::create_data(HistoryQosPolicyKind::TYPE);
-        self.kind.create_dynamic_sample(&mut kind_data);
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
+        let kind_data = self.kind.create_dynamic_sample();
         data.set_complex_value(0, kind_data).unwrap();
         match self.kind {
             HistoryQosPolicyKind::KeepLast(depth) => {
@@ -1187,6 +1189,7 @@ impl TypeSupport for HistoryQosPolicy {
                 data.set_int32_value(1, 0).unwrap();
             }
         }
+        data
     }
 }
 
@@ -1240,13 +1243,15 @@ impl TypeSupport for ResourceLimitsQosPolicy {
             max_samples_per_instance: (*src.get_int32_value(2).expect("Must exist")).into(),
         }
     }
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        let mut data = DynamicDataFactory::create_data(Self::TYPE);
         data.set_int32_value(0, self.max_samples.into())
             .expect("Must succeed");
         data.set_int32_value(1, self.max_instances.into())
             .expect("Must succeed");
         data.set_int32_value(2, self.max_samples_per_instance.into())
             .expect("Must succeed");
+        data
     }
 }
 

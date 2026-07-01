@@ -1074,27 +1074,6 @@ impl DcpsDomainParticipant {
     }
 }
 
-#[tracing::instrument(skip(type_support))]
-fn get_topic_kind(type_support: &DynamicType) -> TopicKind {
-    // Check if topic has any member with key. This should include members in the base type if defined.
-    if let Some(b) = &type_support.descriptor.base_type {
-        let topic_kind = get_topic_kind(b);
-        if topic_kind == TopicKind::WithKey {
-            return topic_kind;
-        }
-    }
-    for index in 0..type_support.get_member_count() {
-        if let Ok(m) = type_support.get_member_by_index(index) {
-            if let Ok(d) = m.get_descriptor() {
-                if d.is_key {
-                    return TopicKind::WithKey;
-                }
-            }
-        }
-    }
-    TopicKind::NoKey
-}
-
 const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
@@ -1638,11 +1617,12 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+
+        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
 
         if !self.registered_instance_list.contains(&instance_handle) {
@@ -1686,11 +1666,12 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        if get_topic_kind(&self.type_support) == TopicKind::NoKey {
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+
+        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
         if !self.registered_instance_list.contains(&instance_handle) {
             return Err(DdsError::BadParameter);

@@ -4,13 +4,14 @@ use crate::{
     dcps::{
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
-            TopicDescriptionKind, get_topic_kind,
+            TopicDescriptionKind,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
         },
         status_mask::StatusMask,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -63,7 +64,7 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let topic_kind = get_topic_kind(&topic.type_support);
+        let topic_kind = KeyHolderType::from_dynamic_type(&topic.type_support)?.get_topic_kind();
 
         let type_support = topic.type_support;
         let Some(subscriber) = self
