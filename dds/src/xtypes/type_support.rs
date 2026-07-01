@@ -355,6 +355,23 @@ impl<T: TypeSupport> Type for Vec<T> {
     };
 }
 
+impl Type for Vec<bool> {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(bool::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
 impl Type for Vec<i8> {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
@@ -517,6 +534,23 @@ impl Type for Vec<f64> {
             discriminator_type: None,
             bound: Some(u32::MAX),
             element_type: Some(f64::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
+impl Type for Vec<char> {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(char::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
