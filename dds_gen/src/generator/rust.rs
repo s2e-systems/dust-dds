@@ -351,6 +351,15 @@ impl<'a> RustGenerator<'a> {
             self.writer.push_str(&name);
         }
 
+        if let Some(base_type) = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::scoped_name)
+        {
+            self.writer.push_str("#[dust_dds(base_type =");
+            self.scoped_name(base_type);
+            self.writer.push_str(")]");
+        }
+
         self.writer.push_str("pub struct ");
         self.generate(identifier);
 

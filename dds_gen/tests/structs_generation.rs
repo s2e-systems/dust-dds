@@ -49,6 +49,7 @@ fn structs_generation() {
             }
 
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(base_type = Parent)]
             pub struct Child {
                 pub parent: Parent,
                 pub name: String,
