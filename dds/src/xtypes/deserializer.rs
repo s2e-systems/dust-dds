@@ -672,42 +672,29 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ) -> XTypesResult<DynamicData<'b>> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
-        fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
-            deserializer: &mut XTypesDeserializer<'a, E, V>,
-            dynamic_data: &mut DynamicData,
-        ) -> XTypesResult<()> {
-            let dynamic_type = dynamic_data.r#type();
-            // Deserialize the top-level which must be either a struct, an enum or a union.
-            match dynamic_type.get_descriptor().kind {
-                TypeKind::STRUCTURE => match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => deserializer.deserialize_fstruct_type(dynamic_data),
-                    ExtensibilityKind::Appendable => {
-                        V::deserialize_appendable_type(deserializer, dynamic_data)
-                    }
-                    ExtensibilityKind::Mutable => {
-                        V::deserialize_mstruct_type(deserializer, dynamic_data)
-                    }
-                },
-                TypeKind::ENUM => deserializer.deserialize_enum_type(dynamic_data),
-
-                TypeKind::UNION => match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => deserializer.deserialize_funion_type(dynamic_data),
-                    ExtensibilityKind::Appendable => {
-                        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-                        deserializer.deserialize_funion_type(dynamic_data)
-                    }
-                    ExtensibilityKind::Mutable => todo!(),
-                },
-                kind => {
-                    debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                    Err(XTypesError::InvalidType)
+        let descriptor = dynamic_data.r#type().descriptor;
+        match descriptor.kind {
+            TypeKind::STRUCTURE => match descriptor.extensibility_kind {
+                ExtensibilityKind::Final => self.deserialize_fstruct_type(&mut dynamic_data)?,
+                ExtensibilityKind::Appendable => {
+                    V::deserialize_appendable_type(self, &mut dynamic_data)?
                 }
+                ExtensibilityKind::Mutable => V::deserialize_mstruct_type(self, &mut dynamic_data)?,
+            },
+            TypeKind::ENUM => self.deserialize_enum_type(&mut dynamic_data)?,
+            TypeKind::UNION => match descriptor.extensibility_kind {
+                ExtensibilityKind::Final => self.deserialize_funion_type(&mut dynamic_data)?,
+                ExtensibilityKind::Appendable => {
+                    let _dheader = self.deserialize_primitive_type::<u32>()?;
+                    self.deserialize_funion_type(&mut dynamic_data)?
+                }
+                ExtensibilityKind::Mutable => todo!(),
+            },
+            kind => {
+                debug!("Expected structure, enum or union. Got kind {kind:?} ");
+                Err(XTypesError::InvalidType)?
             }
         }
-
-        // We start by deserializing the base type if it exists before proceeding with the rest of the type
-        deserialize_as_nested_inner(self, &mut dynamic_data)?;
-
         Ok(dynamic_data)
     }
 
@@ -836,7 +823,6 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ///              XCDR
     ///                << { O.value : O.holder_type }
     fn deserialize_enum_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        // let dynamic_type = dynamic_data.r#type();
         let discriminator_type = dynamic_data
             .r#type()
             .descriptor
@@ -914,7 +900,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     /// (17) XCDR << {O : FSTRUCT_TYPE} =
     ///               XCDR
     ///                << { O.member[i] : FMEMBER }*
-    fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData<'_>) -> XTypesResult<()> {
+    fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         let dynamic_type = dynamic_data.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
@@ -943,7 +929,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ///               XCDR
     ///                 << { O.disc : NOPT_FMEMBER }
     ///                 << { O.selected_member : FMEMBER }?
-    fn deserialize_funion_type(&mut self, dynamic_data: &mut DynamicData<'_>) -> XTypesResult<()> {
+    fn deserialize_funion_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         let dynamic_type = dynamic_data.r#type();
         // Deserialize the discriminator
         let disc_member = dynamic_type.get_member_by_index(0)?;
