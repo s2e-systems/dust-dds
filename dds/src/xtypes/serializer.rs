@@ -880,58 +880,8 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .expect("array has element type");
-
         let dheader = Dheader::new(serializer);
-
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8
-            | TypeKind::CHAR8
-            | TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                for v in v.get_string_values(member_id)? {
-                    dheader.serializer.serialize_string_type(v);
-                }
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
-                for v in v.get_complex_values(member_id)? {
-                    dheader.serializer.serialize_t_as_nested(v)?;
-                }
-            }
-            TypeKind::UNION => {
-                for v in v.get_complex_values(member_id)? {
-                    dheader.serializer.serialize_funion_type(v)?;
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-
+        dheader.serializer.serialize_elements(v, member_id)?;
         dheader.write_header();
 
         Ok(())
@@ -951,89 +901,10 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("sequence has element type");
-        match element_type.descriptor.kind {
-            TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8 => {
-                return serializer.serialize_p_sequence_type(v, member_id);
-            }
-            _ => (),
-        };
 
         let dheader = Dheader::new(serializer);
-
-        match element_type.descriptor.kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8
-            | TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
-                dheader
-                    .serializer
-                    .serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    dheader.serializer.serialize_string_type(v);
-                }
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
-                let list = v.get_complex_values(member_id)?;
-                dheader
-                    .serializer
-                    .serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    dheader.serializer.serialize_t_as_nested(v)?;
-                }
-            }
-            TypeKind::UNION => {
-                let list = v.get_complex_values(member_id)?;
-                dheader
-                    .serializer
-                    .serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    dheader.serializer.serialize_funion_type(v)?;
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-
+        dheader.serializer.serialize_length(v, member_id)?;
+        dheader.serializer.serialize_elements(v, member_id)?;
         dheader.write_header();
         Ok(())
     }
