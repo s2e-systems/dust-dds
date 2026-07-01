@@ -247,7 +247,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
             TypeKind::BOOLEAN => {
                 serialize_primitive_slice(self, v.get_boolean_values(member_id)?);
             }
-            TypeKind::BYTE => serialize_primitive_slice(self, v.get_byte_values(member_id)?),
+            TypeKind::BYTE => self.writer.write_slice(v.get_byte_values(member_id)?),
             TypeKind::INT16 => serialize_primitive_slice(self, v.get_int16_values(member_id)?),
             TypeKind::INT32 => serialize_primitive_slice(self, v.get_int32_values(member_id)?),
             TypeKind::INT64 => serialize_primitive_slice(self, v.get_int64_values(member_id)?),
@@ -260,7 +260,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
                 serialize_primitive_slice(self, v.get_float128_values(member_id)?)
             }
             TypeKind::INT8 => serialize_primitive_slice(self, v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => serialize_primitive_slice(self, v.get_uint8_values(member_id)?),
+            TypeKind::UINT8 => self.writer.write_slice(v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => serialize_primitive_slice(self, v.get_char8_values(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {

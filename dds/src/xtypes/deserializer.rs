@@ -103,6 +103,8 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
+const PID_SENTINEL: u16 = 1;
+
 trait EncodingVersion: Sized {
     fn align<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
@@ -145,7 +147,6 @@ trait EncodingVersion: Sized {
     /// Serialization Rule (21) & (23)
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
@@ -182,7 +183,6 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
     ) -> XTypesResult<u16> {
-        const PID_SENTINEL: u16 = 1;
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let length: u16 = deserializer.deserialize_primitive_type()?;
@@ -197,6 +197,11 @@ impl EncodingVersion for EncodingVersion1 {
         }
     }
 
+    /// Arrays (any extensibility) using version 1 encoding
+    ///
+    /// (10) XCDR[1] << {O : ARRAY_TYPE} =
+    ///                  XCDR
+    ///                    << { O[i] : O.element_type }*
     fn deserialize_array_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -211,7 +216,12 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (12)
+    /// Sequences (any extensibility) using version 1 encoding
+    ///
+    /// (13) XCDR[1] << {O : SEQUENCE_TYPE} =
+    ///                   XCDR
+    ///                     << { O.length : UInt32 }
+    ///                     << { O[i] : O.element_type }*
     fn deserialize_sequence_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -223,6 +233,7 @@ impl EncodingVersion for EncodingVersion1 {
 
     /// Optional member of final Aggregated type (structure, union), version 1
     /// see (26) and (27) for MMEMBER serialization
+    ///
     /// (19) XCDR[1] << {M : OPT_FMEMBER} =
     ///                    XCDR
     ///                    << { M : MMEMBER }
@@ -234,43 +245,37 @@ impl EncodingVersion for EncodingVersion1 {
         Self::deserialize_mmember(deserializer, member, dynamic_data)
     }
 
-    /// Serialization Rule (23)
     /// Structures with extensibility MUTABLE, version 1 encoding
-    /// XCDR[1] << {O : MSTRUCT_TYPE} =
-    ///              XCDR
-    ///              << { O.member[i] : MMEMBER }*
-    ///              << { PID_SENTINEL : UInt16 }
-    ///              << { length = 0 : UInt16 }
+    ///
+    /// (23) XCDR[1] << {O : MSTRUCT_TYPE} =
+    ///                  XCDR
+    ///                    << { O.member[i] : MMEMBER }*
+    ///                    << { PID_SENTINEL : UInt16 }
+    ///                    << { length = 0 : UInt16 }
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
-        }
-        const PID_SENTINEL: u16 = 1;
+        deserializer.deserialize_members(dynamic_data)?;
         Self::seek_to_pid(deserializer, PID_SENTINEL)?;
         Ok(())
     }
 
-    /// Serialization Rule (24)
     /// Member of mutable aggregated type (structure, union), version 1 encoding
     /// using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
-    /// XCDR[1] << {M : MMEMBER} =
-    ///              XCDR
-    ///               << ALIGN(4)
-    ///               << { FLAG_I + FLAG_M + M.id : UInt16 }
-    ///               << { M.value.ssize : UInt16 }
-    ///               << PUSH( ORIGIN=0 )
-    ///               << { M.value : M.value.type }
+    ///
+    /// (24) XCDR[1] << {M : MMEMBER} =
+    ///                  XCDR
+    ///                   << ALIGN(4)
+    ///                   << { FLAG_I + FLAG_M + M.id : UInt16 }
+    ///                   << { M.value.ssize : UInt16 }
+    ///                   << PUSH( ORIGIN=0 )
+    ///                   << { M.value : M.value.type }
     fn deserialize_mmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         Self::align(deserializer, 4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
@@ -288,7 +293,12 @@ impl EncodingVersion for EncodingVersion1 {
 
         // TODO (25) using long PL encoding
     }
-    /// Serialization Rule (29)
+
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 1
+    /// encoding
+    /// (29) XCDR[1] << {O : APPENDABLE_TYPE} =
+    ///                  XCDR
+    ///                    << { O : AsFinal(O.type) }
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
@@ -317,6 +327,12 @@ impl EncodingVersion for EncodingVersion2 {
         }
     }
 
+    /// Arrays (any extensibility) using version 2 encoding
+    ///
+    /// (9) XCDR[2] << {O : ARRAY_TYPE} =
+    ///                 XCDR
+    ///                   << { DHEADER(O) : UINT32 }
+    ///                   << { O[i] : O.element_type }*
     fn deserialize_array_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -332,7 +348,13 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (12)
+    /// Sequences (any extensibility) using version 2 encoding
+    ///
+    /// (12) XCDR[2] << {O : SEQUENCE_TYPE} =
+    ///                  XCDR
+    ///                    << { DHEADER(O) : UINT32 }
+    ///                    << { O.length : UINT32 }
+    ///                    << { O[i] : O.element_type }*
     fn deserialize_sequence_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -343,21 +365,27 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
-    /// Serialization Rule (21)
+    /// (21) XCDR[2] << {O : MSTRUCT_TYPE} =
+    ///                  XCDR
+    ///                    << { DHEADER(O) : UInt32 }
+    ///                    << { O.member[i] : MMEMBER }*
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
-        }
+        deserializer.deserialize_members(dynamic_data)?;
         Ok(())
     }
 
-    /// Serialization Rule (22)
+    /// Member of mutable aggregated type (structure, union), version 2 encoding
+    ///
+    /// (22) XCDR[2] << {M : MMEMBER} =
+    ///                  XCDR
+    ///                    << { EMHEADER1(M) : UInt32 }
+    ///                    << IF (LC(M)>=4) { NEXTINT(M) : UInt32 }
+    ///                    << IF (LC(M)>=5) XCDR.offset = XCDR.offset-4
+    ///                    << { M.value : M.value.type }
     fn deserialize_mmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -369,7 +397,7 @@ impl EncodingVersion for EncodingVersion2 {
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
-            deserializer.deserialize_nopt_fmember(member, dynamic_data)
+            deserializer.deserialize_as_value(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
         } else {
@@ -379,7 +407,12 @@ impl EncodingVersion for EncodingVersion2 {
         result
     }
 
-    /// Serialization Rule (30)
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 2
+    /// encoding
+    /// (30) XCDR[2] << {O : APPENDABLE_TYPE} =
+    ///                   XCDR
+    ///                     << { DHEADER(O) : UInt32 }
+    ///                     << { O : AsFinal(O.type) }
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
@@ -399,6 +432,7 @@ impl EncodingVersion for EncodingVersion2 {
     }
 
     /// Optional member of final aggregated type (structure, union), version 2
+    ///
     /// (20) XCDR[2] << {M : OPT_FMEMBER} =
     ///                   XCDR
     ///                   << { <is_present> : BOOLEAN }
@@ -417,7 +451,17 @@ impl EncodingVersion for EncodingVersion2 {
     }
 }
 
-/// Serialization Rule (1)
+/// Serialization Rule
+/// (1) XCDR << {O : TOP_LEVEL_TYPE} =
+///             XCDR
+///               << INIT( OFFSET=0, ORIGIN=0,
+///                        CENDIAN=<E>, EVERSION=<eversion> )
+///               << { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+///               << PUSH( EVERSION = <eversion> )
+///               << PUSH( MAXALIGN = MAXALIGN(<eversion>) )
+///               << PUSH( ORIGIN = 0 )
+///               << { <OPTIONS> : Byte[2] }
+///               << { O : AsNested(O.type) }
 pub fn deserialize_top_level_type<'a>(
     dynamic_type: DynamicType<'a>,
     buffer: &[u8],
@@ -498,23 +542,39 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
-        &mut self,
-        length: usize,
-    ) -> XTypesResult<Vec<O>> {
-        let mut sequence = Vec::with_capacity(length);
-        for _ in 0..length {
-            sequence.push(self.deserialize_primitive_type()?);
+    /// Serialization rule: { O.member[i] : MMEMBER }*
+    fn deserialize_members(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let dynamic_type = dynamic_data.r#type();
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            V::deserialize_mmember(self, member, dynamic_data)?;
         }
-        Ok(sequence)
+        Ok(())
     }
 
+    /// Serialization rule: { O[i] : O.element_type }*
     fn deserialize_sequence_elements(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
+        fn deserialize_primitive_sequence_elements<
+            'a,
+            O: AsBytes + Align,
+            E: EndiannessRead,
+            V: EncodingVersion,
+        >(
+            deserializer: &mut XTypesDeserializer<'a, E, V>,
+            length: usize,
+        ) -> XTypesResult<Vec<O>> {
+            let mut sequence = Vec::with_capacity(length);
+            for _ in 0..length {
+                sequence.push(deserializer.deserialize_primitive_type()?);
+            }
+            Ok(sequence)
+        }
+
         let element_type = member
             .descriptor
             .r#type
@@ -525,59 +585,55 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
-            TypeKind::BYTE => dynamic_data.set_byte_values(
-                member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
-            ),
+            TypeKind::BYTE => dynamic_data
+                .set_byte_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
             TypeKind::INT16 => dynamic_data.set_int16_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT32 => dynamic_data.set_int32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT64 => dynamic_data.set_int64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT16 => dynamic_data.set_uint16_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT32 => dynamic_data.set_uint32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT64 => dynamic_data.set_uint64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT32 => dynamic_data.set_float32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT64 => dynamic_data.set_float64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT128 => dynamic_data.set_float128_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT8 => dynamic_data.set_int8_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
-                member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
-            ),
+            TypeKind::UINT8 => dynamic_data
+                .set_uint8_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
             TypeKind::CHAR8 => dynamic_data.set_char8_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
@@ -612,6 +668,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
+    /// Serialization rule: { O : AsNested(O.type) }
     fn deserialize_as_nested<'b>(
         &mut self,
         dynamic_type: DynamicType<'b>,
@@ -633,7 +690,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                         V::deserialize_appendable_type(deserializer, dynamic_type, dynamic_data)
                     }
                     ExtensibilityKind::Mutable => {
-                        V::deserialize_mstruct_type(deserializer, dynamic_type, dynamic_data)
+                        V::deserialize_mstruct_type(deserializer, dynamic_data)
                     }
                 },
                 TypeKind::ENUM => deserializer.deserialize_enum_type(dynamic_type, dynamic_data),
@@ -661,6 +718,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         Ok(dynamic_data)
     }
 
+    /// Serialization rule: { M.value : M.value.type }
     fn deserialize_as_value(
         &mut self,
         member: &DynamicTypeMember,
@@ -749,13 +807,19 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    /// Serialization Rule (2)
+    /// (2) XCDR << {O : PRIMITIVE_TYPE} =
+    ///              XCDR
+    ///                << ALIGN( O.ssize )
+    ///                << ESWAP( AsBytes(O) )
     fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
         V::align(self, O::SSIZE)?;
         O::as_bytes::<E>(&mut self.reader)
     }
 
-    /// Serialization Rule (3) & (4)
+    /// (3) XCDR << {O : STRING_TYPE} =
+    ///               XCDR
+    ///                << { O.ssize : UInt32 } // includes NUL
+    ///                << { O[i] : Byte }* // includes NUL
     fn deserialize_string_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
         let values = self.reader.read_bytes(length as usize - 1)?.to_vec();
@@ -763,7 +827,9 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
 
-    /// Serialization Rule (5)
+    /// (5) XCDR << {O : ENUM_TYPE} =
+    ///              XCDR
+    ///                << { O.value : O.holder_type }
     fn deserialize_enum_type(
         &mut self,
         dynamic_type: DynamicType,
@@ -800,7 +866,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         todo!()
     }
 
-    /// Serialization Rule (8)
+    /// Arrays of primitive element type (version 1 and 2 encoding)
+    ///
+    /// (8) XCDR << {O : PARRAY_TYPE} =
+    ///              XCDR
+    ///                << { O[i] : O.element_type }*
     fn deserialize_parray_type(
         &mut self,
         member: &DynamicTypeMember,
@@ -815,7 +885,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (11)
+    /// Sequences of primitive element type (version 1 and 2 encoding)
+    ///
+    /// (11) XCDR << { O : PSEQUENCE_TYPE } =
+    ///               XCDR
+    ///                 << { O.length : UInt32 }
+    ///                 << { O[i] : O.element_type }*
     fn deserialize_psequence_type(
         &mut self,
         member: &DynamicTypeMember,
@@ -830,7 +905,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         todo!()
     }
 
-    /// Serialization Rule (17)
+    /// Structures with extensibility FINAL (version 1 and 2 encoding)
+    ///
+    /// FMMEBER can be NOPT_FMEMBER (18) or OPT_FMEMBER (19)
+    /// (17) XCDR << {O : FSTRUCT_TYPE} =
+    ///               XCDR
+    ///                << { O.member[i] : FMEMBER }*
     fn deserialize_fstruct_type(
         &mut self,
         dynamic_type: DynamicType,
@@ -847,7 +927,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         Ok(())
     }
 
-    /// Serialization Rule (18)
+    /// Non-optional member of final Aggregated type (structure, union)
+    ///
+    /// (18) XCDR << {M : NOPT_FMEMBER} =
+    ///                XCDR
+    ///                  << { M.value : M.value.type }
     fn deserialize_nopt_fmember(
         &mut self,
         member: &DynamicTypeMember,
@@ -856,7 +940,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         self.deserialize_as_value(member, dynamic_data)
     }
 
-    /// Serialization Rule (26)
+    /// Unions with extensibility FINAL (version 1 and 2 encoding)
+    /// see (18) to (20) for NOPT_FMEMBER and FMEMBER serialization
+    ///
+    /// (26) XCDR << {O : FUNION_TYPE} =
+    ///               XCDR
+    ///                 << { O.disc : NOPT_FMEMBER }
+    ///                 << { O.selected_member : FMEMBER }?
     fn deserialize_funion_type(
         &mut self,
         dynamic_type: DynamicType,
