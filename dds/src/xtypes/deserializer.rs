@@ -533,10 +533,9 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
+            TypeKind::ENUM | TypeKind::STRUCTURE => {
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(self.deserialize_as_nested(element_type)?);

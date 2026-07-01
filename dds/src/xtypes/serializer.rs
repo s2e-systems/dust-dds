@@ -746,10 +746,9 @@ impl EncodingVersion for EncodingVersion1 {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ENUM | TypeKind::STRUCTURE => {
                 for v in v.get_complex_values(member_id)? {
                     serializer.serialize_t_as_nested(v)?;
                 }
@@ -803,8 +802,8 @@ impl EncodingVersion for EncodingVersion1 {
             | TypeKind::FLOAT128
             | TypeKind::INT8
             | TypeKind::UINT8
-            | TypeKind::CHAR8 => todo!(),
-            TypeKind::CHAR16 => todo!(),
+            | TypeKind::CHAR8
+            | TypeKind::CHAR16 => unimplemented!("Is primitive sequence"),
             TypeKind::STRING8 => {
                 let list = v.get_string_values(member_id)?;
                 serializer.serialize_primitive_type(&(list.len() as u32));
@@ -814,10 +813,8 @@ impl EncodingVersion for EncodingVersion1 {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
+            TypeKind::ENUM | TypeKind::BITMASK | TypeKind::STRUCTURE => {
                 let list = v.get_complex_values(member_id)?;
                 serializer.serialize_primitive_type(&(list.len() as u32));
                 for v in list {
