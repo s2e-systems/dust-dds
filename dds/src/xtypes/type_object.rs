@@ -2152,7 +2152,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM=> {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM => {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
