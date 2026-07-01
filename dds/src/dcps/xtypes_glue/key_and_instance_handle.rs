@@ -45,6 +45,10 @@ impl<'a> KeyHolderType<'a> {
         Ok(Self(key_holder_type_builder.build()))
     }
 
+    pub fn as_dynamic_type(&self) -> &DynamicType<'a> {
+        &self.0
+    }
+
     pub fn get_topic_kind(&self) -> TopicKind {
         if self.0.member_list.is_empty() {
             TopicKind::NoKey
