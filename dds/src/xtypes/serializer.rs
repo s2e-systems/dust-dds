@@ -432,16 +432,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         for field_index in 0..dynamic_type.get_member_count() {
             let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
 
-            if let Some(base_type) = dynamic_type.descriptor.base_type {
-                let member_descriptor = &base_type.get_member(member_id)?.descriptor;
-
-                if member_descriptor.is_optional {
-                    V::serialize_opt_fmember(self, v, member_id)?;
-                } else {
-                    self.serialize_nopt_fmember(v, member_id)?;
-                }
-            }
-            if let Ok(member) = &dynamic_type.get_member(member_id) {
+            if let Ok(member) = dynamic_type.get_member(member_id) {
                 if member.descriptor.is_optional {
                     V::serialize_opt_fmember(self, v, member_id)?;
                 } else {

@@ -656,9 +656,6 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
 
         // We start by deserializing the base type if it exists before proceeding with the rest of the type
-        if let Some(base_dynamic_type) = dynamic_type.descriptor.base_type {
-            deserialize_as_nested_inner(self, base_dynamic_type, &mut dynamic_data)?;
-        }
         deserialize_as_nested_inner(self, dynamic_type, &mut dynamic_data)?;
 
         Ok(dynamic_data)
