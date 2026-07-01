@@ -100,9 +100,9 @@ impl<'a> RustGenerator<'a> {
             Rule::struct_def => self.struct_def(pair),
             Rule::member => self.member(pair),
             Rule::struct_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
-            Rule::union_dcl => todo!(),
-            Rule::union_def => todo!(),
-            Rule::switch_type_spec => todo!(),
+            Rule::union_dcl => self.union_dcl(pair),
+            Rule::union_def => self.union_def(pair),
+            Rule::switch_type_spec => self.switch_type_spec(pair),
             Rule::switch_body => todo!(),
             Rule::case => todo!(),
             Rule::case_label => todo!(),
@@ -296,6 +296,15 @@ impl<'a> RustGenerator<'a> {
     }
 
     #[inline]
+    fn union_dcl(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
     fn struct_dcl(&mut self, pair: IdlPair) {
         self.generate(
             pair.into_inner()
@@ -443,6 +452,33 @@ impl<'a> RustGenerator<'a> {
         self.writer.push_str("}\n");
     }
 
+    fn union_def(&mut self, pair: IdlPair) {
+        let identifier = pair
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+
+        let switch_type_spec = pair
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::switch_type_spec)
+            .expect("Must have a switch_type_spec according to the grammar");
+
+        self.writer
+            .push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+
+        self.writer.push_str("#[dust_dds(switch(");
+        self.generate(switch_type_spec);
+        self.writer.push_str("))]");
+
+        self.writer.push_str("pub enum ");
+        self.generate(identifier);
+        self.writer.push_str(" {");
+
+        self.writer.push_str("}\n");
+    }
+
     #[inline]
     fn enumerator(&mut self, pair: IdlPair) {
         let identifier = pair
@@ -482,6 +518,14 @@ impl<'a> RustGenerator<'a> {
                 }
             }
         }
+    }
+
+    fn switch_type_spec(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
     }
 
     fn member(&mut self, pair: IdlPair) {
