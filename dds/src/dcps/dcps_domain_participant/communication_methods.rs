@@ -11,7 +11,9 @@ use crate::{
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
+        xtypes_glue::key_and_instance_handle::{
+            KeyHolderType, get_instance_handle_from_dynamic_data,
+        },
     },
     infrastructure::{instance::InstanceHandle, status::StatusKind, time::DurationKind},
     rtps::message_receiver::MessageReceiver,
@@ -241,13 +243,15 @@ impl DcpsDomainParticipant {
                         (None, instance_handle)
                     }
                     None => {
-                        let mut dispose_data_type_key_holder = data_reader.type_support;
-                        let mut member_list = data_reader.type_support.member_list.to_vec();
-                        member_list.retain(|f| f.descriptor.is_key);
-                        dispose_data_type_key_holder.member_list = &member_list;
+                        let Ok(key_holder) =
+                            KeyHolderType::from_dynamic_type(&data_reader.type_support)
+                        else {
+                            tracing::warn!("Failed to create key holder");
+                            return;
+                        };
 
                         let Ok(data_value) = deserialize_top_level_type(
-                            dispose_data_type_key_holder,
+                            *key_holder.as_dynamic_type(),
                             cache_change.data_value.as_ref(),
                         ) else {
                             tracing::warn!("Failed to deserialize disposed user defined data");
