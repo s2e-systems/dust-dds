@@ -356,6 +356,15 @@ impl<'a> RustGenerator<'a> {
 
         self.writer.push_str(" {");
 
+        if let Some(base_type) = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::scoped_name)
+        {
+            self.writer.push_str("\t pub parent: \n");
+            self.scoped_name(base_type);
+            self.writer.push_str(",\n");
+        }
+
         for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
             self.generate(member);
         }

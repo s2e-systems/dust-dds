@@ -42,6 +42,17 @@ fn structs_generation() {
             pub struct Objective {
                 pub objective_type: ObjectiveType,
             }
+
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            pub struct Parent {
+                pub a: u8,
+            }
+
+            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            pub struct Child {
+                pub parent: Parent,
+                pub name: String,
+            }
     "#
         .parse()
         .unwrap(),
