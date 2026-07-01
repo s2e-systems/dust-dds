@@ -70,44 +70,6 @@ pub enum DataStorage {
     SequenceComplexValue(Vec<DynamicData<'static>>),
 }
 
-impl DataStorage {
-    /// Get the number of elements
-    pub fn number_of_elements(&self) -> usize {
-        match self {
-            DataStorage::UInt8(_) => 1,
-            DataStorage::Int8(_) => 1,
-            DataStorage::UInt16(_) => 1,
-            DataStorage::Int16(_) => 1,
-            DataStorage::Int32(_) => 1,
-            DataStorage::UInt32(_) => 1,
-            DataStorage::Int64(_) => 1,
-            DataStorage::UInt64(_) => 1,
-            DataStorage::Float32(_) => 1,
-            DataStorage::Float64(_) => 1,
-            DataStorage::Float128(_) => 1,
-            DataStorage::Char8(_) => 1,
-            DataStorage::Boolean(_) => 1,
-            DataStorage::String(_) => 1,
-            DataStorage::ComplexValue(_) => 1,
-            DataStorage::SequenceUInt8(items) => items.len(),
-            DataStorage::SequenceInt8(items) => items.len(),
-            DataStorage::SequenceUInt16(items) => items.len(),
-            DataStorage::SequenceInt16(items) => items.len(),
-            DataStorage::SequenceInt32(items) => items.len(),
-            DataStorage::SequenceUInt32(items) => items.len(),
-            DataStorage::SequenceInt64(items) => items.len(),
-            DataStorage::SequenceUInt64(items) => items.len(),
-            DataStorage::SequenceFloat32(items) => items.len(),
-            DataStorage::SequenceFloat64(items) => items.len(),
-            DataStorage::SequenceFloat128(items) => items.len(),
-            DataStorage::SequenceChar8(items) => items.len(),
-            DataStorage::SequenceBoolean(items) => items.len(),
-            DataStorage::SequenceString(items) => items.len(),
-            DataStorage::SequenceComplexValue(dynamic_datas) => dynamic_datas.len(),
-        }
-    }
-}
-
 /// Trait used to map Rust types to and from their corresponding [`DataStorage`] variants.
 ///
 /// This trait is typically used by the derive macro to convert types into

@@ -1,5 +1,6 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
+    data_storage::DataStorage,
     dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
     error::{XTypesError, XTypesResult},
 };
@@ -120,6 +121,44 @@ fn serialize_primitive_slice<'a, E: EndiannessWrite, V: EncodingVersion>(
 ) {
     for vi in v {
         serializer.serialize_primitive_type(vi);
+    }
+}
+
+impl DataStorage {
+    /// Get the number of elements
+    fn number_of_elements(&self) -> usize {
+        match self {
+            DataStorage::UInt8(_)
+            | DataStorage::Int8(_)
+            | DataStorage::UInt16(_)
+            | DataStorage::Int16(_)
+            | DataStorage::Int32(_)
+            | DataStorage::UInt32(_)
+            | DataStorage::Int64(_)
+            | DataStorage::UInt64(_)
+            | DataStorage::Float32(_)
+            | DataStorage::Float64(_)
+            | DataStorage::Float128(_)
+            | DataStorage::Char8(_)
+            | DataStorage::Boolean(_)
+            | DataStorage::String(_)
+            | DataStorage::ComplexValue(_) => 1,
+            DataStorage::SequenceUInt8(items) => items.len(),
+            DataStorage::SequenceInt8(items) => items.len(),
+            DataStorage::SequenceUInt16(items) => items.len(),
+            DataStorage::SequenceInt16(items) => items.len(),
+            DataStorage::SequenceInt32(items) => items.len(),
+            DataStorage::SequenceUInt32(items) => items.len(),
+            DataStorage::SequenceInt64(items) => items.len(),
+            DataStorage::SequenceUInt64(items) => items.len(),
+            DataStorage::SequenceFloat32(items) => items.len(),
+            DataStorage::SequenceFloat64(items) => items.len(),
+            DataStorage::SequenceFloat128(items) => items.len(),
+            DataStorage::SequenceChar8(items) => items.len(),
+            DataStorage::SequenceBoolean(items) => items.len(),
+            DataStorage::SequenceString(items) => items.len(),
+            DataStorage::SequenceComplexValue(items) => items.len(),
+        }
     }
 }
 
