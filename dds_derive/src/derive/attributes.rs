@@ -64,12 +64,14 @@ pub struct StructAttributes {
     pub name: String,
     pub extensibility: Extensibility,
     pub is_nested: bool,
+    pub base_type: Option<String>,
 }
 
 pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut name = input.ident.to_string();
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
+    let mut base_type = None;
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -112,6 +114,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         name,
         extensibility,
         is_nested,
+        base_type,
     })
 }
 
