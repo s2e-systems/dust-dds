@@ -20,14 +20,19 @@ impl<'a> KeyHolderType<'a> {
             value: &DynamicType<'a>,
             builder: &mut DynamicTypeBuilder,
         ) -> XTypesResult<()> {
-            for member_index in 0..value.get_member_count() {
-                let dynamic_type_member = value.get_member_by_index(member_index)?;
-                if dynamic_type_member.get_descriptor()?.is_key {
-                    builder.add_member(dynamic_type_member.get_descriptor()?.clone())?;
-                } else if dynamic_type_member.descriptor.r#type.descriptor.kind
-                    == TypeKind::STRUCTURE
-                {
-                    fill_struct_key_holder_type(&dynamic_type_member.descriptor.r#type, builder)?;
+            if value.get_kind() == TypeKind::STRUCTURE {
+                for member_index in 0..value.get_member_count() {
+                    let dynamic_type_member = value.get_member_by_index(member_index)?;
+                    if dynamic_type_member.get_descriptor()?.is_key {
+                        builder.add_member(dynamic_type_member.get_descriptor()?.clone())?;
+                    } else if dynamic_type_member.descriptor.r#type.descriptor.kind
+                        == TypeKind::STRUCTURE
+                    {
+                        fill_struct_key_holder_type(
+                            &dynamic_type_member.descriptor.r#type,
+                            builder,
+                        )?;
+                    }
                 }
             }
             Ok(())
@@ -57,17 +62,21 @@ impl<'a> KeyHolderData<'a> {
             key_holder_data: &mut DynamicData,
         ) -> XTypesResult<()> {
             let dynamic_type = value.r#type();
-            for member_index in 0..dynamic_type.get_member_count() {
-                let dynamic_type_member = dynamic_type.get_member_by_index(member_index)?;
-                let key_member_id = dynamic_type_member.get_id();
-                if dynamic_type_member.descriptor.is_key {
-                    key_holder_data
-                        .set_value(key_member_id, value.get_value(key_member_id)?.clone());
-                } else if dynamic_type_member.descriptor.r#type.get_kind() == TypeKind::STRUCTURE {
-                    fill_struct_key_holder_data(
-                        value.get_complex_value(key_member_id)?,
-                        key_holder_data,
-                    )?;
+            if dynamic_type.get_kind() == TypeKind::STRUCTURE {
+                for member_index in 0..dynamic_type.get_member_count() {
+                    let dynamic_type_member = dynamic_type.get_member_by_index(member_index)?;
+                    let key_member_id = dynamic_type_member.get_id();
+                    if dynamic_type_member.descriptor.is_key {
+                        key_holder_data
+                            .set_value(key_member_id, value.get_value(key_member_id)?.clone());
+                    } else if dynamic_type_member.descriptor.r#type.get_kind()
+                        == TypeKind::STRUCTURE
+                    {
+                        fill_struct_key_holder_data(
+                            value.get_complex_value(key_member_id)?,
+                            key_holder_data,
+                        )?;
+                    }
                 }
             }
             Ok(())
