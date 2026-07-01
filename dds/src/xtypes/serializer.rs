@@ -124,44 +124,6 @@ fn serialize_primitive_slice<'a, E: EndiannessWrite, V: EncodingVersion>(
     }
 }
 
-impl DataStorage {
-    /// Get the number of elements
-    fn number_of_elements(&self) -> usize {
-        match self {
-            DataStorage::UInt8(_)
-            | DataStorage::Int8(_)
-            | DataStorage::UInt16(_)
-            | DataStorage::Int16(_)
-            | DataStorage::Int32(_)
-            | DataStorage::UInt32(_)
-            | DataStorage::Int64(_)
-            | DataStorage::UInt64(_)
-            | DataStorage::Float32(_)
-            | DataStorage::Float64(_)
-            | DataStorage::Float128(_)
-            | DataStorage::Char8(_)
-            | DataStorage::Boolean(_)
-            | DataStorage::String(_)
-            | DataStorage::ComplexValue(_) => 1,
-            DataStorage::SequenceUInt8(items) => items.len(),
-            DataStorage::SequenceInt8(items) => items.len(),
-            DataStorage::SequenceUInt16(items) => items.len(),
-            DataStorage::SequenceInt16(items) => items.len(),
-            DataStorage::SequenceInt32(items) => items.len(),
-            DataStorage::SequenceUInt32(items) => items.len(),
-            DataStorage::SequenceInt64(items) => items.len(),
-            DataStorage::SequenceUInt64(items) => items.len(),
-            DataStorage::SequenceFloat32(items) => items.len(),
-            DataStorage::SequenceFloat64(items) => items.len(),
-            DataStorage::SequenceFloat128(items) => items.len(),
-            DataStorage::SequenceChar8(items) => items.len(),
-            DataStorage::SequenceBoolean(items) => items.len(),
-            DataStorage::SequenceString(items) => items.len(),
-            DataStorage::SequenceComplexValue(items) => items.len(),
-        }
-    }
-}
-
 // Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
 // defined in the DDS-XTypes, version 1.3 - 7.4.3.5.1 Notation used for the match criteria
@@ -330,7 +292,40 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
 
     /// Serialization Rule: { O.length : UInt32 }
     fn serialize_length(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
-        self.serialize_primitive_type(&(v.get_value(member_id)?.number_of_elements() as u32));
+        let length = match v.get_value(member_id)? {
+            DataStorage::UInt8(_)
+            | DataStorage::Int8(_)
+            | DataStorage::UInt16(_)
+            | DataStorage::Int16(_)
+            | DataStorage::Int32(_)
+            | DataStorage::UInt32(_)
+            | DataStorage::Int64(_)
+            | DataStorage::UInt64(_)
+            | DataStorage::Float32(_)
+            | DataStorage::Float64(_)
+            | DataStorage::Float128(_)
+            | DataStorage::Char8(_)
+            | DataStorage::Boolean(_)
+            | DataStorage::String(_)
+            | DataStorage::ComplexValue(_) => 1,
+            DataStorage::SequenceUInt8(items) => items.len(),
+            DataStorage::SequenceInt8(items) => items.len(),
+            DataStorage::SequenceUInt16(items) => items.len(),
+            DataStorage::SequenceInt16(items) => items.len(),
+            DataStorage::SequenceInt32(items) => items.len(),
+            DataStorage::SequenceUInt32(items) => items.len(),
+            DataStorage::SequenceInt64(items) => items.len(),
+            DataStorage::SequenceUInt64(items) => items.len(),
+            DataStorage::SequenceFloat32(items) => items.len(),
+            DataStorage::SequenceFloat64(items) => items.len(),
+            DataStorage::SequenceFloat128(items) => items.len(),
+            DataStorage::SequenceChar8(items) => items.len(),
+            DataStorage::SequenceBoolean(items) => items.len(),
+            DataStorage::SequenceString(items) => items.len(),
+            DataStorage::SequenceComplexValue(items) => items.len(),
+        };
+
+        self.serialize_primitive_type(&(length as u32));
         Ok(())
     }
 
