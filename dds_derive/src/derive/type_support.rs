@@ -114,7 +114,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: None,
-                                key: #is_key,
+                                is_key: #is_key,
                                 is_optional: #is_optional,
                                 is_must_understand: #is_key,
                                 is_shared: false,

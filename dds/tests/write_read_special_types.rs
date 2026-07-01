@@ -9,7 +9,7 @@ use dust_dds::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::{DdsType, TypeSupport},
+        type_support::DdsType,
     },
     wait_set::{Condition, WaitSet},
     xtypes::dynamic_type::{
