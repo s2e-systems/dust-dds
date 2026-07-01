@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use dust_dds_derive::DdsType;
 
 use crate::xtypes::{
@@ -2150,10 +2150,9 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE | TypeKind::UNION => {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM => {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
@@ -2183,24 +2182,70 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 }
             }
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => TypeIdentifier::TiPlainSequenceLarge {
-                seq_ldefn: PlainSequenceLElemDefn {
-                    header: PlainCollectionHeader {
-                        equiv_kind: EK_MINIMAL,
-                        element_flags: MEMBER_FLAG_MINIMAL_MASK,
-                    },
-                    bound: u32::MAX,
-                    element_identifier: Box::new(
-                        value
-                            .descriptor
-                            .element_type
-                            .as_ref()
-                            .expect("Sequence must have element type")
-                            .into(),
-                    ),
-                },
-            },
-            TypeKind::ARRAY => todo!(),
+            TypeKind::SEQUENCE => {
+                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let element_identifier = Box::new(
+                    value
+                        .descriptor
+                        .element_type
+                        .as_ref()
+                        .map(From::from)
+                        .unwrap_or(TypeIdentifier::TkNone),
+                );
+                let header = PlainCollectionHeader {
+                    equiv_kind: EK_MINIMAL,
+                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                };
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiPlainSequenceSmall {
+                        seq_sdefn: PlainSequenceSElemDefn {
+                            header,
+                            bound: bound as u8,
+                            element_identifier,
+                        },
+                    }
+                } else {
+                    TypeIdentifier::TiPlainSequenceLarge {
+                        seq_ldefn: PlainSequenceLElemDefn {
+                            header,
+                            bound,
+                            element_identifier,
+                        },
+                    }
+                }
+            }
+            TypeKind::ARRAY => {
+                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let element_identifier = Box::new(
+                    value
+                        .descriptor
+                        .element_type
+                        .as_ref()
+                        .map(From::from)
+                        .unwrap_or(TypeIdentifier::TkNone),
+                );
+                let header = PlainCollectionHeader {
+                    equiv_kind: EK_MINIMAL,
+                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                };
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiPlainArraySmall {
+                        array_sdefn: PlainArraySElemDefn {
+                            header,
+                            array_bound_seq: vec![bound as u8],
+                            element_identifier,
+                        },
+                    }
+                } else {
+                    TypeIdentifier::TiPlainArrayLarge {
+                        array_ldefn: PlainArrayLElemDefn {
+                            header,
+                            array_bound_seq: vec![bound],
+                            element_identifier,
+                        },
+                    }
+                }
+            }
             TypeKind::MAP => todo!(),
         }
     }
