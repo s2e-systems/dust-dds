@@ -1,4 +1,7 @@
-use crate::infrastructure::type_support::TypeSupport;
+use crate::xtypes::{
+    dynamic_type::DynamicData,
+    type_support::{Type, TypeSupport},
+};
 use core::ops::{Add, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
@@ -10,12 +13,11 @@ pub enum DurationKind {
     Infinite,
 }
 
+impl Type for DurationKind {
+    const TYPE: crate::xtypes::dynamic_type::DynamicType<'static> = Duration::TYPE;
+}
 impl TypeSupport for DurationKind {
-    const TYPE_NAME: &'static str = Duration::TYPE_NAME;
-
-    const r#TYPE: &'static dyn crate::xtypes::dynamic_type::DynamicType = Duration::TYPE;
-
-    fn create_sample(src: crate::xtypes::dynamic_type::DynamicData) -> Self {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let duration = Duration::create_sample(src);
         match duration {
             DURATION_INFINITE => DurationKind::Infinite,
@@ -23,7 +25,7 @@ impl TypeSupport for DurationKind {
         }
     }
 
-    fn create_dynamic_sample(self) -> crate::xtypes::dynamic_type::DynamicData {
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
         let value = match self {
             DurationKind::Finite(duration) => duration,
             DurationKind::Infinite => DURATION_INFINITE,
@@ -55,11 +57,11 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Duration {
-    sec: i32,
-    nanosec: u32,
+    pub(crate) sec: i32,
+    pub(crate) nanosec: u32,
 }
 
 impl Duration {
@@ -253,5 +255,20 @@ mod tests {
         let dds_time_from_rtps_time = Duration::from(rtps_time);
 
         assert_eq!(dds_time, dds_time_from_rtps_time)
+    }
+
+    #[test]
+    fn duration_ord() {
+        let d1 = Duration::new(1, 100);
+        let d2 = Duration::new(1, 200);
+        let d3 = Duration::new(2, 50);
+
+        assert!(d1 == d1);
+        assert!(d1 < d2);
+        assert!(d2 < d3);
+        assert!(d1 < d3);
+        assert_eq!(d1.cmp(&d1), std::cmp::Ordering::Equal);
+        assert_eq!(d1.cmp(&d2), std::cmp::Ordering::Less);
+        assert_eq!(d2.cmp(&d1), std::cmp::Ordering::Greater);
     }
 }

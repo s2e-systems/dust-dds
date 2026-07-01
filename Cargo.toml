@@ -32,3 +32,8 @@ homepage = "https://s2e-systems.com/products/dust-dds"
 repository = "https://github.com/s2e-systems/dust-dds.git"
 keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
+
+[workspace.dependencies]
+md5 = { version = "0.7.0", default-features = false }
+
+

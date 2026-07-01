@@ -1,22 +1,23 @@
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
 use crate::{
     dcps::{
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
-            TopicDescriptionKind, get_topic_kind,
+            TopicDescriptionKind,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             subscriber_listener::DcpsSubscriberListener,
         },
+        status_mask::StatusMask,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::ReliabilityQosPolicyKind,
-        status::StatusKind,
     },
     rtps::stateful_reader::RtpsStatefulReader,
     runtime::DdsRuntime,
@@ -35,7 +36,7 @@ impl DcpsDomainParticipant {
         topic_name: String,
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
@@ -63,7 +64,7 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let topic_kind = get_topic_kind(topic.type_support);
+        let topic_kind = KeyHolderType::from_dynamic_type(&topic.type_support)?.get_topic_kind();
 
         let type_support = topic.type_support;
         let Some(subscriber) = self
@@ -127,7 +128,6 @@ impl DcpsDomainParticipant {
         let transport_reader =
             RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
 
-        let listener_mask = mask.to_vec();
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_reader = DataReaderEntity::new(
             reader_handle,
@@ -307,7 +307,7 @@ impl DcpsDomainParticipant {
         &mut self,
         subscriber_handle: &InstanceHandle,
         listener_sender_task: Option<DcpsSubscriberListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
@@ -321,7 +321,7 @@ impl DcpsDomainParticipant {
 
         let listener_sender = listener_sender_task.map(|l| l.spawn(&runtime.spawner()));
         subscriber.listener_sender = listener_sender;
-        subscriber.listener_mask = mask;
+        subscriber.listener_mask = listener_mask;
         Ok(())
     }
 }

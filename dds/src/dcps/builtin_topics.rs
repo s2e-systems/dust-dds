@@ -11,17 +11,18 @@ use crate::{
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
         PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
+        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
-    infrastructure::{
-        qos_policy::{
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
-        type_support::TypeSupport,
+    infrastructure::qos_policy::{
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
+    },
+    xtypes::{
+        type_object::TypeInformation,
+        type_support::{_String, TypeSupport},
     },
 };
-use alloc::string::String;
 
 /// Topic name of the built-in publication discovery topic
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
@@ -49,7 +50,7 @@ pub struct BuiltInTopicKey {
 pub struct ParticipantBuiltinTopicData {
     #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
     pub(crate) key: BuiltInTopicKey,
-    #[dust_dds(id=PID_USER_DATA as u32, optional)]
+    #[dust_dds(id=PID_USER_DATA as u32)]
     pub(crate) user_data: UserDataQosPolicy,
 }
 
@@ -66,15 +67,17 @@ impl ParticipantBuiltinTopicData {
 }
 
 /// Structure representing a discovered [`Topic`](crate::topic_definition::topic::Topic).
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[derive(Debug, PartialEq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "mutable")]
 pub struct TopicBuiltinTopicData {
     #[dust_dds(id=PID_ENDPOINT_GUID as u32, key)]
     pub(crate) key: BuiltInTopicKey,
     #[dust_dds(id=PID_TOPIC_NAME as u32)]
-    pub(crate) name: String,
+    pub(crate) name: _String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
-    pub(crate) type_name: String,
+    pub(crate) type_name: _String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32, optional)]
@@ -111,12 +114,12 @@ impl TopicBuiltinTopicData {
 
     /// Get the name of the discovered topic.
     pub fn name(&self) -> &str {
-        &self.name
+        &self.name.value
     }
 
     /// Get the type name of the discovered topic.
     pub fn get_type_name(&self) -> &str {
-        &self.type_name
+        &self.type_name.value
     }
 
     /// Get the durability QoS policy of the discovered topic.
@@ -194,9 +197,11 @@ pub struct PublicationBuiltinTopicData {
     #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
     pub(crate) participant_key: BuiltInTopicKey,
     #[dust_dds(id=PID_TOPIC_NAME as u32)]
-    pub(crate) topic_name: String,
+    pub(crate) topic_name: _String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
-    pub(crate) type_name: String,
+    pub(crate) type_name: _String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32, optional)]
@@ -242,12 +247,12 @@ impl PublicationBuiltinTopicData {
 
     /// Get the name of the topic associated with the discovered writer.
     pub fn topic_name(&self) -> &str {
-        &self.topic_name
+        &self.topic_name.value
     }
 
     /// Get the name of the type associated with the discovered writer.
     pub fn get_type_name(&self) -> &str {
-        &self.type_name
+        &self.type_name.value
     }
 
     /// Get the durability QoS policy of the discovered writer.
@@ -335,9 +340,11 @@ pub struct SubscriptionBuiltinTopicData {
     #[dust_dds(id=PID_PARTICIPANT_GUID as u32, key)]
     pub(crate) participant_key: BuiltInTopicKey,
     #[dust_dds(id=PID_TOPIC_NAME as u32)]
-    pub(crate) topic_name: String,
+    pub(crate) topic_name: _String,
     #[dust_dds(id=PID_TYPE_NAME as u32)]
-    pub(crate) type_name: String,
+    pub(crate) type_name: _String,
+    #[dust_dds(id=PID_TYPE_INFORMATION as u32, optional)]
+    pub(crate) type_information: Option<TypeInformation>,
     #[dust_dds(id=PID_DURABILITY as u32, optional)]
     pub(crate) durability: DurabilityQosPolicy,
     #[dust_dds(id=PID_DEADLINE as u32, optional)]
@@ -366,6 +373,8 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) group_data: GroupDataQosPolicy,
     #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
+    #[dust_dds(id=PID_TYPE_CONSISTENCY_ENFORCEMENT as u32, optional)]
+    pub(crate) type_consistency: TypeConsistencyEnforcementQosPolicy,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -381,12 +390,12 @@ impl SubscriptionBuiltinTopicData {
 
     /// Get the name of the topic associated with the discovered reader.
     pub fn topic_name(&self) -> &str {
-        &self.topic_name
+        &self.topic_name.value
     }
 
     /// Get the name of the type associated with the discovered reader.
     pub fn get_type_name(&self) -> &str {
-        &self.type_name
+        &self.type_name.value
     }
 
     /// Get the durability QoS policy of the discovered reader.
@@ -457,5 +466,10 @@ impl SubscriptionBuiltinTopicData {
     /// Get the data representation QoS policy of the discovered reader.
     pub fn representation(&self) -> &DataRepresentationQosPolicy {
         &self.representation
+    }
+
+    /// Get the type consistency enforcement QoS policy of the discovered reader
+    pub fn type_consistency(&self) -> &TypeConsistencyEnforcementQosPolicy {
+        &self.type_consistency
     }
 }

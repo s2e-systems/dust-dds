@@ -17,7 +17,8 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct Publisher(dust_dds::publication::publisher::Publisher);
 
 impl From<dust_dds::publication::publisher::Publisher> for Publisher {

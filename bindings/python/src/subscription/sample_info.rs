@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum SampleStateKind {
     Read,
@@ -33,7 +33,7 @@ impl From<SampleStateKind> for dust_dds::infrastructure::sample_info::SampleStat
 
 pub const ANY_SAMPLE_STATE: &[SampleStateKind] = &[SampleStateKind::Read, SampleStateKind::NotRead];
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum ViewStateKind {
     New,
@@ -60,7 +60,7 @@ impl From<ViewStateKind> for dust_dds::infrastructure::sample_info::ViewStateKin
 
 pub const ANY_VIEW_STATE: &[ViewStateKind] = &[ViewStateKind::New, ViewStateKind::NotNew];
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum InstanceStateKind {
     Alive,
@@ -113,7 +113,7 @@ pub const NOT_ALIVE_INSTANCE_STATE: &[InstanceStateKind] = &[
     InstanceStateKind::NotAliveNoWriters,
 ];
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SampleInfo(dust_dds::infrastructure::sample_info::SampleInfo);
 

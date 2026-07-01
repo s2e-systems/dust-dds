@@ -1,0 +1,17 @@
+#define SIMPLE_STRUCT // comment for define
+
+#ifdef SIMPLE_STRUCT // comment for ifdef
+struct SimpleStruct {
+    boolean a;
+    char b;
+    long i;
+};
+#endif // comment for endif
+
+#ifndef OTHER // comment for ifndef
+struct OtherStruct {
+    long i;
+};
+#endif // comment for endif
+
+#include "file_included.idl" // comment for include

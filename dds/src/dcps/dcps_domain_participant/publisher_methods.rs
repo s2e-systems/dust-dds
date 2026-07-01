@@ -1,20 +1,20 @@
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
 use crate::{
     dcps::{
         dcps_domain_participant::{
             DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind, TopicDescriptionKind,
-            get_topic_kind,
         },
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
+        status_mask::StatusMask,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
-        status::StatusKind,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
     runtime::DdsRuntime,
@@ -32,7 +32,7 @@ impl DcpsDomainParticipant {
         topic_name: String,
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
@@ -44,7 +44,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = get_topic_kind(topic.type_support);
+        let topic_kind = KeyHolderType::from_dynamic_type(&topic.type_support)?.get_topic_kind();
         let type_support = topic.type_support;
         let type_name = topic.type_name.clone();
 
@@ -114,7 +114,7 @@ impl DcpsDomainParticipant {
             type_name,
             type_support,
             listener_sender,
-            mask,
+            listener_mask,
             qos,
         );
         let data_writer_handle = data_writer.instance_handle;
@@ -242,7 +242,7 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         dcps_listener: Option<DcpsPublisherListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
@@ -255,7 +255,7 @@ impl DcpsDomainParticipant {
         };
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         publisher.listener_sender = listener_sender;
-        publisher.listener_mask = mask;
+        publisher.listener_mask = listener_mask;
         Ok(())
     }
 }

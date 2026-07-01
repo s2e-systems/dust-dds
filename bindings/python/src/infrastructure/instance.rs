@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct InstanceHandle(dust_dds::infrastructure::instance::InstanceHandle);
 

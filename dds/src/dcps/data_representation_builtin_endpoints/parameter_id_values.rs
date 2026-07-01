@@ -51,6 +51,8 @@ pub const _PID_PROPERTY_LIST: ParameterId = 0x0059;
 pub const _PID_TYPE_MAX_SIZE_SERIALIZED: ParameterId = 0x0060;
 pub const _PID_ENTITY_NAME: ParameterId = 0x0062;
 pub const PID_ENDPOINT_GUID: ParameterId = 0x005a;
+// Following PID name is not defined in standard but the number is in the Xtypes v1.3 standard
+pub const PID_TYPE_INFORMATION: ParameterId = 0x0075;
 // Following PID is not defined in standard
 // (but its listed in "Table 9.14 - ParameterId mapping and default values")
 pub const _PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = _PID_TYPE_MAX_SIZE_SERIALIZED;
@@ -58,6 +60,7 @@ pub const _PID_DATA_MAX_SIZE_SERIALIZED: ParameterId = _PID_TYPE_MAX_SIZE_SERIAL
 // also in "Table 9.14 - ParameterId mapping and default values"
 pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
 pub const PID_DATA_REPRESENTATION: ParameterId = 0x0073;
+pub const PID_TYPE_CONSISTENCY_ENFORCEMENT: ParameterId = 0x0074;
 
 #[allow(overflowing_literals)]
 pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;

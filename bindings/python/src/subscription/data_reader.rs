@@ -23,13 +23,14 @@ use crate::{
         type_support::{PythonDdsData, convert_dynamic_data_to_python_instance},
     },
 };
-use dust_dds::infrastructure::type_support::TypeSupport;
+use dust_dds::xtypes::type_support::TypeSupport;
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
 };
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct DataReader(dust_dds::subscription::data_reader::DataReader<PythonDdsData>);
 
 impl From<dust_dds::subscription::data_reader::DataReader<PythonDdsData>> for DataReader {
@@ -453,8 +454,9 @@ impl DataReader {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct Sample {
     data: Option<Py<PyAny>>,
     sample_info: dust_dds::infrastructure::sample_info::SampleInfo,
@@ -470,7 +472,7 @@ impl Sample {
                 convert_dynamic_data_to_python_instance(
                     py,
                     type_,
-                    PythonDdsData::TYPE,
+                    &PythonDdsData::get_type(),
                     dynamic_data.into(),
                 )
                 .ok()

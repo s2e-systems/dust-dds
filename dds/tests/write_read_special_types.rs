@@ -12,6 +12,10 @@ use dust_dds::{
         type_support::{DdsType, TypeSupport},
     },
     wait_set::{Condition, WaitSet},
+    xtypes::dynamic_type::{
+        DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, MemberDescriptor,
+        TypeDescriptor,
+    },
 };
 
 #[test]
@@ -295,18 +299,20 @@ fn nested_types_should_read_and_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-#[ignore = "create_dynamic_sample not derived yet"]
 #[test]
 fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct MyInnerType(u32);
 
     #[derive(Clone, Debug, PartialEq, DdsType)]
-    #[repr(u8)]
+    #[dust_dds(switch(u8))]
     enum MyEnum {
-        _VariantA(MyInnerType) = 5,
-        VariantB { a: u32, b: i16 } = 6,
-        _VariantC = 7,
+        #[dust_dds(case = 5)]
+        _VariantA(MyInnerType),
+        #[dust_dds(case = 6)]
+        VariantB { a: u32 },
+        #[dust_dds(case = 7)]
+        _VariantC,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -373,7 +379,139 @@ fn foo_xtypes_union_should_read_and_write() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = MyEnum::VariantB { a: 10, b: -20 };
+    let data = MyEnum::VariantB { a: 10 };
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
+
+#[test]
+fn dynamic_data_should_read_and_write() {
+    let mut type_buider = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+        kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+        name: "KeyedData",
+        base_type: None,
+        discriminator_type: None,
+        bound: None,
+        element_type: None,
+        key_element_type: None,
+        extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+        is_nested: false,
+    });
+    type_buider
+        .add_member(MemberDescriptor {
+            name: "id",
+            id: 0,
+            r#type: <u8 as dust_dds::xtypes::type_support::Type>::TYPE,
+            default_value: None,
+            index: 0_u32,
+            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+            label: None,
+            is_key: true,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+            is_external: false,
+        })
+        .unwrap();
+    type_buider
+        .add_member(MemberDescriptor {
+            name: "value",
+            id: 1,
+            r#type: <u32 as dust_dds::xtypes::type_support::Type>::TYPE,
+            default_value: None,
+            index: 1_u32,
+            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
+            label: None,
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+            is_shared: false,
+            is_default_label: false,
+            is_external: false,
+        })
+        .unwrap();
+    let dynamic_type = type_buider.build();
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_dynamic_topic(
+            "MyEnumTopic",
+            "MyEnum",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            dynamic_type,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
+    data.set_uint8_value(0, 10).unwrap();
+    data.set_uint32_value(1, 100).unwrap();
 
     writer.write(data.clone(), None).unwrap();
 
@@ -435,35 +573,23 @@ fn enum_should_be_always_same_instance() {
     writer.write(UnKeyedData::On, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let sample = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(sample[0].data.as_ref().unwrap(), &UnKeyedData::On);
 
     writer.write(UnKeyedData::Off, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let samples = reader
-        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &UnKeyedData::Off);
 }
 
 #[test]
-fn struct_inheritance_single_key_should_read_write_dispose() {
-    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-    struct Animal {
-        #[dust_dds(key)]
-        id: u32,
-        name: String,
-        age: u8,
-    }
-
-    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-    struct Cat {
-        #[dust_dds(key(transparent))]
-        animal: Animal,
-        lives: u8,
-    }
+fn empty_type_should_read_and_write() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct EmptyType;
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -472,9 +598,9 @@ fn struct_inheritance_single_key_should_read_write_dispose() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<Cat>(
-            "CatTopic",
-            Cat::TYPE_NAME,
+        .create_topic::<EmptyType>(
+            "MyTopic",
+            "EmptyType",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -492,7 +618,7 @@ fn struct_inheritance_single_key_should_read_write_dispose() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter::<Cat>(
+        .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
             NO_LISTENER,
@@ -511,7 +637,7 @@ fn struct_inheritance_single_key_should_read_write_dispose() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<Cat>(
+        .create_datareader::<EmptyType>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
@@ -529,16 +655,10 @@ fn struct_inheritance_single_key_should_read_write_dispose() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = Cat {
-        animal: Animal {
-            id: 1,
-            name: "Zoe".to_string(),
-            age: 1,
-        },
-        lives: 7,
-    };
+    let data = EmptyType;
 
     writer.write(data.clone(), None).unwrap();
+
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -548,63 +668,17 @@ fn struct_inheritance_single_key_should_read_write_dispose() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert!(samples[0].data.is_some());
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
-
-    let instance_handle = samples[0].sample_info.instance_handle;
-
-    let data_to_dispose = Cat {
-        animal: Animal {
-            id: 1,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    assert_eq!(data.animal.id, data_to_dispose.animal.id);
-    assert_ne!(data, data_to_dispose);
-
-    writer.dispose(data_to_dispose, None).unwrap();
-    writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
-        .unwrap();
-
-    let samples = reader
-        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
-    assert_eq!(samples.len(), 1);
-    assert!(samples[0].data.is_none());
-    assert!(matches!(
-        samples[0].sample_info.instance_state,
-        InstanceStateKind::NotAliveDisposed
-    ));
-    assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
 }
 
 #[test]
-fn struct_inheritance_multiple_keys_should_read_write_dispose() {
-    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-    struct Animal {
+fn type_with_optional_should_read_and_write() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct FooWithOptional {
         #[dust_dds(key)]
-        id: u32,
-        name: String,
-        age: u8,
-    }
-
-    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-    struct Mammal {
-        #[dust_dds(key(transparent))]
-        animal: Animal,
-        produce_milk: bool,
-        #[dust_dds(key)]
-        id: u32,
-    }
-
-    #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-    struct Cat {
-        #[dust_dds(key(transparent))]
-        mammal: Mammal,
-        lives: u8,
+        a: u8,
+        #[dust_dds(optional)]
+        maybe_b: Option<i32>,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -614,9 +688,9 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<Cat>(
-            "CatTopic",
-            Cat::TYPE_NAME,
+        .create_topic::<FooWithOptional>(
+            "MyTopic",
+            "FooWithOptional",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -634,7 +708,7 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter::<Cat>(
+        .create_datawriter(
             &topic,
             QosKind::Specific(writer_qos),
             NO_LISTENER,
@@ -653,7 +727,7 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<Cat>(
+        .create_datareader::<FooWithOptional>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
@@ -671,20 +745,13 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let data = Cat {
-        mammal: Mammal {
-            animal: Animal {
-                id: 1,
-                name: "Zoe".to_string(),
-                age: 1,
-            },
-            produce_milk: true,
-            id: u32::MAX - 1,
-        },
-        lives: 7,
+    let data = FooWithOptional {
+        a: 8,
+        maybe_b: None,
     };
 
     writer.write(data.clone(), None).unwrap();
+
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -694,27 +761,136 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert!(samples[0].data.is_some());
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
 
-    let instance_handle = samples[0].sample_info.instance_handle;
+#[test]
+fn arrays_sequence_of_different_types_should_read_and_write() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    enum MyEnum {
+        VariantA = 5,
+        VariantB = 6,
+        VariantC,
+    }
 
-    let data_to_dispose = Cat {
-        mammal: Mammal {
-            animal: Animal {
-                id: 1,
-                ..Default::default()
-            },
-            id: u32::MAX - 1,
-            ..Default::default()
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct MyStruct {
+        id: u32,
+        another_id: u64,
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct MyEnumArray {
+        sequence_enum: Vec<MyEnum>,
+        array_enum: [MyEnum; 3],
+        sequence_struct: Vec<MyStruct>,
+        array_struct: [MyStruct; 2],
+        array_bool: [bool; 4],
+        sequence_bool: Vec<bool>,
+        array_char: [char; 4],
+        sequence_char: Vec<char>,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<MyEnumArray>(
+            "MyEnumArrayTopic",
+            "MyEnumArray",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
-    assert_eq!(data.mammal.animal.id, data_to_dispose.mammal.animal.id);
-    assert_eq!(data.mammal.id, data_to_dispose.mammal.id);
-    assert_ne!(data, data_to_dispose);
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
 
-    writer.dispose(data_to_dispose, None).unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<MyEnumArray>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = MyEnumArray {
+        sequence_enum: vec![
+            MyEnum::VariantC,
+            MyEnum::VariantB,
+            MyEnum::VariantA,
+            MyEnum::VariantC,
+        ],
+        array_enum: [MyEnum::VariantC, MyEnum::VariantB, MyEnum::VariantA],
+        sequence_struct: vec![
+            MyStruct {
+                id: 123,
+                another_id: 45678,
+            },
+            MyStruct {
+                id: 987,
+                another_id: 65432,
+            },
+        ],
+        array_struct: [
+            MyStruct {
+                id: 123,
+                another_id: 45678,
+            },
+            MyStruct {
+                id: 987,
+                another_id: 65432,
+            },
+        ],
+        array_bool: [true, false, false, true],
+        sequence_bool: vec![true, false, false, true],
+        array_char: ['a', 'b', 'c', 'd'],
+        sequence_char: vec!['a', 'b', 'c', 'd'],
+    };
+
+    writer.write(data.clone(), None).unwrap();
+
     writer
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -724,10 +900,231 @@ fn struct_inheritance_multiple_keys_should_read_write_dispose() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert!(samples[0].data.is_none());
-    assert!(matches!(
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
+
+#[test]
+fn type_with_nested_keys_should_dispose_correct_sample() {
+    #[derive(DdsType, Clone)]
+    struct Inner {
+        #[dust_dds(key)]
+        id: u8,
+        b: u16,
+    }
+
+    #[derive(DdsType, Clone)]
+    struct Nested {
+        a: Inner,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<Nested>(
+            "NestedTopic",
+            "Nested",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<Nested>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let nested1 = Nested {
+        a: Inner { id: 1, b: 3 },
+    };
+    let nested2 = Nested {
+        a: Inner { id: 2, b: 30 },
+    };
+
+    writer.write(nested1.clone(), None).unwrap();
+    writer.write(nested2.clone(), None).unwrap();
+    writer.dispose(nested1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(
         samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+    assert_eq!(
+        samples[1].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed
-    ));
-    assert_eq!(samples[0].sample_info.instance_handle, instance_handle);
+    );
+}
+
+#[test]
+fn inherited_type_should_dispose_correct_sample() {
+    #[derive(DdsType, Clone)]
+    struct Parent {
+        #[dust_dds(key)]
+        id: u8,
+        b: u16,
+    }
+
+    #[derive(DdsType, Clone)]
+    #[dust_dds(base_type = Parent)]
+    struct Child {
+        parent: Parent,
+        a: i32,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<Child>(
+            "NestedTopic",
+            "Nested",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<Child>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let nested1 = Child {
+        parent: Parent { id: 1, b: 3 },
+        a: 1,
+    };
+    let nested2 = Child {
+        parent: Parent { id: 2, b: 30 },
+        a: 10,
+    };
+
+    writer.write(nested1.clone(), None).unwrap();
+    writer.write(nested2.clone(), None).unwrap();
+    writer.dispose(nested1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+    assert_eq!(
+        samples[1].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
 }

@@ -1,6 +1,6 @@
 use crate::{
-    infrastructure::{instance::InstanceHandle, time::Time, type_support::TypeSupport},
-    xtypes::dynamic_type::DynamicData,
+    infrastructure::{instance::InstanceHandle, time::Time},
+    xtypes::{dynamic_type::DynamicData, type_support::TypeSupport},
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
@@ -16,9 +16,9 @@ impl<Foo> Sample<Foo>
 where
     Foo: TypeSupport,
 {
-    pub(crate) fn new(data: Option<DynamicData>, sample_info: SampleInfo) -> Self {
+    pub(crate) fn new(mut data: Option<DynamicData<'static>>, sample_info: SampleInfo) -> Self {
         Self {
-            data: data.map(Foo::create_sample),
+            data: data.as_mut().map(Foo::create_sample),
             sample_info,
         }
     }

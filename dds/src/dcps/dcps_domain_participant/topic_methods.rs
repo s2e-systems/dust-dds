@@ -105,7 +105,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<&'static dyn DynamicType> {
+    pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<DynamicType<'static>> {
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
