@@ -64,7 +64,7 @@ pub struct StructAttributes {
     pub name: String,
     pub extensibility: Extensibility,
     pub is_nested: bool,
-    pub base_type: Option<String>,
+    pub base_type: Option<syn::Type>,
 }
 
 pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
@@ -80,6 +80,9 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
+                Ok(())
+            } else if meta.path.is_ident("base_type") {
+                base_type = Some(meta.value()?.parse::<syn::Type>()?);
                 Ok(())
             } else if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
