@@ -122,13 +122,6 @@ fn serialize_primitive_slice<'a, E: EndiannessWrite, V: EncodingVersion>(
         serializer.serialize_primitive_type(vi);
     }
 }
-fn serialize_primitive_sequence<'a, E: EndiannessWrite, V: EncodingVersion>(
-    serializer: &mut XTypesSerializer<'a, E, V>,
-    v: &[impl AsBytes + Ossize],
-) {
-    serializer.serialize_primitive_type(&(v.len() as u32));
-    serialize_primitive_slice(serializer, v)
-}
 
 // Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
@@ -240,6 +233,68 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         Ok(())
     }
 
+    /// Serialization Rule: { O[i] : O.element_type }*
+    fn serialize_elements(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let element_type = member_descriptor
+            .r#type
+            .descriptor
+            .element_type
+            .expect("array has element type");
+        match element_type.get_descriptor().kind {
+            TypeKind::NONE => todo!(),
+            TypeKind::BOOLEAN => {
+                serialize_primitive_slice(self, v.get_boolean_values(member_id)?);
+            }
+            TypeKind::BYTE => serialize_primitive_slice(self, v.get_byte_values(member_id)?),
+            TypeKind::INT16 => serialize_primitive_slice(self, v.get_int16_values(member_id)?),
+            TypeKind::INT32 => serialize_primitive_slice(self, v.get_int32_values(member_id)?),
+            TypeKind::INT64 => serialize_primitive_slice(self, v.get_int64_values(member_id)?),
+            TypeKind::UINT16 => serialize_primitive_slice(self, v.get_uint16_values(member_id)?),
+            TypeKind::UINT32 => serialize_primitive_slice(self, v.get_uint32_values(member_id)?),
+            TypeKind::UINT64 => serialize_primitive_slice(self, v.get_uint64_values(member_id)?),
+            TypeKind::FLOAT32 => serialize_primitive_slice(self, v.get_float32_values(member_id)?),
+            TypeKind::FLOAT64 => serialize_primitive_slice(self, v.get_float64_values(member_id)?),
+            TypeKind::FLOAT128 => {
+                serialize_primitive_slice(self, v.get_float128_values(member_id)?)
+            }
+            TypeKind::INT8 => serialize_primitive_slice(self, v.get_int8_values(member_id)?),
+            TypeKind::UINT8 => serialize_primitive_slice(self, v.get_uint8_values(member_id)?),
+            TypeKind::CHAR8 => serialize_primitive_slice(self, v.get_char8_values(member_id)?),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::STRING8 => {
+                for v in v.get_string_values(member_id)? {
+                    self.serialize_string_type(v);
+                }
+            }
+            TypeKind::STRING16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::BITMASK => todo!(),
+            TypeKind::ANNOTATION => todo!(),
+            TypeKind::ENUM | TypeKind::STRUCTURE => {
+                for v in v.get_complex_values(member_id)? {
+                    self.serialize_t_as_nested(v)?;
+                }
+            }
+            TypeKind::UNION => {
+                for v in v.get_complex_values(member_id)? {
+                    self.serialize_funion_type(v)?;
+                }
+            }
+            TypeKind::BITSET => todo!(),
+            TypeKind::SEQUENCE => todo!(),
+            TypeKind::ARRAY => todo!(),
+            TypeKind::MAP => todo!(),
+        };
+        Ok(())
+    }
+
+    /// Serialization Rule: { O.length : UInt32 }
+    fn serialize_length(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
+        self.serialize_primitive_type(&(v.get_value(member_id)?.number_of_elements() as u32));
+        Ok(())
+    }
+
     /// Serialization Rule (1)
     ///
     /// XCDR << {O : TOP_LEVEL_TYPE} =
@@ -319,47 +374,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     ///           XCDR
     ///             << { O[i] : O.element_type }*
     fn serialize_p_array_type(&mut self, v: &DynamicData, member_id: u32) -> XTypesResult<()> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .expect("array has element type");
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => {
-                serialize_primitive_slice(self, v.get_boolean_values(member_id)?);
-            }
-            TypeKind::BYTE => serialize_primitive_slice(self, v.get_byte_values(member_id)?),
-            TypeKind::INT16 => serialize_primitive_slice(self, v.get_int16_values(member_id)?),
-            TypeKind::INT32 => serialize_primitive_slice(self, v.get_int32_values(member_id)?),
-            TypeKind::INT64 => serialize_primitive_slice(self, v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => serialize_primitive_slice(self, v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => serialize_primitive_slice(self, v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => serialize_primitive_slice(self, v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => serialize_primitive_slice(self, v.get_float32_values(member_id)?),
-            TypeKind::FLOAT64 => serialize_primitive_slice(self, v.get_float64_values(member_id)?),
-            TypeKind::FLOAT128 => {
-                serialize_primitive_slice(self, v.get_float128_values(member_id)?)
-            }
-            TypeKind::INT8 => serialize_primitive_slice(self, v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => serialize_primitive_slice(self, v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => serialize_primitive_slice(self, v.get_char8_values(member_id)?),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        };
-        Ok(())
+        self.serialize_elements(v, member_id)
     }
 
     /// Sequences of primitive element type (version 1 and 2 encoding)
@@ -371,51 +386,8 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     ///              << { O.length : UInt32 }
     ///              << { O[i] : O.element_type }*
     fn serialize_p_sequence_type(&mut self, v: &DynamicData, member_id: u32) -> XTypesResult<()> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .expect("array has element type");
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN => {
-                serialize_primitive_sequence(self, v.get_boolean_values(member_id)?);
-            }
-            TypeKind::BYTE => serialize_primitive_sequence(self, v.get_byte_values(member_id)?),
-            TypeKind::INT16 => serialize_primitive_sequence(self, v.get_int16_values(member_id)?),
-            TypeKind::INT32 => serialize_primitive_sequence(self, v.get_int32_values(member_id)?),
-            TypeKind::INT64 => serialize_primitive_sequence(self, v.get_int64_values(member_id)?),
-            TypeKind::UINT16 => serialize_primitive_sequence(self, v.get_uint16_values(member_id)?),
-            TypeKind::UINT32 => serialize_primitive_sequence(self, v.get_uint32_values(member_id)?),
-            TypeKind::UINT64 => serialize_primitive_sequence(self, v.get_uint64_values(member_id)?),
-            TypeKind::FLOAT32 => {
-                serialize_primitive_sequence(self, v.get_float32_values(member_id)?)
-            }
-            TypeKind::FLOAT64 => {
-                serialize_primitive_sequence(self, v.get_float64_values(member_id)?)
-            }
-            TypeKind::FLOAT128 => {
-                serialize_primitive_sequence(self, v.get_float128_values(member_id)?)
-            }
-            TypeKind::INT8 => serialize_primitive_sequence(self, v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => serialize_primitive_sequence(self, v.get_uint8_values(member_id)?),
-            TypeKind::CHAR8 => serialize_primitive_sequence(self, v.get_char8_values(member_id)?),
-            TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => todo!(),
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => todo!(),
-            TypeKind::UNION => todo!(),
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        };
-        Ok(())
+        self.serialize_length(v, member_id)?;
+        self.serialize_elements(v, member_id)
     }
 
     /// Structures with extensibility FINAL (version 1 and 2 encoding)
@@ -716,55 +688,7 @@ impl EncodingVersion for EncodingVersion1 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .descriptor
-            .element_type
-            .expect("array has element type");
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8
-            | TypeKind::CHAR8
-            | TypeKind::CHAR16 => todo!(),
-            TypeKind::STRING8 => {
-                for v in v.get_string_values(member_id)? {
-                    serializer.serialize_string_type(v);
-                }
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::BITMASK => todo!(),
-            TypeKind::ENUM | TypeKind::STRUCTURE => {
-                for v in v.get_complex_values(member_id)? {
-                    serializer.serialize_t_as_nested(v)?;
-                }
-            }
-            TypeKind::UNION => {
-                for v in v.get_complex_values(member_id)? {
-                    serializer.serialize_funion_type(v)?;
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-
-        Ok(())
+        serializer.serialize_elements(v, member_id)
     }
 
     /// Sequences (any extensibility) using version 1 encoding
@@ -780,61 +704,8 @@ impl EncodingVersion for EncodingVersion1 {
         v: &DynamicData,
         member_id: u32,
     ) -> Result<(), XTypesError> {
-        let member_descriptor = v.get_descriptor(member_id)?;
-        let element_type = member_descriptor
-            .r#type
-            .get_descriptor()
-            .element_type
-            .as_ref()
-            .expect("sequence has element type");
-        match element_type.get_descriptor().kind {
-            TypeKind::NONE => todo!(),
-            TypeKind::BOOLEAN
-            | TypeKind::BYTE
-            | TypeKind::INT16
-            | TypeKind::INT32
-            | TypeKind::INT64
-            | TypeKind::UINT16
-            | TypeKind::UINT32
-            | TypeKind::UINT64
-            | TypeKind::FLOAT32
-            | TypeKind::FLOAT64
-            | TypeKind::FLOAT128
-            | TypeKind::INT8
-            | TypeKind::UINT8
-            | TypeKind::CHAR8
-            | TypeKind::CHAR16 => unimplemented!("Is primitive sequence"),
-            TypeKind::STRING8 => {
-                let list = v.get_string_values(member_id)?;
-                serializer.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    serializer.serialize_string_type(v);
-                }
-            }
-            TypeKind::STRING16 => todo!(),
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::ENUM | TypeKind::BITMASK | TypeKind::STRUCTURE => {
-                let list = v.get_complex_values(member_id)?;
-                serializer.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    serializer.serialize_t_as_nested(v)?;
-                }
-            }
-            TypeKind::UNION => {
-                let list = v.get_complex_values(member_id)?;
-                serializer.serialize_primitive_type(&(list.len() as u32));
-                for v in list {
-                    serializer.serialize_funion_type(v)?;
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => todo!(),
-            TypeKind::ARRAY => todo!(),
-            TypeKind::MAP => todo!(),
-        }
-
-        Ok(())
+        serializer.serialize_length(v, member_id)?;
+        serializer.serialize_elements(v, member_id)
     }
 
     /// Optional member of final Aggregated type (structure, union), version 1
