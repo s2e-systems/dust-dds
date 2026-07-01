@@ -395,7 +395,7 @@ impl EncodingVersion for EncodingVersion2 {
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
-            deserializer.deserialize_as_value(member, dynamic_data)
+            deserializer.deserialize_value(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
         } else {
@@ -441,7 +441,7 @@ impl EncodingVersion for EncodingVersion2 {
     ) -> XTypesResult<()> {
         let is_present = deserializer.deserialize_primitive_type::<bool>()?;
         if is_present {
-            deserializer.deserialize_as_value(member, dynamic_data)
+            deserializer.deserialize_value(member, dynamic_data)
         } else {
             Ok(())
         }
@@ -644,14 +644,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::ENUM | TypeKind::STRUCTURE => {
-                let mut values = Vec::with_capacity(length);
-                for _ in 0..length {
-                    values.push(self.deserialize_as_nested(element_type)?);
-                }
-                dynamic_data.set_complex_values(member.get_id(), values)
-            }
-            TypeKind::UNION => {
+            TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => {
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(self.deserialize_as_nested(element_type)?);
@@ -699,7 +692,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Serialization rule: { M.value : M.value.type }
-    fn deserialize_as_value(
+    fn deserialize_value(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
@@ -754,20 +747,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
+            TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
+                .set_complex_value(
+                    member.get_id(),
+                    self.deserialize_as_nested(member.descriptor.r#type)?,
+                ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
-            TypeKind::UNION => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
                 if is_element_type_kind_primitive(member)? {
@@ -895,8 +881,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     }
 
     /// Structures with extensibility FINAL (version 1 and 2 encoding)
-    ///
     /// FMMEBER can be NOPT_FMEMBER (18) or OPT_FMEMBER (19)
+    ///
     /// (17) XCDR << {O : FSTRUCT_TYPE} =
     ///               XCDR
     ///                << { O.member[i] : FMEMBER }*
@@ -919,7 +905,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData<'_>,
     ) -> XTypesResult<()> {
-        self.deserialize_as_value(member, dynamic_data)
+        self.deserialize_value(member, dynamic_data)
     }
 
     /// Unions with extensibility FINAL (version 1 and 2 encoding)
@@ -948,7 +934,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 
         // Deserialize the member based on its discriminator
         let member = dynamic_type.get_member(disc_id)?;
-        self.deserialize_nopt_fmember(member, dynamic_data)
+        self.deserialize_fmember(member, dynamic_data)
     }
 }
 
