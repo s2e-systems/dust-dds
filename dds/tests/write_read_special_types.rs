@@ -672,7 +672,6 @@ fn empty_type_should_read_and_write() {
 }
 
 #[test]
-#[ignore = "Not yet supported"]
 fn type_with_optional_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     struct FooWithOptional {
@@ -766,7 +765,6 @@ fn type_with_optional_should_read_and_write() {
 }
 
 #[test]
-#[ignore = "Some serialization and deserializations not yet implemented"]
 fn arrays_sequence_of_different_types_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
     enum MyEnum {

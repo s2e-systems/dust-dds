@@ -112,7 +112,7 @@ trait EncodingVersion: Sized {
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()>;
+    ) -> XTypesResult<u16>;
 
     /// Serialization Rule (9) & (10)
     fn deserialize_array_type<'a, E: EndiannessRead>(
@@ -134,6 +134,13 @@ trait EncodingVersion: Sized {
     ) -> XTypesResult<()> {
         todo!()
     }
+
+    /// Serialization Rule (19) & (20)
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
 
     /// Serialization Rule (21) & (23)
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
@@ -164,16 +171,23 @@ trait EncodingVersion: Sized {
 
 struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer.reader.seek_padding(alignment)
+    }
+
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()> {
+    ) -> XTypesResult<u16> {
         const PID_SENTINEL: u16 = 1;
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let length: u16 = deserializer.deserialize_primitive_type()?;
             if current_pid == pid {
-                return Ok(());
+                return Ok(length);
             } else if current_pid == PID_SENTINEL {
                 return Err(PidNotFound(pid));
             } else {
@@ -181,13 +195,6 @@ impl EncodingVersion for EncodingVersion1 {
                 Self::align(deserializer, 4)?;
             }
         }
-    }
-
-    fn align<'a, E: EndiannessRead>(
-        deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        alignment: usize,
-    ) -> XTypesResult<()> {
-        deserializer.reader.seek_padding(alignment)
     }
 
     fn deserialize_array_type<'a, E: EndiannessRead>(
@@ -214,7 +221,26 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
+    /// Optional member of final Aggregated type (structure, union), version 1
+    /// see (26) and (27) for MMEMBER serialization
+    /// (19) XCDR[1] << {M : OPT_FMEMBER} =
+    ///                    XCDR
+    ///                    << { M : MMEMBER }
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        Self::deserialize_mmember(deserializer, member, dynamic_data)
+    }
+
     /// Serialization Rule (23)
+    /// Structures with extensibility MUTABLE, version 1 encoding
+    /// XCDR[1] << {O : MSTRUCT_TYPE} =
+    ///              XCDR
+    ///              << { O.member[i] : MMEMBER }*
+    ///              << { PID_SENTINEL : UInt16 }
+    ///              << { length = 0 : UInt16 }
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_type: DynamicType,
@@ -229,7 +255,16 @@ impl EncodingVersion for EncodingVersion1 {
         Ok(())
     }
 
-    /// Serialization Rule (24) & (25)
+    /// Serialization Rule (24)
+    /// Member of mutable aggregated type (structure, union), version 1 encoding
+    /// using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
+    /// XCDR[1] << {M : MMEMBER} =
+    ///              XCDR
+    ///               << ALIGN(4)
+    ///               << { FLAG_I + FLAG_M + M.id : UInt16 }
+    ///               << { M.value.ssize : UInt16 }
+    ///               << PUSH( ORIGIN=0 )
+    ///               << { M.value : M.value.type }
     fn deserialize_mmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -239,8 +274,12 @@ impl EncodingVersion for EncodingVersion1 {
         Self::align(deserializer, 4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
-            deserializer.deserialize_nopt_fmember(member, dynamic_data)
+        let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
+            if length > 0 {
+                deserializer.deserialize_nopt_fmember(member, dynamic_data)
+            } else {
+                Ok(())
+            }
         } else {
             Ok(())
         };
@@ -249,7 +288,6 @@ impl EncodingVersion for EncodingVersion1 {
 
         // TODO (25) using long PL encoding
     }
-
     /// Serialization Rule (29)
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
@@ -265,13 +303,13 @@ impl EncodingVersion for EncodingVersion2 {
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()> {
+    ) -> XTypesResult<u16> {
         loop {
             let emheader: u32 = deserializer.deserialize_primitive_type()?;
             let current_pid = (emheader & 0x0fffffff) as u16;
             let length = ((emheader & 0b01110000_00000000_00000000_00000000) >> 28) as usize;
             if current_pid == pid {
-                return Ok(());
+                return Ok(length as u16);
             } else {
                 deserializer.reader.seek(length)?;
                 Self::align(deserializer, 4)?;
@@ -358,6 +396,24 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer
             .reader
             .seek_padding(core::cmp::min(alignment, 4))
+    }
+
+    /// Optional member of final aggregated type (structure, union), version 2
+    /// (20) XCDR[2] << {M : OPT_FMEMBER} =
+    ///                   XCDR
+    ///                   << { <is_present> : BOOLEAN }
+    ///                   << IF (<is_present>) { M.value : M.value.type }
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let is_present = deserializer.deserialize_primitive_type::<bool>()?;
+        if is_present {
+            deserializer.deserialize_as_value(member, dynamic_data)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -533,10 +589,9 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
+            TypeKind::ENUM | TypeKind::STRUCTURE => {
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(self.deserialize_as_nested(element_type)?);
@@ -786,7 +841,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ) -> XTypesResult<()> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_nopt_fmember(member, dynamic_data)?;
+            if member.descriptor.is_optional {
+                V::deserialize_opt_fmember(self, member, dynamic_data)?;
+            } else {
+                self.deserialize_nopt_fmember(member, dynamic_data)?;
+            }
         }
         Ok(())
     }
