@@ -1725,8 +1725,7 @@ mod tests {
 
     #[test]
     fn deserialize_type_identifier() {
-        let expected = 
-        TypeInformation {
+        let expected = TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
                     type_id: TypeIdentifier::EkMinimal {

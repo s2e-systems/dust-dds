@@ -121,10 +121,7 @@ pub fn get_instance_handle_from_dynamic_data<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        infrastructure::instance::InstanceHandle,
-        xtypes::type_support::TypeSupport,
-    };
+    use crate::{infrastructure::instance::InstanceHandle, xtypes::type_support::TypeSupport};
 
     #[test]
     fn test_multiple_nested_keys() {
