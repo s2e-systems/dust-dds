@@ -30,3 +30,11 @@ struct ObjectiveType {
 struct Objective {
     ObjectiveType objective_type;
 };
+
+struct Parent {
+    uint8 a;
+};
+
+struct Child : Parent {
+    string name;
+};

@@ -29,12 +29,16 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let is_nested = r#struct.is_nested;
+            let base_type = match r#struct.base_type {
+                Some(t) => quote! {Some(<#t as dust_dds::xtypes::type_support::Type>::TYPE)},
+                None => quote! {None},
+            };
 
             let struct_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
                     name: #type_name,
-                    base_type: None,
+                    base_type: #base_type,
                     discriminator_type: None,
                     bound: None,
                     element_type: None,

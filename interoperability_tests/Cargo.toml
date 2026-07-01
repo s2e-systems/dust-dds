@@ -60,3 +60,11 @@ path = "dust_dds_subscriber_nested.rs"
 [[bin]]
 name = "dust_dds_publisher_nested"
 path = "dust_dds_publisher_nested.rs"
+
+[[bin]]
+name = "dust_dds_subscriber_inheritance"
+path = "dust_dds_subscriber_inheritance.rs"
+
+[[bin]]
+name = "dust_dds_publisher_inheritance"
+path = "dust_dds_publisher_inheritance.rs"

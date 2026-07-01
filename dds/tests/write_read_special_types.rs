@@ -1013,3 +1013,118 @@ fn type_with_nested_keys_should_dispose_correct_sample() {
         InstanceStateKind::NotAliveDisposed
     );
 }
+
+#[test]
+fn inherited_type_should_dispose_correct_sample() {
+    #[derive(DdsType, Clone)]
+    struct Parent {
+        #[dust_dds(key)]
+        id: u8,
+        b: u16,
+    }
+
+    #[derive(DdsType, Clone)]
+    #[dust_dds(base_type = Parent)]
+    struct Child {
+        parent: Parent,
+        a: i32,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<Child>(
+            "NestedTopic",
+            "Nested",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<Child>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let nested1 = Child {
+        parent: Parent { id: 1, b: 3 },
+        a: 1,
+    };
+    let nested2 = Child {
+        parent: Parent { id: 2, b: 30 },
+        a: 10,
+    };
+
+    writer.write(nested1.clone(), None).unwrap();
+    writer.write(nested2.clone(), None).unwrap();
+    writer.dispose(nested1, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+    assert_eq!(
+        samples[1].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+}
