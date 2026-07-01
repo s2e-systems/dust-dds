@@ -1509,17 +1509,25 @@ mod tests {
         #[dust_dds(extensibility = "mutable")]
         struct TestType {
             #[dust_dds(id = 41)]
-            member: [u8; 3],
+            m1: [u8; 3],
+            #[dust_dds(id = 42)]
+            m2: u32,
         }
 
-        let expected = TestType { member: [1, 2, 3] }.create_dynamic_sample();
+        let expected = TestType {
+            m1: [1, 2, 3],
+            m2: 6,
+        }
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 TestType::TYPE,
                 &[
                     0x00, 0x02, 0x00, 0x00, // CDR Header
                     0x00, 41, 0, 3, // PID, length
-                    1, 2, 3, 0, // member | padding (1 bytres)
+                    1, 2, 3, 0, // m1 | padding (1 bytres)
+                    0x00, 42, 0, 4, // PID, length
+                    0, 0, 0, 6, // m2
                     0, 1, 0, 0, // Sentinel
                 ]
             )
@@ -1532,7 +1540,9 @@ mod tests {
                 &[
                     0x00, 0x03, 0x00, 0x00, // CDR Header
                     41, 0x00, 3, 0, // PID, length
-                    1, 2, 3, 0, // member | padding (2 bytres)
+                    1, 2, 3, 0, // m1 | padding (2 bytres)
+                    42, 0x00, 4, 0, // PID, length
+                    6, 0, 0, 0, // m2
                     1, 0, 0, 0, // Sentinel
                 ]
             )
@@ -1548,6 +1558,8 @@ mod tests {
                     0b100_0000, 0, 0, 41, // EMHEADER1 incl. LC 4
                     0, 0, 0, 3, // NEXTINT
                     1, 2, 3, 0, // member | padding (1 bytres)
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
                 ]
             )
             .unwrap(),
@@ -1562,6 +1574,8 @@ mod tests {
                     41, 0, 0, 0b100_0000, // EMHEADER1 incl. LC 4
                     3, 0, 0, 0, // NEXTINT
                     1, 2, 3, 0, // member | padding (1 bytres)
+                    42, 0, 0, 0b010_0000, // EMHEADER1 incl. LC 2
+                    6, 0, 0, 0, // m2
                 ]
             )
             .unwrap(),
