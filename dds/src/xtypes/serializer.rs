@@ -438,16 +438,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         for field_index in 0..dynamic_type.get_member_count() {
             let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
 
-            if let Some(base_type) = dynamic_type.descriptor.base_type {
-                let member_descriptor = &base_type.get_member(member_id)?.descriptor;
-
-                if member_descriptor.is_optional {
-                    V::serialize_opt_fmember(self, v, member_id)?;
-                } else {
-                    self.serialize_nopt_fmember(v, member_id)?;
-                }
-            }
-            if let Ok(member) = &dynamic_type.get_member(member_id) {
+            if let Ok(member) = dynamic_type.get_member(member_id) {
                 if member.descriptor.is_optional {
                     V::serialize_opt_fmember(self, v, member_id)?;
                 } else {
@@ -1379,7 +1370,6 @@ mod tests {
         },
         transport::types::{EntityId, Guid},
         xtypes::{
-            dynamic_type::DynamicDataFactory,
             type_object::{
                 TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
                 TypeInformation,
@@ -1407,8 +1397,7 @@ mod tests {
             f12: char,
         }
 
-        let mut v = DynamicDataFactory::create_data(BasicTypes::TYPE);
-        BasicTypes {
+        let v = BasicTypes {
             f1: true,
             f2: 2,
             f3: 3,
@@ -1422,7 +1411,7 @@ mod tests {
             f11: 1.0,
             f12: 'a',
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1494,8 +1483,7 @@ mod tests {
             version: [u8; 2],
         }
 
-        let mut v = DynamicDataFactory::create_data(U8Array::TYPE);
-        U8Array { version: [1, 2] }.create_dynamic_sample(&mut v);
+        let v = U8Array { version: [1, 2] }.create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1532,15 +1520,14 @@ mod tests {
             address2: [u8; 3],
         }
 
-        let mut v = DynamicDataFactory::create_data(LocatorContainer::TYPE);
-        LocatorContainer {
+        let v = LocatorContainer {
             locator: Locator {
                 kind: 1,
                 address1: [3, 4],
                 address2: [5, 6, 7],
             },
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1559,8 +1546,7 @@ mod tests {
         #[derive(TypeSupport, Clone)]
         struct StringData(String);
 
-        let mut v = DynamicDataFactory::create_data(StringData::TYPE);
-        StringData(String::from("Hola")).create_dynamic_sample(&mut v);
+        let v = StringData(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1606,11 +1592,10 @@ mod tests {
             name: Vec<String>,
         }
 
-        let mut v = DynamicDataFactory::create_data(StringList::TYPE);
-        StringList {
+        let v = StringList {
             name: vec!["one".to_string(), "two".to_string()],
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1632,12 +1617,11 @@ mod tests {
 
     #[test]
     fn serialize_final_struct() {
-        let mut v = DynamicDataFactory::create_data(FinalType::TYPE);
-        FinalType {
+        let v = FinalType {
             field_u16: 7,
             field_u64: 9,
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         // PLAIN_CDR:
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
@@ -1682,15 +1666,14 @@ mod tests {
 
     #[test]
     fn serialize_nested_final_struct() {
-        let mut v = DynamicDataFactory::create_data(NestedFinalType::TYPE);
-        NestedFinalType {
+        let v = NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1737,8 +1720,7 @@ mod tests {
 
     #[test]
     fn serialize_appendable_struct() {
-        let mut v = DynamicDataFactory::create_data(AppendableType::TYPE);
-        AppendableType { value: 7 }.create_dynamic_sample(&mut v);
+        let v = AppendableType { value: 7 }.create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1782,12 +1764,11 @@ mod tests {
             two_bytes: u16,
         }
 
-        let mut v = DynamicDataFactory::create_data(MutableType::TYPE);
-        MutableType {
+        let v = MutableType {
             one_byte: 7,
             two_bytes: 0x0809,
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1861,8 +1842,7 @@ mod tests {
             field_final: TinyFinalType,
         }
 
-        let mut v = DynamicDataFactory::create_data(NestedMutableType::TYPE);
-        NestedMutableType {
+        let v = NestedMutableType {
             field_primitive: 5,
             field_mutable: MutableType {
                 one_byte: 7,
@@ -1870,7 +1850,7 @@ mod tests {
             },
             field_final: TinyFinalType { primitive: 9 },
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
             vec![
@@ -1919,15 +1899,14 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let mut v = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
-        AppendableShapesType {
+        let v = AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample(&mut v);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr1_be(&v).unwrap(),
@@ -2000,8 +1979,7 @@ mod tests {
             #[dust_dds(case = 7)]
             VariantC,
         }
-        let mut variantb = DynamicDataFactory::create_data(MyDynamicType::TYPE);
-        MyDynamicType::VariantB { a: 10 }.create_dynamic_sample(&mut variantb);
+        let variantb = MyDynamicType::VariantB { a: 10 }.create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr1_be(&variantb).unwrap(),
@@ -2019,8 +1997,7 @@ mod tests {
                 0, 0, 0, 10, // u32 (VariantB)
             ]
         );
-        let mut variantc = DynamicDataFactory::create_data(MyDynamicType::TYPE);
-        MyDynamicType::VariantC.create_dynamic_sample(&mut variantc);
+        let variantc = MyDynamicType::VariantC.create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr1_be(&variantc).unwrap(),
@@ -2037,8 +2014,7 @@ mod tests {
             ]
         );
 
-        let mut varianta = DynamicDataFactory::create_data(MyDynamicType::TYPE);
-        MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample(&mut varianta);
+        let varianta = MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr1_be(&varianta).unwrap(),
@@ -2074,11 +2050,10 @@ mod tests {
             field: MyDynamicType,
         }
 
-        let mut variantb = DynamicDataFactory::create_data(MyType::TYPE);
-        MyType {
+        let variantb = MyType {
             field: MyDynamicType::VariantB { a: 10 },
         }
-        .create_dynamic_sample(&mut variantb);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr1_be(&variantb).unwrap(),
@@ -2192,11 +2167,10 @@ mod tests {
             my_sequence: Vec<u32>,
         }
 
-        let mut data = DynamicDataFactory::create_data(MutableTypeWithSequence::TYPE);
-        MutableTypeWithSequence {
+        let data = MutableTypeWithSequence {
             my_sequence: vec![1, 2, 3],
         }
-        .create_dynamic_sample(&mut data);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr2_le(&data).unwrap(),
@@ -2228,13 +2202,12 @@ mod tests {
             MyVariant { a: MutableTypeWithSequence },
         }
 
-        let mut data = DynamicDataFactory::create_data(AppendableUnion::TYPE);
-        AppendableUnion::MyVariant {
+        let data = AppendableUnion::MyVariant {
             a: MutableTypeWithSequence {
                 my_sequence: vec![1, 2, 3],
             },
         }
-        .create_dynamic_sample(&mut data);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr2_le(&data).unwrap(),
@@ -2254,15 +2227,14 @@ mod tests {
 
     #[test]
     fn serialize_type_lookup_get_types_in() {
-        let mut data = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
-        TypeLookupCall::TypeLookupGetTypesHashId {
+        let data = TypeLookupCall::TypeLookupGetTypesHashId {
             get_types: TypeLookupGetTypesIn {
                 type_ids: vec![TypeIdentifier::EkComplete {
                     equivalence_hash: [5; 14],
                 }],
             },
         }
-        .create_dynamic_sample(&mut data);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr2_le(&data).unwrap(),
@@ -2284,8 +2256,7 @@ mod tests {
 
     #[test]
     fn serialize_type_lookup_request() {
-        let mut data = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
-        TypeLookupRequest {
+        let data = TypeLookupRequest {
             header: RequestHeader {
                 request_id: SampleIdentity {
                     writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
@@ -2297,7 +2268,7 @@ mod tests {
                 get_types: TypeLookupGetTypesIn { type_ids: vec![] },
             },
         }
-        .create_dynamic_sample(&mut data);
+        .create_dynamic_sample();
 
         assert_eq!(
             serialize_cdr2_le(&data).unwrap(),
@@ -2322,8 +2293,7 @@ mod tests {
 
     #[test]
     fn serialize_type_identifier() {
-        let mut data = DynamicDataFactory::create_data(TypeInformation::TYPE);
-        TypeInformation {
+        let data = TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
                     type_id: TypeIdentifier::EkMinimal {
@@ -2345,7 +2315,7 @@ mod tests {
                 dependent_typeids: Vec::new(),
             },
         }
-        .create_dynamic_sample(&mut data);
+        .create_dynamic_sample();
 
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &data).unwrap();
         assert_eq!(

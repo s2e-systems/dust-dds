@@ -277,11 +277,8 @@ impl TypeSupport for PythonDdsData {
         Self(src.clone())
     }
 
-    fn create_dynamic_sample(
-        self,
-        data: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>,
-    ) {
-        *data = self.0;
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData<'static> {
+        self.0
     }
 }
 
@@ -434,15 +431,13 @@ class MyDataType:
     "
             );
 
-            let mut dynamic_data =
-                dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(MyDataType::TYPE);
-            MyDataType {
+            let dynamic_data = MyDataType {
                 id: 10,
                 value: 100,
                 data: vec![1, 2, 3, 4],
                 name: String::from("Myname"),
             }
-            .create_dynamic_sample(&mut dynamic_data);
+            .create_dynamic_sample();
 
             let globals = PyDict::new(py);
             globals

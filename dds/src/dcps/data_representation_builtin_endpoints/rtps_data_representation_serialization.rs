@@ -6,7 +6,6 @@ use crate::{
     infrastructure::time::Duration,
     transport::types::{EntityId, Locator, Long, Octet, ProtocolVersion, UnsignedLong},
     xtypes::{
-        dynamic_type::DynamicDataFactory,
         serializer::{serialize_without_header_cdr1_le, serialize_without_header_cdr2_le},
         type_support::TypeSupport,
     },
@@ -50,16 +49,14 @@ impl<'a> ParameterListSerializer<'a> {
 
     pub(crate) fn write_xcdr1_parameter<T: TypeSupport>(&mut self, pid: ParameterId, value: T) {
         let buffer = Vec::new();
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        value.create_dynamic_sample(&mut data);
+        let data = value.create_dynamic_sample();
         let buffer = serialize_without_header_cdr1_le(buffer, &data).expect("Must succeed");
         self.write_cdr_parameter(pid, buffer.as_slice());
     }
 
     pub(crate) fn write_xcdr2_parameter<T: TypeSupport>(&mut self, pid: ParameterId, value: T) {
         let buffer = Vec::new();
-        let mut data = DynamicDataFactory::create_data(T::TYPE);
-        value.create_dynamic_sample(&mut data);
+        let data = value.create_dynamic_sample();
         let buffer = serialize_without_header_cdr2_le(buffer, &data).expect("Must succeed");
         self.write_cdr_parameter(pid, buffer.as_slice());
     }
