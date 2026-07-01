@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use dust_dds_derive::DdsType;
 
 use crate::xtypes::{
@@ -185,14 +185,8 @@ pub enum TypeObjectHashId {
 // When not all, the applicable member types are listed
 
 /// Flags that apply to struct/union/collection/enum/bitmask/bitset members/elements and affect type assignability.
-#[derive(Debug, Clone, Copy, DdsType, Eq)]
+#[derive(Debug, Clone, Copy, DdsType, PartialEq, Eq, Default)]
 pub struct MemberFlag(u16);
-
-impl PartialEq for MemberFlag {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 & other.0 == other.0
-    }
-}
 
 impl core::ops::BitOr for MemberFlag {
     type Output = MemberFlag;
@@ -253,15 +247,9 @@ pub const MEMBER_FLAG_MINIMAL_MASK: MemberFlag = MemberFlag(0x003f);
 // When not all, the applicable types are listed
 
 /// Flags that apply to type declarations and affect type assignability.
-#[derive(DdsType, Debug, Clone)]
+#[derive(DdsType, Debug, Clone, Copy, PartialEq, Eq)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct TypeFlag(u16);
-
-impl PartialEq for TypeFlag {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 & other.0 == other.0
-    }
-}
 
 impl core::ops::BitOr for TypeFlag {
     type Output = TypeFlag;
@@ -940,6 +928,28 @@ pub struct CommonUnionMember {
     pub label_seq: UnionCaseLabelSeq,
 }
 
+impl From<&DynamicTypeMember> for CommonUnionMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let mut member_flags = MemberFlag::from(value.descriptor.try_construct_kind);
+        if value.descriptor.is_key {
+            member_flags |= MEMBER_FLAG_IS_KEY;
+        }
+        if value.descriptor.is_default_label {
+            member_flags |= MEMBER_FLAG_IS_DEFAULT;
+        }
+        if value.descriptor.is_external {
+            member_flags |= MEMBER_FLAG_IS_EXTERNAL;
+        }
+
+        CommonUnionMember {
+            member_id: value.get_id(),
+            member_flags,
+            type_id: (&value.descriptor.r#type).into(),
+            label_seq: value.descriptor.label.into_iter().collect(),
+        }
+    }
+}
+
 /// Complete details of a union member in a complete TypeObject representation.
 #[derive(DdsType, Debug, Clone, PartialEq)]
 #[dust_dds(extensibility = "appendable", nested)]
@@ -949,6 +959,19 @@ pub struct CompleteUnionMember {
     /// Detailed complete properties (name, annotations) of the union member.
     pub detail: CompleteMemberDetail,
 }
+
+impl From<&DynamicTypeMember> for CompleteUnionMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let common = value.into();
+        let detail = CompleteMemberDetail {
+            name: String::from(value.descriptor.name),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteUnionMember { common, detail }
+    }
+}
+
 /// Sequence of complete union members.
 pub type CompleteUnionMemberSeq = Vec<CompleteUnionMember>;
 
@@ -961,6 +984,18 @@ pub struct MinimalUnionMember {
     /// Detailed minimal properties (name hash) of the union member.
     pub detail: MinimalMemberDetail,
 }
+
+impl From<&DynamicTypeMember> for MinimalUnionMember {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let common = value.into();
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalUnionMember { common, detail }
+    }
+}
+
 /// Sequence of minimal union members.
 pub type MinimalUnionMemberSeq = Vec<MinimalUnionMember>;
 
@@ -1908,6 +1943,53 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                 };
                 MinimalTypeObject::TkEnum { enumerated_type }
             }
+            TypeKind::UNION => {
+                let mut union_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    union_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = MinimalUnionHeader {
+                    detail: MinimalTypeDetail {},
+                };
+
+                let mut member_iterator = value.member_list.iter();
+                let discriminator = match member_iterator.next() {
+                    Some(d) => {
+                        let mut member_flags = MemberFlag::from(d.descriptor.try_construct_kind);
+                        if d.descriptor.is_key {
+                            member_flags |= MEMBER_FLAG_IS_KEY;
+                        }
+                        MinimalDiscriminatorMember {
+                            common: CommonDiscriminatorMember {
+                                member_flags,
+                                type_id: (&d.descriptor.r#type).into(),
+                            },
+                        }
+                    }
+                    None => MinimalDiscriminatorMember {
+                        common: CommonDiscriminatorMember {
+                            member_flags: Default::default(),
+                            type_id: TypeIdentifier::TkNone,
+                        },
+                    },
+                };
+
+                let member_seq = member_iterator.map(From::from).collect();
+
+                let union_type = MinimalUnionType {
+                    union_flags,
+                    header,
+                    discriminator,
+                    member_seq,
+                };
+
+                MinimalTypeObject::TkUnion { union_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
@@ -1930,7 +2012,6 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type
                     detail: CompleteTypeDetail {
                         type_name: String::from(value.get_name()),
-                        // TODO: Implement annotations
                         ann_builtin: None,
                         ann_custom: None,
                     },
@@ -1970,6 +2051,61 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     literal_seq,
                 };
                 CompleteTypeObject::TkEnum { enumerated_type }
+            }
+            TypeKind::UNION => {
+                let mut union_flags = match value.descriptor.extensibility_kind {
+                    ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
+                    ExtensibilityKind::Appendable => TYPE_FLAG_IS_APPENDABLE,
+                    ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
+                };
+                if value.descriptor.is_nested {
+                    union_flags |= TYPE_FLAG_IS_NESTED;
+                };
+
+                let header = CompleteUnionHeader {
+                    detail: CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: String::from(value.descriptor.name),
+                    },
+                };
+
+                let mut member_iterator = value.member_list.iter();
+                let discriminator = match member_iterator.next() {
+                    Some(d) => {
+                        let mut member_flags = MemberFlag::from(d.descriptor.try_construct_kind);
+                        if d.descriptor.is_key {
+                            member_flags |= MEMBER_FLAG_IS_KEY;
+                        }
+                        CompleteDiscriminatorMember {
+                            common: CommonDiscriminatorMember {
+                                member_flags,
+                                type_id: (&d.descriptor.r#type).into(),
+                            },
+                            ann_builtin: None,
+                            ann_custom: None,
+                        }
+                    }
+                    None => CompleteDiscriminatorMember {
+                        common: CommonDiscriminatorMember {
+                            member_flags: Default::default(),
+                            type_id: TypeIdentifier::TkNone,
+                        },
+                        ann_builtin: None,
+                        ann_custom: None,
+                    },
+                };
+
+                let member_seq = member_iterator.map(From::from).collect();
+
+                let union_type = CompleteUnionType {
+                    union_flags,
+                    header,
+                    discriminator,
+                    member_seq,
+                };
+
+                CompleteTypeObject::TkUnion { union_type }
             }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
@@ -2014,10 +2150,9 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM => {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
@@ -2046,26 +2181,71 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                     ],
                 }
             }
-            TypeKind::UNION => todo!(),
             TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => TypeIdentifier::TiPlainSequenceLarge {
-                seq_ldefn: PlainSequenceLElemDefn {
-                    header: PlainCollectionHeader {
-                        equiv_kind: EK_MINIMAL,
-                        element_flags: MEMBER_FLAG_MINIMAL_MASK,
-                    },
-                    bound: u32::MAX,
-                    element_identifier: Box::new(
-                        value
-                            .descriptor
-                            .element_type
-                            .as_ref()
-                            .expect("Sequence must have element type")
-                            .into(),
-                    ),
-                },
-            },
-            TypeKind::ARRAY => todo!(),
+            TypeKind::SEQUENCE => {
+                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let element_identifier = Box::new(
+                    value
+                        .descriptor
+                        .element_type
+                        .as_ref()
+                        .map(From::from)
+                        .unwrap_or(TypeIdentifier::TkNone),
+                );
+                let header = PlainCollectionHeader {
+                    equiv_kind: EK_MINIMAL,
+                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                };
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiPlainSequenceSmall {
+                        seq_sdefn: PlainSequenceSElemDefn {
+                            header,
+                            bound: bound as u8,
+                            element_identifier,
+                        },
+                    }
+                } else {
+                    TypeIdentifier::TiPlainSequenceLarge {
+                        seq_ldefn: PlainSequenceLElemDefn {
+                            header,
+                            bound,
+                            element_identifier,
+                        },
+                    }
+                }
+            }
+            TypeKind::ARRAY => {
+                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let element_identifier = Box::new(
+                    value
+                        .descriptor
+                        .element_type
+                        .as_ref()
+                        .map(From::from)
+                        .unwrap_or(TypeIdentifier::TkNone),
+                );
+                let header = PlainCollectionHeader {
+                    equiv_kind: EK_MINIMAL,
+                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                };
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiPlainArraySmall {
+                        array_sdefn: PlainArraySElemDefn {
+                            header,
+                            array_bound_seq: vec![bound as u8],
+                            element_identifier,
+                        },
+                    }
+                } else {
+                    TypeIdentifier::TiPlainArrayLarge {
+                        array_ldefn: PlainArrayLElemDefn {
+                            header,
+                            array_bound_seq: vec![bound],
+                            element_identifier,
+                        },
+                    }
+                }
+            }
             TypeKind::MAP => todo!(),
         }
     }
@@ -2073,11 +2253,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
 
 impl From<&DynamicTypeMember> for CommonStructMember {
     fn from(value: &DynamicTypeMember) -> Self {
-        let mut member_flags = match value.descriptor.try_construct_kind {
-            TryConstructKind::UseDefault => MEMBER_FLAG_TRY_CONSTRUCT2,
-            TryConstructKind::Discard => MEMBER_FLAG_TRY_CONSTRUCT1,
-            TryConstructKind::Trim => MEMBER_FLAG_TRY_CONSTRUCT1 | MEMBER_FLAG_TRY_CONSTRUCT2,
-        };
+        let mut member_flags = MemberFlag::from(value.descriptor.try_construct_kind);
         if value.descriptor.is_key {
             member_flags |= MEMBER_FLAG_IS_KEY;
         }
@@ -2192,6 +2368,16 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                 dependent_typeid_count: 0,
                 dependent_typeids: Vec::new(),
             },
+        }
+    }
+}
+
+impl From<TryConstructKind> for MemberFlag {
+    fn from(value: TryConstructKind) -> Self {
+        match value {
+            TryConstructKind::UseDefault => MEMBER_FLAG_TRY_CONSTRUCT2,
+            TryConstructKind::Discard => MEMBER_FLAG_TRY_CONSTRUCT1,
+            TryConstructKind::Trim => MEMBER_FLAG_TRY_CONSTRUCT1 | MEMBER_FLAG_TRY_CONSTRUCT2,
         }
     }
 }

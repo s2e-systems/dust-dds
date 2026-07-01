@@ -299,7 +299,6 @@ fn nested_types_should_read_and_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-#[ignore = "create_dynamic_sample not derived yet"]
 #[test]
 fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -750,6 +749,146 @@ fn type_with_optional_should_read_and_write() {
     let data = FooWithOptional {
         a: 8,
         maybe_b: None,
+    };
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
+
+#[test]
+#[ignore = "Some serialization and deserializations not yet implemented"]
+fn arrays_sequence_of_different_types_should_read_and_write() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    enum MyEnum {
+        VariantA = 5,
+        VariantB = 6,
+        VariantC,
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct MyStruct {
+        id: u32,
+        another_id: u64,
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    struct MyEnumArray {
+        sequence_enum: Vec<MyEnum>,
+        array_enum: [MyEnum; 3],
+        sequence_struct: Vec<MyStruct>,
+        array_struct: [MyStruct; 2],
+        array_bool: [bool; 4],
+        sequence_bool: Vec<bool>,
+        array_char: [char; 4],
+        sequence_char: Vec<char>,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<MyEnumArray>(
+            "MyEnumArrayTopic",
+            "MyEnumArray",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<MyEnumArray>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = MyEnumArray {
+        sequence_enum: vec![
+            MyEnum::VariantC,
+            MyEnum::VariantB,
+            MyEnum::VariantA,
+            MyEnum::VariantC,
+        ],
+        array_enum: [MyEnum::VariantC, MyEnum::VariantB, MyEnum::VariantA],
+        sequence_struct: vec![
+            MyStruct {
+                id: 123,
+                another_id: 45678,
+            },
+            MyStruct {
+                id: 987,
+                another_id: 65432,
+            },
+        ],
+        array_struct: [
+            MyStruct {
+                id: 123,
+                another_id: 45678,
+            },
+            MyStruct {
+                id: 987,
+                another_id: 65432,
+            },
+        ],
+        array_bool: [true, false, false, true],
+        sequence_bool: vec![true, false, false, true],
+        array_char: ['a', 'b', 'c', 'd'],
+        sequence_char: vec!['a', 'b', 'c', 'd'],
     };
 
     writer.write(data.clone(), None).unwrap();
