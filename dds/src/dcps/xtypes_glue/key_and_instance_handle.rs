@@ -27,6 +27,7 @@ impl<'a> KeyHolderType<'a> {
                         builder.add_member(dynamic_type_member.get_descriptor()?.clone())?;
                     } else if dynamic_type_member.descriptor.r#type.descriptor.kind
                         == TypeKind::STRUCTURE
+                        && !dynamic_type_member.descriptor.is_optional
                     {
                         fill_struct_key_holder_type(
                             &dynamic_type_member.descriptor.r#type,
@@ -71,6 +72,7 @@ impl<'a> KeyHolderData<'a> {
                             .set_value(key_member_id, value.get_value(key_member_id)?.clone());
                     } else if dynamic_type_member.descriptor.r#type.get_kind()
                         == TypeKind::STRUCTURE
+                        && !dynamic_type_member.descriptor.is_optional
                     {
                         fill_struct_key_holder_data(
                             value.get_complex_value(key_member_id)?,
