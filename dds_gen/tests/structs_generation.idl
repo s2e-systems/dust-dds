@@ -22,3 +22,11 @@ struct User {
     wstring<8> name;
     boolean active;
 };
+
+struct ObjectiveType {
+    string name;
+};
+
+struct Objective {
+    ObjectiveType objective_type;
+};

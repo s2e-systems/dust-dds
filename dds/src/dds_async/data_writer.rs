@@ -22,9 +22,8 @@ use crate::{
             PublicationMatchedStatus, StatusKind,
         },
         time::Time,
-        type_support::TypeSupport,
     },
-    xtypes::dynamic_type::DynamicDataFactory,
+    xtypes::{dynamic_type::DynamicDataFactory, type_support::TypeSupport},
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -459,7 +458,7 @@ impl<Foo> DataWriterAsync<Foo> {
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
                 dcps_listener,
-                listener_mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

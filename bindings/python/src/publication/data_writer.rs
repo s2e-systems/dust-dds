@@ -21,7 +21,8 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
-#[pyclass]
+#[pyclass(from_py_object)]
+#[derive(Clone)]
 pub struct DataWriter(dust_dds::publication::data_writer::DataWriter<PythonDdsData>);
 
 impl From<dust_dds::publication::data_writer::DataWriter<PythonDdsData>> for DataWriter {

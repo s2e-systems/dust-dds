@@ -299,7 +299,6 @@ fn nested_types_should_read_and_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-#[ignore = "create_dynamic_sample not derived yet"]
 #[test]
 fn foo_xtypes_union_should_read_and_write() {
     #[derive(Clone, Debug, PartialEq, DdsType)]
@@ -413,7 +412,7 @@ fn dynamic_data_should_read_and_write() {
         .add_member(MemberDescriptor {
             name: "id",
             id: 0,
-            r#type: <u8 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+            r#type: <u8 as dust_dds::xtypes::type_support::Type>::TYPE,
             default_value: None,
             index: 0_u32,
             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -423,13 +422,14 @@ fn dynamic_data_should_read_and_write() {
             is_must_understand: true,
             is_shared: false,
             is_default_label: false,
+            is_external: false,
         })
         .unwrap();
     type_buider
         .add_member(MemberDescriptor {
             name: "value",
             id: 1,
-            r#type: <u32 as dust_dds::xtypes::binding::XTypesBinding>::TYPE_INFORMATION,
+            r#type: <u32 as dust_dds::xtypes::type_support::Type>::TYPE,
             default_value: None,
             index: 1_u32,
             try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault,
@@ -439,6 +439,7 @@ fn dynamic_data_should_read_and_write() {
             is_must_understand: true,
             is_shared: false,
             is_default_label: false,
+            is_external: false,
         })
         .unwrap();
     let dynamic_type = type_buider.build();
@@ -572,14 +573,14 @@ fn enum_should_be_always_same_instance() {
     writer.write(UnKeyedData::On, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let sample = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(sample[0].data.as_ref().unwrap(), &UnKeyedData::On);
 
     writer.write(UnKeyedData::Off, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let samples = reader
-        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &UnKeyedData::Off);

@@ -28,6 +28,7 @@ impl<'a> RustGenerator<'a> {
             Rule::line_comment => (),
             Rule::COMMENT => (),
             Rule::reserved_keyword => (),
+            Rule::semicolon => (),
             Rule::identifier => self.identifier(pair),
             Rule::character_literal => todo!(),
             Rule::string_literal => todo!(),
@@ -363,7 +364,7 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn enum_dcl(&mut self, pair: IdlPair) {
-        let inner_pairs = pair.into_inner();
+        let inner_pairs = pair.clone().into_inner();
         let identifier = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::identifier)
@@ -376,6 +377,38 @@ impl<'a> RustGenerator<'a> {
                 self.hierarchical_type_name(identifier.as_str())
             );
             self.writer.push_str(&name);
+        }
+        for annotation_appl in pair
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+
+            if identifier.as_str() == "bit_bound" {
+                if let Some(annotation_appl_params) = inner_pairs
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
+                {
+                    if let Some(expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
+                    {
+                        self.writer.push_str("#[dust_dds(bit_bound( ");
+                        self.writer.push_str(expr.as_str());
+                        self.writer.push_str("))]");
+                    }
+                }
+            }
         }
         self.writer.push_str("pub enum ");
         self.generate(identifier);
@@ -394,11 +427,43 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn enumerator(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
+        let identifier = pair
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+        self.writer.push_str(identifier.as_str());
+        for annotation_appl in pair
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
                 .next()
-                .expect("Must have an element according to the grammar"),
-        )
+                .expect("Must have an identifier according to the grammar");
+
+            if identifier.as_str() == "value" {
+                if let Some(annotation_appl_params) = inner_pairs
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
+                {
+                    if let Some(expr) = annotation_appl_params
+                        .into_inner()
+                        .find(|p| p.as_rule() == Rule::const_expr)
+                    {
+                        self.writer.push_str(" = ");
+                        self.writer.push_str(expr.as_str());
+                    }
+                }
+            }
+        }
     }
 
     fn member(&mut self, pair: IdlPair) {
@@ -864,12 +929,18 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn scoped_name(&mut self, pair: IdlPair) {
-        let identifier = pair
-            .into_inner()
-            .next()
-            .expect("Must have an identifier according to the grammar");
-
-        self.writer.push_str(identifier.as_str())
+        let pair_str = pair.as_str();
+        if pair_str.starts_with("::") {
+            // The :: is added as part of the pair so make sure it doesn't start with ::
+            // and that the last iteration doesn't get ::
+            for i in 0..self.modules.len() {
+                if i > 0 {
+                    self.writer.push_str("::");
+                }
+                self.writer.push_str("super");
+            }
+        }
+        self.writer.push_str(pair.as_str())
     }
 
     fn const_dcl(&mut self, pair: IdlPair) {
@@ -900,11 +971,14 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn const_type(&mut self, pair: IdlPair) {
-        self.generate(
-            pair.into_inner()
-                .next()
-                .expect("Must have an element according to grammar"),
-        )
+        let inner_type = pair
+            .into_inner()
+            .next()
+            .expect("Must have an element according to grammar");
+        match inner_type.clone().as_rule() {
+            Rule::string_type => self.writer.push_str("&str"),
+            _ => self.generate(inner_type),
+        }
     }
 
     #[inline]
@@ -1049,7 +1123,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "pub const a:String='a';\n");
+        assert_eq!(&writer, "pub const a:&str='a';\n");
     }
 
     #[test]
@@ -1133,5 +1207,18 @@ mod tests {
             &writer,
             "pub mod root{pub mod a{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
         );
+    }
+
+    #[test]
+    fn parse_missing_semicolon_error() {
+        let err = IdlParser::parse(
+            Rule::specification,
+            "struct SomeStruct {}
+            enum SomeEnum {}",
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("expected semicolon"));
     }
 }

@@ -24,18 +24,10 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
+#[derive(Clone)]
 pub struct SubscriberAsync {
     handle: InstanceHandle,
     participant: DomainParticipantAsync,
-}
-
-impl Clone for SubscriberAsync {
-    fn clone(&self) -> Self {
-        Self {
-            handle: self.handle,
-            participant: self.participant.clone(),
-        }
-    }
 }
 
 impl SubscriberAsync {
@@ -71,7 +63,7 @@ impl SubscriberAsync {
                     topic_name: a_topic.get_name(),
                     qos,
                     dcps_listener,
-                    mask: mask.to_vec(),
+                    listener_mask: mask.iter().collect(),
                     reply_sender,
                 },
             ))
@@ -245,7 +237,7 @@ impl SubscriberAsync {
                 participant_handle: self.participant.get_instance_handle(),
                 subscriber_handle: self.handle,
                 dcps_listener,
-                mask: mask.to_vec(),
+                listener_mask: mask.iter().collect(),
                 reply_sender,
             }))
             .await;

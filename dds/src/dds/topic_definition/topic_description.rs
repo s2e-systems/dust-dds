@@ -6,20 +6,12 @@ use crate::{
 use alloc::string::String;
 
 /// This class is an enumrator for different topic types.
+#[derive(Clone)]
 pub enum TopicDescription {
     /// Topic type
     Topic(Topic),
     /// Content filtered topic
     ContentFilteredTopic(ContentFilteredTopic),
-}
-
-impl Clone for TopicDescription {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Topic(arg0) => Self::Topic(arg0.clone()),
-            Self::ContentFilteredTopic(arg0) => Self::ContentFilteredTopic(arg0.clone()),
-        }
-    }
 }
 
 impl From<TopicDescriptionAsync> for TopicDescription {

@@ -1,8 +1,8 @@
 use crate::{
-    dcps::channels::oneshot::OneshotSender,
+    dcps::{channels::notification::NotificationSender, status_mask::StatusMask},
     infrastructure::{instance::InstanceHandle, status::StatusKind},
 };
-use alloc::{vec, vec::Vec};
+use alloc::vec::Vec;
 
 #[derive(Clone)]
 pub enum StatusConditionEntity {
@@ -27,15 +27,15 @@ pub enum StatusConditionEntity {
 }
 
 pub struct DcpsStatusCondition {
-    enabled_statuses: Vec<StatusKind>,
+    enabled_statuses: StatusMask,
     status_changes: Vec<StatusKind>,
-    registered_notifications: Vec<OneshotSender<()>>,
+    registered_notifications: Vec<NotificationSender>,
 }
 
 impl Default for DcpsStatusCondition {
     fn default() -> Self {
         Self {
-            enabled_statuses: vec![
+            enabled_statuses: [
                 StatusKind::InconsistentTopic,
                 StatusKind::OfferedDeadlineMissed,
                 StatusKind::RequestedDeadlineMissed,
@@ -49,7 +49,9 @@ impl Default for DcpsStatusCondition {
                 StatusKind::LivelinessChanged,
                 StatusKind::PublicationMatched,
                 StatusKind::SubscriptionMatched,
-            ],
+            ]
+            .iter()
+            .collect(),
             status_changes: Vec::new(),
             registered_notifications: Vec::new(),
         }
@@ -62,7 +64,7 @@ impl DcpsStatusCondition {
         if self.get_trigger_value() {
             for w in self.registered_notifications.drain(..) {
                 // Do not care if there is no channel waiting for response
-                w.send(());
+                w.notify();
             }
         }
     }
@@ -71,26 +73,26 @@ impl DcpsStatusCondition {
         self.status_changes.retain(|x| x != &state);
     }
 
-    pub fn get_enabled_statuses(&self) -> Vec<StatusKind> {
-        self.enabled_statuses.clone()
+    pub fn get_enabled_statuses(&self) -> StatusMask {
+        self.enabled_statuses
     }
 
-    pub fn set_enabled_statuses(&mut self, mask: Vec<StatusKind>) {
+    pub fn set_enabled_statuses(&mut self, mask: StatusMask) {
         self.enabled_statuses = mask;
     }
 
     pub fn get_trigger_value(&self) -> bool {
         for status in &self.status_changes {
-            if self.enabled_statuses.contains(status) {
+            if self.enabled_statuses.is_enabled(status) {
                 return true;
             }
         }
         false
     }
 
-    pub fn register_notification(&mut self, notification_sender: OneshotSender<()>) {
+    pub fn register_notification(&mut self, notification_sender: NotificationSender) {
         if self.get_trigger_value() {
-            notification_sender.send(());
+            notification_sender.notify();
         } else {
             self.registered_notifications.push(notification_sender);
         }

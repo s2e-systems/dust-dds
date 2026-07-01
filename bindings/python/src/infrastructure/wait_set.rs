@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use super::{condition::StatusCondition, error::into_pyerr, time::Duration};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum Condition {
     StatusCondition { condition: StatusCondition },
@@ -28,8 +28,8 @@ impl From<Condition> for dust_dds::wait_set::Condition {
     }
 }
 
-#[pyclass]
-#[derive(Default)]
+#[pyclass(from_py_object)]
+#[derive(Default, Clone)]
 pub struct WaitSet(dust_dds::wait_set::WaitSet);
 
 #[pymethods]

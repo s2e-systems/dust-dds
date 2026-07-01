@@ -1,7 +1,6 @@
 use alloc::{
     format,
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
 
@@ -18,12 +17,12 @@ use crate::{
             topic_listener::DcpsTopicListener,
         },
         status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
-        status::StatusKind,
     },
     runtime::DdsRuntime,
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
@@ -36,7 +35,7 @@ impl DcpsDomainParticipant {
         &mut self,
         qos: QosKind<PublisherQos>,
         dcps_listener: Option<DcpsPublisherListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
@@ -70,7 +69,7 @@ impl DcpsDomainParticipant {
             publisher_handle,
             data_writer_list,
             listener_sender,
-            mask,
+            listener_mask,
         );
 
         if self.domain_participant.enabled
@@ -127,7 +126,7 @@ impl DcpsDomainParticipant {
         &mut self,
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
-        mask: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
@@ -154,7 +153,6 @@ impl DcpsDomainParticipant {
         ]);
         self.subscriber_counter += 1;
 
-        let listener_mask = mask.to_vec();
         let data_reader_list = Default::default();
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
@@ -224,8 +222,8 @@ impl DcpsDomainParticipant {
         type_name: String,
         qos: QosKind<TopicQos>,
         dcps_listener: Option<DcpsTopicListener>,
-        mask: Vec<StatusKind>,
-        type_support: DynamicType,
+        listener_mask: StatusMask,
+        type_support: DynamicType<'static>,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         if self
@@ -273,7 +271,7 @@ impl DcpsDomainParticipant {
             topic_handle,
             status_condition,
             listener_sender,
-            mask,
+            listener_mask,
             type_support,
         );
 
@@ -412,7 +410,7 @@ impl DcpsDomainParticipant {
     pub fn find_topic(
         &mut self,
         topic_name: String,
-        type_support: DynamicType,
+        type_support: DynamicType<'static>,
     ) -> DdsResult<Option<(InstanceHandle, String)>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
@@ -461,12 +459,12 @@ impl DcpsDomainParticipant {
                 let status_condition = DcpsStatusCondition::default();
                 let mut topic = TopicEntity::new(
                     qos,
-                    type_name.clone(),
+                    type_name.clone().into(),
                     topic_name.clone(),
                     topic_handle,
                     status_condition,
                     None,
-                    vec![],
+                    StatusMask::default(),
                     type_support,
                 );
                 topic.enabled = true;
@@ -487,7 +485,7 @@ impl DcpsDomainParticipant {
                         .push(TopicDescriptionKind::Topic(topic)),
                 }
 
-                return Ok(Some((topic_handle, type_name)));
+                return Ok(Some((topic_handle, type_name.into())));
             }
             Ok(None)
         }
@@ -722,12 +720,12 @@ impl DcpsDomainParticipant {
     pub fn set_domain_participant_listener(
         &mut self,
         dcps_listener: Option<DcpsDomainParticipantListener>,
-        status_kind: Vec<StatusKind>,
+        listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         self.domain_participant.listener_sender = listener_sender;
-        self.domain_participant.listener_mask = status_kind;
+        self.domain_participant.listener_mask = listener_mask;
 
         Ok(())
     }

@@ -5,11 +5,11 @@ pub struct RtpsStatelessReader {
 }
 
 impl RtpsStatelessReader {
-    pub fn new(guid: Guid) -> Self {
+    pub const fn new(guid: Guid) -> Self {
         Self { guid }
     }
 
-    pub fn guid(&self) -> Guid {
+    pub const fn guid(&self) -> Guid {
         self.guid
     }
 }

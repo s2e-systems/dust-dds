@@ -1,13 +1,13 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
-    infrastructure::{
-        time::{Duration, DurationKind},
-        type_support::TypeSupport,
-    },
+    infrastructure::time::{Duration, DurationKind},
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
-        binding::XTypesBinding,
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember},
+        dynamic_type::{
+            DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
+            TypeDescriptor, TypeKind,
+        },
+        type_support::{Type, TypeSupport},
     },
 };
 use alloc::{string::String, vec::Vec};
@@ -25,22 +25,21 @@ pub enum Length {
     Limited(i32),
 }
 
-impl TypeSupport for Length {
-    const r#TYPE: DynamicType = i32::TYPE_INFORMATION;
-
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
-        let value = match self {
-            Length::Limited(length) => length,
-            Length::Unlimited => LENGTH_UNLIMITED,
-        };
-        data.set_int32_value(0, value).unwrap();
-    }
-
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
-        let value = src.get_int32_value(0).cloned().unwrap();
+impl From<Length> for i32 {
+    fn from(value: Length) -> Self {
         match value {
-            LENGTH_UNLIMITED => Length::Unlimited,
-            v => Length::Limited(v),
+            Length::Unlimited => LENGTH_UNLIMITED,
+            Length::Limited(i) => i,
+        }
+    }
+}
+
+impl From<i32> for Length {
+    fn from(value: i32) -> Self {
+        if value == LENGTH_UNLIMITED {
+            Length::Unlimited
+        } else {
+            Length::Limited(value)
         }
     }
 }
@@ -142,6 +141,7 @@ const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
 const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
 const DATA_REPRESENTATION_QOS_POLICY_NAME: &str = "DataRepresentation";
+const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME: &str = "TypeConsistencyEnforcement";
 
 /// QosPolicy Id representing an invalid QoS policy
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
@@ -191,6 +191,8 @@ pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// Id for the DataRepresentationQosPolicy
 pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
+/// Id for the TypeConsistencyEnforcementQosPolicy
+pub const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID: QosPolicyId = 24;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
@@ -1043,24 +1045,24 @@ pub enum HistoryQosPolicyKind {
     /// Keep all samples.
     KeepAll,
 }
-
-impl TypeSupport for HistoryQosPolicyKind {
-    const r#TYPE: DynamicType = DynamicType {
-        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-            kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
+impl Type for HistoryQosPolicyKind {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
             base_type: None,
-            discriminator_type: Some(u8::TYPE_INFORMATION),
+            discriminator_type: Some(i8::TYPE),
             bound: None,
             element_type: None,
             key_element_type: None,
-            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+            extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
         },
         member_list: &[],
     };
-
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+}
+impl TypeSupport for HistoryQosPolicyKind {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let discriminant = src.get_uint8_value(0).unwrap();
         match discriminant {
             0 => Self::KeepLast(1),
@@ -1069,12 +1071,12 @@ impl TypeSupport for HistoryQosPolicyKind {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
         let value = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        data.set_uint8_value(0, value).unwrap();
+        data.set_int8_value(0, value).unwrap();
     }
 }
 
@@ -1105,18 +1107,17 @@ impl HistoryQosPolicy {
         }
     }
 }
-
-impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
-    const r#TYPE: DynamicType = DynamicType {
-        descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
-            kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+impl Type for HistoryQosPolicy {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
             name: "HistoryQosPolicy",
             base_type: None,
             discriminator_type: None,
             bound: None,
             element_type: None,
             key_element_type: None,
-            extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable,
+            extensibility_kind: ExtensibilityKind::Appendable,
             is_nested: true,
         },
         member_list: &[
@@ -1124,7 +1125,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                 descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                     name: "kind",
                     id: 0,
-                    r#type: HistoryQosPolicyKind::TYPE_INFORMATION,
+                    r#type: HistoryQosPolicyKind::TYPE,
                     default_value: None,
                     index: 0u32,
                     try_construct_kind:
@@ -1135,13 +1136,14 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                     is_must_understand: true,
                     is_shared: false,
                     is_default_label: false,
+                    is_external: false,
                 },
             },
             DynamicTypeMember {
                 descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                     name: "depth",
                     id: 1,
-                    r#type: i32::TYPE_INFORMATION,
+                    r#type: i32::TYPE,
                     default_value: None,
                     index: 1u32,
                     try_construct_kind:
@@ -1152,12 +1154,14 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
                     is_must_understand: true,
                     is_shared: false,
                     is_default_label: false,
+                    is_external: false,
                 },
             },
         ],
     };
-
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData) -> Self {
+}
+impl TypeSupport for HistoryQosPolicy {
+    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
         let mut kind = src.get_complex_value(0).cloned().unwrap();
         let depth = src.get_int32_value(1).unwrap();
         let qos_policy_kind = HistoryQosPolicyKind::create_sample(&mut kind);
@@ -1171,7 +1175,7 @@ impl dust_dds::infrastructure::type_support::TypeSupport for HistoryQosPolicy {
         }
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData) {
+    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
         let mut kind_data = DynamicDataFactory::create_data(HistoryQosPolicyKind::TYPE);
         self.kind.create_dynamic_sample(&mut kind_data);
         data.set_complex_value(0, kind_data).unwrap();
@@ -1217,8 +1221,7 @@ impl Default for HistoryQosPolicy {
 /// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
 /// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
 /// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
-#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
-#[dust_dds(extensibility = "appendable", nested)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ResourceLimitsQosPolicy {
     /// Maximum number of samples limit.
     pub max_samples: Length,
@@ -1226,6 +1229,94 @@ pub struct ResourceLimitsQosPolicy {
     pub max_instances: Length,
     /// Maximum number of samples per instance limit.
     pub max_samples_per_instance: Length,
+}
+
+#[automatically_derived]
+impl TypeSupport for ResourceLimitsQosPolicy {
+    fn create_sample(src: &mut DynamicData) -> Self {
+        Self {
+            max_samples: (*src.get_int32_value(0).expect("Must exist")).into(),
+            max_instances: (*src.get_int32_value(1).expect("Must exist")).into(),
+            max_samples_per_instance: (*src.get_int32_value(2).expect("Must exist")).into(),
+        }
+    }
+    fn create_dynamic_sample(self, data: &mut DynamicData) {
+        data.set_int32_value(0, self.max_samples.into())
+            .expect("Must succeed");
+        data.set_int32_value(1, self.max_instances.into())
+            .expect("Must succeed");
+        data.set_int32_value(2, self.max_samples_per_instance.into())
+            .expect("Must succeed");
+    }
+}
+
+impl Type for ResourceLimitsQosPolicy {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name: "ResourceLimitsQosPolicy",
+            base_type: None,
+            discriminator_type: None,
+            bound: None,
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Appendable,
+            is_nested: true,
+        },
+        member_list: &[
+            dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                    name: "max_samples",
+                    id: 0,
+                    r#type: <i32 as Type>::TYPE,
+                    default_value: None,
+                    index: 0_u32,
+                    try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                    label: None,
+                    is_key: false,
+                    is_optional: false,
+                    is_must_understand: false,
+                    is_shared: false,
+                    is_default_label: false,
+                    is_external: false,
+                },
+            },
+            dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                    name: "max_instances",
+                    id: 1,
+                    r#type: <i32 as Type>::TYPE,
+                    default_value: None,
+                    index: 1_u32,
+                    try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                    label: None,
+                    is_key: false,
+                    is_optional: false,
+                    is_must_understand: false,
+                    is_shared: false,
+                    is_default_label: false,
+                    is_external: false,
+                },
+            },
+            dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                    name: "max_samples_per_instance",
+                    id: 2,
+                    r#type: <i32 as Type>::TYPE,
+                    default_value: None,
+                    index: 2_u32,
+                    try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                    label: None,
+                    is_key: false,
+                    is_optional: false,
+                    is_must_understand: false,
+                    is_shared: false,
+                    is_default_label: false,
+                    is_external: false,
+                },
+            },
+        ],
+    };
 }
 
 impl ResourceLimitsQosPolicy {
@@ -1408,8 +1499,7 @@ pub const XCDR_DATA_REPRESENTATION: DataRepresentationId = 0;
 pub const XML_DATA_REPRESENTATION: DataRepresentationId = 1;
 /// XCDR2 data representation
 pub const XCDR2_DATA_REPRESENTATION: DataRepresentationId = 2;
-/// Built-in topic data representation
-pub(crate) const BUILT_IN_DATA_REPRESENTATION: DataRepresentationId = 9999;
+
 type DataRepresentationIdSeq = Vec<DataRepresentationId>;
 
 /// This policy is a DDS-XTypes extension and represents the standard data Representations available.
@@ -1436,6 +1526,49 @@ impl QosPolicy for DataRepresentationQosPolicy {
 }
 
 impl Default for DataRepresentationQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
+/// Enumeration representing the different types of Type Consistency QoS policies.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[dust_dds(bit_bound = "16")]
+pub enum TypeConsistencyKind {
+    DisallowTypeCoercion,
+    AllowTypeCoercion,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
+pub struct TypeConsistencyEnforcementQosPolicy {
+    pub kind: TypeConsistencyKind,
+    pub ignore_sequence_bounds: bool,
+    pub ignore_string_bounds: bool,
+    pub ignore_member_names: bool,
+    pub prevent_type_widening: bool,
+    pub force_type_validation: bool,
+}
+
+impl TypeConsistencyEnforcementQosPolicy {
+    pub const fn const_default() -> Self {
+        Self {
+            kind: TypeConsistencyKind::AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: false,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        }
+    }
+}
+
+impl QosPolicy for TypeConsistencyEnforcementQosPolicy {
+    fn name(&self) -> &str {
+        TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME
+    }
+}
+impl Default for TypeConsistencyEnforcementQosPolicy {
     fn default() -> Self {
         Self::const_default()
     }

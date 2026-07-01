@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod derive;
 use derive::type_support::expand_type_support;
 use proc_macro::TokenStream;

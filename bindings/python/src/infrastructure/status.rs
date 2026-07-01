@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use super::instance::InstanceHandle;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum StatusKind {
     InconsistentTopic,
@@ -108,7 +108,7 @@ impl From<dust_dds::infrastructure::status::StatusKind> for StatusKind {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct InconsistentTopicStatus(dust_dds::infrastructure::status::InconsistentTopicStatus);
 
@@ -129,7 +129,7 @@ impl InconsistentTopicStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SampleLostStatus(dust_dds::infrastructure::status::SampleLostStatus);
 
@@ -150,7 +150,7 @@ impl SampleLostStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub enum SampleRejectedStatusKind {
     NotRejected,
@@ -170,7 +170,7 @@ impl From<dust_dds::infrastructure::status::SampleRejectedStatusKind> for Sample
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SampleRejectedStatus(dust_dds::infrastructure::status::SampleRejectedStatus);
 
@@ -199,7 +199,7 @@ impl SampleRejectedStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct LivelinessLostStatus(dust_dds::infrastructure::status::LivelinessLostStatus);
 
@@ -220,7 +220,7 @@ impl LivelinessLostStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct LivelinessChangedStatus(dust_dds::infrastructure::status::LivelinessChangedStatus);
 
@@ -253,7 +253,7 @@ impl LivelinessChangedStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct OfferedDeadlineMissedStatus(
     dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
@@ -282,7 +282,7 @@ impl OfferedDeadlineMissedStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct RequestedDeadlineMissedStatus(
     dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
@@ -311,7 +311,7 @@ impl RequestedDeadlineMissedStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct QosPolicyCount(dust_dds::infrastructure::status::QosPolicyCount);
 
@@ -332,7 +332,7 @@ impl QosPolicyCount {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct OfferedIncompatibleQosStatus(
     dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
@@ -365,7 +365,7 @@ impl OfferedIncompatibleQosStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct RequestedIncompatibleQosStatus(
     dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
@@ -398,7 +398,7 @@ impl RequestedIncompatibleQosStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct PublicationMatchedStatus(dust_dds::infrastructure::status::PublicationMatchedStatus);
 
@@ -431,7 +431,7 @@ impl PublicationMatchedStatus {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct SubscriptionMatchedStatus(dust_dds::infrastructure::status::SubscriptionMatchedStatus);
 

@@ -1,22 +1,15 @@
 use super::condition::StatusConditionAsync;
 use crate::{
-    dcps::channels::oneshot::oneshot,
+    dcps::channels::notification::notification,
     infrastructure::error::{DdsError, DdsResult},
 };
 use alloc::{string::String, vec::Vec};
 
 /// Async version of [`Condition`](crate::infrastructure::wait_set::Condition).
+#[derive(Clone)]
 pub enum ConditionAsync {
     /// Status condition variant
     StatusCondition(StatusConditionAsync),
-}
-
-impl Clone for ConditionAsync {
-    fn clone(&self) -> Self {
-        match self {
-            Self::StatusCondition(arg0) => Self::StatusCondition(arg0.clone()),
-        }
-    }
 }
 
 impl ConditionAsync {
@@ -30,7 +23,7 @@ impl ConditionAsync {
 }
 
 /// Async version of [`WaitSet`](crate::infrastructure::wait_set::WaitSet).
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WaitSetAsync {
     conditions: Vec<ConditionAsync>,
 }
@@ -64,7 +57,7 @@ impl WaitSetAsync {
         }
 
         // No status condition is yet triggered so now we have to wait for at least one status condition to trigger
-        let (notification_sender, notification_receiver) = oneshot();
+        let (notification_sender, notification_receiver) = notification();
 
         for condition in &self.conditions {
             match condition {

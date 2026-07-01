@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Duration(dust_dds::infrastructure::time::Duration);
 
@@ -32,7 +32,7 @@ impl Duration {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum DurationKind {
     Finite { duration: Duration },
@@ -63,7 +63,7 @@ impl From<dust_dds::infrastructure::time::DurationKind> for DurationKind {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Time(dust_dds::infrastructure::time::Time);
 

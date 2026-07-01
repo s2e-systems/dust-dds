@@ -9,7 +9,7 @@ pub struct RtpsStatefulReader {
 }
 
 impl RtpsStatefulReader {
-    pub fn new(guid: Guid, reliability: ReliabilityKind) -> Self {
+    pub const fn new(guid: Guid, reliability: ReliabilityKind) -> Self {
         Self {
             guid,
             matched_writers: Vec::new(),
@@ -17,7 +17,7 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn guid(&self) -> Guid {
+    pub const fn guid(&self) -> Guid {
         self.guid
     }
 

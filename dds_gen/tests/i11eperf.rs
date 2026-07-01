@@ -3,7 +3,7 @@ use std::path::Path;
 use syn::File;
 
 #[test]
-fn i11eperf_generation() {
+fn i11eperf() {
     let idl_file = Path::new("tests/i11eperf.idl");
 
     let expected = syn::parse2::<File>(

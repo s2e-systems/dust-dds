@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use super::{error::into_pyerr, status::StatusKind};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct StatusCondition(dust_dds::condition::StatusCondition);
 

@@ -1,12 +1,16 @@
 file              =  { SOI ~ line* ~ EOI }
-line              =  { (directive | other_line) ~ NEWLINE }
+line              =  { (directive ~ trailing_comment | other_line) ~ NEWLINE }
 directive         = _{ include_directive | define_directive | ifdef_directive | ifndef_directive }
 include_directive = _{ "#include" ~ include_file }
 include_file      =  { (quoted_string | angle_bracketed_string) }
 define_directive  =  { "#define" ~ identifier ~ value? }
-ifdef_directive   =  { "#ifdef" ~ identifier ~ NEWLINE ~ line* ~ "#endif" }
-ifndef_directive  =  { "#ifndef" ~ identifier ~ NEWLINE ~ line* ~ "#endif" }
+ifdef_directive   =  { "#ifdef" ~ identifier ~ trailing_comment ~ NEWLINE ~ line* ~ "#endif" }
+ifndef_directive  =  { "#ifndef" ~ identifier ~ trailing_comment ~ NEWLINE ~ line* ~ "#endif" }
 other_line        =  { !"#" ~ (!NEWLINE ~ ANY)* }
+
+line_comment      = _{ "//" ~ (!NEWLINE ~ ANY)* }
+block_comment     = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+trailing_comment  = _{ (line_comment | block_comment)? }
 
 quoted_string          = @{ ("\"") ~ (!"\"" ~ ANY)* ~ "\"" }
 angle_bracketed_string = @{ ("<") ~ (!">" ~ ANY)* ~ ">" }
