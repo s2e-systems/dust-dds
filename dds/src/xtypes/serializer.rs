@@ -1375,6 +1375,56 @@ mod tests {
     }
 
     #[test]
+    fn serialize_array_with_lc4() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType {
+            #[dust_dds(id = 41)]
+            member: [u8; 3],
+        }
+
+        let v = TestType { member: [1, 2, 3] }.create_dynamic_sample();
+        assert_eq!(
+            serialize_cdr1_be(&v).unwrap(),
+            vec![
+                0x00, 0x02, 0x00, 0x00, // CDR Header
+                0x00, 41, 0, 3, // PID, length
+                1, 2, 3, 0, // member | padding (1 bytres)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_cdr1_le(&v).unwrap(),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 3, 0, // PID, length
+                1, 2, 3, 0, // member | padding (2 bytres)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_be(&v).unwrap(),
+            vec![
+                0x00, 0x0a, 0x00, 0x01, // CDR Header
+                0, 0, 0, 11, // DHEADER
+                0b100_0000, 0, 0, 41, // EMHEADER1 incl. LC 4
+                0, 0, 0, 3, // NEXTINT
+                1, 2, 3, 0, // member | padding (1 bytres)
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_le(&v).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x01, // CDR Header
+                11, 0, 0, 0, // DHEADER
+                41, 0, 0, 0b100_0000, // EMHEADER1 incl. LC 4
+                3, 0, 0, 0, // NEXTINT
+                1, 2, 3, 0, // member | padding (1 bytres)
+            ]
+        );
+    }
+
+    #[test]
     fn serialize_locator() {
         #[derive(TypeSupport)]
         #[dust_dds(extensibility = "mutable")]

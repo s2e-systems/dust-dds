@@ -315,11 +315,26 @@ impl EncodingVersion for EncodingVersion2 {
         loop {
             let emheader: u32 = deserializer.deserialize_primitive_type()?;
             let current_pid = (emheader & 0x0fffffff) as u16;
-            let length = ((emheader & 0b01110000_00000000_00000000_00000000) >> 28) as usize;
+            let lc = (emheader & 0b01110000_00000000_00000000_00000000) >> 28;
+            let length = match lc {
+                0 => 1,
+                1 => 2,
+                2 => 4,
+                3 => 8,
+                4 => deserializer.deserialize_primitive_type::<u32>()?,
+                5 => deserializer.deserialize_primitive_type::<u32>()?,
+                6 => 4 * deserializer.deserialize_primitive_type::<u32>()?,
+                7 => 8 * deserializer.deserialize_primitive_type::<u32>()?,
+                _ => unimplemented!("LC not possible"),
+            };
+
             if current_pid == pid {
+                if lc == 5 {
+                    deserializer.reader.pos -= 4;
+                }
                 return Ok(length as u16);
             } else {
-                deserializer.reader.seek(length)?;
+                deserializer.reader.seek(length as usize)?;
                 Self::align(deserializer, 4)?;
             }
         }
@@ -698,7 +713,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         match member.descriptor.r#type.get_kind() {
-            TypeKind::NONE => todo!(),
+            TypeKind::NONE => Ok(()),
             TypeKind::BOOLEAN => {
                 dynamic_data.set_boolean_value(member.get_id(), self.deserialize_primitive_type()?)
             }
@@ -1489,6 +1504,132 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_array_with_lc4() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType {
+            #[dust_dds(id = 41)]
+            member: [u8; 3],
+        }
+
+        let expected = TestType { member: [1, 2, 3] }.create_dynamic_sample();
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x02, 0x00, 0x00, // CDR Header
+                    0x00, 41, 0, 3, // PID, length
+                    1, 2, 3, 0, // member | padding (1 bytres)
+                    0, 1, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 3, 0, // PID, length
+                    1, 2, 3, 0, // member | padding (2 bytres)
+                    1, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x01, // CDR Header
+                    0, 0, 0, 11, // DHEADER
+                    0b100_0000, 0, 0, 41, // EMHEADER1 incl. LC 4
+                    0, 0, 0, 3, // NEXTINT
+                    1, 2, 3, 0, // member | padding (1 bytres)
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x0b, 0x00, 0x01, // CDR Header
+                    11, 0, 0, 0, // DHEADER
+                    41, 0, 0, 0b100_0000, // EMHEADER1 incl. LC 4
+                    3, 0, 0, 0, // NEXTINT
+                    1, 2, 3, 0, // member | padding (1 bytres)
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_array_with_lc_bigger_5() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType16 {
+            #[dust_dds(id = 41)]
+            m1: [u8; 16],
+            #[dust_dds(id = 42)]
+            m2: u32,
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType24 {
+            #[dust_dds(id = 41)]
+            m1: [u8; 24],
+            #[dust_dds(id = 42)]
+            m2: u32,
+        }
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType16::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x00, // CDR Header
+                    0, 0, 0, 32, // DHEADER
+                    0b110_0000, 0, 0, 41, // EMHEADER1 incl. LC 6
+                    0, 0, 0, 4, // NEXTINT: length == 4 * 4
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
+                ]
+            )
+            .unwrap(),
+            TestType16 { m1: [1; 16], m2: 6 }.create_dynamic_sample()
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType24::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x00, // CDR Header
+                    0, 0, 0, 32, // DHEADER
+                    0b111_0000, 0, 0, 41, // EMHEADER1 incl. LC 7
+                    0, 0, 0, 3, // NEXTINT: length == 8 * 3
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
+                ]
+            )
+            .unwrap(),
+            TestType24 { m1: [1; 24], m2: 6 }.create_dynamic_sample()
+        );
+    }
+
+    #[test]
     fn deserialize_complex_sequence() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct Atype(u8);
@@ -1763,11 +1904,7 @@ mod tests {
                     101, 96, 83, 92, // type_ids EMHEADER
                     // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
                     4, 0, 0, 0, // type_ids: DHEADER
-                    0, 0, 0,
-                    0, // type_ids: Length
-                       // 242, //EK_COMPLETE
-                       // 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
-                       // 0, // padding
+                    0, 0, 0, 0, // type_ids: Length
                 ]
             )
             .unwrap(),
