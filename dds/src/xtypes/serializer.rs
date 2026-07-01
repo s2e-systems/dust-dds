@@ -899,7 +899,9 @@ impl EncodingVersion for EncodingVersion1 {
         serializer.serialize_primitive_type(&(member_id as u16));
         let ssize = Ssize::new(serializer);
         ssize.serializer.push_origin_0();
-        ssize.serializer.serialize_value(v, member_id).unwrap();
+        if v.get_value(member_id).is_ok() {
+            ssize.serializer.serialize_value(v, member_id).unwrap();
+        }
         ssize.write_ssize();
         Ok(())
     }
