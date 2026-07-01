@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec, vec};
 use dust_dds_derive::DdsType;
 
 use crate::xtypes::{
