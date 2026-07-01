@@ -1,4 +1,5 @@
-use self::interoperability::test::Cat;
+include!("target/idl/inheritance.rs");
+
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -15,30 +16,6 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-// TODO: remove when dust_dds_gen adds support for inheritance
-pub mod interoperability {
-    pub mod test {
-        use dust_dds::infrastructure::type_support::DdsType;
-
-        #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-        #[dust_dds(name = "interoperability::test::Animal")]
-        pub struct Animal {
-            #[dust_dds(key)]
-            pub id: u32,
-            pub name: String,
-            pub age: u8,
-        }
-
-        #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-        #[dust_dds(name = "interoperability::test::Cat")]
-        pub struct Cat {
-            #[dust_dds(key(transparent))]
-            pub parent: Animal,
-            pub lives: u8,
-        }
-    }
-}
-
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -48,7 +25,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<Cat>("Inheritance", Duration::new(120, 0))
+        .find_topic::<interoperability::test::Cat>("Inheritance", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -66,7 +43,7 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<Cat>(
+        .create_datareader::<interoperability::test::Cat>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,

@@ -1,4 +1,5 @@
-use self::interoperability::test::{Animal, Cat};
+include!("target/idl/inheritance.rs");
+
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -10,34 +11,10 @@ use dust_dds::{
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
-        type_support::TypeSupport,
     },
     wait_set::{Condition, WaitSet},
+    xtypes::type_support::Type,
 };
-
-// TODO: remove when dust_dds_gen adds support for inheritance
-pub mod interoperability {
-    pub mod test {
-        use dust_dds::infrastructure::type_support::DdsType;
-
-        #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-        #[dust_dds(name = "interoperability::test::Animal")]
-        pub struct Animal {
-            #[dust_dds(key)]
-            pub id: u32,
-            pub name: String,
-            pub age: u8,
-        }
-
-        #[derive(DdsType, Default, Debug, Clone, PartialEq, Eq)]
-        #[dust_dds(name = "interoperability::test::Cat")]
-        pub struct Cat {
-            #[dust_dds(key(transparent))]
-            pub parent: Animal,
-            pub lives: u8,
-        }
-    }
-}
 
 fn main() {
     let domain_id = 0;
@@ -48,9 +25,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<Cat>(
+        .create_topic::<interoperability::test::Cat>(
             "Inheritance",
-            Cat::TYPE_NAME,
+            interoperability::test::Cat::TYPE.get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -90,8 +67,8 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let data = Cat {
-        parent: Animal {
+    let data = interoperability::test::Cat {
+        parent: interoperability::test::Animal {
             id: 1,
             name: "Zoe".to_string(),
             age: 1,
@@ -105,12 +82,13 @@ fn main() {
         .wait_for_acknowledgments(Duration::new(30, 0))
         .unwrap();
 
-    let data_to_dispose = Cat {
-        parent: Animal {
+    let data_to_dispose = interoperability::test::Cat {
+        parent: interoperability::test::Animal {
             id: 1,
-            ..Default::default()
+            name: String::new(),
+            age: 0,
         },
-        ..Default::default()
+        lives: 0,
     };
     println!("dispose: {data_to_dispose:?}");
     writer.dispose(data_to_dispose, None).unwrap();
