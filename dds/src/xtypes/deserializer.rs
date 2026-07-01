@@ -1109,13 +1109,12 @@ mod tests {
             field_u64: u64,
             field_u32: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(FinalType::TYPE);
-        FinalType {
+        let expected = FinalType {
             field_u16: 7,
             field_u64: 9,
             field_u32: 10,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalType::TYPE,
@@ -1185,15 +1184,14 @@ mod tests {
             field_u8: u8,
         }
 
-        let mut expected = DynamicDataFactory::create_data(NestedFinalType::TYPE);
-        NestedFinalType {
+        let expected = NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1260,13 +1258,12 @@ mod tests {
             field_seq_u32: Vec<u32>,
         }
 
-        let mut expected = DynamicDataFactory::create_data(FinalTypeWithSequence::TYPE);
-        FinalTypeWithSequence {
+        let expected = FinalTypeWithSequence {
             field_u16: 7,
             field_u64: 9,
             field_seq_u32: vec![1, 4],
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
@@ -1333,8 +1330,7 @@ mod tests {
     fn deserialize_string() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct FinalString(String);
-        let mut expected = DynamicDataFactory::create_data(FinalString::TYPE);
-        FinalString(String::from("Hola")).create_dynamic_sample(&mut expected);
+        let expected = FinalString(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalString::TYPE,
@@ -1393,8 +1389,7 @@ mod tests {
     fn deserialize_bytes() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct ByteArray([u8; 2]);
-        let mut expected = DynamicDataFactory::create_data(ByteArray::TYPE);
-        ByteArray([1u8, 2]).create_dynamic_sample(&mut expected);
+        let expected = ByteArray([1u8, 2]).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 ByteArray::TYPE,
@@ -1448,8 +1443,7 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct Sequence(Vec<Atype>);
 
-        let mut expected = DynamicDataFactory::create_data(Sequence::TYPE);
-        Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample(&mut expected);
+        let expected = Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 Sequence::TYPE,
@@ -1487,12 +1481,11 @@ mod tests {
             #[dust_dds(id = 0x50)]
             participant_key: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(MutableType::TYPE);
-        MutableType {
+        let expected = MutableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 MutableType::TYPE,
@@ -1539,8 +1532,7 @@ mod tests {
             kind: Kind,
         }
 
-        let mut expected = DynamicDataFactory::create_data(UserType::TYPE);
-        UserType { kind: Kind::One }.create_dynamic_sample(&mut expected);
+        let expected = UserType { kind: Kind::One }.create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1564,12 +1556,11 @@ mod tests {
             key: u8,
             participant_key: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(AppendableType::TYPE);
-        AppendableType {
+        let expected = AppendableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 AppendableType::TYPE,
@@ -1609,15 +1600,14 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let mut expected = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
-        AppendableShapesType {
+        let expected = AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 AppendableShapesType::TYPE,
@@ -1657,15 +1647,14 @@ mod tests {
 
     #[test]
     fn deserialize_type_lookup_get_types_in() {
-        let mut expected = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
-        TypeLookupCall::TypeLookupGetTypesHashId {
+        let expected = TypeLookupCall::TypeLookupGetTypesHashId {
             get_types: TypeLookupGetTypesIn {
                 type_ids: vec![TypeIdentifier::EkComplete {
                     equivalence_hash: [5; 14],
                 }],
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1691,8 +1680,7 @@ mod tests {
 
     #[test]
     fn deserialize_type_lookup_request() {
-        let mut expected = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
-        TypeLookupRequest {
+        let expected = TypeLookupRequest {
             header: RequestHeader {
                 request_id: SampleIdentity {
                     writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
@@ -1704,7 +1692,7 @@ mod tests {
                 get_types: TypeLookupGetTypesIn { type_ids: vec![] },
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1737,7 +1725,7 @@ mod tests {
 
     #[test]
     fn deserialize_type_identifier() {
-        let mut expected = DynamicDataFactory::create_data(TypeInformation::TYPE);
+        let expected = 
         TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
@@ -1760,7 +1748,7 @@ mod tests {
                 dependent_typeids: Vec::new(),
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(

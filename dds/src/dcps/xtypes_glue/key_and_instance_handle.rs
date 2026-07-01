@@ -123,7 +123,7 @@ mod tests {
     use super::*;
     use crate::{
         infrastructure::instance::InstanceHandle,
-        xtypes::{dynamic_type::DynamicDataFactory, type_support::TypeSupport},
+        xtypes::type_support::TypeSupport,
     };
 
     #[test]
@@ -153,8 +153,7 @@ mod tests {
             },
         };
 
-        let mut data = DynamicDataFactory::create_data(OuterOuter::get_type());
-        outer_outer.create_dynamic_sample(&mut data);
+        let data = outer_outer.create_dynamic_sample();
 
         let instance_handle = get_instance_handle_from_dynamic_data(&data).unwrap();
 
@@ -182,8 +181,7 @@ mod tests {
             a: Inner { id: 1, b: 3 },
         };
 
-        let mut data = DynamicDataFactory::create_data(Outer::get_type());
-        outer.create_dynamic_sample(&mut data);
+        let data = outer.create_dynamic_sample();
 
         let instance_handle = get_instance_handle_from_dynamic_data(&data).unwrap();
 
