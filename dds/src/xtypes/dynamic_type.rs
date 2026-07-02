@@ -815,7 +815,7 @@ impl<'a> PartialEq for DynamicData<'a> {
 
 impl<'a> DynamicData<'a> {
     /// Returns the [`DynamicType`] of this data sample.
-    pub fn r#type(&self) -> DynamicType<'a> {
+    pub const fn r#type(&self) -> DynamicType<'a> {
         self.r#type
     }
 

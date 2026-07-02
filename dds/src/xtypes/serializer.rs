@@ -247,7 +247,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
             TypeKind::BOOLEAN => {
                 serialize_primitive_slice(self, v.get_boolean_values(member_id)?);
             }
-            TypeKind::BYTE => serialize_primitive_slice(self, v.get_byte_values(member_id)?),
+            TypeKind::BYTE => self.writer.write_slice(v.get_byte_values(member_id)?),
             TypeKind::INT16 => serialize_primitive_slice(self, v.get_int16_values(member_id)?),
             TypeKind::INT32 => serialize_primitive_slice(self, v.get_int32_values(member_id)?),
             TypeKind::INT64 => serialize_primitive_slice(self, v.get_int64_values(member_id)?),
@@ -260,7 +260,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
                 serialize_primitive_slice(self, v.get_float128_values(member_id)?)
             }
             TypeKind::INT8 => serialize_primitive_slice(self, v.get_int8_values(member_id)?),
-            TypeKind::UINT8 => serialize_primitive_slice(self, v.get_uint8_values(member_id)?),
+            TypeKind::UINT8 => self.writer.write_slice(v.get_uint8_values(member_id)?),
             TypeKind::CHAR8 => serialize_primitive_slice(self, v.get_char8_values(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
@@ -1370,6 +1370,56 @@ mod tests {
                 41, 0x00, 2, 0, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
                 1, 0, 0, 0, // Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_array_with_lc4() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType {
+            #[dust_dds(id = 41)]
+            member: [u8; 3],
+        }
+
+        let v = TestType { member: [1, 2, 3] }.create_dynamic_sample();
+        assert_eq!(
+            serialize_cdr1_be(&v).unwrap(),
+            vec![
+                0x00, 0x02, 0x00, 0x00, // CDR Header
+                0x00, 41, 0, 3, // PID, length
+                1, 2, 3, 0, // member | padding (1 bytres)
+                0, 1, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_cdr1_le(&v).unwrap(),
+            vec![
+                0x00, 0x03, 0x00, 0x00, // CDR Header
+                41, 0x00, 3, 0, // PID, length
+                1, 2, 3, 0, // member | padding (2 bytres)
+                1, 0, 0, 0, // Sentinel
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_be(&v).unwrap(),
+            vec![
+                0x00, 0x0a, 0x00, 0x01, // CDR Header
+                0, 0, 0, 11, // DHEADER
+                0b100_0000, 0, 0, 41, // EMHEADER1 incl. LC 4
+                0, 0, 0, 3, // NEXTINT
+                1, 2, 3, 0, // member | padding (1 bytres)
+            ]
+        );
+        assert_eq!(
+            serialize_cdr2_le(&v).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x01, // CDR Header
+                11, 0, 0, 0, // DHEADER
+                41, 0, 0, 0b100_0000, // EMHEADER1 incl. LC 4
+                3, 0, 0, 0, // NEXTINT
+                1, 2, 3, 0, // member | padding (1 bytres)
             ]
         );
     }
