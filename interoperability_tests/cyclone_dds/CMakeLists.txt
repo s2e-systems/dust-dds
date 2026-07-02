@@ -89,6 +89,7 @@ add_executable(CycloneDdsSubscriberUnion
 target_link_libraries(CycloneDdsSubscriberUnion PRIVATE
   CycloneDDS::ddsc
   UnionGeneratedIdl
+)
 add_executable(CycloneDdsSubscriberInheritance
   cyclone_dds_subscriber_inheritance.c
 )
