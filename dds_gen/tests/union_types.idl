@@ -1,0 +1,12 @@
+union TestUnion switch(u8) {
+    case 10:
+        uint8 x;
+    case 20:
+    case 25:
+    case 30:
+        int32 y;
+    case 50:
+    default:
+    case 60:
+        int64 z;
+};
