@@ -541,7 +541,6 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn case(&mut self, pair: IdlPair) {
-
         self.writer.push_str("#[dust_dds(");
         for case_label in pair
             .clone()
@@ -565,8 +564,7 @@ impl<'a> RustGenerator<'a> {
         let first_case_label = pair
             .clone()
             .into_inner()
-            .filter(|x| x.as_rule() == Rule::case_label)
-            .next()
+            .find(|x| x.as_rule() == Rule::case_label)
             .expect("Must have at least one case_label according to grammar");
         if let Some(c) = first_case_label
             .into_inner()
@@ -577,7 +575,7 @@ impl<'a> RustGenerator<'a> {
         } else {
             self.writer.push_str("Default");
         }
-        self.writer.push_str("{");
+        self.writer.push('{');
 
         let element_spec = pair
             .into_inner()
