@@ -16,6 +16,11 @@ fn enums() {
                 Clubs,
             }
 
+            pub use Suits::Spades;
+            pub use Suits::Hearts;
+            pub use Suits::Diamonds;
+            pub use Suits::Clubs;
+
             #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(bit_bound(16))]
             pub enum HttpStatusCode {
@@ -26,6 +31,14 @@ fn enums() {
                 NOT_FOUND = 404,
                 INTERNAL_SERVER_ERROR = 500,
             }
+
+            pub use HttpStatusCode::CONTINUE;
+            pub use HttpStatusCode::OK;
+            pub use HttpStatusCode::MULTIPLE_CHOICES;
+            pub use HttpStatusCode::BAD_REQUEST;
+            pub use HttpStatusCode::NOT_FOUND;
+            pub use HttpStatusCode::INTERNAL_SERVER_ERROR;
+
     "#
         .parse()
         .unwrap(),
