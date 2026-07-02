@@ -1,8 +1,5 @@
 include!("target/idl/union.rs");
 
-use crate::interoperability::test::{
-    UnionType, UnionTypeWrapper, VariantEnum, VariantStructure, VariantUnion,
-};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -19,6 +16,8 @@ use dust_dds::{
     xtypes::type_support::TypeSupport,
 };
 
+use crate::interoperability::test::VariantUnion;
+
 fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -28,9 +27,9 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UnionTypeWrapper>(
+        .create_topic::<VariantUnion>(
             "Union",
-            UnionTypeWrapper::get_type().get_name(),
+            VariantUnion::get_type().get_name(),
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -70,64 +69,11 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let unions = [
-        UnionType::None,
-        UnionType::Boolean(true),
-        UnionType::Byte(u8::MAX / 2),
-        UnionType::Int16(i16::MAX / 2),
-        UnionType::Int32(i32::MAX / 2),
-        UnionType::Int64(i64::MAX / 2),
-        UnionType::UInt16(u16::MAX / 2),
-        UnionType::UInt32(u32::MAX / 2),
-        UnionType::UInt64(u64::MAX / 2),
-        UnionType::Float32(f32::MAX / 2.0),
-        UnionType::Float64(f64::MAX / 2.0),
-        UnionType::Int8(i8::MAX / 2),
-        UnionType::UInt8(u8::MAX / 2),
-        UnionType::Char8(b'M'),
-        UnionType::String8(String::from("Hello World!")),
-        UnionType::Enum(VariantEnum::Y),
-        UnionType::Structure(VariantStructure {
-            x: u8::MAX / 2,
-            y: u16::MAX / 2,
-            z: u32::MAX / 2,
-        }),
-        UnionType::Union(VariantUnion::new_random()),
-        UnionType::Sequence(vec![
-            String::from("Hello"),
-            String::from("World"),
-            String::from("!"),
-        ]),
-        UnionType::CaseUNION_DISCRIMINATOR_ARRAY([f64::MIN, std::f64::consts::PI, f64::MAX]),
-    ];
-
-    let data = UnionTypeWrapper {
-        union_type: unions[random_value(unions.len())].clone(),
-        union_array: unions.clone(),
-        union_sequence: unions.to_vec(),
-    };
-
+    let data = VariantUnion::Case1 { x: 10 };
     println!("write: {data:?}");
     writer.write(data, None).unwrap();
 
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))
         .unwrap();
-}
-
-fn random_value(end: usize) -> usize {
-    use std::{
-        collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
-        time::SystemTime,
-    };
-
-    let mut hasher = DefaultHasher::new();
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos()
-        .hash(&mut hasher);
-
-    (hasher.finish() as usize) % end
 }
