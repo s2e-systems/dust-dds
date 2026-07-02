@@ -253,12 +253,12 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 }
 
 pub struct UnionVariantAttributes {
-    pub case: Option<Expr>,
+    pub case: Vec<Expr>,
     pub is_default: bool,
 }
 
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
-    let mut case = None;
+    let mut case = Vec::new();
     let mut is_default = false;
     if let Some(xtypes_attribute) = variant
         .attrs
@@ -267,7 +267,7 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
-                case = Some(meta.value()?.parse()?);
+                case.push(meta.value()?.parse()?);
             } else if meta.path.is_ident("default") {
                 is_default = true;
             }
