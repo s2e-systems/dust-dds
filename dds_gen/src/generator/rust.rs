@@ -103,8 +103,8 @@ impl<'a> RustGenerator<'a> {
             Rule::union_dcl => self.union_dcl(pair),
             Rule::union_def => self.union_def(pair),
             Rule::switch_type_spec => self.switch_type_spec(pair),
-            Rule::switch_body => todo!(),
-            Rule::case => todo!(),
+            Rule::switch_body => self.switch_body(pair),
+            Rule::case => self.case(pair),
             Rule::case_label => todo!(),
             Rule::element_spec => todo!(),
             Rule::union_forward_dcl => (), // Forward declarations are irrelevant in Rust mapping
@@ -465,6 +465,12 @@ impl<'a> RustGenerator<'a> {
             .find(|x| x.as_rule() == Rule::switch_type_spec)
             .expect("Must have a switch_type_spec according to the grammar");
 
+        let switch_body = pair
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::switch_body)
+            .expect("Must have a switch_body according to the grammar");
+
         self.writer
             .push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
 
@@ -475,7 +481,7 @@ impl<'a> RustGenerator<'a> {
         self.writer.push_str("pub enum ");
         self.generate(identifier);
         self.writer.push_str(" {");
-
+        self.generate(switch_body);
         self.writer.push_str("}\n");
     }
 
@@ -526,6 +532,16 @@ impl<'a> RustGenerator<'a> {
                 .next()
                 .expect("Must have an element according to the grammar"),
         )
+    }
+
+    fn switch_body(&mut self, pair: IdlPair) {
+        for case in pair.into_inner() {
+            self.generate(case);
+        }
+    }
+
+    fn case(&mut self, pair: IdlPair) {
+        todo!()
     }
 
     fn member(&mut self, pair: IdlPair) {
