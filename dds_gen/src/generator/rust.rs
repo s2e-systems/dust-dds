@@ -541,7 +541,94 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn case(&mut self, pair: IdlPair) {
-        todo!()
+
+        self.writer.push_str("#[dust_dds(");
+        for case_label in pair
+            .clone()
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::case_label)
+        {
+            if let Some(c) = case_label
+                .clone()
+                .into_inner()
+                .find(|x| x.as_rule() == Rule::const_expr)
+            {
+                self.writer.push_str("case = ");
+                self.writer.push_str(c.as_str());
+            } else {
+                self.writer.push_str("default");
+            }
+            self.writer.push_str(", ");
+        }
+        self.writer.push_str(")]\n");
+
+        let first_case_label = pair
+            .clone()
+            .into_inner()
+            .filter(|x| x.as_rule() == Rule::case_label)
+            .next()
+            .expect("Must have at least one case_label according to grammar");
+        if let Some(c) = first_case_label
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::const_expr)
+        {
+            self.writer.push_str("\tCase");
+            self.writer.push_str(c.as_str());
+        } else {
+            self.writer.push_str("Default");
+        }
+        self.writer.push_str("{");
+
+        let element_spec = pair
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::element_spec)
+            .expect("Must have an element_spec according to grammar");
+        let type_spec = element_spec
+            .clone()
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::type_spec)
+            .expect("Must have type_spec according to grammar");
+
+        let declarator = element_spec
+            .into_inner()
+            .find(|x| x.as_rule() == Rule::declarator)
+            .expect("Must have declarator according to grammar");
+
+        let array_or_simple_declarator = declarator
+            .into_inner()
+            .next()
+            .expect("Must have an element according to the grammar");
+        match array_or_simple_declarator.as_rule() {
+            Rule::array_declarator => {
+                let array_declarator = array_or_simple_declarator.into_inner();
+                let identifier = array_declarator
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::identifier)
+                    .expect("Identifier must exist according to grammar");
+                // TODO: Only single array supported
+                let fixed_array_size = array_declarator
+                    .clone()
+                    .find(|p| p.as_rule() == Rule::fixed_array_size)
+                    .expect("Identifier must exist according to grammar");
+                self.generate(identifier);
+                self.writer.push(':');
+
+                self.writer.push('[');
+                self.generate(type_spec.clone());
+                self.writer.push(';');
+                self.generate(fixed_array_size);
+                self.writer.push(']');
+            }
+            Rule::simple_declarator => {
+                self.generate(array_or_simple_declarator);
+                self.writer.push(':');
+
+                self.generate(type_spec.clone());
+            }
+            _ => panic!("Not allowed by the grammar"),
+        }
+
+        self.writer.push_str("},\n");
     }
 
     fn member(&mut self, pair: IdlPair) {
