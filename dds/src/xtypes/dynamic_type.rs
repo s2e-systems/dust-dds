@@ -447,9 +447,8 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
-                    let mut label = Vec::new();
-                    label.push(value.parse().map_err(|_| XTypesError::InvalidData)?);
-                    let label = Vec::leak(label);
+                    let label =
+                        Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
 
                     let type_ptr: DynamicType = Self::get_primitive_type(TypeKind::INT32);
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());

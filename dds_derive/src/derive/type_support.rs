@@ -282,6 +282,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {
                 let variant_attributes = get_union_variant_attributes(variant)?;
                 let variant_index_unsuffixed = syn::Index::from(variant_index);
+                let is_default_label = variant_attributes.is_default;
 
                 if !has_default && variant_attributes.is_default {
                     has_default = true;
@@ -292,7 +293,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     variant_attributes.case
                 };
 
-                for disc_expr in case_list {
+                for disc_expr in &case_list {
                     let variant_ident = &variant.ident;
                     let variant_name = variant_ident.to_string();
 
@@ -314,12 +315,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 default_value: None,
                                 index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                label: &[],
+                                label: &[#(#case_list as i32,)*],
                                 is_key: false,
                                 is_optional: false,
                                 is_must_understand: false,
                                 is_shared: false,
-                                is_default_label: false,
+                                is_default_label: #is_default_label,
                                 is_external: false,
                             }
                         }
@@ -352,12 +353,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 default_value: None,
                                 index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                label: &[],
+                                label: &[#(#case_list as i32,)*],
                                 is_key: false,
                                 is_optional: false,
                                 is_must_understand: false,
                                 is_shared: false,
-                                is_default_label: false,
+                                is_default_label: #is_default_label,
                                 is_external: false,
                             }
                         }
@@ -401,12 +402,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 default_value: None,
                                 index: 1 as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                label: &[],
+                                label: &[#(#case_list as i32,)*],
                                 is_key: false,
                                 is_optional: false,
                                 is_must_understand: false,
                                 is_shared: false,
-                                is_default_label: false,
+                                is_default_label: #is_default_label,
                                 is_external: false,
                             }
                         }
