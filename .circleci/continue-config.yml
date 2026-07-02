@@ -321,6 +321,8 @@ jobs:
             build/cyclone_dds/CycloneDdsSubscriberUnion &
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher_union
+            wait $pid
+      - run:
           name: Cyclone publisher inheritance interoperability test
           command: |
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_inheritance &
