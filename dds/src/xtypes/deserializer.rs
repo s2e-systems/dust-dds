@@ -103,6 +103,8 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
+const PID_SENTINEL: u16 = 1;
+
 trait EncodingVersion: Sized {
     fn align<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
@@ -112,7 +114,7 @@ trait EncodingVersion: Sized {
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()>;
+    ) -> XTypesResult<u16>;
 
     /// Serialization Rule (9) & (10)
     fn deserialize_array_type<'a, E: EndiannessRead>(
@@ -135,10 +137,16 @@ trait EncodingVersion: Sized {
         todo!()
     }
 
+    /// Serialization Rule (19) & (20)
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
+
     /// Serialization Rule (21) & (23)
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 
@@ -157,23 +165,28 @@ trait EncodingVersion: Sized {
     /// Serialization Rule (29) & (30)
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
 }
 
 struct EncodingVersion1;
 impl EncodingVersion for EncodingVersion1 {
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer.reader.seek_padding(alignment)
+    }
+
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()> {
-        const PID_SENTINEL: u16 = 1;
+    ) -> XTypesResult<u16> {
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let length: u16 = deserializer.deserialize_primitive_type()?;
             if current_pid == pid {
-                return Ok(());
+                return Ok(length);
             } else if current_pid == PID_SENTINEL {
                 return Err(PidNotFound(pid));
             } else {
@@ -183,13 +196,11 @@ impl EncodingVersion for EncodingVersion1 {
         }
     }
 
-    fn align<'a, E: EndiannessRead>(
-        deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        alignment: usize,
-    ) -> XTypesResult<()> {
-        deserializer.reader.seek_padding(alignment)
-    }
-
+    /// Arrays (any extensibility) using version 1 encoding
+    ///
+    /// (10) XCDR[1] << {O : ARRAY_TYPE} =
+    ///                  XCDR
+    ///                    << { O[i] : O.element_type }*
     fn deserialize_array_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -204,7 +215,12 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (12)
+    /// Sequences (any extensibility) using version 1 encoding
+    ///
+    /// (13) XCDR[1] << {O : SEQUENCE_TYPE} =
+    ///                   XCDR
+    ///                     << { O.length : UInt32 }
+    ///                     << { O[i] : O.element_type }*
     fn deserialize_sequence_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -214,33 +230,60 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
-    /// Serialization Rule (23)
-    fn deserialize_mstruct_type<'a, E: EndiannessRead>(
+    /// Optional member of final Aggregated type (structure, union), version 1
+    /// see (26) and (27) for MMEMBER serialization
+    ///
+    /// (19) XCDR[1] << {M : OPT_FMEMBER} =
+    ///                    XCDR
+    ///                    << { M : MMEMBER }
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
+        member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
-        }
-        const PID_SENTINEL: u16 = 1;
+        Self::deserialize_mmember(deserializer, member, dynamic_data)
+    }
+
+    /// Structures with extensibility MUTABLE, version 1 encoding
+    ///
+    /// (23) XCDR[1] << {O : MSTRUCT_TYPE} =
+    ///                  XCDR
+    ///                    << { O.member[i] : MMEMBER }*
+    ///                    << { PID_SENTINEL : UInt16 }
+    ///                    << { length = 0 : UInt16 }
+    fn deserialize_mstruct_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        deserializer.deserialize_members(dynamic_data)?;
         Self::seek_to_pid(deserializer, PID_SENTINEL)?;
         Ok(())
     }
 
-    /// Serialization Rule (24) & (25)
+    /// Member of mutable aggregated type (structure, union), version 1 encoding
+    /// using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
+    ///
+    /// (24) XCDR[1] << {M : MMEMBER} =
+    ///                  XCDR
+    ///                   << ALIGN(4)
+    ///                   << { FLAG_I + FLAG_M + M.id : UInt16 }
+    ///                   << { M.value.ssize : UInt16 }
+    ///                   << PUSH( ORIGIN=0 )
+    ///                   << { M.value : M.value.type }
     fn deserialize_mmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        // (24) using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
         Self::align(deserializer, 4)?;
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
-        let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
-            deserializer.deserialize_nopt_fmember(member, dynamic_data)
+        let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
+            if length > 0 {
+                deserializer.deserialize_nopt_fmember(member, dynamic_data)
+            } else {
+                Ok(())
+            }
         } else {
             Ok(())
         };
@@ -250,13 +293,16 @@ impl EncodingVersion for EncodingVersion1 {
         // TODO (25) using long PL encoding
     }
 
-    /// Serialization Rule (29)
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 1
+    /// encoding
+    /// (29) XCDR[1] << {O : APPENDABLE_TYPE} =
+    ///                  XCDR
+    ///                    << { O : AsFinal(O.type) }
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
+        deserializer.deserialize_fstruct_type(dynamic_data)
     }
 }
 
@@ -265,20 +311,41 @@ impl EncodingVersion for EncodingVersion2 {
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
-    ) -> XTypesResult<()> {
+    ) -> XTypesResult<u16> {
         loop {
             let emheader: u32 = deserializer.deserialize_primitive_type()?;
             let current_pid = (emheader & 0x0fffffff) as u16;
-            let length = ((emheader & 0b01110000_00000000_00000000_00000000) >> 28) as usize;
+            let lc = (emheader & 0b01110000_00000000_00000000_00000000) >> 28;
+            let length = match lc {
+                0 => 1,
+                1 => 2,
+                2 => 4,
+                3 => 8,
+                4 => deserializer.deserialize_primitive_type::<u32>()?,
+                5 => deserializer.deserialize_primitive_type::<u32>()?,
+                6 => 4 * deserializer.deserialize_primitive_type::<u32>()?,
+                7 => 8 * deserializer.deserialize_primitive_type::<u32>()?,
+                _ => unimplemented!("LC not possible"),
+            };
+
             if current_pid == pid {
-                return Ok(());
+                if lc == 5 {
+                    deserializer.reader.pos -= 4;
+                }
+                return Ok(length as u16);
             } else {
-                deserializer.reader.seek(length)?;
+                deserializer.reader.seek(length as usize)?;
                 Self::align(deserializer, 4)?;
             }
         }
     }
 
+    /// Arrays (any extensibility) using version 2 encoding
+    ///
+    /// (9) XCDR[2] << {O : ARRAY_TYPE} =
+    ///                 XCDR
+    ///                   << { DHEADER(O) : UINT32 }
+    ///                   << { O[i] : O.element_type }*
     fn deserialize_array_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -294,7 +361,13 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (12)
+    /// Sequences (any extensibility) using version 2 encoding
+    ///
+    /// (12) XCDR[2] << {O : SEQUENCE_TYPE} =
+    ///                  XCDR
+    ///                    << { DHEADER(O) : UINT32 }
+    ///                    << { O.length : UINT32 }
+    ///                    << { O[i] : O.element_type }*
     fn deserialize_sequence_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -305,21 +378,27 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
-    /// Serialization Rule (21)
+    /// (21) XCDR[2] << {O : MSTRUCT_TYPE} =
+    ///                  XCDR
+    ///                    << { DHEADER(O) : UInt32 }
+    ///                    << { O.member[i] : MMEMBER }*
     fn deserialize_mstruct_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
-        }
+        deserializer.deserialize_members(dynamic_data)?;
         Ok(())
     }
 
-    /// Serialization Rule (22)
+    /// Member of mutable aggregated type (structure, union), version 2 encoding
+    ///
+    /// (22) XCDR[2] << {M : MMEMBER} =
+    ///                  XCDR
+    ///                    << { EMHEADER1(M) : UInt32 }
+    ///                    << IF (LC(M)>=4) { NEXTINT(M) : UInt32 }
+    ///                    << IF (LC(M)>=5) XCDR.offset = XCDR.offset-4
+    ///                    << { M.value : M.value.type }
     fn deserialize_mmember<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         member: &DynamicTypeMember,
@@ -331,7 +410,7 @@ impl EncodingVersion for EncodingVersion2 {
         let pid: u16 = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
-            deserializer.deserialize_nopt_fmember(member, dynamic_data)
+            deserializer.deserialize_value(member, dynamic_data)
         } else if !member.descriptor.is_optional {
             Err(XTypesError::PidNotFound(pid))
         } else {
@@ -341,14 +420,18 @@ impl EncodingVersion for EncodingVersion2 {
         result
     }
 
-    /// Serialization Rule (30)
+    /// Extensibility APPENDABLE (Collection or Aggregated types), version 2
+    /// encoding
+    /// (30) XCDR[2] << {O : APPENDABLE_TYPE} =
+    ///                   XCDR
+    ///                     << { DHEADER(O) : UInt32 }
+    ///                     << { O : AsFinal(O.type) }
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        dynamic_type: DynamicType,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>();
-        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
+        deserializer.deserialize_fstruct_type(dynamic_data)
     }
 
     fn align<'a, E: EndiannessRead>(
@@ -359,9 +442,38 @@ impl EncodingVersion for EncodingVersion2 {
             .reader
             .seek_padding(core::cmp::min(alignment, 4))
     }
+
+    /// Optional member of final aggregated type (structure, union), version 2
+    ///
+    /// (20) XCDR[2] << {M : OPT_FMEMBER} =
+    ///                   XCDR
+    ///                   << { <is_present> : BOOLEAN }
+    ///                   << IF (<is_present>) { M.value : M.value.type }
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let is_present = deserializer.deserialize_primitive_type::<bool>()?;
+        if is_present {
+            deserializer.deserialize_value(member, dynamic_data)
+        } else {
+            Ok(())
+        }
+    }
 }
 
-/// Serialization Rule (1)
+/// Serialization Rule
+/// (1) XCDR << {O : TOP_LEVEL_TYPE} =
+///             XCDR
+///               << INIT( OFFSET=0, ORIGIN=0,
+///                        CENDIAN=<E>, EVERSION=<eversion> )
+///               << { ENC_HEADER(<E>, <eversion>, O.type) : Byte[2] }
+///               << PUSH( EVERSION = <eversion> )
+///               << PUSH( MAXALIGN = MAXALIGN(<eversion>) )
+///               << PUSH( ORIGIN = 0 )
+///               << { <OPTIONS> : Byte[2] }
+///               << { O : AsNested(O.type) }
 pub fn deserialize_top_level_type<'a>(
     dynamic_type: DynamicType<'a>,
     buffer: &[u8],
@@ -442,23 +554,39 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    fn deserialize_primitive_sequence_elements<O: AsBytes + Align>(
-        &mut self,
-        length: usize,
-    ) -> XTypesResult<Vec<O>> {
-        let mut sequence = Vec::with_capacity(length);
-        for _ in 0..length {
-            sequence.push(self.deserialize_primitive_type()?);
+    /// Serialization rule: { O.member[i] : MMEMBER }*
+    fn deserialize_members(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let dynamic_type = dynamic_data.r#type();
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            V::deserialize_mmember(self, member, dynamic_data)?;
         }
-        Ok(sequence)
+        Ok(())
     }
 
+    /// Serialization rule: { O[i] : O.element_type }*
     fn deserialize_sequence_elements(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
+        fn deserialize_primitive_sequence_elements<
+            'a,
+            O: AsBytes + Align,
+            E: EndiannessRead,
+            V: EncodingVersion,
+        >(
+            deserializer: &mut XTypesDeserializer<'a, E, V>,
+            length: usize,
+        ) -> XTypesResult<Vec<O>> {
+            let mut sequence = Vec::with_capacity(length);
+            for _ in 0..length {
+                sequence.push(deserializer.deserialize_primitive_type()?);
+            }
+            Ok(sequence)
+        }
+
         let element_type = member
             .descriptor
             .r#type
@@ -469,59 +597,55 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
-            TypeKind::BYTE => dynamic_data.set_byte_values(
-                member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
-            ),
+            TypeKind::BYTE => dynamic_data
+                .set_byte_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
             TypeKind::INT16 => dynamic_data.set_int16_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT32 => dynamic_data.set_int32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT64 => dynamic_data.set_int64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT16 => dynamic_data.set_uint16_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT32 => dynamic_data.set_uint32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::UINT64 => dynamic_data.set_uint64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT32 => dynamic_data.set_float32_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT64 => dynamic_data.set_float64_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::FLOAT128 => dynamic_data.set_float128_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::INT8 => dynamic_data.set_int8_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
-            TypeKind::UINT8 => dynamic_data.set_uint8_values(
-                member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
-            ),
+            TypeKind::UINT8 => dynamic_data
+                .set_uint8_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
             TypeKind::CHAR8 => dynamic_data.set_char8_values(
                 member.get_id(),
-                self.deserialize_primitive_sequence_elements(length)?,
+                deserialize_primitive_sequence_elements(self, length)?,
             ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
@@ -533,17 +657,9 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => {
-                let mut values = Vec::with_capacity(length);
-                for _ in 0..length {
-                    values.push(self.deserialize_as_nested(element_type)?);
-                }
-                dynamic_data.set_complex_values(member.get_id(), values)
-            }
-            TypeKind::UNION => {
+            TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => {
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
                     values.push(self.deserialize_as_nested(element_type)?);
@@ -557,65 +673,47 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
+    /// Serialization rule: { O : AsNested(O.type) }
     fn deserialize_as_nested<'b>(
         &mut self,
         dynamic_type: DynamicType<'b>,
     ) -> XTypesResult<DynamicData<'b>> {
         let mut dynamic_data = DynamicDataFactory::create_data(dynamic_type);
 
-        fn deserialize_as_nested_inner<'a, E: EndiannessRead, V: EncodingVersion>(
-            deserializer: &mut XTypesDeserializer<'a, E, V>,
-            dynamic_type: DynamicType,
-            dynamic_data: &mut DynamicData,
-        ) -> XTypesResult<()> {
-            // Deserialize the top-level which must be either a struct, an enum or a union.
-            match dynamic_type.get_descriptor().kind {
-                TypeKind::STRUCTURE => match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => {
-                        deserializer.deserialize_fstruct_type(dynamic_type, dynamic_data)
-                    }
-                    ExtensibilityKind::Appendable => {
-                        V::deserialize_appendable_type(deserializer, dynamic_type, dynamic_data)
-                    }
-                    ExtensibilityKind::Mutable => {
-                        V::deserialize_mstruct_type(deserializer, dynamic_type, dynamic_data)
-                    }
-                },
-                TypeKind::ENUM => deserializer.deserialize_enum_type(dynamic_type, dynamic_data),
-
-                TypeKind::UNION => match dynamic_type.get_descriptor().extensibility_kind {
-                    ExtensibilityKind::Final => {
-                        deserializer.deserialize_funion_type(dynamic_type, dynamic_data)
-                    }
-                    ExtensibilityKind::Appendable => {
-                        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-                        deserializer.deserialize_funion_type(dynamic_type, dynamic_data)
-                    }
-                    ExtensibilityKind::Mutable => todo!(),
-                },
-                kind => {
-                    debug!("Expected structure, enum or union. Got kind {kind:?} ");
-                    Err(XTypesError::InvalidType)
+        let descriptor = dynamic_data.r#type().descriptor;
+        match descriptor.kind {
+            TypeKind::STRUCTURE => match descriptor.extensibility_kind {
+                ExtensibilityKind::Final => self.deserialize_fstruct_type(&mut dynamic_data)?,
+                ExtensibilityKind::Appendable => {
+                    V::deserialize_appendable_type(self, &mut dynamic_data)?
                 }
+                ExtensibilityKind::Mutable => V::deserialize_mstruct_type(self, &mut dynamic_data)?,
+            },
+            TypeKind::ENUM => self.deserialize_enum_type(&mut dynamic_data)?,
+            TypeKind::UNION => match descriptor.extensibility_kind {
+                ExtensibilityKind::Final => self.deserialize_funion_type(&mut dynamic_data)?,
+                ExtensibilityKind::Appendable => {
+                    let _dheader = self.deserialize_primitive_type::<u32>()?;
+                    self.deserialize_funion_type(&mut dynamic_data)?
+                }
+                ExtensibilityKind::Mutable => todo!(),
+            },
+            kind => {
+                debug!("Expected structure, enum or union. Got kind {kind:?} ");
+                Err(XTypesError::InvalidType)?
             }
         }
-
-        // We start by deserializing the base type if it exists before proceeding with the rest of the type
-        if let Some(base_dynamic_type) = dynamic_type.descriptor.base_type {
-            deserialize_as_nested_inner(self, base_dynamic_type, &mut dynamic_data)?;
-        }
-        deserialize_as_nested_inner(self, dynamic_type, &mut dynamic_data)?;
-
         Ok(dynamic_data)
     }
 
-    fn deserialize_as_value(
+    /// Serialization rule: { M.value : M.value.type }
+    fn deserialize_value(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         match member.descriptor.r#type.get_kind() {
-            TypeKind::NONE => todo!(),
+            TypeKind::NONE => Ok(()),
             TypeKind::BOOLEAN => {
                 dynamic_data.set_boolean_value(member.get_id(), self.deserialize_primitive_type()?)
             }
@@ -664,20 +762,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
+            TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
+                .set_complex_value(
+                    member.get_id(),
+                    self.deserialize_as_nested(member.descriptor.r#type)?,
+                ),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
-            TypeKind::UNION => dynamic_data.set_complex_value(
-                member.get_id(),
-                self.deserialize_as_nested(member.descriptor.r#type)?,
-            ),
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
                 if is_element_type_kind_primitive(member)? {
@@ -697,13 +788,31 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
-    /// Serialization Rule (2)
+    /// Serialization rule: { O.member : FMEMBER }
+    fn deserialize_fmember(
+        &mut self,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        if member.descriptor.is_optional {
+            V::deserialize_opt_fmember(self, member, dynamic_data)
+        } else {
+            self.deserialize_nopt_fmember(member, dynamic_data)
+        }
+    }
+    /// (2) XCDR << {O : PRIMITIVE_TYPE} =
+    ///              XCDR
+    ///                << ALIGN( O.ssize )
+    ///                << ESWAP( AsBytes(O) )
     fn deserialize_primitive_type<O: AsBytes + Align>(&mut self) -> XTypesResult<O> {
         V::align(self, O::SSIZE)?;
         O::as_bytes::<E>(&mut self.reader)
     }
 
-    /// Serialization Rule (3) & (4)
+    /// (3) XCDR << {O : STRING_TYPE} =
+    ///               XCDR
+    ///                << { O.ssize : UInt32 } // includes NUL
+    ///                << { O[i] : Byte }* // includes NUL
     fn deserialize_string_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
         let values = self.reader.read_bytes(length as usize - 1)?.to_vec();
@@ -711,13 +820,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
 
-    /// Serialization Rule (5)
-    fn deserialize_enum_type(
-        &mut self,
-        dynamic_type: DynamicType,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        let discriminator_type = dynamic_type
+    /// (5) XCDR << {O : ENUM_TYPE} =
+    ///              XCDR
+    ///                << { O.value : O.holder_type }
+    fn deserialize_enum_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let discriminator_type = dynamic_data
+            .r#type()
             .descriptor
             .discriminator_type
             .ok_or(XTypesError::InvalidType)?;
@@ -748,7 +856,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         todo!()
     }
 
-    /// Serialization Rule (8)
+    /// Arrays of primitive element type (version 1 and 2 encoding)
+    ///
+    /// (8) XCDR << {O : PARRAY_TYPE} =
+    ///              XCDR
+    ///                << { O[i] : O.element_type }*
     fn deserialize_parray_type(
         &mut self,
         member: &DynamicTypeMember,
@@ -763,7 +875,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
 
-    /// Serialization Rule (11)
+    /// Sequences of primitive element type (version 1 and 2 encoding)
+    ///
+    /// (11) XCDR << { O : PSEQUENCE_TYPE } =
+    ///               XCDR
+    ///                 << { O.length : UInt32 }
+    ///                 << { O[i] : O.element_type }*
     fn deserialize_psequence_type(
         &mut self,
         member: &DynamicTypeMember,
@@ -778,34 +895,43 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         todo!()
     }
 
-    /// Serialization Rule (17)
-    fn deserialize_fstruct_type(
-        &mut self,
-        dynamic_type: DynamicType,
-        dynamic_data: &mut DynamicData<'_>,
-    ) -> XTypesResult<()> {
+    /// Structures with extensibility FINAL (version 1 and 2 encoding)
+    /// FMMEBER can be NOPT_FMEMBER (18) or OPT_FMEMBER (19)
+    ///
+    /// (17) XCDR << {O : FSTRUCT_TYPE} =
+    ///               XCDR
+    ///                << { O.member[i] : FMEMBER }*
+    fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let dynamic_type = dynamic_data.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_nopt_fmember(member, dynamic_data)?;
+            self.deserialize_fmember(member, dynamic_data)?;
         }
         Ok(())
     }
 
-    /// Serialization Rule (18)
+    /// Non-optional member of final Aggregated type (structure, union)
+    ///
+    /// (18) XCDR << {M : NOPT_FMEMBER} =
+    ///                XCDR
+    ///                  << { M.value : M.value.type }
     fn deserialize_nopt_fmember(
         &mut self,
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData<'_>,
     ) -> XTypesResult<()> {
-        self.deserialize_as_value(member, dynamic_data)
+        self.deserialize_value(member, dynamic_data)
     }
 
-    /// Serialization Rule (26)
-    fn deserialize_funion_type(
-        &mut self,
-        dynamic_type: DynamicType,
-        dynamic_data: &mut DynamicData<'_>,
-    ) -> XTypesResult<()> {
+    /// Unions with extensibility FINAL (version 1 and 2 encoding)
+    /// see (18) to (20) for NOPT_FMEMBER and FMEMBER serialization
+    ///
+    /// (26) XCDR << {O : FUNION_TYPE} =
+    ///               XCDR
+    ///                 << { O.disc : NOPT_FMEMBER }
+    ///                 << { O.selected_member : FMEMBER }?
+    fn deserialize_funion_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let dynamic_type = dynamic_data.r#type();
         // Deserialize the discriminator
         let disc_member = dynamic_type.get_member_by_index(0)?;
         self.deserialize_nopt_fmember(disc_member, dynamic_data)?;
@@ -822,8 +948,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         };
 
         // Deserialize the member based on its discriminator
-        let m = dynamic_type.get_member(disc_id)?;
-        self.deserialize_nopt_fmember(m, dynamic_data)
+        let member = dynamic_type.get_member(disc_id)?;
+        self.deserialize_fmember(member, dynamic_data)
     }
 }
 
@@ -1050,13 +1176,12 @@ mod tests {
             field_u64: u64,
             field_u32: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(FinalType::TYPE);
-        FinalType {
+        let expected = FinalType {
             field_u16: 7,
             field_u64: 9,
             field_u32: 10,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalType::TYPE,
@@ -1126,15 +1251,14 @@ mod tests {
             field_u8: u8,
         }
 
-        let mut expected = DynamicDataFactory::create_data(NestedFinalType::TYPE);
-        NestedFinalType {
+        let expected = NestedFinalType {
             field_nested: FinalType {
                 field_u16: 7,
                 field_u64: 9,
             },
             field_u8: 10,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1201,13 +1325,12 @@ mod tests {
             field_seq_u32: Vec<u32>,
         }
 
-        let mut expected = DynamicDataFactory::create_data(FinalTypeWithSequence::TYPE);
-        FinalTypeWithSequence {
+        let expected = FinalTypeWithSequence {
             field_u16: 7,
             field_u64: 9,
             field_seq_u32: vec![1, 4],
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalTypeWithSequence::TYPE,
@@ -1274,8 +1397,7 @@ mod tests {
     fn deserialize_string() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct FinalString(String);
-        let mut expected = DynamicDataFactory::create_data(FinalString::TYPE);
-        FinalString(String::from("Hola")).create_dynamic_sample(&mut expected);
+        let expected = FinalString(String::from("Hola")).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 FinalString::TYPE,
@@ -1334,8 +1456,7 @@ mod tests {
     fn deserialize_bytes() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct ByteArray([u8; 2]);
-        let mut expected = DynamicDataFactory::create_data(ByteArray::TYPE);
-        ByteArray([1u8, 2]).create_dynamic_sample(&mut expected);
+        let expected = ByteArray([1u8, 2]).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 ByteArray::TYPE,
@@ -1383,14 +1504,153 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_array_with_lc4() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType {
+            #[dust_dds(id = 41)]
+            m1: [u8; 3],
+            #[dust_dds(id = 42)]
+            m2: u32,
+        }
+
+        let expected = TestType {
+            m1: [1, 2, 3],
+            m2: 6,
+        }
+        .create_dynamic_sample();
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x02, 0x00, 0x00, // CDR Header
+                    0x00, 41, 0, 3, // PID, length
+                    1, 2, 3, 0, // m1 | padding (1 bytres)
+                    0x00, 42, 0, 4, // PID, length
+                    0, 0, 0, 6, // m2
+                    0, 1, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x03, 0x00, 0x00, // CDR Header
+                    41, 0x00, 3, 0, // PID, length
+                    1, 2, 3, 0, // m1 | padding (2 bytres)
+                    42, 0x00, 4, 0, // PID, length
+                    6, 0, 0, 0, // m2
+                    1, 0, 0, 0, // Sentinel
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x01, // CDR Header
+                    0, 0, 0, 11, // DHEADER
+                    0b100_0000, 0, 0, 41, // EMHEADER1 incl. LC 4
+                    0, 0, 0, 3, // NEXTINT
+                    1, 2, 3, 0, // member | padding (1 bytres)
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType::TYPE,
+                &[
+                    0x00, 0x0b, 0x00, 0x01, // CDR Header
+                    11, 0, 0, 0, // DHEADER
+                    41, 0, 0, 0b100_0000, // EMHEADER1 incl. LC 4
+                    3, 0, 0, 0, // NEXTINT
+                    1, 2, 3, 0, // member | padding (1 bytres)
+                    42, 0, 0, 0b010_0000, // EMHEADER1 incl. LC 2
+                    6, 0, 0, 0, // m2
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_array_with_lc_bigger_5() {
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType16 {
+            #[dust_dds(id = 41)]
+            m1: [u8; 16],
+            #[dust_dds(id = 42)]
+            m2: u32,
+        }
+        #[derive(TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct TestType24 {
+            #[dust_dds(id = 41)]
+            m1: [u8; 24],
+            #[dust_dds(id = 42)]
+            m2: u32,
+        }
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType16::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x00, // CDR Header
+                    0, 0, 0, 32, // DHEADER
+                    0b110_0000, 0, 0, 41, // EMHEADER1 incl. LC 6
+                    0, 0, 0, 4, // NEXTINT: length == 4 * 4
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
+                ]
+            )
+            .unwrap(),
+            TestType16 { m1: [1; 16], m2: 6 }.create_dynamic_sample()
+        );
+        assert_eq!(
+            deserialize_top_level_type(
+                TestType24::TYPE,
+                &[
+                    0x00, 0x0a, 0x00, 0x00, // CDR Header
+                    0, 0, 0, 32, // DHEADER
+                    0b111_0000, 0, 0, 41, // EMHEADER1 incl. LC 7
+                    0, 0, 0, 3, // NEXTINT: length == 8 * 3
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    1, 1, 1, 1, // m1
+                    0b010_0000, 0, 0, 42, // EMHEADER1 incl. LC 2
+                    0, 0, 0, 6 // m2
+                ]
+            )
+            .unwrap(),
+            TestType24 { m1: [1; 24], m2: 6 }.create_dynamic_sample()
+        );
+    }
+
+    #[test]
     fn deserialize_complex_sequence() {
         #[derive(Debug, PartialEq, TypeSupport)]
         struct Atype(u8);
         #[derive(Debug, PartialEq, TypeSupport)]
         struct Sequence(Vec<Atype>);
 
-        let mut expected = DynamicDataFactory::create_data(Sequence::TYPE);
-        Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample(&mut expected);
+        let expected = Sequence(vec![Atype(1), Atype(2)]).create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 Sequence::TYPE,
@@ -1428,12 +1688,11 @@ mod tests {
             #[dust_dds(id = 0x50)]
             participant_key: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(MutableType::TYPE);
-        MutableType {
+        let expected = MutableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 MutableType::TYPE,
@@ -1480,8 +1739,7 @@ mod tests {
             kind: Kind,
         }
 
-        let mut expected = DynamicDataFactory::create_data(UserType::TYPE);
-        UserType { kind: Kind::One }.create_dynamic_sample(&mut expected);
+        let expected = UserType { kind: Kind::One }.create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1505,12 +1763,11 @@ mod tests {
             key: u8,
             participant_key: u32,
         }
-        let mut expected = DynamicDataFactory::create_data(AppendableType::TYPE);
-        AppendableType {
+        let expected = AppendableType {
             key: 7,
             participant_key: 8,
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 AppendableType::TYPE,
@@ -1550,15 +1807,14 @@ mod tests {
             shapesize: i32,
             additional_payload_size: Vec<u8>,
         }
-        let mut expected = DynamicDataFactory::create_data(AppendableShapesType::TYPE);
-        AppendableShapesType {
+        let expected = AppendableShapesType {
             color: String::from("BLUE"),
             x: 10,
             y: 20,
             shapesize: 30,
             additional_payload_size: vec![],
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
         assert_eq!(
             deserialize_top_level_type(
                 AppendableShapesType::TYPE,
@@ -1598,15 +1854,14 @@ mod tests {
 
     #[test]
     fn deserialize_type_lookup_get_types_in() {
-        let mut expected = DynamicDataFactory::create_data(TypeLookupCall::TYPE);
-        TypeLookupCall::TypeLookupGetTypesHashId {
+        let expected = TypeLookupCall::TypeLookupGetTypesHashId {
             get_types: TypeLookupGetTypesIn {
                 type_ids: vec![TypeIdentifier::EkComplete {
                     equivalence_hash: [5; 14],
                 }],
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1632,8 +1887,7 @@ mod tests {
 
     #[test]
     fn deserialize_type_lookup_request() {
-        let mut expected = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
-        TypeLookupRequest {
+        let expected = TypeLookupRequest {
             header: RequestHeader {
                 request_id: SampleIdentity {
                     writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
@@ -1645,7 +1899,7 @@ mod tests {
                 get_types: TypeLookupGetTypesIn { type_ids: vec![] },
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(
@@ -1664,11 +1918,7 @@ mod tests {
                     101, 96, 83, 92, // type_ids EMHEADER
                     // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
                     4, 0, 0, 0, // type_ids: DHEADER
-                    0, 0, 0,
-                    0, // type_ids: Length
-                       // 242, //EK_COMPLETE
-                       // 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
-                       // 0, // padding
+                    0, 0, 0, 0, // type_ids: Length
                 ]
             )
             .unwrap(),
@@ -1678,8 +1928,7 @@ mod tests {
 
     #[test]
     fn deserialize_type_identifier() {
-        let mut expected = DynamicDataFactory::create_data(TypeInformation::TYPE);
-        TypeInformation {
+        let expected = TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
                     type_id: TypeIdentifier::EkMinimal {
@@ -1701,7 +1950,7 @@ mod tests {
                 dependent_typeids: Vec::new(),
             },
         }
-        .create_dynamic_sample(&mut expected);
+        .create_dynamic_sample();
 
         assert_eq!(
             deserialize_top_level_type(

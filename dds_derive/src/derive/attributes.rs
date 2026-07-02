@@ -64,12 +64,14 @@ pub struct StructAttributes {
     pub name: String,
     pub extensibility: Extensibility,
     pub is_nested: bool,
+    pub base_type: Option<syn::Type>,
 }
 
 pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut name = input.ident.to_string();
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
+    let mut base_type = None;
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -78,6 +80,9 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
+                Ok(())
+            } else if meta.path.is_ident("base_type") {
+                base_type = Some(meta.value()?.parse::<syn::Type>()?);
                 Ok(())
             } else if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
@@ -112,6 +117,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         name,
         extensibility,
         is_nested,
+        base_type,
     })
 }
 
@@ -247,12 +253,12 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 }
 
 pub struct UnionVariantAttributes {
-    pub case: Option<Expr>,
+    pub case: Vec<Expr>,
     pub is_default: bool,
 }
 
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
-    let mut case = None;
+    let mut case = Vec::new();
     let mut is_default = false;
     if let Some(xtypes_attribute) = variant
         .attrs
@@ -261,7 +267,7 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     {
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
-                case = Some(meta.value()?.parse()?);
+                case.push(meta.value()?.parse()?);
             } else if meta.path.is_ident("default") {
                 is_default = true;
             }

@@ -151,11 +151,10 @@ impl DcpsDomainParticipant {
             {
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-                let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
-                BuiltInTopicKey {
+                let topic_key_data = BuiltInTopicKey {
                     value: builtin_topic_key,
                 }
-                .create_dynamic_sample(&mut topic_key_data);
+                .create_dynamic_sample();
                 dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
                 dw.unregister_w_timestamp(
@@ -295,11 +294,10 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
-            BuiltInTopicKey {
+            let topic_key_data = BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
             }
-            .create_dynamic_sample(&mut topic_key_data);
+            .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
             dw.unregister_w_timestamp(
@@ -438,11 +436,10 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-            let mut topic_key_data = DynamicDataFactory::create_data(BuiltInTopicKey::TYPE);
-            BuiltInTopicKey {
+            let topic_key_data = BuiltInTopicKey {
                 value: data_reader.transport_reader.guid().into(),
             }
-            .create_dynamic_sample(&mut topic_key_data);
+            .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
             dw.unregister_w_timestamp(
                 &dynamic_data,
@@ -1415,11 +1412,9 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
                     {
-                        let mut dynamic_data =
-                            DynamicDataFactory::create_data(ParticipantBuiltinTopicData::TYPE);
-                        discovered_participant_data
+                        let dynamic_data = discovered_participant_data
                             .dds_participant_data
-                            .create_dynamic_sample(&mut dynamic_data);
+                            .create_dynamic_sample();
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
                             None => get_instance_handle_from_dynamic_data(&dynamic_data)
@@ -1546,11 +1541,9 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|dr| dr.topic_name == DCPS_PUBLICATION)
                     {
-                        let mut dynamic_data =
-                            DynamicDataFactory::create_data(PublicationBuiltinTopicData::TYPE);
-                        discovered_writer_data
+                        let dynamic_data = discovered_writer_data
                             .dds_publication_data
-                            .create_dynamic_sample(&mut dynamic_data);
+                            .create_dynamic_sample();
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
                             None => get_instance_handle_from_dynamic_data(&dynamic_data)
@@ -1723,11 +1716,9 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
                     {
-                        let mut dynamic_data =
-                            DynamicDataFactory::create_data(SubscriptionBuiltinTopicData::TYPE);
-                        discovered_reader_data
+                        let dynamic_data = discovered_reader_data
                             .dds_subscription_data
-                            .create_dynamic_sample(&mut dynamic_data);
+                            .create_dynamic_sample();
                         let change_instance_handle = match cache_change.instance_handle {
                             Some(i) => i,
                             None => get_instance_handle_from_dynamic_data(&dynamic_data)
@@ -1841,9 +1832,7 @@ impl DcpsDomainParticipant {
                         .find(|dr| dr.topic_name == DCPS_TOPIC)
                     {
                         let change_instance_handle = topic_builtin_topic_data.key.value;
-                        let mut dynamic_data =
-                            DynamicDataFactory::create_data(TopicBuiltinTopicData::TYPE);
-                        topic_builtin_topic_data.create_dynamic_sample(&mut dynamic_data);
+                        let dynamic_data = topic_builtin_topic_data.create_dynamic_sample();
                         reader
                             .add_reader_change(
                                 cache_change.writer_guid,
@@ -2674,8 +2663,7 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
         {
-            let mut dynamic_data = DynamicDataFactory::create_data(TypeLookupRequest::TYPE);
-            let type_lookup_request = TypeLookupRequest {
+            let dynamic_data = TypeLookupRequest {
                 header: RequestHeader {
                     request_id: SampleIdentity {
                         writer_guid: w.transport_writer.guid(),
@@ -2686,8 +2674,8 @@ impl DcpsDomainParticipant {
                 call: TypeLookupCall::TypeLookupGetTypesHashId {
                     get_types: TypeLookupGetTypesIn { type_ids },
                 },
-            };
-            type_lookup_request.create_dynamic_sample(&mut dynamic_data);
+            }
+            .create_dynamic_sample();
 
             let timestamp = runtime.clock().now();
             let sample_instance_handle = self.domain_participant.instance_handle;

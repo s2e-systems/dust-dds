@@ -1,8 +1,8 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use dust_dds_derive::DdsType;
 
 use crate::xtypes::{
-    dynamic_type::{DynamicDataFactory, DynamicType, DynamicTypeMember},
+    dynamic_type::{DynamicType, DynamicTypeMember},
     serializer::serialize_without_header_cdr2_le,
     type_support::TypeSupport,
 };
@@ -945,7 +945,7 @@ impl From<&DynamicTypeMember> for CommonUnionMember {
             member_id: value.get_id(),
             member_flags,
             type_id: (&value.descriptor.r#type).into(),
-            label_seq: value.descriptor.label.into_iter().collect(),
+            label_seq: value.descriptor.label.to_vec(),
         }
     }
 }
@@ -2156,8 +2156,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
-                let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
-                complete_type_object.create_dynamic_sample(&mut data);
+                let data = complete_type_object.create_dynamic_sample();
                 let serialized_complete_type_object =
                     serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
 
@@ -2300,8 +2299,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
-        minimal_type_object.create_dynamic_sample(&mut data);
+        let data = minimal_type_object.create_dynamic_sample();
 
         let serialized_minimal_type_object =
             serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
@@ -2310,8 +2308,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
         let complete_type_object = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(value),
         };
-        let mut data = DynamicDataFactory::create_data(TypeObject::get_type());
-        complete_type_object.create_dynamic_sample(&mut data);
+        let data = complete_type_object.create_dynamic_sample();
         let serialized_complete_type_object =
             serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
 
@@ -2385,8 +2382,7 @@ impl From<TryConstructKind> for MemberFlag {
 #[cfg(test)]
 mod tests {
     use crate::xtypes::{
-        serializer::serialize_without_header_cdr2_le,
-        type_support::{BoundedString, Type},
+        serializer::serialize_without_header_cdr2_le, type_support::BoundedString,
     };
 
     use super::*;
@@ -2423,8 +2419,7 @@ mod tests {
 
     #[test]
     fn serialize_type_information() {
-        let mut dynamic_data = DynamicDataFactory::create_data(TypeInformation::TYPE);
-        TypeInformation {
+        let dynamic_data = TypeInformation {
             minimal: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
                     type_id: TypeIdentifier::EkComplete {
@@ -2446,7 +2441,7 @@ mod tests {
                 dependent_typeids: Vec::new(),
             },
         }
-        .create_dynamic_sample(&mut dynamic_data);
+        .create_dynamic_sample();
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
@@ -2479,9 +2474,7 @@ mod tests {
 
     #[test]
     fn serialize_type_identifier_with_dependencies() {
-        let mut dynamic_data =
-            DynamicDataFactory::create_data(TypeIdentifierWithDependencies::TYPE);
-        TypeIdentifierWithDependencies {
+        let dynamic_data = TypeIdentifierWithDependencies {
             typeid_with_size: TypeIdentifierWithSize {
                 type_id: TypeIdentifier::EkComplete {
                     equivalence_hash: [1; 14],
@@ -2491,7 +2484,7 @@ mod tests {
             dependent_typeid_count: 0,
             dependent_typeids: Vec::new(),
         }
-        .create_dynamic_sample(&mut dynamic_data);
+        .create_dynamic_sample();
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
@@ -2511,14 +2504,13 @@ mod tests {
 
     #[test]
     fn serialize_type_identifier_with_size() {
-        let mut dynamic_data = DynamicDataFactory::create_data(TypeIdentifierWithSize::TYPE);
-        TypeIdentifierWithSize {
+        let dynamic_data = TypeIdentifierWithSize {
             type_id: TypeIdentifier::EkComplete {
                 equivalence_hash: [1; 14],
             },
             typeobject_serialized_size: 100,
         }
-        .create_dynamic_sample(&mut dynamic_data);
+        .create_dynamic_sample();
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
@@ -2534,11 +2526,10 @@ mod tests {
 
     #[test]
     fn serialize_type_identifier() {
-        let mut dynamic_data = DynamicDataFactory::create_data(TypeIdentifier::TYPE);
-        TypeIdentifier::EkComplete {
+        let dynamic_data = TypeIdentifier::EkComplete {
             equivalence_hash: [1; 14],
         }
-        .create_dynamic_sample(&mut dynamic_data);
+        .create_dynamic_sample();
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 
         let expected = [
@@ -2551,13 +2542,12 @@ mod tests {
 
     #[test]
     fn serialize_complete_member_detail() {
-        let mut dynamic_data = DynamicDataFactory::create_data(CompleteMemberDetail::TYPE);
-        CompleteMemberDetail {
+        let dynamic_data = CompleteMemberDetail {
             name: String::from("a"),
             ann_builtin: None,
             ann_custom: None,
         }
-        .create_dynamic_sample(&mut dynamic_data);
+        .create_dynamic_sample();
 
         let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
 

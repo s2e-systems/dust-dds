@@ -25,7 +25,7 @@ pub trait TypeSupport: Type {
     fn create_sample(src: &mut DynamicData<'static>) -> Self;
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
-    fn create_dynamic_sample(self, data: &mut DynamicData<'static>);
+    fn create_dynamic_sample(self) -> DynamicData<'static>;
 }
 
 /// Preregistered String type as per Annex E: Built-in Types
@@ -355,6 +355,23 @@ impl<T: TypeSupport> Type for Vec<T> {
     };
 }
 
+impl Type for Vec<bool> {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(bool::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
 impl Type for Vec<i8> {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
@@ -525,6 +542,23 @@ impl Type for Vec<f64> {
     };
 }
 
+impl Type for Vec<char> {
+    const TYPE: DynamicType<'static> = DynamicType {
+        descriptor: &TypeDescriptor {
+            kind: TypeKind::SEQUENCE,
+            name: "",
+            base_type: None,
+            discriminator_type: None,
+            bound: Some(u32::MAX),
+            element_type: Some(char::TYPE),
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        },
+        member_list: &[],
+    };
+}
+
 impl Type for Vec<String> {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
@@ -599,12 +633,6 @@ mod tests {
     use super::*;
     use crate::xtypes::dynamic_type::DynamicDataFactory;
 
-    fn create_dynamic_sample<T: TypeSupport>(v: T) -> DynamicData<'static> {
-        let mut data = crate::xtypes::dynamic_type::DynamicDataFactory::create_data(T::TYPE);
-        v.create_dynamic_sample(&mut data);
-        data
-    }
-
     #[test]
     fn basic_type_should_create_sample() {
         #[derive(TypeSupport)]
@@ -615,8 +643,8 @@ mod tests {
         let mut inner = DynamicDataFactory::create_data(Inner::TYPE);
         inner.set_uint16_value(0, 2).unwrap();
 
-        let v = Inner { x: 2 };
-        assert_eq!(create_dynamic_sample(v), inner);
+        let v = Inner { x: 2 }.create_dynamic_sample();
+        assert_eq!(v, inner);
     }
 
     #[test]
@@ -636,7 +664,7 @@ mod tests {
         let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
         outer.set_complex_value(0, inner).unwrap();
 
-        assert_eq!(create_dynamic_sample(v), outer);
+        assert_eq!(v.create_dynamic_sample(), outer);
     }
 
     #[test]
@@ -649,7 +677,7 @@ mod tests {
         inner.set_uint16_values(0, vec![2]).unwrap();
 
         let v = Inner { x: vec![2] };
-        assert_eq!(create_dynamic_sample(v), inner);
+        assert_eq!(v.create_dynamic_sample(), inner);
     }
 
     #[test]
@@ -671,6 +699,6 @@ mod tests {
         let mut outer = DynamicDataFactory::create_data(Outer::TYPE);
         outer.set_complex_values(0, vec![inner]).unwrap();
 
-        assert_eq!(create_dynamic_sample(v), outer);
+        assert_eq!(v.create_dynamic_sample(), outer);
     }
 }

@@ -376,7 +376,7 @@ impl DynamicTypeBuilderFactory {
                     let mut non_basic_type_name = None;
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
-                    let mut label = None;
+                    let mut label = Vec::new();
                     let mut is_default_label = false;
 
                     for case_child in child.children() {
@@ -389,12 +389,12 @@ impl DynamicTypeBuilderFactory {
                             if value_str == "default" {
                                 is_default_label = true;
                             } else if let Some(hex) = value_str.strip_prefix("0x") {
-                                label = Some(
+                                label.push(
                                     i32::from_str_radix(hex, 16)
                                         .map_err(|_| XTypesError::InvalidData)?,
                                 );
                             } else {
-                                label = Some(
+                                label.push(
                                     value_str
                                         .parse::<i32>()
                                         .map_err(|_| XTypesError::InvalidData)?,
@@ -421,7 +421,7 @@ impl DynamicTypeBuilderFactory {
                         array_dimensions,
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
-
+                    let label = Vec::leak(label);
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
                         id: member_id,
@@ -447,7 +447,8 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
-                    let label = value.parse().map_err(|_| XTypesError::InvalidData)?;
+                    let label =
+                        Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
 
                     let type_ptr: DynamicType = Self::get_primitive_type(TypeKind::INT32);
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
@@ -458,7 +459,7 @@ impl DynamicTypeBuilderFactory {
                         r#type: type_ptr,
                         default_value: None,
                         index: member_id,
-                        label: Some(label),
+                        label,
                         try_construct_kind: TryConstructKind::Discard,
                         is_key: false,
                         is_optional: false,
@@ -495,7 +496,7 @@ impl DynamicTypeBuilderFactory {
                         r#type: type_ptr,
                         default_value: None,
                         index: member_id,
-                        label: None,
+                        label: &[],
                         try_construct_kind: TryConstructKind::Discard,
                         is_key: child.attribute("key") == Some("true"),
                         is_optional: child.attribute("optional") == Some("true"),
@@ -566,7 +567,7 @@ pub struct TypeDescriptor {
 /// Represents the unique identifier of a member.
 pub type MemberId = u32;
 /// Represents case labels for a union member.
-pub type UnionCaseLabelSeq = Option<i32>;
+pub type UnionCaseLabelSeq = &'static [i32];
 
 /// Describes a member of a constructed type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -813,7 +814,7 @@ impl<'a> PartialEq for DynamicData<'a> {
 
 impl<'a> DynamicData<'a> {
     /// Returns the [`DynamicType`] of this data sample.
-    pub fn r#type(&self) -> DynamicType<'a> {
+    pub const fn r#type(&self) -> DynamicType<'a> {
         self.r#type
     }
 
@@ -1563,8 +1564,8 @@ impl TypeSupport for DynamicData<'static> {
         src.clone()
     }
 
-    fn create_dynamic_sample(self, data: &mut DynamicData<'static>) {
-        *data = self;
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        self
     }
 }
 
