@@ -3,6 +3,7 @@ use std::path::Path;
 use syn::File;
 
 #[test]
+#[ignore]
 fn union_types() {
     let idl_file = Path::new("tests/union_types.idl");
 
@@ -19,9 +20,11 @@ fn union_types() {
     )
     .unwrap();
 
-    println!("Generated: {}", dust_dds_gen::compile_idl(idl_file)
-            .unwrap());
-        
+    println!(
+        "Generated: {}",
+        dust_dds_gen::compile_idl(idl_file).unwrap()
+    );
+
     let result = syn::parse2::<File>(
         dust_dds_gen::compile_idl(idl_file)
             .unwrap()

@@ -945,7 +945,7 @@ impl From<&DynamicTypeMember> for CommonUnionMember {
             member_id: value.get_id(),
             member_flags,
             type_id: (&value.descriptor.r#type).into(),
-            label_seq: value.descriptor.label.into_iter().collect(),
+            label_seq: value.descriptor.label.iter().cloned().collect(),
         }
     }
 }

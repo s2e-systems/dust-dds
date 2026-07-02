@@ -458,59 +458,59 @@ fn create_union_primitives_from_xml() {
 
     let m1 = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m1.descriptor.r#type.get_kind(), TypeKind::UINT8);
-    assert_eq!(m1.descriptor.label, Some(1));
+    assert_eq!(m1.descriptor.label, &[1]);
 
     let m2 = ty.get_member_by_name("x2").unwrap();
     assert_eq!(m2.descriptor.r#type.get_kind(), TypeKind::UINT16);
-    assert_eq!(m2.descriptor.label, Some(2));
+    assert_eq!(m2.descriptor.label, &[2]);
 
     let m3 = ty.get_member_by_name("x3").unwrap();
     assert_eq!(m3.descriptor.r#type.get_kind(), TypeKind::UINT32);
-    assert_eq!(m3.descriptor.label, Some(3));
+    assert_eq!(m3.descriptor.label, &[3]);
 
     let m4 = ty.get_member_by_name("x4").unwrap();
     assert_eq!(m4.descriptor.r#type.get_kind(), TypeKind::UINT64);
-    assert_eq!(m4.descriptor.label, Some(4));
+    assert_eq!(m4.descriptor.label, &[4]);
 
     let m5 = ty.get_member_by_name("x5").unwrap();
     assert_eq!(m5.descriptor.r#type.get_kind(), TypeKind::INT8);
-    assert_eq!(m5.descriptor.label, Some(5));
+    assert_eq!(m5.descriptor.label, &[5]);
 
     let m6 = ty.get_member_by_name("x6").unwrap();
     assert_eq!(m6.descriptor.r#type.get_kind(), TypeKind::INT16);
-    assert_eq!(m6.descriptor.label, Some(6));
+    assert_eq!(m6.descriptor.label, &[6]);
 
     let m7 = ty.get_member_by_name("x7").unwrap();
     assert_eq!(m7.descriptor.r#type.get_kind(), TypeKind::INT32);
-    assert_eq!(m7.descriptor.label, Some(7));
+    assert_eq!(m7.descriptor.label, &[7]);
 
     let m8 = ty.get_member_by_name("x8").unwrap();
     assert_eq!(m8.descriptor.r#type.get_kind(), TypeKind::INT64);
-    assert_eq!(m8.descriptor.label, Some(8));
+    assert_eq!(m8.descriptor.label, &[8]);
 
     let m9 = ty.get_member_by_name("x9").unwrap();
     assert_eq!(m9.descriptor.r#type.get_kind(), TypeKind::BOOLEAN);
-    assert_eq!(m9.descriptor.label, Some(9));
+    assert_eq!(m9.descriptor.label, &[9]);
 
     let m10 = ty.get_member_by_name("x10").unwrap();
     assert_eq!(m10.descriptor.r#type.get_kind(), TypeKind::FLOAT32);
-    assert_eq!(m10.descriptor.label, Some(10));
+    assert_eq!(m10.descriptor.label, &[10]);
 
     let m11 = ty.get_member_by_name("x11").unwrap();
     assert_eq!(m11.descriptor.r#type.get_kind(), TypeKind::FLOAT64);
-    assert_eq!(m11.descriptor.label, Some(11));
+    assert_eq!(m11.descriptor.label, &[11]);
 
     let m12 = ty.get_member_by_name("x12").unwrap();
     assert_eq!(m12.descriptor.r#type.get_kind(), TypeKind::FLOAT64);
-    assert_eq!(m12.descriptor.label, Some(12));
+    assert_eq!(m12.descriptor.label, &[12]);
 
     let m13 = ty.get_member_by_name("x13").unwrap();
     assert_eq!(m13.descriptor.r#type.get_kind(), TypeKind::BYTE);
-    assert_eq!(m13.descriptor.label, Some(13));
+    assert_eq!(m13.descriptor.label, &[13]);
 
     let m14 = ty.get_member_by_name("x14").unwrap();
     assert_eq!(m14.descriptor.r#type.get_kind(), TypeKind::CHAR8);
-    assert_eq!(m14.descriptor.label, Some(14));
+    assert_eq!(m14.descriptor.label, &[14]);
 }
 
 #[cfg(feature = "xtypes-xml")]
