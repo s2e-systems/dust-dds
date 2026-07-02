@@ -11,26 +11,36 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
+    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+#[derive(DdsType, Debug, PartialEq, Clone)]
+#[dust_dds(extensibility = "appendable")]
+struct A1 {
+    x1: i32,
+}
+
+#[derive(DdsType, Debug, PartialEq)]
+#[dust_dds(extensibility = "appendable")]
+struct A2 {
+    x1: i32,
+    x2: i32,
+}
+
+#[derive(DdsType, Debug, PartialEq)]
+#[dust_dds(extensibility = "appendable")]
+struct A3 {
+    x1: i32,
+    x3: i32,
+    x2: i32,
+}
 
 #[test]
 #[ignore = "not yet working"]
 fn ext_appendable_struct_2() {
-    #[derive(DdsType, Debug, PartialEq, Clone)]
-    struct A1 {
-        x1: i32,
-    }
-
-    #[derive(DdsType, Debug, PartialEq)]
-    struct A2 {
-        x1: i32,
-        x2: i32,
-    }
-
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant1 = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -111,4 +121,38 @@ fn ext_appendable_struct_2() {
         reader.read_next_sample().unwrap().data.as_ref().unwrap().x1,
         data.x1
     );
+}
+
+#[test]
+#[ignore = "not yet working"]
+fn ext_appendable_struct_4() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let topic1 = participant1
+        .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let status_cond = match &topic1 {
+        TopicDescription::Topic(topic) => topic.get_statuscondition(),
+        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
+    };
+    status_cond
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond))
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _topic2 = participant2
+        .create_topic::<A3>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
