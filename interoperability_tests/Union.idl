@@ -1,0 +1,12 @@
+module interoperability {
+    module test {
+        union VariantUnion switch (uint16) {
+            case 1:
+                uint8 x;
+            case 2:
+                uint16 y;
+            case 3:
+                uint32 z;
+        };
+    };
+};
