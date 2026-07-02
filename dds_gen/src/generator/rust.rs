@@ -438,7 +438,7 @@ impl<'a> RustGenerator<'a> {
             }
         }
         self.writer.push_str("pub enum ");
-        self.generate(identifier.clone());
+        self.generate(identifier);
         self.writer.push_str(" {");
 
         for enumerator in inner_pairs
@@ -450,23 +450,6 @@ impl<'a> RustGenerator<'a> {
         }
 
         self.writer.push_str("}\n");
-
-        // Add a pub use for each variant of the enum to make the name be available outside in a similar manner as in IDL
-        for enumerator in inner_pairs
-            .clone()
-            .filter(|p| p.as_rule() == Rule::enumerator)
-        {
-            self.writer.push_str("pub use ");
-            self.generate(identifier.clone());
-            self.writer.push_str("::");
-            self.generate(
-                enumerator
-                    .into_inner()
-                    .find(|x| x.as_rule() == Rule::identifier)
-                    .expect("Must have an identifier according to grammar"),
-            );
-            self.writer.push(';');
-        }
     }
 
     fn union_def(&mut self, pair: IdlPair) {
