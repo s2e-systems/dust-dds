@@ -2,12 +2,13 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listener::NO_LISTENER,
-        qos::{DataWriterQos, QosKind},
-        qos_policy::UserDataQosPolicy,
+        qos::{DataWriterQos, QosKind, TopicQos},
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy},
         status::NO_STATUS,
         type_support::DdsType,
     },
     topic_definition::topic_description::TopicDescription,
+    xtypes::type_support::TypeSupport,
 };
 
 mod utils;
@@ -167,4 +168,47 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         }
         TopicDescription::ContentFilteredTopic(_) => unreachable!(),
     }
+}
+
+#[test]
+fn data_writer_qos_history_keep_all() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let domain_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic_qos = TopicQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let topic = domain_participant
+        .create_topic::<UserType>(
+            "data_writer_qos_history_keep_all",
+            UserType::get_type().get_name(),
+            QosKind::Specific(topic_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = domain_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let _writer = publisher
+        .create_datawriter::<UserType>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
 }
