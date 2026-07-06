@@ -204,6 +204,7 @@ pub struct UserDataQosPolicy {
 }
 
 impl UserDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -230,6 +231,7 @@ pub struct TopicDataQosPolicy {
 }
 
 impl TopicDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -261,6 +263,7 @@ pub struct GroupDataQosPolicy {
 }
 
 impl GroupDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -295,6 +298,7 @@ pub struct TransportPriorityQosPolicy {
 }
 
 impl TransportPriorityQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: 0 }
     }
@@ -333,6 +337,7 @@ pub struct LifespanQosPolicy {
 }
 
 impl LifespanQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             duration: DurationKind::Infinite,
@@ -417,6 +422,7 @@ pub struct DurabilityQosPolicy {
 }
 
 impl DurabilityQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: DurabilityQosPolicyKind::Volatile,
@@ -509,6 +515,7 @@ pub struct PresentationQosPolicy {
 }
 
 impl PresentationQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             access_scope: PresentationQosPolicyAccessScopeKind::Instance,
@@ -552,6 +559,7 @@ pub struct DeadlineQosPolicy {
 }
 
 impl DeadlineQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             period: DurationKind::Infinite,
@@ -585,6 +593,7 @@ pub struct LatencyBudgetQosPolicy {
 }
 
 impl LatencyBudgetQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             duration: DurationKind::Finite(Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC)),
@@ -630,6 +639,7 @@ pub struct OwnershipQosPolicy {
 }
 
 impl OwnershipQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: OwnershipQosPolicyKind::Shared,
@@ -686,6 +696,7 @@ pub struct OwnershipStrengthQosPolicy {
 }
 
 impl OwnershipStrengthQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: 0 }
     }
@@ -771,6 +782,7 @@ pub struct LivelinessQosPolicy {
 }
 
 impl LivelinessQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: LivelinessQosPolicyKind::Automatic,
@@ -821,6 +833,7 @@ pub struct TimeBasedFilterQosPolicy {
 }
 
 impl TimeBasedFilterQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             minimum_separation: DurationKind::Finite(Duration::new(
@@ -872,6 +885,7 @@ pub struct PartitionQosPolicy {
 }
 
 impl PartitionQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { name: Vec::new() }
     }
@@ -1018,6 +1032,7 @@ pub struct DestinationOrderQosPolicy {
 }
 
 impl DestinationOrderQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: DestinationOrderQosPolicyKind::ByReceptionTimestamp,
@@ -1108,6 +1123,7 @@ pub struct HistoryQosPolicy {
 }
 
 impl HistoryQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: HistoryQosPolicyKind::KeepLast(1),
@@ -1333,6 +1349,7 @@ impl Type for ResourceLimitsQosPolicy {
 }
 
 impl ResourceLimitsQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             max_samples: Length::Unlimited,
@@ -1373,6 +1390,7 @@ pub struct EntityFactoryQosPolicy {
 }
 
 impl EntityFactoryQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autoenable_created_entities: true,
@@ -1415,6 +1433,7 @@ pub struct WriterDataLifecycleQosPolicy {
 }
 
 impl WriterDataLifecycleQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autodispose_unregistered_instances: true,
@@ -1463,6 +1482,7 @@ pub struct ReaderDataLifecycleQosPolicy {
 }
 
 impl ReaderDataLifecycleQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autopurge_nowriter_samples_delay: DurationKind::Infinite,
@@ -1525,6 +1545,7 @@ pub struct DataRepresentationQosPolicy {
 }
 
 impl DataRepresentationQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             value: DataRepresentationIdSeq::new(),
@@ -1548,7 +1569,9 @@ impl Default for DataRepresentationQosPolicy {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 #[dust_dds(bit_bound = "16")]
 pub enum TypeConsistencyKind {
+    /// Disallow type coercion for matched types
     DisallowTypeCoercion,
+    /// Allow type coercion for matched types
     AllowTypeCoercion,
 }
 
@@ -1564,6 +1587,7 @@ pub struct TypeConsistencyEnforcementQosPolicy {
 }
 
 impl TypeConsistencyEnforcementQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: TypeConsistencyKind::AllowTypeCoercion,
