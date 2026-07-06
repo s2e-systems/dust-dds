@@ -122,7 +122,7 @@ impl DcpsDomainParticipant {
             {
                 let timestamp = runtime.clock().now();
                 let sample_instance_handle = self.domain_participant.instance_handle;
-                let serialized_data = spdp_discovered_participant_data.to_bytes();
+                let serialized_data = spdp_discovered_participant_data.into_bytes();
                 let sample_timestamp = timestamp;
                 let now = timestamp;
                 w.write_w_timestamp(
@@ -264,7 +264,7 @@ impl DcpsDomainParticipant {
         {
             let now = runtime.clock().now();
             let sample_instance_handle = data_writer.transport_writer.guid().into();
-            let serialized_data = discovered_writer_data.to_bytes();
+            let serialized_data = discovered_writer_data.into_bytes();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
@@ -406,7 +406,7 @@ impl DcpsDomainParticipant {
         {
             let now = runtime.clock().now();
             let sample_instance_handle = data_reader.transport_reader.guid().into();
-            let serialized_data = discovered_reader_data.to_bytes();
+            let serialized_data = discovered_reader_data.into_bytes();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
@@ -494,7 +494,7 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == DCPS_TOPIC)
         {
             let sample_instance_handle = topic.instance_handle;
-            let serialized_data = discovered_topic_data.to_bytes();
+            let serialized_data = discovered_topic_data.into_bytes();
             let now = runtime.clock().now();
             let sample_timestamp = now;
             let message_writer = self.transport.message_writer.as_ref();

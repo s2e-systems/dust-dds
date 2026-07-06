@@ -766,10 +766,6 @@ impl DcpsDomainParticipant {
         &self.domain_participant.instance_handle
     }
 
-    pub fn get_builtin_subscriber_status_condition(&self) -> &DcpsStatusCondition {
-        &self.domain_participant.builtin_subscriber.status_condition
-    }
-
     #[tracing::instrument(skip(self, runtime))]
     pub fn offered_deadline_missed(
         &mut self,

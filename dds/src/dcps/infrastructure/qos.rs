@@ -55,6 +55,7 @@ pub struct PublisherQos {
 }
 
 impl PublisherQos {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             presentation: PresentationQosPolicy::const_default(),
@@ -107,6 +108,7 @@ pub struct DataWriterQos {
 }
 
 impl DataWriterQos {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
@@ -197,6 +199,7 @@ pub struct SubscriberQos {
 }
 
 impl SubscriberQos {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             presentation: PresentationQosPolicy::const_default(),
@@ -254,6 +257,7 @@ pub struct DataReaderQos {
 }
 
 impl DataReaderQos {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
@@ -362,6 +366,7 @@ pub struct TopicQos {
 }
 
 impl TopicQos {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
