@@ -2083,7 +2083,6 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
         struct MutableTypeWithSequence {
-            #[dust_dds(hashid)]
             my_sequence: Vec<u32>,
         }
 
@@ -2111,7 +2110,6 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(extensibility = "mutable")]
         struct MutableTypeWithSequence {
-            #[dust_dds(hashid)]
             my_sequence: Vec<u32>,
         }
 
