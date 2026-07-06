@@ -309,7 +309,7 @@ fn foo_xtypes_union_should_read_and_write() {
     enum MyEnum {
         #[dust_dds(case = 5)]
         _VariantA(MyInnerType),
-        #[dust_dds(case = 6)]
+        #[dust_dds(case = 0)]
         VariantB { a: u32 },
         #[dust_dds(case = 7)]
         _VariantC,

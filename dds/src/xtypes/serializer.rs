@@ -190,7 +190,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     fn serialize_value(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
         match member_descriptor.r#type.get_kind() {
-            TypeKind::NONE => todo!(),
+            TypeKind::NONE => (),
             TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
             TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),
             TypeKind::INT16 => self.serialize_primitive_type(v.get_int16_value(member_id)?),
@@ -475,10 +475,26 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     ///             << { O.selected_member : FMEMBER }?
     fn serialize_funion_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_nopt_fmember(v, 0)?;
-        if let Ok(member_id) = v.get_member_id_at_index(1) {
-            self.serialize_nopt_fmember(v, member_id)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = match v.get_value(0)? {
+            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
+            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
+            _ => return Err(XTypesError::InvalidType),
+        };
+        let dynamic_type = v.r#type();
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            if member.descriptor.label.contains(&disc_id) {
+                let member_id = member.get_id();
+                return self.serialize_nopt_fmember(v, member_id);
+            }
         }
-        Ok(())
+        Err(XTypesError::InvalidType)
     }
 }
 
