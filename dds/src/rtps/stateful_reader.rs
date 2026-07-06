@@ -146,6 +146,10 @@ impl RtpsStatefulReader {
             }
         };
     }
+
+    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        &mut self.changes
+    }
 }
 
 // The methods in this impl block are not defined by the standard
