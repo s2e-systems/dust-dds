@@ -60,6 +60,7 @@ pub struct InconsistentTopicStatus {
 }
 
 impl InconsistentTopicStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -84,6 +85,7 @@ pub struct SampleLostStatus {
 }
 
 impl SampleLostStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -125,6 +127,7 @@ pub struct SampleRejectedStatus {
 }
 
 impl SampleRejectedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -185,6 +188,7 @@ pub struct LivelinessChangedStatus {
 }
 
 impl LivelinessChangedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             alive_count: 0,
@@ -219,6 +223,7 @@ pub struct OfferedDeadlineMissedStatus {
 }
 
 impl OfferedDeadlineMissedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -244,6 +249,7 @@ pub struct RequestedDeadlineMissedStatus {
 }
 
 impl RequestedDeadlineMissedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -289,6 +295,7 @@ pub struct OfferedIncompatibleQosStatus {
 }
 
 impl OfferedIncompatibleQosStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -320,6 +327,7 @@ pub struct RequestedIncompatibleQosStatus {
 }
 
 impl RequestedIncompatibleQosStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -359,6 +367,7 @@ pub struct PublicationMatchedStatus {
 }
 
 impl PublicationMatchedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
@@ -399,6 +408,7 @@ pub struct SubscriptionMatchedStatus {
 }
 
 impl SubscriptionMatchedStatus {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             total_count: 0,
