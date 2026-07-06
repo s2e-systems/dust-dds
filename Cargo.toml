@@ -35,5 +35,3 @@ categories = ["api-bindings", "network-programming"]
 
 [workspace.dependencies]
 md5 = { version = "0.7.0", default-features = false }
-
-
