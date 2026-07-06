@@ -25,45 +25,46 @@ use crate::{
         },
     },
     runtime::{Clock, DdsRuntime, Spawner, Timer},
-    transport::types::{CacheChange, ChangeKind, ENTITYID_UNKNOWN, Guid, ReliabilityKind},
+    transport::types::{CacheChange, ChangeKind, Guid},
     xtypes::deserializer::deserialize_top_level_type,
 };
 
 impl DcpsDomainParticipant {
-    fn add_cache_change(
+    pub fn process_received_cache_changes(
         &mut self,
-        cache_change: &CacheChange,
-        subscriber_handle: &InstanceHandle,
-        data_reader_handle: &InstanceHandle,
+        // cache_change: &CacheChange,
+        // subscriber_handle: &InstanceHandle,
+        // data_reader_handle: &InstanceHandle,
         runtime: &impl DdsRuntime,
     ) {
-        let reader_guid = Guid::from(<[u8; 16]>::from(*data_reader_handle));
-        match reader_guid.entity_id() {
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER => {
-                self.add_builtin_participants_detector_cache_change(cache_change, runtime)
-            }
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR => {
-                self.add_builtin_publications_detector_cache_change(cache_change, runtime)
-            }
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR => {
-                self.add_builtin_subscriptions_detector_cache_change(cache_change, runtime)
-            }
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR => {
-                self.add_builtin_topics_detector_cache_change(cache_change, runtime)
-            }
-            ENTITYID_TL_SVC_REQ_READER => {
-                tracing::info!("Received a type lookup request. Nothing is done with it yet.")
-            }
-            ENTITYID_TL_SVC_REPLY_READER => {
-                tracing::info!("Received a type lookup reply. Nothing is done with it yet.")
-            }
-            _ => self.add_user_defined_cache_change(
-                cache_change,
-                subscriber_handle,
-                data_reader_handle,
-                runtime,
-            ),
-        }
+        todo!()
+        // let reader_guid = Guid::from(<[u8; 16]>::from(*data_reader_handle));
+        // match reader_guid.entity_id() {
+        //     ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER => {
+        //         self.add_builtin_participants_detector_cache_change(cache_change, runtime)
+        //     }
+        //     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR => {
+        //         self.add_builtin_publications_detector_cache_change(cache_change, runtime)
+        //     }
+        //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR => {
+        //         self.add_builtin_subscriptions_detector_cache_change(cache_change, runtime)
+        //     }
+        //     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR => {
+        //         self.add_builtin_topics_detector_cache_change(cache_change, runtime)
+        //     }
+        //     ENTITYID_TL_SVC_REQ_READER => {
+        //         tracing::info!("Received a type lookup request. Nothing is done with it yet.")
+        //     }
+        //     ENTITYID_TL_SVC_REPLY_READER => {
+        //         tracing::info!("Received a type lookup reply. Nothing is done with it yet.")
+        //     }
+        //     _ => self.add_user_defined_cache_change(
+        //         cache_change,
+        //         subscriber_handle,
+        //         data_reader_handle,
+        //         runtime,
+        //     ),
+        // }
     }
 
     pub fn add_user_defined_cache_change(
@@ -544,14 +545,10 @@ impl DcpsDomainParticipant {
             while let Some(submessage) = message_receiver.next() {
                 match submessage {
                     RtpsSubmessageReadKind::Data(data_submessage) => {
-                        self.handle_data_submessage(&message_receiver, data_submessage, runtime);
+                        self.handle_data_submessage(&message_receiver, data_submessage);
                     }
                     RtpsSubmessageReadKind::DataFrag(data_frag_submessage) => {
-                        self.handle_data_frag_submessage(
-                            &message_receiver,
-                            data_frag_submessage,
-                            runtime,
-                        );
+                        self.handle_data_frag_submessage(&message_receiver, data_frag_submessage);
                     }
                     RtpsSubmessageReadKind::Gap(gap_submessage) => {
                         self.handle_gap_submessage(&message_receiver, gap_submessage);
@@ -667,7 +664,6 @@ impl DcpsDomainParticipant {
         &mut self,
         message_receiver: &MessageReceiver<'_>,
         data_submessage: &DataSubmessage,
-        runtime: &impl DdsRuntime,
     ) {
         for subscriber in self
             .domain_participant
@@ -680,83 +676,18 @@ impl DcpsDomainParticipant {
             for dr in &mut subscriber.data_reader_list {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => {
-                        let writer_guid = Guid::new(
+                        r.on_data_submessage(
+                            data_submessage,
                             message_receiver.source_guid_prefix(),
-                            data_submessage.writer_id(),
+                            message_receiver.source_timestamp(),
                         );
-                        let sequence_number = data_submessage.writer_sn();
-                        let reliability = r.reliability();
-                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                            match reliability {
-                                ReliabilityKind::BestEffort => {
-                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                                    if sequence_number >= expected_seq_num {
-                                        writer_proxy.received_change_set(sequence_number);
-                                        if sequence_number > expected_seq_num {
-                                            writer_proxy.lost_changes_update(sequence_number);
-                                        }
-
-                                        if let Ok(change) = CacheChange::try_from_data_submessage(
-                                            data_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        ) {
-                                            let subscriber_handle = subscriber.instance_handle;
-                                            let reader_handle = dr.instance_handle;
-                                            return self.add_cache_change(
-                                                &change,
-                                                &subscriber_handle,
-                                                &reader_handle,
-                                                runtime,
-                                            );
-                                        }
-                                    }
-                                }
-                                ReliabilityKind::Reliable => {
-                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                                    if sequence_number == expected_seq_num {
-                                        writer_proxy.received_change_set(sequence_number);
-
-                                        if let Ok(change) = CacheChange::try_from_data_submessage(
-                                            data_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            message_receiver.source_timestamp(),
-                                        ) {
-                                            let subscriber_handle = subscriber.instance_handle;
-                                            let reader_handle = dr.instance_handle;
-                                            return self.add_cache_change(
-                                                &change,
-                                                &subscriber_handle,
-                                                &reader_handle,
-                                                runtime,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                     RtpsReaderKind::Stateless(r) => {
-                        if data_submessage.reader_id() == ENTITYID_UNKNOWN
-                            || data_submessage.reader_id() == r.guid().entity_id()
-                        {
-                            if let Ok(change) = CacheChange::try_from_data_submessage(
-                                data_submessage,
-                                message_receiver.source_guid_prefix(),
-                                message_receiver.source_timestamp(),
-                            ) {
-                                // Stateless reader behavior. We add the change if the data is correct. No error is printed
-                                // because all readers would get changes marked with ENTITYID_UNKNOWN
-                                let subscriber_handle = subscriber.instance_handle;
-                                let reader_handle = dr.instance_handle;
-                                return self.add_cache_change(
-                                    &change,
-                                    &subscriber_handle,
-                                    &reader_handle,
-                                    runtime,
-                                );
-                            }
-                        }
+                        r.on_data_submessage(
+                            data_submessage,
+                            message_receiver.source_guid_prefix(),
+                            message_receiver.source_timestamp(),
+                        );
                     }
                 }
             }
@@ -855,7 +786,6 @@ impl DcpsDomainParticipant {
         &mut self,
         message_receiver: &MessageReceiver<'_>,
         data_frag_submessage: &DataFragSubmessage,
-        runtime: &impl DdsRuntime,
     ) {
         for subscriber in self
             .domain_participant
@@ -868,40 +798,11 @@ impl DcpsDomainParticipant {
             for dr in &mut subscriber.data_reader_list {
                 match &mut dr.transport_reader {
                     RtpsReaderKind::Stateful(r) => {
-                        let writer_guid = Guid::new(
+                        r.on_data_frag_submessage(
+                            data_frag_submessage,
                             message_receiver.source_guid_prefix(),
-                            data_frag_submessage.writer_id(),
+                            message_receiver.source_timestamp(),
                         );
-                        let sequence_number = data_frag_submessage.writer_sn();
-                        let reliability = r.reliability();
-                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                            match reliability {
-                                ReliabilityKind::BestEffort => {
-                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                                    if sequence_number >= expected_seq_num {
-                                        writer_proxy.push_data_frag(data_frag_submessage.clone());
-                                    }
-                                }
-                                ReliabilityKind::Reliable => {
-                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                                    if sequence_number == expected_seq_num {
-                                        writer_proxy.push_data_frag(data_frag_submessage.clone());
-                                    }
-                                }
-                            }
-
-                            if let Some(data_submessage) =
-                                writer_proxy.reconstruct_data_from_frag(sequence_number)
-                            {
-                                writer_proxy.delete_data_fragments(data_submessage.writer_sn());
-
-                                return self.handle_data_submessage(
-                                    message_receiver,
-                                    &data_submessage,
-                                    runtime,
-                                );
-                            }
-                        };
                     }
                     RtpsReaderKind::Stateless(_) => (),
                 }

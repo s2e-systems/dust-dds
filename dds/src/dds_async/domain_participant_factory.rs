@@ -21,7 +21,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
@@ -285,8 +285,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     Either::B(_) => (),
                 };
 
-                domain_participant_factory.poke();
-                domain_participant_factory.remove_stale_participants();
+                for dp in &mut domain_participant_factory.domain_participant_list {
+                    dp.process_received_cache_changes(&domain_participant_factory.runtime);
+                    dp.poke(&domain_participant_factory.runtime.clock());
+                    dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
+                }
             }
         });
         Self {
