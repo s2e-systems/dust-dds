@@ -143,7 +143,7 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl SpdpDiscoveredParticipantData {
-    pub fn to_bytes(self) -> Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
         let mut pl = ParameterListSerializer::new(&mut buffer);
@@ -298,7 +298,7 @@ mod tests {
             lease_duration: Duration::new(10, 11),
             discovered_participant_list: vec![],
         }
-        .to_bytes();
+        .into_bytes();
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -399,7 +399,7 @@ mod tests {
             lease_duration: DEFAULT_PARTICIPANT_LEASE_DURATION,
             discovered_participant_list: Vec::new(),
         }
-        .to_bytes();
+        .into_bytes();
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
