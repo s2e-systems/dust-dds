@@ -39,7 +39,7 @@ pub struct DiscoveredReaderData {
 }
 
 impl DiscoveredReaderData {
-    pub fn into_bytes(self) -> Vec<u8> {
+    pub fn to_bytes(self) -> Vec<u8> {
         let mut buffer = Vec::new();
         let mut pl = ParameterListSerializer::new(&mut buffer);
         pl.write_header();
@@ -248,7 +248,7 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .into_bytes();
+        .to_bytes();
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -321,7 +321,7 @@ mod tests {
                 expects_inline_qos: false,
             },
         }
-        .into_bytes();
+        .to_bytes();
 
         let expected = [
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
