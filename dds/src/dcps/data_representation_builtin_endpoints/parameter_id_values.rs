@@ -7,7 +7,7 @@ pub type ParameterId = Short;
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const _PID_PAD: ParameterId = 0x0000;
-pub const PID_SENTINEL: ParameterId = 0x0001;
+pub const _PID_SENTINEL: ParameterId = 0x0001;
 pub const PID_USER_DATA: ParameterId = 0x002c;
 pub const PID_TOPIC_NAME: ParameterId = 0x0005;
 pub const PID_TYPE_NAME: ParameterId = 0x0007;
@@ -65,7 +65,7 @@ pub const PID_TYPE_CONSISTENCY_ENFORCEMENT: ParameterId = 0x0074;
 #[allow(overflowing_literals)]
 pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
 #[allow(overflowing_literals)]
-pub const PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
+pub const _PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification
