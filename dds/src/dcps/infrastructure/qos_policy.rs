@@ -1575,14 +1575,32 @@ pub enum TypeConsistencyKind {
     AllowTypeCoercion,
 }
 
+/// This policy defines the rules for determining whether the data type used by a [`DataWriter`](crate::publication::data_writer::DataWriter)
+/// is consistent with the type used by a [`DataReader`](crate::subscription::data_reader::DataReader).
+///
+/// This policy is a DDS-XTypes extension. It allows a [`DataReader`](crate::subscription::data_reader::DataReader) to define the rules
+/// for type consistency when matching with a [`DataWriter`](crate::publication::data_writer::DataWriter). It provides a mechanism
+/// to enforce stricter static type checking than the default assignability rules, ensuring that the data received by a consumer
+/// is compatible with its expected type.
 #[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeConsistencyEnforcementQosPolicy {
+    /// Type consistency kind that determines the coercion strategy (whether to allow type coercion or not).
     pub kind: TypeConsistencyKind,
+    /// Controls whether sequence bounds are ignored when determining type compatibility.
+    /// If true, sequences with different bounds are considered consistent.
     pub ignore_sequence_bounds: bool,
+    /// Controls whether string bounds are ignored when determining type compatibility.
+    /// If true, strings with different bounds are considered consistent.
     pub ignore_string_bounds: bool,
+    /// Controls whether member names are ignored when determining type compatibility.
+    /// If true, compatibility is determined solely by member IDs rather than names.
     pub ignore_member_names: bool,
+    /// Controls whether type widening is prohibited.
+    /// If true, prevents the reader from accepting a "wider" type (a type with more members) than expected.
     pub prevent_type_widening: bool,
+    /// Controls whether explicit type validation is required.
+    /// If true, requires the explicit type information (typically via `TypeObject`) to be available to complete the matching process.
     pub force_type_validation: bool,
 }
 
