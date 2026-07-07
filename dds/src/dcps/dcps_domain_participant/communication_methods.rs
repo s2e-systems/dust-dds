@@ -35,13 +35,7 @@ use crate::{
 };
 
 impl DcpsDomainParticipant {
-    pub fn process_received_cache_changes(
-        &mut self,
-        // cache_change: &CacheChange,
-        // subscriber_handle: &InstanceHandle,
-        // data_reader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
-    ) {
+    pub fn process_received_cache_changes(&mut self, runtime: &impl DdsRuntime) {
         let reception_timestamp = runtime.clock().now();
         for subscriber in self
             .domain_participant
@@ -282,7 +276,7 @@ impl DcpsDomainParticipant {
 
                         match data_reader.add_reader_change(
                             cache_change.writer_guid,
-                            dynamic_data,
+                            cache_change.data_value,
                             cache_change.kind,
                             change_instance_handle.into(),
                             cache_change.source_timestamp.map(Into::into),

@@ -20,7 +20,7 @@ use crate::{
         time::Duration,
     },
     runtime::{DdsRuntime, Timer},
-    xtypes::dynamic_type::DynamicData,
+    xtypes::{deserializer::deserialize_top_level_type, dynamic_type::DynamicData},
 };
 
 impl DcpsDomainParticipant {
@@ -57,13 +57,23 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        data_reader.read(
+        let sample_list = data_reader.read(
             max_samples,
             sample_states,
             view_states,
             instance_states,
             specific_instance_handle,
-        )
+        )?;
+
+        Ok(sample_list
+            .into_iter()
+            .map(|(data, info)| {
+                (
+                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    info,
+                )
+            })
+            .collect())
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -93,13 +103,23 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.take(
+        let sample_list = data_reader.take(
             max_samples,
             sample_states,
             view_states,
             instance_states,
             specific_instance_handle,
-        )
+        )?;
+
+        Ok(sample_list
+            .into_iter()
+            .map(|(data, info)| {
+                (
+                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    info,
+                )
+            })
+            .collect())
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -129,13 +149,23 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.read_next_instance(
+        let sample_list = data_reader.read_next_instance(
             max_samples,
             previous_handle,
             sample_states,
             view_states,
             instance_states,
-        )
+        )?;
+
+        Ok(sample_list
+            .into_iter()
+            .map(|(data, info)| {
+                (
+                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    info,
+                )
+            })
+            .collect())
     }
 
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -165,13 +195,23 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        data_reader.take_next_instance(
+        let sample_list = data_reader.take_next_instance(
             max_samples,
             previous_handle,
             sample_states,
             view_states,
             instance_states,
-        )
+        )?;
+
+        Ok(sample_list
+            .into_iter()
+            .map(|(data, info)| {
+                (
+                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    info,
+                )
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip(self))]

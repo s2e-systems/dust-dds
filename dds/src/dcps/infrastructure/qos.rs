@@ -35,7 +35,7 @@ pub enum QosKind<T> {
 /// QoS policies applicable to the [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
-    /// Value of the user data QoS policy.
+    /// Value of the user tarta QoS policy.
     pub user_data: UserDataQosPolicy,
     /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,

@@ -86,6 +86,7 @@ use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 use core::{
@@ -1803,7 +1804,7 @@ impl DataWriterEntity {
     }
 }
 
-type SampleList = Vec<(Option<DynamicData<'static>>, SampleInfo)>;
+type SampleList = Vec<(Arc<[u8]>, SampleInfo)>;
 
 enum AddChangeResult {
     Added(InstanceHandle),
@@ -1882,7 +1883,7 @@ struct ReaderSample {
     writer_guid: [u8; 16],
     instance_handle: InstanceHandle,
     source_timestamp: Option<Time>,
-    data_value: Option<DynamicData<'static>>,
+    data_value: Arc<[u8]>,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
@@ -1890,7 +1891,7 @@ struct ReaderSample {
 
 struct IndexedSample {
     index: usize,
-    sample: (Option<DynamicData<'static>>, SampleInfo),
+    sample: (Arc<[u8]>, SampleInfo),
 }
 
 enum RtpsReaderKind {
@@ -2035,7 +2036,9 @@ impl DataReaderEntity {
                 }
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => (None, false),
+                | ChangeKind::NotAliveDisposedUnregistered => {
+                    (cache_change.data_value.clone(), false)
+                }
             };
 
             let sample_info = SampleInfo {
@@ -2140,7 +2143,7 @@ impl DataReaderEntity {
     fn add_reader_change(
         &mut self,
         writer_guid: Guid,
-        data_value: Option<DynamicData<'static>>,
+        data_value: Arc<[u8]>,
         change_kind: ChangeKind,
         change_instance_handle: [u8; 16],
         change_source_timestamp: Option<Time>,
