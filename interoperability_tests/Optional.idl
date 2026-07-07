@@ -1,0 +1,18 @@
+module interoperability {
+    module test {
+
+        struct Optional {
+            @optional
+            string maybe_string;
+            @optional
+            uint8 maybe_uint8;
+            @optional
+            double maybe_double;
+            @optional
+            uint16 maybe_array[10];
+            @optional
+            sequence<float> maybe_sequence;
+        };
+
+    };
+};
