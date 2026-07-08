@@ -492,17 +492,14 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn lookup_topicdescription(
-        &mut self,
-        topic_name: String,
-    ) -> DdsResult<Option<(String, InstanceHandle)>> {
+    pub fn lookup_topicdescription(&mut self, topic_name: String) -> DdsResult<Option<String>> {
         if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Ok(Some((topic.type_name.clone(), topic.instance_handle)))
+            Ok(Some(topic.type_name.clone()))
         } else {
             Ok(None)
         }

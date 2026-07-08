@@ -325,8 +325,8 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> TopicDescription {
-        self.reader_async.get_topicdescription().into()
+    pub fn get_topicdescription(&self) -> impl TopicDescription {
+        self.reader_async.get_topicdescription()
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.

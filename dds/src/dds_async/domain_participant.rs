@@ -20,7 +20,7 @@ use crate::{
     },
     infrastructure::{
         domain::DomainId,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
@@ -157,7 +157,7 @@ impl DomainParticipantAsync {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<TopicDescriptionAsync>
+    ) -> DdsResult<TopicAsync>
     where
         Foo: TypeSupport,
     {
@@ -175,7 +175,7 @@ impl DomainParticipantAsync {
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
         dynamic_type_representation: DynamicType<'static>,
-    ) -> DdsResult<TopicDescriptionAsync> {
+    ) -> DdsResult<TopicAsync> {
         let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsTopicListener::new);
         self.dcps_sender
@@ -192,17 +192,17 @@ impl DomainParticipantAsync {
             .await;
         let guid = reply_receiver.await??;
 
-        Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
+        Ok(TopicAsync::new(
             guid,
             String::from(type_name),
             String::from(topic_name),
             self.clone(),
-        )))
+        ))
     }
 
     /// Async version of [`delete_topic`](crate::domain::domain_participant::DomainParticipant::delete_topic).
     #[tracing::instrument(skip(self, a_topic))]
-    pub async fn delete_topic(&self, a_topic: &TopicDescriptionAsync) -> DdsResult<()> {
+    pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::Participant(
@@ -222,14 +222,11 @@ impl DomainParticipantAsync {
     pub async fn create_contentfilteredtopic(
         &self,
         name: &str,
-        related_topic: &TopicDescriptionAsync,
+        related_topic: &TopicAsync,
         filter_expression: String,
         expression_parameters: Vec<String>,
-    ) -> DdsResult<TopicDescriptionAsync> {
-        let topic = match related_topic {
-            TopicDescriptionAsync::Topic(t) => t.clone(),
-            TopicDescriptionAsync::ContentFilteredTopic(_) => return Err(DdsError::BadParameter),
-        };
+    ) -> DdsResult<ContentFilteredTopicAsync> {
+        let topic = related_topic.clone();
         let name = name.to_string();
         let related_topic_name = related_topic.get_name();
         let (reply_sender, reply_receiver) = oneshot();
@@ -246,16 +243,14 @@ impl DomainParticipantAsync {
             ))
             .await;
         reply_receiver.await??;
-        Ok(TopicDescriptionAsync::ContentFilteredTopic(
-            ContentFilteredTopicAsync::new(name.clone(), topic),
-        ))
+        Ok(ContentFilteredTopicAsync::new(name.clone(), topic))
     }
 
     /// Async version of [`delete_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::delete_contentfilteredtopic).
     #[tracing::instrument(skip(self, _a_contentfilteredtopic))]
     pub async fn delete_contentfilteredtopic(
         &self,
-        _a_contentfilteredtopic: &TopicDescriptionAsync,
+        _a_contentfilteredtopic: &ContentFilteredTopicAsync,
     ) -> DdsResult<()> {
         todo!()
         // let topic = match a_contentfilteredtopic {
@@ -277,7 +272,7 @@ impl DomainParticipantAsync {
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
     #[tracing::instrument(skip(self))]
-    pub async fn find_topic<Foo>(&self, topic_name: &str) -> DdsResult<TopicDescriptionAsync>
+    pub async fn find_topic<Foo>(&self, topic_name: &str) -> DdsResult<TopicAsync>
     where
         Foo: TypeSupport,
     {
@@ -296,12 +291,12 @@ impl DomainParticipantAsync {
                 }))
                 .await;
             if let Some((guid, type_name)) = reply_receiver.await?? {
-                return Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
+                return Ok(TopicAsync::new(
                     guid,
                     type_name,
                     topic_name,
                     participant_async,
-                )));
+                ));
             }
         }
     }
@@ -311,7 +306,26 @@ impl DomainParticipantAsync {
     pub async fn lookup_topicdescription(
         &self,
         topic_name: &str,
-    ) -> DdsResult<Option<TopicDescriptionAsync>> {
+    ) -> DdsResult<Option<impl TopicDescriptionAsync>> {
+        struct LocalTopicDescription {
+            participant: DomainParticipantAsync,
+            type_name: String,
+            topic_name: String,
+        }
+        impl TopicDescriptionAsync for LocalTopicDescription {
+            fn get_participant(&self) -> DomainParticipantAsync {
+                self.participant.clone()
+            }
+
+            fn get_type_name(&self) -> String {
+                self.type_name.clone()
+            }
+
+            fn get_name(&self) -> String {
+                self.topic_name.clone()
+            }
+        }
+
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
             .send(DcpsMail::Participant(
@@ -322,13 +336,12 @@ impl DomainParticipantAsync {
                 },
             ))
             .await;
-        if let Some((type_name, topic_handle)) = reply_receiver.await?? {
-            Ok(Some(TopicDescriptionAsync::Topic(TopicAsync::new(
-                topic_handle,
+        if let Some(type_name) = reply_receiver.await?? {
+            Ok(Some(LocalTopicDescription {
+                participant: self.clone(),
                 type_name,
-                String::from(topic_name),
-                self.clone(),
-            ))))
+                topic_name: String::from(topic_name),
+            }))
         } else {
             Ok(None)
         }

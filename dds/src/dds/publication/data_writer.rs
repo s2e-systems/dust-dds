@@ -14,7 +14,7 @@ use crate::{
     },
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     std_runtime::executor::{block_on, block_timeout},
-    topic_definition::topic_description::TopicDescription,
+    topic_definition::topic::Topic,
     xtypes::type_support::TypeSupport,
 };
 use alloc::vec::Vec;
@@ -291,7 +291,7 @@ impl<Foo> DataWriter<Foo> {
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicDescription {
+    pub fn get_topic(&self) -> Topic {
         self.writer_async.get_topic().into()
     }
 

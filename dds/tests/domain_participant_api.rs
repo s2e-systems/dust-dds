@@ -20,7 +20,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -516,12 +515,8 @@ fn default_topic_qos() {
             .value,
         &topic_data
     );
-    match &topic {
-        TopicDescription::Topic(topic) => {
-            assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data)
-        }
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    }
+
+    assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data)
 }
 
 #[test]

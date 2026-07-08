@@ -48,7 +48,7 @@ impl SubscriberAsync {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datareader<Foo>(
         &self,
-        a_topic: &TopicDescriptionAsync,
+        a_topic: &dyn TopicDescriptionAsync,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<impl DataReaderListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
@@ -70,7 +70,12 @@ impl SubscriberAsync {
             .await;
         let guid = reply_receiver.await??;
 
-        Ok(DataReaderAsync::new(guid, self.clone(), a_topic.clone()))
+        Ok(DataReaderAsync::new(
+            guid,
+            self.clone(),
+            a_topic.get_name(),
+            a_topic.get_type_name(),
+        ))
     }
 
     /// Async version of [`delete_datareader`](crate::subscription::subscriber::Subscriber::delete_datareader).
@@ -115,7 +120,8 @@ impl SubscriberAsync {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
                     self.clone(),
-                    topic,
+                    topic.get_name(),
+                    topic.get_type_name(),
                 )))
             } else {
                 Ok(None)

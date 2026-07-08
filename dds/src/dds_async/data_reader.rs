@@ -10,8 +10,8 @@ use crate::{
         status_condition::StatusConditionEntity,
     },
     dds_async::{
-        data_reader_listener::DataReaderListener, domain_participant_factory::DcpsSender,
-        topic_description::TopicDescriptionAsync,
+        data_reader_listener::DataReaderListener, domain_participant::DomainParticipantAsync,
+        domain_participant_factory::DcpsSender, topic_description::TopicDescriptionAsync,
     },
     infrastructure::{
         error::DdsResult,
@@ -32,11 +32,32 @@ use crate::{
 use alloc::{vec, vec::Vec};
 use core::marker::PhantomData;
 
+#[derive(Clone)]
+struct DataReaderAsyncTopic {
+    participant: DomainParticipantAsync,
+    topic_name: String,
+    type_name: String,
+}
+
+impl TopicDescriptionAsync for DataReaderAsyncTopic {
+    fn get_participant(&self) -> DomainParticipantAsync {
+        self.participant.clone()
+    }
+
+    fn get_type_name(&self) -> String {
+        self.type_name.clone()
+    }
+
+    fn get_name(&self) -> String {
+        self.topic_name.clone()
+    }
+}
+
 /// Async version of [`DataReader`](crate::subscription::data_reader::DataReader).
 pub struct DataReaderAsync<Foo> {
     handle: InstanceHandle,
     subscriber: SubscriberAsync,
-    topic: TopicDescriptionAsync,
+    topic: DataReaderAsyncTopic,
     phantom: PhantomData<Foo>,
 }
 
@@ -44,12 +65,18 @@ impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
         subscriber: SubscriberAsync,
-        topic: TopicDescriptionAsync,
+        topic_name: String,
+        type_name: String,
     ) -> Self {
+        let participant = subscriber.get_participant();
         Self {
             handle,
             subscriber,
-            topic,
+            topic: DataReaderAsyncTopic {
+                participant,
+                topic_name,
+                type_name,
+            },
             phantom: PhantomData,
         }
     }
@@ -382,7 +409,7 @@ impl<Foo> DataReaderAsync<Foo> {
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
     #[tracing::instrument(skip(self))]
-    pub fn get_topicdescription(&self) -> TopicDescriptionAsync {
+    pub fn get_topicdescription(&self) -> impl TopicDescriptionAsync {
         self.topic.clone()
     }
 

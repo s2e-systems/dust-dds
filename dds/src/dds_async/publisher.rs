@@ -10,7 +10,10 @@ use crate::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
     },
-    dds_async::{domain_participant_factory::DcpsSender, topic_description::TopicDescriptionAsync},
+    dds_async::{
+        domain_participant_factory::DcpsSender, topic::TopicAsync,
+        topic_description::TopicDescriptionAsync,
+    },
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -46,7 +49,7 @@ impl PublisherAsync {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub async fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicDescriptionAsync,
+        a_topic: &TopicAsync,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],

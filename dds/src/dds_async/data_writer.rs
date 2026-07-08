@@ -11,7 +11,7 @@ use crate::{
     },
     dds_async::{
         data_writer_listener::DataWriterListener, domain_participant_factory::DcpsSender,
-        topic_description::TopicDescriptionAsync,
+        topic::TopicAsync,
     },
     infrastructure::{
         error::DdsResult,
@@ -32,7 +32,7 @@ use core::marker::PhantomData;
 pub struct DataWriterAsync<Foo> {
     handle: InstanceHandle,
     publisher: PublisherAsync,
-    topic: TopicDescriptionAsync,
+    topic: TopicAsync,
     phantom: PhantomData<Foo>,
 }
 
@@ -51,7 +51,7 @@ impl<Foo> DataWriterAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
         publisher: PublisherAsync,
-        topic: TopicDescriptionAsync,
+        topic: TopicAsync,
     ) -> Self {
         Self {
             handle,
@@ -311,7 +311,7 @@ impl<Foo> DataWriterAsync<Foo> {
 
     /// Async version of [`get_topic`](crate::publication::data_writer::DataWriter::get_topic).
     #[tracing::instrument(skip(self))]
-    pub fn get_topic(&self) -> TopicDescriptionAsync {
+    pub fn get_topic(&self) -> TopicAsync {
         self.topic.clone()
     }
 

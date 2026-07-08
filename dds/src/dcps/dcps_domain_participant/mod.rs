@@ -29,10 +29,9 @@ use crate::{
         },
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
-        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        domain_participant_factory::DcpsSender, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant::DomainParticipantAsync, domain_participant_factory::DcpsSender,
+        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -685,11 +684,22 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| &x.instance_handle == data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
+        let type_name = match self
+            .domain_participant
+            .topic_description_list
+            .iter()
+            .find(|x| x.topic_name() == data_reader.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+        {
+            TopicDescriptionKind::Topic(topic_entity) => topic_entity.type_name.clone(),
+            TopicDescriptionKind::ContentFilteredTopic(_) => todo!(),
+        };
 
         Ok(DataReaderAsync::new(
             *data_reader_handle,
             self.get_subscriber_async(*subscriber_handle)?,
-            self.get_topic_description_async(data_reader.topic_name.clone())?,
+            data_reader.topic_name.clone(),
+            type_name,
         ))
     }
 
@@ -719,47 +729,24 @@ impl DcpsDomainParticipant {
         Ok(DataWriterAsync::new(
             *data_writer_handle,
             self.get_publisher_async(*publisher_handle)?,
-            self.get_topic_description_async(data_writer.topic_name.clone())?,
+            self.get_topic_async(data_writer.topic_name.clone())?,
         ))
     }
 
-    fn get_topic_description_async(&self, topic_name: String) -> DdsResult<TopicDescriptionAsync> {
+    fn get_topic_async(&self, topic_name: String) -> DdsResult<TopicAsync> {
         match self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Some(TopicDescriptionKind::Topic(topic)) => {
-                Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-                    topic.instance_handle,
-                    topic.type_name.clone(),
-                    topic_name,
-                    self.get_participant_async(),
-                )))
-            }
-            Some(TopicDescriptionKind::ContentFilteredTopic(t)) => {
-                if let Some(TopicDescriptionKind::Topic(related_topic)) = self
-                    .domain_participant
-                    .topic_description_list
-                    .iter()
-                    .find(|x| x.topic_name() == t.related_topic_name)
-                {
-                    let name = t.topic_name.clone();
-                    let topic = TopicAsync::new(
-                        related_topic.instance_handle,
-                        related_topic.type_name.clone(),
-                        t.related_topic_name.clone(),
-                        self.get_participant_async(),
-                    );
-                    Ok(TopicDescriptionAsync::ContentFilteredTopic(
-                        ContentFilteredTopicAsync::new(name, topic),
-                    ))
-                } else {
-                    Err(DdsError::AlreadyDeleted)
-                }
-            }
-            None => Err(DdsError::AlreadyDeleted),
+            Some(TopicDescriptionKind::Topic(topic)) => Ok(TopicAsync::new(
+                topic.instance_handle,
+                topic.type_name.clone(),
+                topic_name,
+                self.get_participant_async(),
+            )),
+            _ => Err(DdsError::AlreadyDeleted),
         }
     }
 

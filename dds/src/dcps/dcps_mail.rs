@@ -150,7 +150,7 @@ pub enum ParticipantServiceMail {
     LookupTopicdescription {
         participant_handle: InstanceHandle,
         topic_name: String,
-        reply_sender: OneshotSender<DdsResult<Option<(String, InstanceHandle)>>>,
+        reply_sender: OneshotSender<DdsResult<Option<String>>>,
     },
     IgnoreParticipant {
         participant_handle: InstanceHandle,
