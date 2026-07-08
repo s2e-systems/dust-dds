@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    runtime::Spawner,
+    runtime::{Spawner, TaskHandle},
 };
 
 pub fn block_timeout<T>(
@@ -83,24 +83,34 @@ pub struct Task {
     join_waker: Mutex<Option<Waker>>,
 }
 
-pub struct TaskHandle {
+pub struct ExecutorTaskHandle {
     task: Arc<Task>,
 }
 
-impl Future for TaskHandle {
-    type Output = ();
+impl TaskHandle for ExecutorTaskHandle {
+    fn join(&self) {
+        struct JoinFuture<'a> {
+            task: &'a Arc<Task>,
+        }
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.task.is_finished() {
-            Poll::Ready(())
-        } else {
-            *self.task.join_waker.lock().unwrap() = Some(cx.waker().clone());
-            if self.task.is_finished() {
-                Poll::Ready(())
-            } else {
-                Poll::Pending
+        impl<'a> Future for JoinFuture<'a> {
+            type Output = ();
+
+            fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+                if self.task.is_finished() {
+                    Poll::Ready(())
+                } else {
+                    *self.task.join_waker.lock().unwrap() = Some(cx.waker().clone());
+                    if self.task.is_finished() {
+                        Poll::Ready(())
+                    } else {
+                        Poll::Pending
+                    }
+                }
             }
         }
+
+        block_on(JoinFuture { task: &self.task });
     }
 }
 
@@ -130,7 +140,7 @@ pub struct ExecutorHandle {
 }
 
 impl ExecutorHandle {
-    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
+    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> ExecutorTaskHandle {
         let future = Box::pin(f);
         let task = Arc::new(Task {
             future: Mutex::new(future),
@@ -143,12 +153,12 @@ impl ExecutorHandle {
             .send(task.clone())
             .expect("Should never fail to send");
         self.thread_handle.unpark();
-        TaskHandle { task }
+        ExecutorTaskHandle { task }
     }
 }
 
 impl Spawner for ExecutorHandle {
-    type TaskHandle = TaskHandle;
+    type TaskHandle = ExecutorTaskHandle;
 
     fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> Self::TaskHandle {
         self.spawn(f)

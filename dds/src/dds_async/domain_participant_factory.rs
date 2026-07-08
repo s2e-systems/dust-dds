@@ -21,7 +21,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::{DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{DdsRuntime, Either, Spawner, TaskHandle, Timer, select_future},
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
@@ -64,7 +64,7 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     host_id: [u8; 4],
     transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
     configuration: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, DustDdsConfiguration>,
-    worker_task: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, Option<core::pin::Pin<alloc::boxed::Box<dyn core::future::Future<Output = ()> + Send + 'static>>>>,
+    worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: alloc::sync::Arc<core::sync::atomic::AtomicBool>,
 }
 
@@ -270,6 +270,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let run_loop = alloc::sync::Arc::new(core::sync::atomic::AtomicBool::new(true));
         let run_loop_clone = run_loop.clone();
         let worker_task = spawner_handle.spawn(async move {
+            let span = tracing::trace_span!("dds_actor_loop");
+            let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let poke_time = Duration::new(0, 50_000_000);
                 let next_task_time = domain_participant_factory
@@ -300,7 +302,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             entity_counter: core::sync::atomic::AtomicU32::new(0),
             transport: Mutex::new(transport),
             configuration: Mutex::new(configuration),
-            worker_task: Mutex::new(Some(alloc::boxed::Box::pin(worker_task))),
+            worker_task: Box::new(worker_task),
             run_loop,
         }
     }
@@ -326,14 +328,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             instance_id[3], // Instance ID
         ]
     }
-}
 
-impl<T: TransportParticipantFactory> Drop for DomainParticipantFactoryAsync<T> {
-    fn drop(&mut self) {
-        self.run_loop.store(false, core::sync::atomic::Ordering::Relaxed);
-        if let Some(worker_task) = self.worker_task.get_mut().take() {
-            #[cfg(feature = "std")]
-            crate::std_runtime::executor::block_on(worker_task);
-        }
+    #[doc(hidden)]
+    pub fn shutdown(&self) {
+        self.run_loop
+            .store(false, core::sync::atomic::Ordering::Relaxed);
+        self.worker_task.join();
     }
 }

@@ -16,10 +16,16 @@ pub trait Timer: Clone + Send + Sync + 'static {
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send;
 }
 
+/// Represents a handle to a spawned task.
+pub trait TaskHandle: Send + Sync + 'static {
+    /// Join the task, waiting for it to finish.
+    fn join(&self);
+}
+
 /// Provides task spawning capabilities for asynchronous execution.
 pub trait Spawner: Clone + Send + Sync + 'static {
     /// The handle returned when spawning a task, allowing it to be joined.
-    type TaskHandle: Future<Output = ()> + Send;
+    type TaskHandle: TaskHandle;
 
     /// Spawns a new asynchronous task.
     ///
