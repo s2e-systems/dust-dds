@@ -80,6 +80,28 @@ pub struct Task {
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
     finished: AtomicBool,
+    join_waker: Mutex<Option<Waker>>,
+}
+
+pub struct TaskHandle {
+    task: Arc<Task>,
+}
+
+impl Future for TaskHandle {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task.is_finished() {
+            Poll::Ready(())
+        } else {
+            *self.task.join_waker.lock().unwrap() = Some(cx.waker().clone());
+            if self.task.is_finished() {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
+            }
+        }
+    }
 }
 
 impl Task {
@@ -108,24 +130,28 @@ pub struct ExecutorHandle {
 }
 
 impl ExecutorHandle {
-    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) {
+    pub fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
         let future = Box::pin(f);
         let task = Arc::new(Task {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
             thread_handle: self.thread_handle.clone(),
             finished: AtomicBool::new(false),
+            join_waker: Mutex::new(None),
         });
         self.task_sender
             .send(task.clone())
             .expect("Should never fail to send");
         self.thread_handle.unpark();
+        TaskHandle { task }
     }
 }
 
 impl Spawner for ExecutorHandle {
-    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) {
-        self.spawn(f);
+    type TaskHandle = TaskHandle;
+
+    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> Self::TaskHandle {
+        self.spawn(f)
     }
 }
 
@@ -159,7 +185,10 @@ impl Executor {
                                     .as_mut()
                                     .poll(&mut cx);
                                 if matches!(poll_result, Poll::Ready(_)) {
-                                    task.finished.store(true, atomic::Ordering::Relaxed);
+                                    task.finished.store(true, atomic::Ordering::Release);
+                                    if let Some(waker) = task.join_waker.lock().unwrap().take() {
+                                        waker.wake();
+                                    }
                                 }
                             }
                         }

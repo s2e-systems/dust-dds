@@ -18,11 +18,14 @@ pub trait Timer: Clone + Send + Sync + 'static {
 
 /// Provides task spawning capabilities for asynchronous execution.
 pub trait Spawner: Clone + Send + Sync + 'static {
+    /// The handle returned when spawning a task, allowing it to be joined.
+    type TaskHandle: Future<Output = ()> + Send;
+
     /// Spawns a new asynchronous task.
     ///
     /// # Arguments
     /// * `f` - Future to be spawned as a new task
-    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static);
+    fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> Self::TaskHandle;
 }
 
 /// Main runtime trait for the DDS system, providing access to various async primitives
