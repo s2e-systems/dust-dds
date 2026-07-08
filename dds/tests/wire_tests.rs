@@ -99,7 +99,7 @@ fn detect_stale_participant() {
             88, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
             0x02, 0x00, 0x00, 0x00, //
             0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            1, 0x00, 0x00, 0x00, // Duration: seconds
+            2, 0x00, 0x00, 0x00, // Duration: seconds
             0, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ]
@@ -122,6 +122,8 @@ fn detect_stale_participant() {
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(spdp_rtps_message.buffer().to_vec()),
     );
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     assert_eq!(participant.get_discovered_participants().unwrap().len(), 1);
 

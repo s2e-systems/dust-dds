@@ -29,7 +29,6 @@ use crate::{
             RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -42,6 +41,7 @@ use crate::{
             RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
         },
+        sample_info::{ANY_INSTANCE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -49,13 +49,9 @@ use crate::{
     runtime::{Clock, DdsRuntime},
     transport::{
         self,
-        types::{
-            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix,
-            ReliabilityKind,
-        },
+        types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
     },
     xtypes::{
-        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
         type_object::TypeIdentifier,
@@ -1392,464 +1388,322 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn add_builtin_participants_detector_cache_change(
+    #[tracing::instrument(skip(self, runtime))]
+    pub fn process_discovered_participants_detector_cache_change(
         &mut self,
-        cache_change: &CacheChange,
         runtime: &impl DdsRuntime,
     ) {
-        match cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(discovered_participant_data) =
-                    SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
-                {
-                    self.add_discovered_participant(&discovered_participant_data, runtime);
-
-                    let reception_timestamp = runtime.clock().now();
-                    if let Some(reader) = self
-                        .domain_participant
-                        .builtin_subscriber
-                        .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
-                    {
-                        let dynamic_data = discovered_participant_data
-                            .dds_participant_data
-                            .create_dynamic_sample();
-                        let change_instance_handle = match cache_change.instance_handle {
-                            Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
-                                .expect("Should not fail")
-                                .into(),
-                        };
-
-                        reader
-                            .add_reader_change(
-                                cache_change.writer_guid,
-                                Some(dynamic_data),
-                                cache_change.kind,
-                                change_instance_handle,
-                                cache_change.source_timestamp.map(Into::into),
-                                reception_timestamp,
-                            )
-                            .ok();
-                    }
-                }
-            }
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                let discovered_participant_handle = if let Some(h) = cache_change.instance_handle {
-                    InstanceHandle::new(h)
-                } else if let Ok(mut dynamic_data) = deserialize_top_level_type(
-                    BuiltInKeyHolder::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    InstanceHandle::new(
-                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
-                    )
-                } else {
-                    return;
-                };
-
-                self.remove_discovered_participant(&discovered_participant_handle);
-
-                let reception_timestamp = runtime.clock().now();
-                if let Some(reader) = self
-                    .domain_participant
-                    .builtin_subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_PARTICIPANT)
-                {
-                    reader
-                        .add_reader_change(
-                            cache_change.writer_guid,
-                            None,
-                            cache_change.kind,
-                            discovered_participant_handle.into(),
-                            cache_change.source_timestamp.map(Into::into),
-                            reception_timestamp,
-                        )
-                        .ok();
-                }
-            }
-            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (), // Do nothing,
-        }
-    }
-
-    pub fn add_builtin_publications_detector_cache_change(
-        &mut self,
-        cache_change: &CacheChange,
-        runtime: &impl DdsRuntime,
-    ) {
-        match cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(discovered_writer_data) =
-                    DiscoveredWriterData::from_bytes(cache_change.data_value.as_ref())
-                {
-                    let publication_builtin_topic_data =
-                        &discovered_writer_data.dds_publication_data;
-                    if self
-                        .domain_participant
-                        .find_topic(publication_builtin_topic_data.topic_name())
-                        .is_none()
-                    {
-                        let writer_topic = TopicBuiltinTopicData {
-                            key: BuiltInTopicKey::default(),
-                            name: publication_builtin_topic_data.topic_name.clone(),
-                            type_name: publication_builtin_topic_data.type_name.clone(),
-                            type_information: None,
-                            durability: publication_builtin_topic_data.durability().clone(),
-                            deadline: publication_builtin_topic_data.deadline().clone(),
-                            latency_budget: publication_builtin_topic_data.latency_budget().clone(),
-                            liveliness: publication_builtin_topic_data.liveliness().clone(),
-                            reliability: publication_builtin_topic_data.reliability().clone(),
-                            transport_priority: TransportPriorityQosPolicy::default(),
-                            lifespan: publication_builtin_topic_data.lifespan().clone(),
-                            destination_order: publication_builtin_topic_data
-                                .destination_order()
-                                .clone(),
-                            history: HistoryQosPolicy::default(),
-                            resource_limits: ResourceLimitsQosPolicy::default(),
-                            ownership: publication_builtin_topic_data.ownership().clone(),
-                            topic_data: publication_builtin_topic_data.topic_data().clone(),
-                            representation: publication_builtin_topic_data.representation().clone(),
-                        };
-                        self.domain_participant.add_discovered_topic(writer_topic);
-                    }
-
-                    self.domain_participant
-                        .add_discovered_writer(discovered_writer_data.clone());
-                    let mut handle_list = Vec::new();
-                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                        for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list
-                                .push((subscriber.instance_handle, data_reader.instance_handle));
+        if let Some(dcps_reader) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_PARTICIPANT)
+        {
+            if let Ok(samples) = dcps_reader.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample, sample_info) in samples {
+                    let span = tracing::trace_span!("process_discovered_participant_sample");
+                    let _enter_ = span.enter();
+                    if sample_info.valid_data {
+                        if let Ok(discovered_participant_data) =
+                            SpdpDiscoveredParticipantData::from_bytes(sample.as_ref())
+                        {
+                            self.add_discovered_participant(&discovered_participant_data, runtime);
                         }
-                    }
-                    for (subscriber_handle, data_reader_handle) in handle_list {
-                        self.add_discovered_writer(
-                            &discovered_writer_data,
-                            &subscriber_handle,
-                            &data_reader_handle,
-                        );
-                    }
-
-                    let reception_timestamp = runtime.clock().now();
-                    if let Some(reader) = self
-                        .domain_participant
-                        .builtin_subscriber
-                        .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_PUBLICATION)
-                    {
-                        let dynamic_data = discovered_writer_data
-                            .dds_publication_data
-                            .create_dynamic_sample();
-                        let change_instance_handle = match cache_change.instance_handle {
-                            Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
-                                .expect("Should not fail")
-                                .into(),
-                        };
-
-                        reader
-                            .add_reader_change(
-                                cache_change.writer_guid,
-                                Some(dynamic_data),
-                                cache_change.kind,
-                                change_instance_handle,
-                                cache_change.source_timestamp.map(Into::into),
-                                reception_timestamp,
-                            )
-                            .ok();
+                    } else {
+                        self.remove_discovered_participant(&sample_info.instance_handle);
                     }
                 }
+            } else {
+                tracing::warn!("Failed to read samples from SPDP discovered participant detector");
             }
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                let discovered_writer_handle = if let Some(h) = cache_change.instance_handle {
-                    InstanceHandle::new(h)
-                } else if let Ok(mut dynamic_data) = deserialize_top_level_type(
-                    BuiltInKeyHolder::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    InstanceHandle::new(
-                        BuiltInKeyHolder::create_sample(&mut dynamic_data).key.value,
-                    )
-                } else {
-                    return;
-                };
-
-                self.domain_participant
-                    .remove_discovered_writer(&discovered_writer_handle);
-
-                let mut handle_list = Vec::new();
-                for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                    for data_reader in subscriber.data_reader_list.iter() {
-                        handle_list.push((subscriber.instance_handle, data_reader.instance_handle));
-                    }
-                }
-                for (subscriber_handle, data_reader_handle) in handle_list {
-                    self.remove_discovered_writer(
-                        discovered_writer_handle,
-                        subscriber_handle,
-                        data_reader_handle,
-                    );
-                }
-                let reception_timestamp = runtime.clock().now();
-                if let Some(reader) = self
-                    .domain_participant
-                    .builtin_subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_PUBLICATION)
-                {
-                    reader
-                        .add_reader_change(
-                            cache_change.writer_guid,
-                            None,
-                            cache_change.kind,
-                            discovered_writer_handle.into(),
-                            cache_change.source_timestamp.map(Into::into),
-                            reception_timestamp,
-                        )
-                        .ok();
-                }
-            }
-            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
         }
     }
 
-    pub fn add_builtin_subscriptions_detector_cache_change(
-        &mut self,
-        cache_change: &CacheChange,
-        runtime: &impl DdsRuntime,
-    ) {
-        match cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(discovered_reader_data) =
-                    DiscoveredReaderData::from_bytes(cache_change.data_value.as_ref())
-                {
-                    if self
-                        .domain_participant
-                        .find_topic(discovered_reader_data.dds_subscription_data.topic_name())
-                        .is_none()
-                    {
-                        let reader_topic = TopicBuiltinTopicData {
-                            key: BuiltInTopicKey::default(),
-                            name: discovered_reader_data
-                                .dds_subscription_data
-                                .topic_name
-                                .clone(),
-                            type_name: discovered_reader_data
-                                .dds_subscription_data
-                                .type_name
-                                .clone(),
-                            type_information: discovered_reader_data
-                                .dds_subscription_data
-                                .type_information
-                                .clone(),
-                            topic_data: discovered_reader_data
-                                .dds_subscription_data
-                                .topic_data()
-                                .clone(),
-                            durability: discovered_reader_data
-                                .dds_subscription_data
-                                .durability()
-                                .clone(),
-                            deadline: discovered_reader_data
-                                .dds_subscription_data
-                                .deadline()
-                                .clone(),
-                            latency_budget: discovered_reader_data
-                                .dds_subscription_data
-                                .latency_budget()
-                                .clone(),
-                            liveliness: discovered_reader_data
-                                .dds_subscription_data
-                                .liveliness()
-                                .clone(),
-                            reliability: discovered_reader_data
-                                .dds_subscription_data
-                                .reliability()
-                                .clone(),
-                            destination_order: discovered_reader_data
-                                .dds_subscription_data
-                                .destination_order()
-                                .clone(),
-                            history: HistoryQosPolicy::default(),
-                            resource_limits: ResourceLimitsQosPolicy::default(),
-                            transport_priority: TransportPriorityQosPolicy::default(),
-                            lifespan: LifespanQosPolicy::default(),
-                            ownership: discovered_reader_data
-                                .dds_subscription_data
-                                .ownership()
-                                .clone(),
-                            representation: discovered_reader_data
-                                .dds_subscription_data
-                                .representation()
-                                .clone(),
-                        };
-                        self.domain_participant.add_discovered_topic(reader_topic);
-                    }
-
-                    self.domain_participant
-                        .add_discovered_reader(discovered_reader_data.clone());
-                    let mut handle_list = Vec::new();
-                    for publisher in &self.domain_participant.user_defined_publisher_list {
-                        for data_writer in publisher.data_writer_list.iter() {
-                            handle_list
-                                .push((publisher.instance_handle, data_writer.instance_handle));
-                        }
-                    }
-                    for (publisher_handle, data_writer_handle) in handle_list {
-                        self.add_discovered_reader(
-                            &discovered_reader_data,
-                            &publisher_handle,
-                            &data_writer_handle,
-                        );
-                    }
-
-                    let reception_timestamp = runtime.clock().now();
-                    if let Some(reader) = self
-                        .domain_participant
-                        .builtin_subscriber
-                        .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
-                    {
-                        let dynamic_data = discovered_reader_data
-                            .dds_subscription_data
-                            .create_dynamic_sample();
-                        let change_instance_handle = match cache_change.instance_handle {
-                            Some(i) => i,
-                            None => get_instance_handle_from_dynamic_data(&dynamic_data)
-                                .expect("Should not fail")
-                                .into(),
-                        };
-
-                        reader
-                            .add_reader_change(
-                                cache_change.writer_guid,
-                                Some(dynamic_data),
-                                cache_change.kind,
-                                change_instance_handle,
-                                cache_change.source_timestamp.map(Into::into),
-                                reception_timestamp,
-                            )
-                            .ok();
-                    }
-                }
-            }
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveDisposedUnregistered => {
-                let discovered_reader_handle = if let Some(h) = cache_change.instance_handle {
-                    InstanceHandle::new(h)
-                } else if let Ok(mut dynamic_data) = deserialize_top_level_type(
-                    InstanceHandle::TYPE,
-                    cache_change.data_value.as_ref(),
-                ) {
-                    InstanceHandle::create_sample(&mut dynamic_data)
-                } else {
-                    return;
-                };
-
-                self.domain_participant
-                    .remove_discovered_reader(&discovered_reader_handle);
-
-                let mut handle_list = Vec::new();
-                for publisher in &self.domain_participant.user_defined_publisher_list {
-                    for data_writer in publisher.data_writer_list.iter() {
-                        handle_list.push((publisher.instance_handle, data_writer.instance_handle));
-                    }
-                }
-
-                for (publisher_handle, data_writer_handle) in handle_list {
-                    self.remove_discovered_reader(
-                        discovered_reader_handle,
-                        publisher_handle,
-                        data_writer_handle,
-                    );
-                }
-
-                let reception_timestamp = runtime.clock().now();
-                if let Some(reader) = self
-                    .domain_participant
-                    .builtin_subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|dr| dr.topic_name == DCPS_SUBSCRIPTION)
-                {
-                    reader
-                        .add_reader_change(
-                            cache_change.writer_guid,
-                            None,
-                            cache_change.kind,
-                            discovered_reader_handle.into(),
-                            cache_change.source_timestamp.map(Into::into),
-                            reception_timestamp,
-                        )
-                        .ok();
-                }
-            }
-            ChangeKind::AliveFiltered | ChangeKind::NotAliveUnregistered => (),
-        }
-    }
-
-    pub fn add_builtin_topics_detector_cache_change(
-        &mut self,
-        cache_change: &CacheChange,
-        runtime: &impl DdsRuntime,
-    ) {
-        match cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(discovered_topic_data) =
-                    DiscoveredTopicData::from_bytes(cache_change.data_value.as_ref())
-                {
-                    let topic_builtin_topic_data = discovered_topic_data.topic_builtin_topic_data;
-                    self.domain_participant
-                        .add_discovered_topic(topic_builtin_topic_data.clone());
-                    for topic in self.domain_participant.topic_description_list.iter_mut() {
-                        if let TopicDescriptionKind::Topic(topic) = topic {
-                            if topic.topic_name == topic_builtin_topic_data.name()
-                                && topic.type_name == topic_builtin_topic_data.get_type_name()
-                                && !is_discovered_topic_consistent(
-                                    &topic.qos,
-                                    &topic_builtin_topic_data,
-                                )
+    pub fn process_builtin_publications_detector_cache_change(&mut self) {
+        if let Some(sedp_publication) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_PUBLICATION)
+        {
+            if let Ok(samples) = sedp_publication.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample, sample_info) in samples {
+                    if sample_info.valid_data {
+                        if let Ok(discovered_writer_data) =
+                            DiscoveredWriterData::from_bytes(sample.as_ref())
+                        {
+                            let publication_builtin_topic_data =
+                                &discovered_writer_data.dds_publication_data;
+                            if self
+                                .domain_participant
+                                .find_topic(publication_builtin_topic_data.topic_name())
+                                .is_none()
                             {
-                                topic.inconsistent_topic_status.total_count += 1;
-                                topic.inconsistent_topic_status.total_count_change += 1;
-                                topic
-                                    .status_condition
-                                    .add_communication_state(StatusKind::InconsistentTopic);
+                                let writer_topic = TopicBuiltinTopicData {
+                                    key: BuiltInTopicKey::default(),
+                                    name: publication_builtin_topic_data.topic_name.clone(),
+                                    type_name: publication_builtin_topic_data.type_name.clone(),
+                                    type_information: None,
+                                    durability: publication_builtin_topic_data.durability().clone(),
+                                    deadline: publication_builtin_topic_data.deadline().clone(),
+                                    latency_budget: publication_builtin_topic_data
+                                        .latency_budget()
+                                        .clone(),
+                                    liveliness: publication_builtin_topic_data.liveliness().clone(),
+                                    reliability: publication_builtin_topic_data
+                                        .reliability()
+                                        .clone(),
+                                    transport_priority: TransportPriorityQosPolicy::default(),
+                                    lifespan: publication_builtin_topic_data.lifespan().clone(),
+                                    destination_order: publication_builtin_topic_data
+                                        .destination_order()
+                                        .clone(),
+                                    history: HistoryQosPolicy::default(),
+                                    resource_limits: ResourceLimitsQosPolicy::default(),
+                                    ownership: publication_builtin_topic_data.ownership().clone(),
+                                    topic_data: publication_builtin_topic_data.topic_data().clone(),
+                                    representation: publication_builtin_topic_data
+                                        .representation()
+                                        .clone(),
+                                };
+                                self.domain_participant.add_discovered_topic(writer_topic);
+                            }
+
+                            self.domain_participant
+                                .add_discovered_writer(discovered_writer_data.clone());
+                            let mut handle_list = Vec::new();
+                            for subscriber in &self.domain_participant.user_defined_subscriber_list
+                            {
+                                for data_reader in subscriber.data_reader_list.iter() {
+                                    handle_list.push((
+                                        subscriber.instance_handle,
+                                        data_reader.instance_handle,
+                                    ));
+                                }
+                            }
+                            for (subscriber_handle, data_reader_handle) in handle_list {
+                                self.add_discovered_writer(
+                                    &discovered_writer_data,
+                                    &subscriber_handle,
+                                    &data_reader_handle,
+                                );
+                            }
+                        }
+                    } else {
+                        self.domain_participant
+                            .remove_discovered_writer(&sample_info.instance_handle);
+
+                        let mut handle_list = Vec::new();
+                        for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                            for data_reader in subscriber.data_reader_list.iter() {
+                                handle_list.push((
+                                    subscriber.instance_handle,
+                                    data_reader.instance_handle,
+                                ));
+                            }
+                        }
+                        for (subscriber_handle, data_reader_handle) in handle_list {
+                            self.remove_discovered_writer(
+                                sample_info.instance_handle,
+                                subscriber_handle,
+                                data_reader_handle,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn process_builtin_subscriptions_detector_cache_change(&mut self) {
+        if let Some(sedp_subscriptions) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
+        {
+            if let Ok(samples) = sedp_subscriptions.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample, sample_info) in samples {
+                    if sample_info.valid_data {
+                        if let Ok(discovered_reader_data) =
+                            DiscoveredReaderData::from_bytes(sample.as_ref())
+                        {
+                            if self
+                                .domain_participant
+                                .find_topic(
+                                    discovered_reader_data.dds_subscription_data.topic_name(),
+                                )
+                                .is_none()
+                            {
+                                let reader_topic = TopicBuiltinTopicData {
+                                    key: BuiltInTopicKey::default(),
+                                    name: discovered_reader_data
+                                        .dds_subscription_data
+                                        .topic_name
+                                        .clone(),
+                                    type_name: discovered_reader_data
+                                        .dds_subscription_data
+                                        .type_name
+                                        .clone(),
+                                    type_information: discovered_reader_data
+                                        .dds_subscription_data
+                                        .type_information
+                                        .clone(),
+                                    topic_data: discovered_reader_data
+                                        .dds_subscription_data
+                                        .topic_data()
+                                        .clone(),
+                                    durability: discovered_reader_data
+                                        .dds_subscription_data
+                                        .durability()
+                                        .clone(),
+                                    deadline: discovered_reader_data
+                                        .dds_subscription_data
+                                        .deadline()
+                                        .clone(),
+                                    latency_budget: discovered_reader_data
+                                        .dds_subscription_data
+                                        .latency_budget()
+                                        .clone(),
+                                    liveliness: discovered_reader_data
+                                        .dds_subscription_data
+                                        .liveliness()
+                                        .clone(),
+                                    reliability: discovered_reader_data
+                                        .dds_subscription_data
+                                        .reliability()
+                                        .clone(),
+                                    destination_order: discovered_reader_data
+                                        .dds_subscription_data
+                                        .destination_order()
+                                        .clone(),
+                                    history: HistoryQosPolicy::default(),
+                                    resource_limits: ResourceLimitsQosPolicy::default(),
+                                    transport_priority: TransportPriorityQosPolicy::default(),
+                                    lifespan: LifespanQosPolicy::default(),
+                                    ownership: discovered_reader_data
+                                        .dds_subscription_data
+                                        .ownership()
+                                        .clone(),
+                                    representation: discovered_reader_data
+                                        .dds_subscription_data
+                                        .representation()
+                                        .clone(),
+                                };
+                                self.domain_participant.add_discovered_topic(reader_topic);
+                            }
+
+                            self.domain_participant
+                                .add_discovered_reader(discovered_reader_data.clone());
+                            let mut handle_list = Vec::new();
+                            for publisher in &self.domain_participant.user_defined_publisher_list {
+                                for data_writer in publisher.data_writer_list.iter() {
+                                    handle_list.push((
+                                        publisher.instance_handle,
+                                        data_writer.instance_handle,
+                                    ));
+                                }
+                            }
+                            for (publisher_handle, data_writer_handle) in handle_list {
+                                self.add_discovered_reader(
+                                    &discovered_reader_data,
+                                    &publisher_handle,
+                                    &data_writer_handle,
+                                );
+                            }
+                        }
+                    } else {
+                        self.domain_participant
+                            .remove_discovered_reader(&sample_info.instance_handle);
+
+                        let mut handle_list = Vec::new();
+                        for publisher in &self.domain_participant.user_defined_publisher_list {
+                            for data_writer in publisher.data_writer_list.iter() {
+                                handle_list
+                                    .push((publisher.instance_handle, data_writer.instance_handle));
+                            }
+                        }
+
+                        for (publisher_handle, data_writer_handle) in handle_list {
+                            self.remove_discovered_reader(
+                                sample_info.instance_handle,
+                                publisher_handle,
+                                data_writer_handle,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn process_builtin_topics_detector_cache_change(&mut self) {
+        if let Some(sedp_topics) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| x.topic_name == DCPS_TOPIC)
+        {
+            if let Ok(samples) = sedp_topics.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample, sample_info) in samples {
+                    if sample_info.valid_data {
+                        if let Ok(discovered_topic_data) =
+                            DiscoveredTopicData::from_bytes(sample.as_ref())
+                        {
+                            let topic_builtin_topic_data =
+                                discovered_topic_data.topic_builtin_topic_data;
+                            self.domain_participant
+                                .add_discovered_topic(topic_builtin_topic_data.clone());
+                            for topic in self.domain_participant.topic_description_list.iter_mut() {
+                                if let TopicDescriptionKind::Topic(topic) = topic {
+                                    if topic.topic_name == topic_builtin_topic_data.name()
+                                        && topic.type_name
+                                            == topic_builtin_topic_data.get_type_name()
+                                        && !is_discovered_topic_consistent(
+                                            &topic.qos,
+                                            &topic_builtin_topic_data,
+                                        )
+                                    {
+                                        topic.inconsistent_topic_status.total_count += 1;
+                                        topic.inconsistent_topic_status.total_count_change += 1;
+                                        topic
+                                            .status_condition
+                                            .add_communication_state(StatusKind::InconsistentTopic);
+                                    }
+                                }
                             }
                         }
                     }
-                    let reception_timestamp = runtime.clock().now();
-                    if let Some(reader) = self
-                        .domain_participant
-                        .builtin_subscriber
-                        .data_reader_list
-                        .iter_mut()
-                        .find(|dr| dr.topic_name == DCPS_TOPIC)
-                    {
-                        let change_instance_handle = topic_builtin_topic_data.key.value;
-                        let dynamic_data = topic_builtin_topic_data.create_dynamic_sample();
-                        reader
-                            .add_reader_change(
-                                cache_change.writer_guid,
-                                Some(dynamic_data),
-                                cache_change.kind,
-                                change_instance_handle,
-                                cache_change.source_timestamp.map(Into::into),
-                                reception_timestamp,
-                            )
-                            .ok();
-                    }
                 }
             }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::AliveFiltered
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (),
         }
     }
 
