@@ -937,19 +937,24 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         self.deserialize_nopt_fmember(disc_member, dynamic_data)?;
 
         // The discriminator value represents the id of a member
-        let disc_id = match dynamic_data.get_value(disc_member.get_id())? {
-            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::Int32(x) => *x as u32,
-            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x,
+        let disc_id = match dynamic_data.get_value(0)? {
+            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
+            crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
+            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
             _ => return Err(XTypesError::InvalidType),
         };
 
-        // Deserialize the member based on its discriminator
-        let member = dynamic_type.get_member(disc_id)?;
-        self.deserialize_fmember(member, dynamic_data)
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            // Deserialize the member based on its discriminator
+            if member.descriptor.label.contains(&disc_id) {
+                return self.deserialize_fmember(member, dynamic_data);
+            }
+        }
+        Err(XTypesError::InvalidData)
     }
 }
 

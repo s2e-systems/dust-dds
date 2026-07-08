@@ -14,8 +14,7 @@ pub use dds::*;
 pub mod dds_async;
 
 /// Contains the DCPS logic which provides the behavior to the DDS API
-#[doc(hidden)]
-pub mod dcps;
+mod dcps;
 
 pub use dcps::{builtin_topics, infrastructure};
 

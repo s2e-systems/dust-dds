@@ -1,5 +1,14 @@
 use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
 
+struct UnknownAttributeError;
+
+impl std::fmt::Display for UnknownAttributeError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        "unknown attribute".fmt(f)
+    }
+}
+
 pub struct StructureMemberAttributes {
     pub id: Option<Expr>,
     pub key: bool,
@@ -18,6 +27,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut non_serialized = false;
     let mut external = false;
     let mut hashid = false;
+
     if let Some(xtypes_attribute) = field
         .attrs
         .iter()
@@ -26,22 +36,31 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("id") {
                 id = Some(meta.value()?.parse()?);
+                Ok(())
             } else if meta.path.is_ident("key") {
                 key = true;
+                Ok(())
             } else if meta.path.is_ident("default_value") {
                 default_value = Some(meta.value()?.parse()?);
+                Ok(())
             } else if meta.path.is_ident("optional") {
                 optional = true;
+                Ok(())
             } else if meta.path.is_ident("non_serialized") {
                 non_serialized = true;
+                Ok(())
             } else if meta.path.is_ident("external") {
                 external = true;
+                Ok(())
             } else if meta.path.is_ident("hashid") {
                 hashid = true;
+                Ok(())
+            } else {
+                Err(meta.error(UnknownAttributeError))
             }
-            Ok(())
         })?;
     }
+
     Ok(StructureMemberAttributes {
         id,
         key,
@@ -72,6 +91,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
     let mut base_type = None;
+
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -99,20 +119,17 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
                         extensibility = Extensibility::Mutable;
                         Ok(())
                     }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
-                    )),
+                    _ => Err(meta.error(r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#))
                 }
             } else if meta.path.is_ident("nested") {
                 is_nested = true;
                 Ok(())
-            }
-            else {
-                Ok(())
+            } else {
+                Err(meta.error(UnknownAttributeError))
             }
         })?;
     }
+
     Ok(StructAttributes {
         name,
         extensibility,
@@ -137,6 +154,7 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     let mut name = input.ident.to_string();
     let mut is_nested = false;
     let mut bit_bound = BitBound::I32;
+
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -164,16 +182,16 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
                         bit_bound = BitBound::I32;
                         Ok(())
                     }
-                    _ => Err(syn::Error::new(
-                        meta.path.span(),
+                    _ => Err(meta.error(
                         r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#,
                     )),
                 }
             } else {
-                Ok(())
+                Err(meta.error(UnknownAttributeError))
             }
         })?;
     }
+
     Ok(EnumeratedTypeAttributes {
         name,
         is_nested,
@@ -195,6 +213,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     let mut is_nested = false;
     let mut is_discriminator_key = false;
     let mut discriminator_type = None;
+
     if let Some(xtypes_attribute) = input
         .attrs
         .iter()
@@ -203,27 +222,28 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
+                Ok(())
             } else if meta.path.is_ident("extensibility") {
                 let format_str: syn::LitStr = meta.value()?.parse()?;
                 match format_str.value().as_ref() {
                     "final" => {
                         extensibility = Extensibility::Final;
+                        Ok(())
                     }
                     "appendable" => {
                         extensibility = Extensibility::Appendable;
+                        Ok(())
                     }
                     "mutable" => {
                         extensibility = Extensibility::Mutable;
+                        Ok(())
                     }
-                    _ => return Err(syn::Error::new(
-                        meta.path.span(),
-                        r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#,
-                    )),
+                    _ => Err(meta.error(r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#)),
                 }
             } else if meta.path.is_ident("nested") {
                 is_nested = true;
-            }
-             else if meta.path.is_ident("switch") {
+                Ok(())
+            } else if meta.path.is_ident("switch") {
                 let content;
                 syn::parenthesized!(content in meta.input);
                 let fork = content.fork();
@@ -235,14 +255,18 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
                     }
                 }
                 discriminator_type = Some(content.parse::<syn::Type>()?);
+                Ok(())
+            } else {
+                Err(meta.error(UnknownAttributeError))
             }
-            Ok(())
         })?;
     };
+
     let discriminator_type = discriminator_type.ok_or(syn::Error::new(
         input.span(),
         r#"Union must defined its discriminator type by adding #[dust_dds(switch(#type))] "#,
     ))?;
+
     Ok(UnionAttributes {
         name,
         extensibility,
@@ -260,6 +284,7 @@ pub struct UnionVariantAttributes {
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
     let mut case = Vec::new();
     let mut is_default = false;
+
     if let Some(xtypes_attribute) = variant
         .attrs
         .iter()
@@ -268,11 +293,15 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
         xtypes_attribute.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
                 case.push(meta.value()?.parse()?);
+                Ok(())
             } else if meta.path.is_ident("default") {
                 is_default = true;
+                Ok(())
+            } else {
+                Err(meta.error(UnknownAttributeError))
             }
-            Ok(())
         })?;
     }
+
     Ok(UnionVariantAttributes { case, is_default })
 }

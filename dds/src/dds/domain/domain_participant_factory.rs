@@ -128,6 +128,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     pub fn get_mut_configuration(&self) -> impl DerefMut<Target = DustDdsConfiguration> + '_ {
         block_on(self.participant_factory_async.get_mut_configuration())
     }
+
+    #[doc(hidden)]
+    pub fn shutdown(&self) {
+        self.participant_factory_async.shutdown();
+    }
 }
 
 impl DomainParticipantFactory<RtpsUdpTransportParticipantFactory> {

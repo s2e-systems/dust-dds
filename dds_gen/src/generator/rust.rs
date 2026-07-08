@@ -476,7 +476,15 @@ impl<'a> RustGenerator<'a> {
 
         self.writer.push_str("#[dust_dds(switch(");
         self.generate(switch_type_spec);
-        self.writer.push_str("))]");
+        self.writer.push_str("),");
+        if !self.modules.is_empty() {
+            let name = format!(
+                "name = \"{}\"",
+                self.hierarchical_type_name(identifier.as_str())
+            );
+            self.writer.push_str(&name);
+        }
+        self.writer.push_str(")]");
 
         self.writer.push_str("pub enum ");
         self.generate(identifier);

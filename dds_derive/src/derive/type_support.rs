@@ -281,7 +281,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
 
             for (variant_index, variant) in xtypes_union.variants.iter().enumerate() {
                 let variant_attributes = get_union_variant_attributes(variant)?;
-                let variant_index_unsuffixed = syn::Index::from(variant_index);
+                let variant_index_unsuffixed = syn::Index::from(variant_index + 1);
                 let is_default_label = variant_attributes.is_default;
 
                 if !has_default && variant_attributes.is_default {
@@ -292,28 +292,27 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 } else {
                     variant_attributes.case
                 };
+                let first_discriminator = case_list[0].clone();
+                let variant_ident = &variant.ident;
+                let variant_name = variant_ident.to_string();
 
-                for disc_expr in &case_list {
-                    let variant_ident = &variant.ident;
-                    let variant_name = variant_ident.to_string();
+                match &variant.fields {
+                    // If there is a single field we handle this as the single type wrapper which is the most common case
+                    Fields::Named(fields_named) if fields_named.named.len() == 1 => {
+                        let variant_field_name =
+                            fields_named.named[0].ident.as_ref().ok_or(syn::Error::new(
+                                fields_named.span(),
+                                "Field of named variant must have defined name",
+                            ))?;
+                        let variant_ty = &fields_named.named[0].ty;
 
-                    match &variant.fields {
-                        // If there is a single field we handle this as the single type wrapper which is the most common case
-                        Fields::Named(fields_named) if fields_named.named.len() == 1 => {
-                            let variant_field_name =
-                                fields_named.named[0].ident.as_ref().ok_or(syn::Error::new(
-                                    fields_named.span(),
-                                    "Field of named variant must have defined name",
-                                ))?;
-                            let variant_ty = &fields_named.named[0].ty;
-
-                            variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #disc_expr as u32,
+                                id: #variant_index_unsuffixed as u32,
                                 r#type: <#variant_ty as dust_dds::xtypes::type_support::Type>::TYPE,
                                 default_value: None,
-                                index: 1 as u32,
+                                index: #variant_index_unsuffixed as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: &[#(#case_list as i32,)*],
                                 is_key: false,
@@ -325,33 +324,33 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
-                            let variant_sample = quote! {
-                                Self::#variant_ident {#variant_field_name: <#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                                  src.remove_value(#disc_expr as u32).expect("Must exist"),
-                                ).expect("Must match")},
-                            };
+                        let variant_sample = quote! {
+                            Self::#variant_ident {#variant_field_name: <#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
+                              src.remove_value(#variant_index_unsuffixed as u32).expect("Must exist"),
+                            ).expect("Must match")},
+                        };
 
-                            variant_sample_seq.push(if variant_attributes.is_default {
-                                quote! {_ => #variant_sample}
-                            } else {
-                                quote! {#disc_expr => #variant_sample}
-                            });
-                            variant_dynamic_sample_seq
+                        variant_sample_seq.push(if variant_attributes.is_default {
+                            quote! {_ => #variant_sample}
+                        } else {
+                            quote! {#first_discriminator => #variant_sample}
+                        });
+                        variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident {#variant_field_name} => {
-                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#disc_expr));
-                                data.set_value(#disc_expr as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#variant_field_name));
+                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#first_discriminator));
+                                data.set_value(#variant_index_unsuffixed as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(#variant_field_name));
                             }});
-                        }
-                        Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
-                            let variant_ty = &fields_unnamed.unnamed[0].ty;
+                    }
+                    Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
+                        let variant_ty = &fields_unnamed.unnamed[0].ty;
 
-                            variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #disc_expr as u32,
+                                id: #variant_index_unsuffixed as u32,
                                 r#type: <#variant_ty as dust_dds::xtypes::type_support::Type>::TYPE,
                                 default_value: None,
-                                index: 1 as u32,
+                                index: #variant_index_unsuffixed as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: &[#(#case_list as i32,)*],
                                 is_key: false,
@@ -363,28 +362,28 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
-                            let variant_sample = quote! {
-                                Self::#variant_ident(<#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                                  src.remove_value(#disc_expr as u32).expect("Must exist"),
-                                ).expect("Must match")),
-                            };
+                        let variant_sample = quote! {
+                            Self::#variant_ident(<#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
+                              src.remove_value(#variant_index_unsuffixed as u32).expect("Must exist"),
+                            ).expect("Must match")),
+                        };
 
-                            variant_sample_seq.push(if variant_attributes.is_default {
-                                quote! {_ => #variant_sample}
-                            } else {
-                                quote! {#disc_expr => #variant_sample}
-                            });
-                            variant_dynamic_sample_seq
+                        variant_sample_seq.push(if variant_attributes.is_default {
+                            quote! {_ => #variant_sample}
+                        } else {
+                            quote! {#first_discriminator => #variant_sample}
+                        });
+                        variant_dynamic_sample_seq
                             .push(quote! {Self::#variant_ident (a) => {
-                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#disc_expr));
-                                data.set_value(#disc_expr as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
+                                data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#first_discriminator));
+                                data.set_value(#variant_index_unsuffixed as u32, ::dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(a));
                             }});
-                        }
-                        Fields::Unit => {
-                            variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                    }
+                    Fields::Unit => {
+                        variant_list.push(quote!{ dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #variant_name,
-                                id: #disc_expr as u32,
+                                id: #variant_index_unsuffixed as u32,
                                 r#type: dust_dds::xtypes::dynamic_type::DynamicType {
                                     descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                                         kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
@@ -400,7 +399,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     member_list: &[],
                                 },
                                 default_value: None,
-                                index: 1 as u32,
+                                index: #variant_index_unsuffixed as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                                 label: &[#(#case_list as i32,)*],
                                 is_key: false,
@@ -412,25 +411,24 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         });
-                            let variant_sample = quote! {
-                                Self::#variant_ident,
-                            };
+                        let variant_sample = quote! {
+                            Self::#variant_ident,
+                        };
 
-                            variant_sample_seq.push(if variant_attributes.is_default {
-                                quote! {_ => #variant_sample}
-                            } else {
-                                quote! {#disc_expr => #variant_sample}
-                            });
-                            variant_dynamic_sample_seq.push(quote! {Self::#variant_ident => {
-                            data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#disc_expr));
+                        variant_sample_seq.push(if variant_attributes.is_default {
+                            quote! {_ => #variant_sample}
+                        } else {
+                            quote! {#first_discriminator => #variant_sample}
+                        });
+                        variant_dynamic_sample_seq.push(quote! {Self::#variant_ident => {
+                            data.set_value(0, <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::into_storage(#first_discriminator));
                         },});
-                        }
-                        Fields::Named(_) | Fields::Unnamed(_) => {
-                            return Err(syn::Error::new(
-                                variant.span(),
-                                "Only variants with a single field are supported",
-                            ));
-                        }
+                    }
+                    Fields::Named(_) | Fields::Unnamed(_) => {
+                        return Err(syn::Error::new(
+                            variant.span(),
+                            "Only variants with a single field are supported",
+                        ));
                     }
                 }
             }

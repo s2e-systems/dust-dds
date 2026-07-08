@@ -162,17 +162,4 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             .filter_map(|x| x.time_until_stale_participant(now))
             .min()
     }
-
-    pub(crate) fn poke(&mut self) {
-        for dp in &mut self.domain_participant_list {
-            dp.poke(&self.runtime.clock());
-        }
-    }
-
-    pub(crate) fn remove_stale_participants(&mut self) {
-        let now = self.runtime.clock().now();
-        for dp in &mut self.domain_participant_list {
-            dp.remove_stale_participants(now);
-        }
-    }
 }

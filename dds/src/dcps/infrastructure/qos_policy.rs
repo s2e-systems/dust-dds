@@ -204,6 +204,7 @@ pub struct UserDataQosPolicy {
 }
 
 impl UserDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -230,6 +231,7 @@ pub struct TopicDataQosPolicy {
 }
 
 impl TopicDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -261,6 +263,7 @@ pub struct GroupDataQosPolicy {
 }
 
 impl GroupDataQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: Vec::new() }
     }
@@ -295,6 +298,7 @@ pub struct TransportPriorityQosPolicy {
 }
 
 impl TransportPriorityQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: 0 }
     }
@@ -333,6 +337,7 @@ pub struct LifespanQosPolicy {
 }
 
 impl LifespanQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             duration: DurationKind::Infinite,
@@ -417,6 +422,7 @@ pub struct DurabilityQosPolicy {
 }
 
 impl DurabilityQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: DurabilityQosPolicyKind::Volatile,
@@ -509,6 +515,7 @@ pub struct PresentationQosPolicy {
 }
 
 impl PresentationQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             access_scope: PresentationQosPolicyAccessScopeKind::Instance,
@@ -552,6 +559,7 @@ pub struct DeadlineQosPolicy {
 }
 
 impl DeadlineQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             period: DurationKind::Infinite,
@@ -585,6 +593,7 @@ pub struct LatencyBudgetQosPolicy {
 }
 
 impl LatencyBudgetQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             duration: DurationKind::Finite(Duration::new(DURATION_ZERO_SEC, DURATION_ZERO_NSEC)),
@@ -630,6 +639,7 @@ pub struct OwnershipQosPolicy {
 }
 
 impl OwnershipQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: OwnershipQosPolicyKind::Shared,
@@ -686,6 +696,7 @@ pub struct OwnershipStrengthQosPolicy {
 }
 
 impl OwnershipStrengthQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { value: 0 }
     }
@@ -771,6 +782,7 @@ pub struct LivelinessQosPolicy {
 }
 
 impl LivelinessQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: LivelinessQosPolicyKind::Automatic,
@@ -821,6 +833,7 @@ pub struct TimeBasedFilterQosPolicy {
 }
 
 impl TimeBasedFilterQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             minimum_separation: DurationKind::Finite(Duration::new(
@@ -872,6 +885,7 @@ pub struct PartitionQosPolicy {
 }
 
 impl PartitionQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self { name: Vec::new() }
     }
@@ -1018,6 +1032,7 @@ pub struct DestinationOrderQosPolicy {
 }
 
 impl DestinationOrderQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: DestinationOrderQosPolicyKind::ByReceptionTimestamp,
@@ -1045,13 +1060,14 @@ pub enum HistoryQosPolicyKind {
     /// Keep all samples.
     KeepAll,
 }
+
 impl Type for HistoryQosPolicyKind {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
             kind: TypeKind::ENUM,
             name: "HistoryQosPolicyKind",
             base_type: None,
-            discriminator_type: Some(i8::TYPE),
+            discriminator_type: Some(i32::TYPE),
             bound: None,
             element_type: None,
             key_element_type: None,
@@ -1061,23 +1077,27 @@ impl Type for HistoryQosPolicyKind {
         member_list: &[],
     };
 }
+
 impl TypeSupport for HistoryQosPolicyKind {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
-        let discriminant = src.get_uint8_value(0).unwrap();
+    fn create_sample(src: &mut DynamicData<'static>) -> Self {
+        let discriminant = src.get_int32_value(0).unwrap();
+
         match discriminant {
             0 => Self::KeepLast(1),
             1 => Self::KeepAll,
-            d => panic!("Discriminant not valid {d:?}"),
+            d => panic!("Discriminant not valid: {d}"),
         }
     }
 
     fn create_dynamic_sample(self) -> DynamicData<'static> {
         let mut data = DynamicDataFactory::create_data(Self::TYPE);
-        let value = match self {
+
+        let discriminant = match self {
             HistoryQosPolicyKind::KeepLast(_) => 0,
             HistoryQosPolicyKind::KeepAll => 1,
         };
-        data.set_int8_value(0, value).unwrap();
+        data.set_int32_value(0, discriminant).unwrap();
+
         data
     }
 }
@@ -1103,12 +1123,14 @@ pub struct HistoryQosPolicy {
 }
 
 impl HistoryQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: HistoryQosPolicyKind::KeepLast(1),
         }
     }
 }
+
 impl Type for HistoryQosPolicy {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {
@@ -1162,16 +1184,18 @@ impl Type for HistoryQosPolicy {
         ],
     };
 }
+
 impl TypeSupport for HistoryQosPolicy {
-    fn create_sample(src: &mut crate::xtypes::dynamic_type::DynamicData<'static>) -> Self {
+    fn create_sample(src: &mut DynamicData<'static>) -> Self {
         let mut kind = src.get_complex_value(0).cloned().unwrap();
+        let kind = HistoryQosPolicyKind::create_sample(&mut kind);
         let depth = src.get_int32_value(1).unwrap();
-        let qos_policy_kind = HistoryQosPolicyKind::create_sample(&mut kind);
-        match qos_policy_kind {
-            HistoryQosPolicyKind::KeepLast(_) => HistoryQosPolicy {
+
+        match kind {
+            HistoryQosPolicyKind::KeepLast(_) => Self {
                 kind: HistoryQosPolicyKind::KeepLast(*depth as u32),
             },
-            HistoryQosPolicyKind::KeepAll => HistoryQosPolicy {
+            HistoryQosPolicyKind::KeepAll => Self {
                 kind: HistoryQosPolicyKind::KeepAll,
             },
         }
@@ -1179,16 +1203,16 @@ impl TypeSupport for HistoryQosPolicy {
 
     fn create_dynamic_sample(self) -> DynamicData<'static> {
         let mut data = DynamicDataFactory::create_data(Self::TYPE);
-        let kind_data = self.kind.create_dynamic_sample();
-        data.set_complex_value(0, kind_data).unwrap();
-        match self.kind {
-            HistoryQosPolicyKind::KeepLast(depth) => {
-                data.set_int32_value(1, depth as i32).unwrap();
-            }
-            HistoryQosPolicyKind::KeepAll => {
-                data.set_int32_value(1, 0).unwrap();
-            }
-        }
+
+        let kind = self.kind.create_dynamic_sample();
+        let depth = match self.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => depth as i32,
+            HistoryQosPolicyKind::KeepAll => -1,
+        };
+
+        data.set_complex_value(0, kind).unwrap();
+        data.set_int32_value(1, depth).unwrap();
+
         data
     }
 }
@@ -1325,6 +1349,7 @@ impl Type for ResourceLimitsQosPolicy {
 }
 
 impl ResourceLimitsQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             max_samples: Length::Unlimited,
@@ -1365,6 +1390,7 @@ pub struct EntityFactoryQosPolicy {
 }
 
 impl EntityFactoryQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autoenable_created_entities: true,
@@ -1407,6 +1433,7 @@ pub struct WriterDataLifecycleQosPolicy {
 }
 
 impl WriterDataLifecycleQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autodispose_unregistered_instances: true,
@@ -1455,6 +1482,7 @@ pub struct ReaderDataLifecycleQosPolicy {
 }
 
 impl ReaderDataLifecycleQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             autopurge_nowriter_samples_delay: DurationKind::Infinite,
@@ -1517,6 +1545,7 @@ pub struct DataRepresentationQosPolicy {
 }
 
 impl DataRepresentationQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             value: DataRepresentationIdSeq::new(),
@@ -1540,22 +1569,43 @@ impl Default for DataRepresentationQosPolicy {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 #[dust_dds(bit_bound = "16")]
 pub enum TypeConsistencyKind {
+    /// Disallow type coercion for matched types
     DisallowTypeCoercion,
+    /// Allow type coercion for matched types
     AllowTypeCoercion,
 }
 
+/// This policy defines the rules for determining whether the data type used by a [`DataWriter`](crate::publication::data_writer::DataWriter)
+/// is consistent with the type used by a [`DataReader`](crate::subscription::data_reader::DataReader).
+///
+/// This policy is a DDS-XTypes extension. It allows a [`DataReader`](crate::subscription::data_reader::DataReader) to define the rules
+/// for type consistency when matching with a [`DataWriter`](crate::publication::data_writer::DataWriter). It provides a mechanism
+/// to enforce stricter static type checking than the default assignability rules, ensuring that the data received by a consumer
+/// is compatible with its expected type.
 #[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
 #[dust_dds(extensibility = "appendable", nested)]
 pub struct TypeConsistencyEnforcementQosPolicy {
+    /// Type consistency kind that determines the coercion strategy (whether to allow type coercion or not).
     pub kind: TypeConsistencyKind,
+    /// Controls whether sequence bounds are ignored when determining type compatibility.
+    /// If true, sequences with different bounds are considered consistent.
     pub ignore_sequence_bounds: bool,
+    /// Controls whether string bounds are ignored when determining type compatibility.
+    /// If true, strings with different bounds are considered consistent.
     pub ignore_string_bounds: bool,
+    /// Controls whether member names are ignored when determining type compatibility.
+    /// If true, compatibility is determined solely by member IDs rather than names.
     pub ignore_member_names: bool,
+    /// Controls whether type widening is prohibited.
+    /// If true, prevents the reader from accepting a "wider" type (a type with more members) than expected.
     pub prevent_type_widening: bool,
+    /// Controls whether explicit type validation is required.
+    /// If true, requires the explicit type information (typically via `TypeObject`) to be available to complete the matching process.
     pub force_type_validation: bool,
 }
 
 impl TypeConsistencyEnforcementQosPolicy {
+    /// Default constructor usable in const contexts
     pub const fn const_default() -> Self {
         Self {
             kind: TypeConsistencyKind::AllowTypeCoercion,

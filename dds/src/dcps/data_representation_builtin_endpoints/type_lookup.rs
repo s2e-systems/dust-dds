@@ -128,7 +128,7 @@ pub struct RequestHeader {
 
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final")]
-pub struct ReplyHeader {
+pub struct _ReplyHeader {
     pub related_request_id: SampleIdentity,
 }
 
