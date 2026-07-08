@@ -9,18 +9,6 @@ pub struct TopicDescription {
     name: String,
 }
 
-// impl From<&dyn dust_dds::topic_definition::topic_description::TopicDescription>
-//     for TopicDescription
-// {
-//     fn from(value: &dyn dust_dds::topic_definition::topic_description::TopicDescription) -> Self {
-//         Self {
-//             participant: value.get_participant(),
-//             type_name: value.get_type_name(),
-//             name: value.get_name(),
-//         }
-//     }
-// }
-
 impl<T: dust_dds::topic_definition::topic_description::TopicDescription> From<T>
     for TopicDescription
 {
