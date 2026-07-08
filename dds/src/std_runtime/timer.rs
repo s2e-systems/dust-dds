@@ -164,7 +164,6 @@ pub struct TimerHandle {
 }
 
 impl TimerHandle {
-    #[tracing::instrument]
     pub fn sleep(&self, duration: Duration) -> Sleep {
         let mut inner_lock = self.inner.lock().expect("Mutex should not be poisoned");
         let id = inner_lock.sleep_task_id;
@@ -180,7 +179,6 @@ impl TimerHandle {
 }
 
 impl Timer for TimerHandle {
-    #[tracing::instrument]
     fn delay(&mut self, duration: core::time::Duration) -> impl Future<Output = ()> + Send {
         self.sleep(duration)
     }
