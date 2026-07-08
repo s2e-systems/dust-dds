@@ -7,7 +7,6 @@ use dust_dds::{
         status::NO_STATUS,
         type_support::DdsType,
     },
-    topic_definition::topic_description::TopicDescription,
     xtypes::type_support::TypeSupport,
 };
 
@@ -162,12 +161,7 @@ fn data_writer_get_topic_should_return_same_topic_as_used_for_creation() {
         .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    match writer.get_topic() {
-        TopicDescription::Topic(topic) => {
-            assert!(topic.get_instance_handle() == topic.get_instance_handle())
-        }
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    }
+    assert!(writer.get_topic().get_instance_handle() == topic.get_instance_handle())
 }
 
 #[test]

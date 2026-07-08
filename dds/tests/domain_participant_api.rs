@@ -20,7 +20,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -516,12 +515,8 @@ fn default_topic_qos() {
             .value,
         &topic_data
     );
-    match &topic {
-        TopicDescription::Topic(topic) => {
-            assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data)
-        }
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    }
+
+    assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data)
 }
 
 #[test]
@@ -970,6 +965,19 @@ fn ignore_subscription() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     assert!(wait_set.wait(Duration::new(2, 0)).is_err());
+}
+
+#[test]
+fn find_topic_timeout() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant.find_topic::<TestType>("abc", Duration::new(0, 500_000));
+
+    assert!(matches!(topic, Err(DdsError::Timeout)));
 }
 
 #[test]

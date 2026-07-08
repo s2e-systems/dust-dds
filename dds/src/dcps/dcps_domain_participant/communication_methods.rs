@@ -14,9 +14,8 @@ use crate::{
         },
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
-        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync, topic::TopicAsync,
-        topic_description::TopicDescriptionAsync,
+        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        subscriber::SubscriberAsync,
     },
     infrastructure::{instance::InstanceHandle, status::StatusKind, time::DurationKind},
     rtps::message_receiver::MessageReceiver,
@@ -246,15 +245,11 @@ impl DcpsDomainParticipant {
                     );
                     let the_subscriber =
                         SubscriberAsync::new(*subscriber_handle, the_participant.clone());
-                    let the_topic = match reader_topic {
-                        TopicDescriptionKind::Topic(topic_entity) => {
-                            TopicDescriptionAsync::Topic(TopicAsync::new(
-                                topic_entity.instance_handle,
-                                topic_entity.type_name.clone(),
-                                topic_entity.topic_name.clone(),
-                                the_participant.clone(),
-                            ))
-                        }
+                    let (topic_name, type_name) = match reader_topic {
+                        TopicDescriptionKind::Topic(topic_entity) => (
+                            topic_entity.type_name.clone(),
+                            topic_entity.topic_name.clone(),
+                        ),
                         TopicDescriptionKind::ContentFilteredTopic(t) => {
                             let topic = self
                                 .domain_participant
@@ -266,23 +261,14 @@ impl DcpsDomainParticipant {
                                 })
                                 .find(|x| x.topic_name == t.related_topic_name)
                                 .expect("Must exist");
-                            TopicDescriptionAsync::ContentFilteredTopic(
-                                ContentFilteredTopicAsync::new(
-                                    t.topic_name.clone(),
-                                    TopicAsync::new(
-                                        topic.instance_handle,
-                                        topic.type_name.clone(),
-                                        topic.topic_name.clone(),
-                                        the_participant.clone(),
-                                    ),
-                                ),
-                            )
+                            (topic.type_name.clone(), topic.topic_name.clone())
                         }
                     };
                     let the_reader = DataReaderAsync::new(
                         *data_reader_handle,
                         the_subscriber.clone(),
-                        the_topic,
+                        topic_name,
+                        type_name,
                     );
 
                     match data_reader.add_reader_change(

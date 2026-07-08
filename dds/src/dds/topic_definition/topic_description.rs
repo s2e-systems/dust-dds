@@ -1,67 +1,45 @@
 use crate::{
     dds_async::topic_description::TopicDescriptionAsync,
     domain::domain_participant::DomainParticipant,
-    topic_definition::{content_filtered_topic::ContentFilteredTopic, topic::Topic},
 };
 use alloc::string::String;
 
-/// This class is an enumrator for different topic types.
-#[derive(Clone)]
-pub enum TopicDescription {
-    /// Topic type
-    Topic(Topic),
-    /// Content filtered topic
-    ContentFilteredTopic(ContentFilteredTopic),
-}
-
-impl From<TopicDescriptionAsync> for TopicDescription {
-    fn from(value: TopicDescriptionAsync) -> Self {
-        match value {
-            TopicDescriptionAsync::Topic(t) => TopicDescription::Topic(t.into()),
-            TopicDescriptionAsync::ContentFilteredTopic(t) => {
-                TopicDescription::ContentFilteredTopic(t.into())
-            }
-        }
-    }
-}
-
-impl From<TopicDescription> for TopicDescriptionAsync {
-    fn from(value: TopicDescription) -> Self {
-        match value {
-            TopicDescription::Topic(t) => TopicDescriptionAsync::Topic(t.into()),
-            TopicDescription::ContentFilteredTopic(t) => {
-                TopicDescriptionAsync::ContentFilteredTopic(t.into())
-            }
-        }
-    }
-}
-
 /// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl TopicDescription {
+pub trait TopicDescription {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
-    #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant {
-        match self {
-            Self::Topic(t) => t.get_participant(),
-            Self::ContentFilteredTopic(t) => t.get_participant(),
-        }
-    }
+    fn get_participant(&self) -> DomainParticipant;
 
     /// The name of the type used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
-        match self {
-            Self::Topic(t) => t.get_type_name(),
-            Self::ContentFilteredTopic(t) => t.get_type_name(),
-        }
-    }
+    fn get_type_name(&self) -> String;
 
     /// The name used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
-        match self {
-            Self::Topic(t) => t.get_name(),
-            Self::ContentFilteredTopic(t) => t.get_name(),
-        }
+    fn get_name(&self) -> String;
+}
+
+impl TopicDescriptionAsync for &dyn TopicDescription {
+    fn get_participant(&self) -> crate::dds_async::domain_participant::DomainParticipantAsync {
+        TopicDescription::get_participant(*self).into()
+    }
+
+    fn get_type_name(&self) -> String {
+        TopicDescription::get_type_name(*self)
+    }
+
+    fn get_name(&self) -> String {
+        TopicDescription::get_name(*self)
+    }
+}
+
+impl<T: TopicDescriptionAsync> TopicDescription for T {
+    fn get_participant(&self) -> DomainParticipant {
+        TopicDescriptionAsync::get_participant(self).into()
+    }
+
+    fn get_type_name(&self) -> String {
+        TopicDescriptionAsync::get_type_name(self)
+    }
+
+    fn get_name(&self) -> String {
+        TopicDescriptionAsync::get_name(self)
     }
 }

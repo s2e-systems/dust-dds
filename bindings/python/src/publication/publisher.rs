@@ -9,7 +9,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    topic_definition::{topic_description::TopicDescription, type_support::PythonDdsData},
+    topic_definition::{topic::Topic, type_support::PythonDdsData},
 };
 
 use super::{
@@ -38,7 +38,7 @@ impl Publisher {
     #[pyo3(signature = (a_topic, qos = None, a_listener = None, mask = Vec::new()))]
     pub fn create_datawriter(
         &self,
-        a_topic: &TopicDescription,
+        a_topic: &Topic,
         qos: Option<DataWriterQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,

@@ -11,9 +11,12 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    std_runtime::executor::{block_on, block_timeout},
+    std_runtime::executor::block_on,
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic_definition::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic_definition::{
+        content_filtered_topic::ContentFilteredTopic, topic::Topic,
+        topic_description::TopicDescription, topic_listener::TopicListener,
+    },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::String, vec::Vec};
@@ -41,13 +44,15 @@ pub struct DomainParticipant {
     participant_async: DomainParticipantAsync,
 }
 
-impl DomainParticipant {
-    pub(crate) fn new(participant_async: DomainParticipantAsync) -> Self {
+impl From<DomainParticipantAsync> for DomainParticipant {
+    fn from(participant_async: DomainParticipantAsync) -> Self {
         Self { participant_async }
     }
+}
 
-    pub(crate) fn participant_async(&self) -> &DomainParticipantAsync {
-        &self.participant_async
+impl From<DomainParticipant> for DomainParticipantAsync {
+    fn from(value: DomainParticipant) -> Self {
+        value.participant_async
     }
 }
 
@@ -139,7 +144,7 @@ impl DomainParticipant {
         qos: QosKind<TopicQos>,
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
-    ) -> DdsResult<TopicDescription>
+    ) -> DdsResult<Topic>
     where
         Foo: TypeSupport,
     {
@@ -147,7 +152,7 @@ impl DomainParticipant {
             self.participant_async
                 .create_topic::<Foo>(topic_name, type_name, qos, a_listener, mask),
         )
-        .map(TopicDescription::from)
+        .map(Topic::from)
     }
 
     /// This operation create a ['Topic'] is equivalent to [`DomainParticipant::create_topic`] but the DynamicType information
@@ -162,7 +167,7 @@ impl DomainParticipant {
         a_listener: Option<impl TopicListener + Send + 'static>,
         mask: &[StatusKind],
         dynamic_type_representation: DynamicType<'static>,
-    ) -> DdsResult<TopicDescription> {
+    ) -> DdsResult<Topic> {
         block_on(self.participant_async.create_dynamic_topic(
             topic_name,
             type_name,
@@ -171,7 +176,7 @@ impl DomainParticipant {
             mask,
             dynamic_type_representation,
         ))
-        .map(TopicDescription::from)
+        .map(Topic::from)
     }
 
     /// This operation deletes a [`Topic`].
@@ -181,7 +186,7 @@ impl DomainParticipant {
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     #[tracing::instrument(skip(self, a_topic))]
-    pub fn delete_topic(&self, a_topic: &TopicDescription) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic: &Topic) -> DdsResult<()> {
         block_on(self.participant_async.delete_topic(&a_topic.clone().into()))
     }
 
@@ -194,17 +199,17 @@ impl DomainParticipant {
     pub fn create_contentfilteredtopic(
         &self,
         name: &str,
-        related_topic: &TopicDescription,
+        related_topic: &Topic,
         filter_expression: String,
         expression_parameters: Vec<String>,
-    ) -> DdsResult<TopicDescription> {
+    ) -> DdsResult<ContentFilteredTopic> {
         block_on(self.participant_async.create_contentfilteredtopic(
             name,
             &related_topic.clone().into(),
             filter_expression,
             expression_parameters,
         ))
-        .map(TopicDescription::from)
+        .map(ContentFilteredTopic::from)
     }
 
     /// This operation deletes a ContentFilteredTopic.
@@ -219,7 +224,7 @@ impl DomainParticipant {
     #[tracing::instrument(skip(self, a_contentfilteredtopic))]
     pub fn delete_contentfilteredtopic(
         &self,
-        a_contentfilteredtopic: &TopicDescription,
+        a_contentfilteredtopic: &ContentFilteredTopic,
     ) -> DdsResult<()> {
         block_on(
             self.participant_async
@@ -239,19 +244,15 @@ impl DomainParticipant {
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
     /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     #[tracing::instrument(skip(self))]
-    pub fn find_topic<Foo>(
-        &self,
-        topic_name: &str,
-        timeout: Duration,
-    ) -> DdsResult<TopicDescription>
+    pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic>
     where
         Foo: TypeSupport,
     {
-        block_timeout(
-            timeout.into(),
-            self.participant_async.find_topic::<Foo>(topic_name),
-        )?
-        .map(TopicDescription::from)
+        block_on(
+            self.participant_async
+                .find_topic::<Foo>(topic_name, timeout),
+        )
+        .map(Topic::from)
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
@@ -265,11 +266,11 @@ impl DomainParticipant {
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
     #[tracing::instrument(skip(self))]
-    pub fn lookup_topicdescription(&self, topic_name: &str) -> DdsResult<Option<TopicDescription>> {
-        Ok(
-            block_on(self.participant_async.lookup_topicdescription(topic_name))?
-                .map(TopicDescription::from),
-        )
+    pub fn lookup_topicdescription(
+        &self,
+        topic_name: &str,
+    ) -> DdsResult<Option<impl TopicDescription>> {
+        block_on(self.participant_async.lookup_topicdescription(topic_name))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as

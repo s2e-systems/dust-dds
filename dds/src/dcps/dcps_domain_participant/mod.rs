@@ -29,10 +29,9 @@ use crate::{
         },
     },
     dds_async::{
-        content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
-        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        domain_participant_factory::DcpsSender, publisher::PublisherAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
+        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
+        domain_participant::DomainParticipantAsync, domain_participant_factory::DcpsSender,
+        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -73,7 +72,7 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
+            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, USER_DEFINED_TOPIC,
         },
     },
     xtypes::{
@@ -313,7 +312,7 @@ pub struct BuiltInKeyHolder {
 
 pub struct DcpsDomainParticipant {
     transport: RtpsTransportParticipant,
-    topic_counter: u16,
+
     reader_counter: u16,
     writer_counter: u16,
     publisher_counter: u8,
@@ -634,7 +633,6 @@ impl DcpsDomainParticipant {
 
         Self {
             transport,
-            topic_counter: 0,
             reader_counter: 0,
             writer_counter: 0,
             publisher_counter: 0,
@@ -685,11 +683,22 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| &x.instance_handle == data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
+        let type_name = match self
+            .domain_participant
+            .topic_description_list
+            .iter()
+            .find(|x| x.topic_name() == data_reader.topic_name)
+            .ok_or(DdsError::AlreadyDeleted)?
+        {
+            TopicDescriptionKind::Topic(topic_entity) => topic_entity.type_name.clone(),
+            TopicDescriptionKind::ContentFilteredTopic(_) => todo!(),
+        };
 
         Ok(DataReaderAsync::new(
             *data_reader_handle,
             self.get_subscriber_async(*subscriber_handle)?,
-            self.get_topic_description_async(data_reader.topic_name.clone())?,
+            data_reader.topic_name.clone(),
+            type_name,
         ))
     }
 
@@ -719,47 +728,24 @@ impl DcpsDomainParticipant {
         Ok(DataWriterAsync::new(
             *data_writer_handle,
             self.get_publisher_async(*publisher_handle)?,
-            self.get_topic_description_async(data_writer.topic_name.clone())?,
+            self.get_topic_async(data_writer.topic_name.clone())?,
         ))
     }
 
-    fn get_topic_description_async(&self, topic_name: String) -> DdsResult<TopicDescriptionAsync> {
+    fn get_topic_async(&self, topic_name: String) -> DdsResult<TopicAsync> {
         match self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Some(TopicDescriptionKind::Topic(topic)) => {
-                Ok(TopicDescriptionAsync::Topic(TopicAsync::new(
-                    topic.instance_handle,
-                    topic.type_name.clone(),
-                    topic_name,
-                    self.get_participant_async(),
-                )))
-            }
-            Some(TopicDescriptionKind::ContentFilteredTopic(t)) => {
-                if let Some(TopicDescriptionKind::Topic(related_topic)) = self
-                    .domain_participant
-                    .topic_description_list
-                    .iter()
-                    .find(|x| x.topic_name() == t.related_topic_name)
-                {
-                    let name = t.topic_name.clone();
-                    let topic = TopicAsync::new(
-                        related_topic.instance_handle,
-                        related_topic.type_name.clone(),
-                        t.related_topic_name.clone(),
-                        self.get_participant_async(),
-                    );
-                    Ok(TopicDescriptionAsync::ContentFilteredTopic(
-                        ContentFilteredTopicAsync::new(name, topic),
-                    ))
-                } else {
-                    Err(DdsError::AlreadyDeleted)
-                }
-            }
-            None => Err(DdsError::AlreadyDeleted),
+            Some(TopicDescriptionKind::Topic(topic)) => Ok(TopicAsync::new(
+                topic.instance_handle,
+                topic.type_name.clone(),
+                topic_name,
+                self.get_participant_async(),
+            )),
+            _ => Err(DdsError::AlreadyDeleted),
         }
     }
 
@@ -1080,9 +1066,17 @@ const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];
 
+struct FindTopicNotification {
+    topic_name: String,
+    deadline: Time,
+    type_support: DynamicType<'static>,
+    reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
+}
+
 struct DomainParticipantEntity {
     domain_id: DomainId,
     domain_tag: String,
+    topic_counter: u16,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberEntity,
@@ -1104,6 +1098,7 @@ struct DomainParticipantEntity {
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: StatusMask,
+    find_topic_sender_list: Vec<FindTopicNotification>,
 }
 
 impl DomainParticipantEntity {
@@ -1122,6 +1117,7 @@ impl DomainParticipantEntity {
         Self {
             domain_id,
             instance_handle,
+            topic_counter: 0,
             qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
@@ -1143,6 +1139,7 @@ impl DomainParticipantEntity {
             listener_sender,
             listener_mask,
             domain_tag,
+            find_topic_sender_list: Vec::new(),
         }
     }
 
@@ -1171,10 +1168,88 @@ impl DomainParticipantEntity {
             .find(|x| &x.key().value == topic_handle.as_ref())
     }
 
-    fn find_topic(&self, topic_name: &str) -> Option<&TopicBuiltinTopicData> {
-        self.discovered_topic_list
+    fn find_topic(
+        &mut self,
+        topic_name: &str,
+        type_support: DynamicType<'static>,
+    ) -> Option<(InstanceHandle, String)> {
+        if let Some(TopicDescriptionKind::Topic(topic)) = self
+            .topic_description_list
+            .iter()
+            .find(|x| x.topic_name() == topic_name)
+        {
+            Some((topic.instance_handle, topic.type_name.clone()))
+        } else if let Some(discovered_topic_data) = self
+            .discovered_topic_list
             .iter()
             .find(|&discovered_topic_data| discovered_topic_data.name() == topic_name)
+        {
+            let qos = TopicQos {
+                topic_data: discovered_topic_data.topic_data().clone(),
+                durability: discovered_topic_data.durability().clone(),
+                deadline: discovered_topic_data.deadline().clone(),
+                latency_budget: discovered_topic_data.latency_budget().clone(),
+                liveliness: discovered_topic_data.liveliness().clone(),
+                reliability: discovered_topic_data.reliability().clone(),
+                destination_order: discovered_topic_data.destination_order().clone(),
+                history: discovered_topic_data.history().clone(),
+                resource_limits: discovered_topic_data.resource_limits().clone(),
+                transport_priority: discovered_topic_data.transport_priority().clone(),
+                lifespan: discovered_topic_data.lifespan().clone(),
+                ownership: discovered_topic_data.ownership().clone(),
+                representation: discovered_topic_data.representation().clone(),
+            };
+            let type_name = discovered_topic_data.type_name.clone();
+            let topic_handle = InstanceHandle::new([
+                self.instance_handle[0],
+                self.instance_handle[1],
+                self.instance_handle[2],
+                self.instance_handle[3],
+                self.instance_handle[4],
+                self.instance_handle[5],
+                self.instance_handle[6],
+                self.instance_handle[7],
+                self.instance_handle[8],
+                self.instance_handle[9],
+                self.instance_handle[10],
+                self.instance_handle[11],
+                0,
+                self.topic_counter.to_ne_bytes()[0],
+                self.topic_counter.to_ne_bytes()[1],
+                USER_DEFINED_TOPIC,
+            ]);
+            self.topic_counter += 1;
+            let status_condition = DcpsStatusCondition::default();
+            let mut topic = TopicEntity::new(
+                qos,
+                type_name.clone().into(),
+                String::from(topic_name),
+                topic_handle,
+                status_condition,
+                None,
+                StatusMask::default(),
+                type_support,
+            );
+            topic.enabled = true;
+
+            match self
+                .topic_description_list
+                .iter_mut()
+                .find(|x| x.topic_name() == topic.topic_name)
+            {
+                Some(TopicDescriptionKind::Topic(x)) => *x = topic,
+                Some(TopicDescriptionKind::ContentFilteredTopic(_)) => {
+                    unimplemented!()
+                }
+                None => self
+                    .topic_description_list
+                    .push(TopicDescriptionKind::Topic(topic)),
+            }
+
+            Some((topic_handle, type_name.into()))
+        } else {
+            None
+        }
     }
 
     fn add_discovered_reader(&mut self, discovered_reader_data: DiscoveredReaderData) {

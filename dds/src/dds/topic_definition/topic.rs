@@ -10,6 +10,7 @@ use crate::{
         status::{InconsistentTopicStatus, StatusKind},
     },
     std_runtime::executor::block_on,
+    topic_definition::topic_description::TopicDescription,
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{string::String, vec::Vec};
@@ -42,23 +43,16 @@ impl Topic {
     }
 }
 
-/// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl Topic {
-    /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
-    #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant {
-        DomainParticipant::new(self.topic_async.get_participant())
+impl TopicDescription for Topic {
+    fn get_participant(&self) -> DomainParticipant {
+        self.topic_async.get_participant()
     }
 
-    /// The name of the type used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.topic_async.get_type_name()
     }
 
-    /// The name used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.topic_async.get_name()
     }
 }

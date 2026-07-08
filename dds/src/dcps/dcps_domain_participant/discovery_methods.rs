@@ -31,6 +31,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
     },
     infrastructure::{
+        error::DdsError,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
@@ -160,6 +161,36 @@ impl DcpsDomainParticipant {
                     runtime,
                 )
                 .ok();
+            }
+        }
+    }
+
+    pub fn notify_find_topic_senders(&mut self, now: Time) {
+        let found_topics = self
+            .domain_participant
+            .find_topic_sender_list
+            .extract_if(.., |x| {
+                now > x.deadline
+                    || self
+                        .domain_participant
+                        .discovered_topic_list
+                        .iter()
+                        .any(|t| t.name.value == x.topic_name)
+                    || self
+                        .domain_participant
+                        .topic_description_list
+                        .iter()
+                        .any(|t| t.topic_name() == x.topic_name)
+            })
+            .collect::<Vec<_>>();
+        for t in found_topics {
+            if let Some(value) = self
+                .domain_participant
+                .find_topic(&t.topic_name, t.type_support)
+            {
+                t.reply_sender.send(Ok(value))
+            } else if now > t.deadline {
+                t.reply_sender.send(Err(DdsError::Timeout));
             }
         }
     }
@@ -1448,10 +1479,13 @@ impl DcpsDomainParticipant {
                         {
                             let publication_builtin_topic_data =
                                 &discovered_writer_data.dds_publication_data;
-                            if self
+                            if !self
                                 .domain_participant
-                                .find_topic(publication_builtin_topic_data.topic_name())
-                                .is_none()
+                                .discovered_topic_list
+                                .iter()
+                                .any(|x| {
+                                    x.name.value == publication_builtin_topic_data.topic_name()
+                                })
                             {
                                 let writer_topic = TopicBuiltinTopicData {
                                     key: BuiltInTopicKey::default(),
@@ -1549,12 +1583,14 @@ impl DcpsDomainParticipant {
                         if let Ok(discovered_reader_data) =
                             DiscoveredReaderData::from_bytes(sample.as_ref())
                         {
-                            if self
+                            if !self
                                 .domain_participant
-                                .find_topic(
-                                    discovered_reader_data.dds_subscription_data.topic_name(),
-                                )
-                                .is_none()
+                                .discovered_topic_list
+                                .iter()
+                                .any(|x| {
+                                    x.name.value
+                                        == discovered_reader_data.dds_subscription_data.topic_name()
+                                })
                             {
                                 let reader_topic = TopicBuiltinTopicData {
                                     key: BuiltInTopicKey::default(),

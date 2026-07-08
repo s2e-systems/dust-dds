@@ -18,10 +18,11 @@ use dust_dds::{
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind},
         status::NO_STATUS,
-        time::DurationKind,
+        time::{Duration, DurationKind},
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
+    topic_definition::topic_description::TopicDescription,
 };
 use eframe::{
     egui::{self},
@@ -159,10 +160,9 @@ impl Default for ShapesDemoApp {
 impl ShapesDemoApp {
     fn create_writer(&mut self, shape_kind: String, color: &str, is_reliable: bool) {
         let topic_name = shape_kind.as_str();
-        let topic = if let Some(topic) = self
+        let topic = if let Ok(topic) = self
             .participant
-            .lookup_topicdescription(topic_name)
-            .unwrap()
+            .find_topic::<ShapeType>(topic_name, Duration::new(0, 0))
         {
             topic
         } else {
@@ -224,10 +224,9 @@ impl ShapesDemoApp {
     }
 
     fn create_reader(&mut self, topic_name: &str, is_reliable: bool) {
-        let topic = if let Some(topic) = self
+        let topic = if let Ok(topic) = self
             .participant
-            .lookup_topicdescription(topic_name)
-            .unwrap()
+            .find_topic::<ShapeType>(topic_name, Duration::new(0, 0))
         {
             topic
         } else {

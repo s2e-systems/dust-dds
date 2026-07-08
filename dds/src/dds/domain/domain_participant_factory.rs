@@ -53,7 +53,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
             self.participant_factory_async
                 .create_participant(domain_id, qos, a_listener, mask),
         )
-        .map(DomainParticipant::new)
+        .map(DomainParticipant::from)
     }
 
     /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
@@ -63,7 +63,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         block_on(
             self.participant_factory_async
-                .delete_participant(participant.participant_async()),
+                .delete_participant(&participant.clone().into()),
         )
     }
 
@@ -75,7 +75,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     pub fn lookup_participant(&self, domain_id: DomainId) -> DdsResult<Option<DomainParticipant>> {
         Ok(
             block_on(self.participant_factory_async.lookup_participant(domain_id))?
-                .map(DomainParticipant::new),
+                .map(DomainParticipant::from),
         )
     }
 

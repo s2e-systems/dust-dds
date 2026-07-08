@@ -173,11 +173,16 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 topic_name,
                 type_support,
+                timeout,
                 reply_sender,
-            }) => reply_sender.send(
-                self.find_participant(&participant_handle)
-                    .and_then(|p| p.find_topic(topic_name, type_support)),
-            ),
+            }) => {
+                let now = self.runtime.clock().now();
+                match self.find_participant(&participant_handle) {
+                    Ok(p) => p.find_topic(topic_name, type_support, timeout, now, reply_sender),
+                    Err(e) => reply_sender.send(Err(e)),
+                }
+            }
+
             DcpsMail::Participant(ParticipantServiceMail::LookupTopicdescription {
                 participant_handle,
                 topic_name,
