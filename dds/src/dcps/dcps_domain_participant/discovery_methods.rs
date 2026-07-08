@@ -1400,8 +1400,6 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .find(|x| x.topic_name == DCPS_PARTICIPANT)
         {
-            tracing::trace!("Found SPDP Discovered Participant detector");
-
             if let Ok(samples) = dcps_reader.read(
                 i32::MAX,
                 &[SampleStateKind::NotRead],
@@ -1409,7 +1407,6 @@ impl DcpsDomainParticipant {
                 ANY_INSTANCE_STATE,
                 &None,
             ) {
-                tracing::trace!("There are {} not read samples", samples.len());
                 for (sample, sample_info) in samples {
                     let span = tracing::trace_span!("process_discovered_participant_sample");
                     let _enter_ = span.enter();
