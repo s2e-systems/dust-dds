@@ -45,7 +45,7 @@ impl Topic {
 
 impl TopicDescription for Topic {
     fn get_participant(&self) -> DomainParticipant {
-        self.topic_async.get_participant().into()
+        self.topic_async.get_participant()
     }
 
     fn get_type_name(&self) -> String {

@@ -29,7 +29,7 @@ use crate::{
     },
     xtypes::type_support::TypeSupport,
 };
-use alloc::{vec, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
 use core::marker::PhantomData;
 
 #[derive(Clone)]

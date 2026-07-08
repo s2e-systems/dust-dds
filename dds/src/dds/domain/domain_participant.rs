@@ -270,9 +270,7 @@ impl DomainParticipant {
         &self,
         topic_name: &str,
     ) -> DdsResult<Option<impl TopicDescription>> {
-        Ok(block_on(
-            self.participant_async.lookup_topicdescription(topic_name),
-        )?)
+        block_on(self.participant_async.lookup_topicdescription(topic_name))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as

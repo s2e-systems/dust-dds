@@ -49,7 +49,7 @@ impl ContentFilteredTopic {
 
 impl TopicDescription for ContentFilteredTopic {
     fn get_participant(&self) -> DomainParticipant {
-        self.topic.get_participant().into()
+        self.topic.get_participant()
     }
 
     fn get_type_name(&self) -> String {
