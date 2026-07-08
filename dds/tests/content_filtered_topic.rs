@@ -23,7 +23,6 @@ struct KeyedData {
 }
 
 #[test]
-#[ignore]
 fn samples_should_be_content_filtered() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
