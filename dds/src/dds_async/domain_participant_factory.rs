@@ -287,6 +287,11 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
                 for dp in &mut domain_participant_factory.domain_participant_list {
                     dp.process_received_cache_changes(&domain_participant_factory.runtime);
+                    dp.process_discovered_participants_detector_cache_change(
+                        &domain_participant_factory.runtime,
+                    );
+                    dp.process_builtin_publications_detector_cache_change();
+                    dp.process_builtin_subscriptions_detector_cache_change();
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.poke(&domain_participant_factory.runtime.clock());
                 }
