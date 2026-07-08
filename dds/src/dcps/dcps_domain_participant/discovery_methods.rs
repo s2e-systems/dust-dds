@@ -1448,10 +1448,13 @@ impl DcpsDomainParticipant {
                         {
                             let publication_builtin_topic_data =
                                 &discovered_writer_data.dds_publication_data;
-                            if self
+                            if !self
                                 .domain_participant
-                                .find_topic(publication_builtin_topic_data.topic_name())
-                                .is_none()
+                                .discovered_topic_list
+                                .iter()
+                                .any(|x| {
+                                    x.name.value == publication_builtin_topic_data.topic_name()
+                                })
                             {
                                 let writer_topic = TopicBuiltinTopicData {
                                     key: BuiltInTopicKey::default(),
@@ -1549,12 +1552,14 @@ impl DcpsDomainParticipant {
                         if let Ok(discovered_reader_data) =
                             DiscoveredReaderData::from_bytes(sample.as_ref())
                         {
-                            if self
+                            if !self
                                 .domain_participant
-                                .find_topic(
-                                    discovered_reader_data.dds_subscription_data.topic_name(),
-                                )
-                                .is_none()
+                                .discovered_topic_list
+                                .iter()
+                                .any(|x| {
+                                    x.name.value
+                                        == discovered_reader_data.dds_subscription_data.topic_name()
+                                })
                             {
                                 let reader_topic = TopicBuiltinTopicData {
                                     key: BuiltInTopicKey::default(),

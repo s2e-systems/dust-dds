@@ -261,11 +261,11 @@ impl DcpsDomainParticipant {
             self.domain_participant.instance_handle[10],
             self.domain_participant.instance_handle[11],
             0,
-            self.topic_counter.to_ne_bytes()[0],
-            self.topic_counter.to_ne_bytes()[1],
+            self.domain_participant.topic_counter.to_ne_bytes()[0],
+            self.domain_participant.topic_counter.to_ne_bytes()[1],
             USER_DEFINED_TOPIC,
         ]);
-        self.topic_counter += 1;
+        self.domain_participant.topic_counter += 1;
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let topic = TopicEntity::new(
             qos,
@@ -381,11 +381,11 @@ impl DcpsDomainParticipant {
             self.domain_participant.instance_handle[10],
             self.domain_participant.instance_handle[11],
             0,
-            self.topic_counter.to_ne_bytes()[0],
-            self.topic_counter.to_ne_bytes()[1],
+            self.domain_participant.topic_counter.to_ne_bytes()[0],
+            self.domain_participant.topic_counter.to_ne_bytes()[1],
             USER_DEFINED_TOPIC,
         ]);
-        self.topic_counter += 1;
+        self.domain_participant.topic_counter += 1;
 
         let topic = ContentFilteredTopicEntity::new(
             name,
@@ -418,98 +418,21 @@ impl DcpsDomainParticipant {
         now: Time,
         reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
     ) {
-        let found_topic = if let Some(TopicDescriptionKind::Topic(topic)) = self
+        let found_topic = self
             .domain_participant
-            .topic_description_list
-            .iter()
-            .find(|x| x.topic_name() == topic_name)
-        {
-            Some((topic.instance_handle, topic.type_name.clone()))
-        } else {
-            if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
-                let qos = TopicQos {
-                    topic_data: discovered_topic_data.topic_data().clone(),
-                    durability: discovered_topic_data.durability().clone(),
-                    deadline: discovered_topic_data.deadline().clone(),
-                    latency_budget: discovered_topic_data.latency_budget().clone(),
-                    liveliness: discovered_topic_data.liveliness().clone(),
-                    reliability: discovered_topic_data.reliability().clone(),
-                    destination_order: discovered_topic_data.destination_order().clone(),
-                    history: discovered_topic_data.history().clone(),
-                    resource_limits: discovered_topic_data.resource_limits().clone(),
-                    transport_priority: discovered_topic_data.transport_priority().clone(),
-                    lifespan: discovered_topic_data.lifespan().clone(),
-                    ownership: discovered_topic_data.ownership().clone(),
-                    representation: discovered_topic_data.representation().clone(),
-                };
-                let type_name = discovered_topic_data.type_name.clone();
-                let topic_handle = InstanceHandle::new([
-                    self.domain_participant.instance_handle[0],
-                    self.domain_participant.instance_handle[1],
-                    self.domain_participant.instance_handle[2],
-                    self.domain_participant.instance_handle[3],
-                    self.domain_participant.instance_handle[4],
-                    self.domain_participant.instance_handle[5],
-                    self.domain_participant.instance_handle[6],
-                    self.domain_participant.instance_handle[7],
-                    self.domain_participant.instance_handle[8],
-                    self.domain_participant.instance_handle[9],
-                    self.domain_participant.instance_handle[10],
-                    self.domain_participant.instance_handle[11],
-                    0,
-                    self.topic_counter.to_ne_bytes()[0],
-                    self.topic_counter.to_ne_bytes()[1],
-                    USER_DEFINED_TOPIC,
-                ]);
-                self.topic_counter += 1;
-                let status_condition = DcpsStatusCondition::default();
-                let mut topic = TopicEntity::new(
-                    qos,
-                    type_name.clone().into(),
-                    topic_name.clone(),
-                    topic_handle,
-                    status_condition,
-                    None,
-                    StatusMask::default(),
-                    type_support,
-                );
-                topic.enabled = true;
-
-                match self
-                    .domain_participant
-                    .topic_description_list
-                    .iter_mut()
-                    .find(|x| x.topic_name() == topic.topic_name)
-                {
-                    Some(TopicDescriptionKind::Topic(x)) => *x = topic,
-                    Some(TopicDescriptionKind::ContentFilteredTopic(_)) => {
-                        unimplemented!()
-                    }
-                    None => self
-                        .domain_participant
-                        .topic_description_list
-                        .push(TopicDescriptionKind::Topic(topic)),
-                }
-
-                Some((topic_handle, type_name.into()))
-            } else {
-                None
-            }
-        };
+            .find_topic(&topic_name, type_support);
         if let Some(t) = found_topic {
             reply_sender.send(Ok(t));
+        } else if timeout > Duration::new(0, 0) {
+            self.domain_participant
+                .find_topic_sender_list
+                .push(FindTopicNotification {
+                    topic_name,
+                    deadline: now + timeout,
+                    reply_sender,
+                });
         } else {
-            if timeout > Duration::new(0, 0) {
-                self.domain_participant
-                    .find_topic_sender_list
-                    .push(FindTopicNotification {
-                        topic_name,
-                        deadline: todo!(), //now + timeout,
-                        reply_sender,
-                    });
-            } else {
-                reply_sender.send(Err(DdsError::Timeout));
-            }
+            reply_sender.send(Err(DdsError::Timeout));
         }
     }
 
