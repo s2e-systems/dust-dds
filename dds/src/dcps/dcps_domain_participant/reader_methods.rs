@@ -2,9 +2,18 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use core::pin::Pin;
 
 use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        PublicationBuiltinTopicData,
+    },
     dcps::{
         channels::oneshot::oneshot,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
         dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
@@ -20,8 +29,34 @@ use crate::{
         time::Duration,
     },
     runtime::{DdsRuntime, Timer},
-    xtypes::{deserializer::deserialize_top_level_type, dynamic_type::DynamicData},
+    xtypes::{
+        deserializer::deserialize_top_level_type,
+        dynamic_type::{DynamicData, DynamicType},
+        type_support::TypeSupport,
+    },
 };
+
+pub fn deserialize_topic_type<'a>(
+    topic_name: &str,
+    type_support: DynamicType<'a>,
+    data: &[u8],
+) -> Option<DynamicData<'a>> {
+    match topic_name {
+        DCPS_PARTICIPANT => SpdpDiscoveredParticipantData::from_bytes(data)
+            .map(|x| x.dds_participant_data.create_dynamic_sample())
+            .ok(),
+        DCPS_PUBLICATION => DiscoveredWriterData::from_bytes(data)
+            .map(|x| x.dds_publication_data.create_dynamic_sample())
+            .ok(),
+        DCPS_SUBSCRIPTION => DiscoveredReaderData::from_bytes(data)
+            .map(|x| x.dds_subscription_data.create_dynamic_sample())
+            .ok(),
+        DCPS_TOPIC => DiscoveredTopicData::from_bytes(data)
+            .map(|x| x.topic_builtin_topic_data.create_dynamic_sample())
+            .ok(),
+        _ => deserialize_top_level_type(type_support, data).ok(),
+    }
+}
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -69,7 +104,11 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    deserialize_topic_type(
+                        &data_reader.topic_name,
+                        data_reader.type_support,
+                        data.as_ref(),
+                    ),
                     info,
                 )
             })
@@ -115,7 +154,11 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    deserialize_topic_type(
+                        &data_reader.topic_name,
+                        data_reader.type_support,
+                        data.as_ref(),
+                    ),
                     info,
                 )
             })
@@ -161,7 +204,11 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    deserialize_topic_type(
+                        &data_reader.topic_name,
+                        data_reader.type_support,
+                        data.as_ref(),
+                    ),
                     info,
                 )
             })
@@ -207,7 +254,11 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_top_level_type(data_reader.type_support, data.as_ref()).ok(),
+                    deserialize_topic_type(
+                        &data_reader.topic_name,
+                        data_reader.type_support,
+                        data.as_ref(),
+                    ),
                     info,
                 )
             })

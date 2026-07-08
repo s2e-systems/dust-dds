@@ -21,6 +21,7 @@ impl RtpsStatelessReader {
         self.guid
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn on_data_submessage(
         &mut self,
         data_submessage: &DataSubmessage,
@@ -35,6 +36,7 @@ impl RtpsStatelessReader {
                 source_guid_prefix,
                 source_timestamp,
             ) {
+                tracing::trace!(guid=?self.guid, "Change pushed into history cache");
                 self.changes.push(change);
             }
         }

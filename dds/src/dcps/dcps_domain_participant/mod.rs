@@ -2140,6 +2140,7 @@ impl DataReaderEntity {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn add_reader_change(
         &mut self,
         writer_guid: Guid,

@@ -51,13 +51,9 @@ use crate::{
     runtime::{Clock, DdsRuntime},
     transport::{
         self,
-        types::{
-            CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix,
-            ReliabilityKind,
-        },
+        types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
     },
     xtypes::{
-        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
         type_object::TypeIdentifier,
@@ -1667,42 +1663,52 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn add_builtin_topics_detector_cache_change(
-        &mut self,
-        cache_change: &CacheChange,
-        runtime: &impl DdsRuntime,
-    ) {
-        match cache_change.kind {
-            ChangeKind::Alive => {
-                if let Ok(discovered_topic_data) =
-                    DiscoveredTopicData::from_bytes(cache_change.data_value.as_ref())
-                {
-                    let topic_builtin_topic_data = discovered_topic_data.topic_builtin_topic_data;
-                    self.domain_participant
-                        .add_discovered_topic(topic_builtin_topic_data.clone());
-                    for topic in self.domain_participant.topic_description_list.iter_mut() {
-                        if let TopicDescriptionKind::Topic(topic) = topic {
-                            if topic.topic_name == topic_builtin_topic_data.name()
-                                && topic.type_name == topic_builtin_topic_data.get_type_name()
-                                && !is_discovered_topic_consistent(
-                                    &topic.qos,
-                                    &topic_builtin_topic_data,
-                                )
-                            {
-                                topic.inconsistent_topic_status.total_count += 1;
-                                topic.inconsistent_topic_status.total_count_change += 1;
-                                topic
-                                    .status_condition
-                                    .add_communication_state(StatusKind::InconsistentTopic);
+    pub fn process_builtin_topics_detector_cache_change(&mut self) {
+        if let Some(sedp_topics) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| &x.topic_name == DCPS_TOPIC)
+        {
+            if let Ok(samples) = sedp_topics.read(
+                i32::MAX,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample, sample_info) in samples {
+                    if sample_info.valid_data {
+                        if let Ok(discovered_topic_data) =
+                            DiscoveredTopicData::from_bytes(sample.as_ref())
+                        {
+                            let topic_builtin_topic_data =
+                                discovered_topic_data.topic_builtin_topic_data;
+                            self.domain_participant
+                                .add_discovered_topic(topic_builtin_topic_data.clone());
+                            for topic in self.domain_participant.topic_description_list.iter_mut() {
+                                if let TopicDescriptionKind::Topic(topic) = topic {
+                                    if topic.topic_name == topic_builtin_topic_data.name()
+                                        && topic.type_name
+                                            == topic_builtin_topic_data.get_type_name()
+                                        && !is_discovered_topic_consistent(
+                                            &topic.qos,
+                                            &topic_builtin_topic_data,
+                                        )
+                                    {
+                                        topic.inconsistent_topic_status.total_count += 1;
+                                        topic.inconsistent_topic_status.total_count_change += 1;
+                                        topic
+                                            .status_condition
+                                            .add_communication_state(StatusKind::InconsistentTopic);
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::AliveFiltered
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (),
         }
     }
 
