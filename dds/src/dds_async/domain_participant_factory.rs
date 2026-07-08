@@ -1,4 +1,4 @@
-use alloc::borrow::ToOwned;
+use alloc::{borrow::ToOwned, boxed::Box};
 use core::ops::DerefMut;
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
