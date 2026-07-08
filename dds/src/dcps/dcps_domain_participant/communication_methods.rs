@@ -14,8 +14,9 @@ use crate::{
         },
     },
     dds_async::{
-        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
-        subscriber::SubscriberAsync, topic::TopicAsync, topic_description::TopicDescriptionAsync,
+        content_filtered_topic::ContentFilteredTopicAsync, data_reader::DataReaderAsync,
+        domain_participant::DomainParticipantAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+        topic_description::TopicDescriptionAsync,
     },
     infrastructure::{instance::InstanceHandle, status::StatusKind, time::DurationKind},
     rtps::message_receiver::MessageReceiver,
@@ -254,7 +255,29 @@ impl DcpsDomainParticipant {
                                 the_participant.clone(),
                             ))
                         }
-                        TopicDescriptionKind::ContentFilteredTopic(_) => todo!(),
+                        TopicDescriptionKind::ContentFilteredTopic(t) => {
+                            let topic = self
+                                .domain_participant
+                                .topic_description_list
+                                .iter()
+                                .filter_map(|x| match x {
+                                    TopicDescriptionKind::Topic(t) => Some(t),
+                                    TopicDescriptionKind::ContentFilteredTopic(_) => None,
+                                })
+                                .find(|x| x.topic_name == t.related_topic_name)
+                                .expect("Must exist");
+                            TopicDescriptionAsync::ContentFilteredTopic(
+                                ContentFilteredTopicAsync::new(
+                                    t.topic_name.clone(),
+                                    TopicAsync::new(
+                                        topic.instance_handle,
+                                        topic.type_name.clone(),
+                                        topic.topic_name.clone(),
+                                        the_participant.clone(),
+                                    ),
+                                ),
+                            )
+                        }
                     };
                     let the_reader = DataReaderAsync::new(
                         *data_reader_handle,
