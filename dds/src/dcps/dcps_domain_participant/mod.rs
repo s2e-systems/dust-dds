@@ -1067,6 +1067,12 @@ const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];
 
+struct FindTopicNotification {
+    topic_name: String,
+    deadline: Time,
+    reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
+}
+
 struct DomainParticipantEntity {
     domain_id: DomainId,
     domain_tag: String,
@@ -1091,6 +1097,7 @@ struct DomainParticipantEntity {
     _ignored_topic_list: BTreeSet<InstanceHandle>,
     listener_sender: Option<MpscSender<ListenerMail>>,
     listener_mask: StatusMask,
+    find_topic_sender_list: Vec<FindTopicNotification>,
 }
 
 impl DomainParticipantEntity {
@@ -1130,6 +1137,7 @@ impl DomainParticipantEntity {
             listener_sender,
             listener_mask,
             domain_tag,
+            find_topic_sender_list: Vec::new(),
         }
     }
 

@@ -145,7 +145,8 @@ pub enum ParticipantServiceMail {
         participant_handle: InstanceHandle,
         topic_name: String,
         type_support: DynamicType<'static>,
-        reply_sender: OneshotSender<DdsResult<Option<(InstanceHandle, String)>>>,
+        timeout: Duration,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
     },
     LookupTopicdescription {
         participant_handle: InstanceHandle,

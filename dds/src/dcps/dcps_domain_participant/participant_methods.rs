@@ -7,9 +7,11 @@ use alloc::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
+        channels::oneshot::OneshotSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            PublisherEntity, SubscriberEntity, TopicDescriptionKind, TopicEntity,
+            FindTopicNotification, PublisherEntity, SubscriberEntity, TopicDescriptionKind,
+            TopicEntity,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -23,6 +25,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
+        time::{Duration, Time},
     },
     runtime::DdsRuntime,
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
@@ -406,19 +409,22 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, type_support))]
+    #[tracing::instrument(skip(self, type_support, reply_sender))]
     pub fn find_topic(
         &mut self,
         topic_name: String,
         type_support: DynamicType<'static>,
-    ) -> DdsResult<Option<(InstanceHandle, String)>> {
-        if let Some(TopicDescriptionKind::Topic(topic)) = self
+        timeout: Duration,
+        now: Time,
+        reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
+    ) {
+        let found_topic = if let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
             .topic_description_list
             .iter()
             .find(|x| x.topic_name() == topic_name)
         {
-            Ok(Some((topic.instance_handle, topic.type_name.clone())))
+            Some((topic.instance_handle, topic.type_name.clone()))
         } else {
             if let Some(discovered_topic_data) = self.domain_participant.find_topic(&topic_name) {
                 let qos = TopicQos {
@@ -477,7 +483,7 @@ impl DcpsDomainParticipant {
                 {
                     Some(TopicDescriptionKind::Topic(x)) => *x = topic,
                     Some(TopicDescriptionKind::ContentFilteredTopic(_)) => {
-                        return Err(DdsError::IllegalOperation);
+                        unimplemented!()
                     }
                     None => self
                         .domain_participant
@@ -485,9 +491,25 @@ impl DcpsDomainParticipant {
                         .push(TopicDescriptionKind::Topic(topic)),
                 }
 
-                return Ok(Some((topic_handle, type_name.into())));
+                Some((topic_handle, type_name.into()))
+            } else {
+                None
             }
-            Ok(None)
+        };
+        if let Some(t) = found_topic {
+            reply_sender.send(Ok(t));
+        } else {
+            if timeout > Duration::new(0, 0) {
+                self.domain_participant
+                    .find_topic_sender_list
+                    .push(FindTopicNotification {
+                        topic_name,
+                        deadline: todo!(), //now + timeout,
+                        reply_sender,
+                    });
+            } else {
+                reply_sender.send(Err(DdsError::Timeout));
+            }
         }
     }
 

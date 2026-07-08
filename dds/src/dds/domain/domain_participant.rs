@@ -11,7 +11,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    std_runtime::executor::{block_on, block_timeout},
+    std_runtime::executor::block_on,
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{
         content_filtered_topic::ContentFilteredTopic, topic::Topic,
@@ -248,10 +248,10 @@ impl DomainParticipant {
     where
         Foo: TypeSupport,
     {
-        block_timeout(
-            timeout.into(),
-            self.participant_async.find_topic::<Foo>(topic_name),
-        )?
+        block_on(
+            self.participant_async
+                .find_topic::<Foo>(topic_name, timeout),
+        )
         .map(Topic::from)
     }
 

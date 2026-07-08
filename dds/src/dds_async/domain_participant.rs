@@ -24,7 +24,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
-        time::Time,
+        time::{Duration, Time},
     },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
@@ -272,33 +272,35 @@ impl DomainParticipantAsync {
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
     #[tracing::instrument(skip(self))]
-    pub async fn find_topic<Foo>(&self, topic_name: &str) -> DdsResult<TopicAsync>
+    pub async fn find_topic<Foo>(
+        &self,
+        topic_name: &str,
+        timeout: Duration,
+    ) -> DdsResult<TopicAsync>
     where
         Foo: TypeSupport,
     {
         let topic_name = String::from(topic_name);
         let participant_address = self.dcps_sender;
         let participant_async = self.clone();
-        loop {
-            let (reply_sender, reply_receiver) = oneshot();
+        let (reply_sender, reply_receiver) = oneshot();
 
-            participant_address
-                .send(DcpsMail::Participant(ParticipantServiceMail::FindTopic {
-                    participant_handle: self.handle,
-                    topic_name: topic_name.clone(),
-                    type_support: Foo::TYPE,
-                    reply_sender,
-                }))
-                .await;
-            if let Some((guid, type_name)) = reply_receiver.await?? {
-                return Ok(TopicAsync::new(
-                    guid,
-                    type_name,
-                    topic_name,
-                    participant_async,
-                ));
-            }
-        }
+        participant_address
+            .send(DcpsMail::Participant(ParticipantServiceMail::FindTopic {
+                participant_handle: self.handle,
+                topic_name: topic_name.clone(),
+                type_support: Foo::TYPE,
+                timeout,
+                reply_sender,
+            }))
+            .await;
+        let (guid, type_name) = reply_receiver.await??;
+        Ok(TopicAsync::new(
+            guid,
+            type_name,
+            topic_name,
+            participant_async,
+        ))
     }
 
     /// Async version of [`lookup_topicdescription`](crate::domain::domain_participant::DomainParticipant::lookup_topicdescription).
