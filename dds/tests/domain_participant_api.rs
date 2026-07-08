@@ -968,6 +968,19 @@ fn ignore_subscription() {
 }
 
 #[test]
+fn find_topic_timeout() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant.find_topic::<TestType>("abc", Duration::new(0, 500_000));
+
+    assert!(matches!(topic, Err(DdsError::Timeout)));
+}
+
+#[test]
 #[ignore = "Not yet implemented"]
 fn create_delete_content_filtered_topic() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

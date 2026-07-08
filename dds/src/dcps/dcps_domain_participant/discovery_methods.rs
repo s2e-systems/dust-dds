@@ -170,7 +170,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .find_topic_sender_list
             .extract_if(.., |x| {
-                x.deadline >= now
+                now > x.deadline
                     || self
                         .domain_participant
                         .discovered_topic_list
