@@ -429,6 +429,7 @@ impl DcpsDomainParticipant {
                 .push(FindTopicNotification {
                     topic_name,
                     deadline: now + timeout,
+                    type_support,
                     reply_sender,
                 });
         } else {

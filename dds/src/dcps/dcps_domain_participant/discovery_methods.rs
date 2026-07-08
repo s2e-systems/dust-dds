@@ -31,6 +31,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
     },
     infrastructure::{
+        error::DdsError,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{
@@ -160,6 +161,36 @@ impl DcpsDomainParticipant {
                     runtime,
                 )
                 .ok();
+            }
+        }
+    }
+
+    pub fn notify_find_topic_senders(&mut self, now: Time) {
+        let found_topics = self
+            .domain_participant
+            .find_topic_sender_list
+            .extract_if(.., |x| {
+                x.deadline >= now
+                    || self
+                        .domain_participant
+                        .discovered_topic_list
+                        .iter()
+                        .any(|t| t.name.value == x.topic_name)
+                    || self
+                        .domain_participant
+                        .topic_description_list
+                        .iter()
+                        .any(|t| t.topic_name() == x.topic_name)
+            })
+            .collect::<Vec<_>>();
+        for t in found_topics {
+            if let Some(value) = self
+                .domain_participant
+                .find_topic(&t.topic_name, t.type_support)
+            {
+                t.reply_sender.send(Ok(value))
+            } else if now > t.deadline {
+                t.reply_sender.send(Err(DdsError::Timeout));
             }
         }
     }
