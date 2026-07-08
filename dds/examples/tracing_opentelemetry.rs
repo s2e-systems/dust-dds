@@ -65,7 +65,8 @@ fn main() {
 
     let domain_id = 0;
 
-    let participant = DomainParticipantFactory::get_instance()
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
@@ -150,6 +151,7 @@ fn main() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 
+    participant_factory.shutdown();
     provider.shutdown().unwrap();
     std::thread::sleep(std::time::Duration::from_secs(10));
 }

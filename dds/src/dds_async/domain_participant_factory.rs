@@ -1,4 +1,4 @@
-use alloc::borrow::ToOwned;
+use alloc::{borrow::ToOwned, boxed::Box};
 use core::ops::DerefMut;
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
@@ -21,7 +21,7 @@ use crate::{
         status::StatusKind,
         time::Duration,
     },
-    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{Clock, DdsRuntime, Either, Spawner, TaskHandle, Timer, select_future},
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
@@ -64,6 +64,8 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     host_id: [u8; 4],
     transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
     configuration: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, DustDdsConfiguration>,
+    worker_task: alloc::boxed::Box<dyn TaskHandle>,
+    run_loop: alloc::sync::Arc<core::sync::atomic::AtomicBool>,
 }
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
@@ -265,8 +267,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                 DCPS_CHANNEL.sender(),
             );
         let dcps_receiver = DCPS_CHANNEL.receiver();
-        spawner_handle.spawn(async move {
-            loop {
+        let run_loop = alloc::sync::Arc::new(core::sync::atomic::AtomicBool::new(true));
+        let run_loop_clone = run_loop.clone();
+        let worker_task = spawner_handle.spawn(async move {
+            let span = tracing::trace_span!("dds_actor_loop");
+            let _enter = span.enter();
+            while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let poke_time = Duration::new(0, 50_000_000);
                 let next_task_time = domain_participant_factory
                     .time_until_stale_participant()
@@ -304,6 +310,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             entity_counter: core::sync::atomic::AtomicU32::new(0),
             transport: Mutex::new(transport),
             configuration: Mutex::new(configuration),
+            worker_task: Box::new(worker_task),
+            run_loop,
         }
     }
 
@@ -327,5 +335,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             instance_id[2],
             instance_id[3], // Instance ID
         ]
+    }
+
+    #[doc(hidden)]
+    pub fn shutdown(&self) {
+        self.run_loop
+            .store(false, core::sync::atomic::Ordering::Relaxed);
+        self.worker_task.join();
     }
 }
