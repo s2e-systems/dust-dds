@@ -24,13 +24,11 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-            ENTITYID_TL_SVC_REPLY_READER, ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER,
-            ENTITYID_TL_SVC_REQ_WRITER, RtpsReaderKind, RtpsWriterKind,
-            TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
+            ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
+            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
         },
         listeners::domain_participant_listener::ListenerMail,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -1400,7 +1398,7 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == DCPS_PARTICIPANT)
+            .find(|x| x.topic_name == DCPS_PARTICIPANT)
         {
             tracing::trace!("Found SPDP Discovered Participant detector");
 
@@ -1437,7 +1435,7 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == DCPS_PUBLICATION)
+            .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
             if let Ok(samples) = sedp_publication.read(
                 i32::MAX,
@@ -1540,7 +1538,7 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == DCPS_SUBSCRIPTION)
+            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
             if let Ok(samples) = sedp_subscriptions.read(
                 i32::MAX,
@@ -1669,7 +1667,7 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == DCPS_TOPIC)
+            .find(|x| x.topic_name == DCPS_TOPIC)
         {
             if let Ok(samples) = sedp_topics.read(
                 i32::MAX,

@@ -4,11 +4,8 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            AddChangeResult, DcpsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_TL_SVC_REPLY_READER,
-            ENTITYID_TL_SVC_REQ_READER, RtpsReaderKind, RtpsWriterKind, TopicDescriptionKind,
-            reader_methods::deserialize_topic_type,
+            AddChangeResult, DcpsDomainParticipant, RtpsReaderKind, RtpsWriterKind,
+            TopicDescriptionKind, reader_methods::deserialize_topic_type,
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -30,8 +27,7 @@ use crate::{
         },
     },
     runtime::{Clock, DdsRuntime, Spawner, Timer},
-    subscription::data_reader::DataReader,
-    transport::types::{CacheChange, ChangeKind, Guid},
+    transport::types::{ChangeKind, Guid},
     xtypes::deserializer::deserialize_top_level_type,
 };
 
@@ -57,9 +53,6 @@ impl DcpsDomainParticipant {
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
-                    let writer_instance_handle =
-                        InstanceHandle::new(cache_change.writer_guid.into());
-
                     let Some(reader_topic) = self
                         .domain_participant
                         .topic_description_list
@@ -246,7 +239,7 @@ impl DcpsDomainParticipant {
                     };
 
                     let the_participant = DomainParticipantAsync::new(
-                        self.dcps_sender.clone(),
+                        self.dcps_sender,
                         self.domain_participant.domain_id,
                         self.domain_participant.instance_handle,
                     );
