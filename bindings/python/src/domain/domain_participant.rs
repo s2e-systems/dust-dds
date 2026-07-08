@@ -17,7 +17,7 @@ use crate::{
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     subscription::{subcriber_listener::SubscriberListener, subscriber::Subscriber},
     topic_definition::{
-        topic_description::TopicDescription, topic_listener::TopicListener,
+        topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener,
         type_support::convert_python_type_to_dynamic_type,
     },
 };
@@ -122,7 +122,7 @@ impl DomainParticipant {
         qos: Option<TopicQos>,
         a_listener: Option<Py<PyAny>>,
         mask: Vec<StatusKind>,
-    ) -> PyResult<TopicDescription> {
+    ) -> PyResult<Topic> {
         let qos = match qos {
             Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(q.into()),
             None => dust_dds::infrastructure::qos::QosKind::Default,
@@ -159,7 +159,7 @@ impl DomainParticipant {
         }
     }
 
-    pub fn delete_topic(&self, a_topic: &TopicDescription) -> PyResult<()> {
+    pub fn delete_topic(&self, a_topic: &Topic) -> PyResult<()> {
         match self.0.delete_topic(a_topic.as_ref()) {
             Ok(_) => Ok(()),
             Err(e) => Err(into_pyerr(e)),
@@ -171,7 +171,7 @@ impl DomainParticipant {
         topic_name: String,
     ) -> PyResult<Option<TopicDescription>> {
         match self.0.lookup_topicdescription(&topic_name) {
-            Ok(t) => Ok(t.map(TopicDescription::from)),
+            Ok(t) => Ok(t.map(|x| x.into())),
             Err(e) => Err(into_pyerr(e)),
         }
     }

@@ -14,7 +14,7 @@ use crate::{
         time::{Duration, Time},
     },
     topic_definition::{
-        topic_description::TopicDescription,
+        topic::Topic,
         type_support::{PythonDdsData, convert_python_instance_to_dynamic_data},
     },
 };
@@ -206,7 +206,7 @@ impl DataWriter {
             .into())
     }
 
-    pub fn get_topic(&self) -> TopicDescription {
+    pub fn get_topic(&self) -> Topic {
         self.0.get_topic().into()
     }
 

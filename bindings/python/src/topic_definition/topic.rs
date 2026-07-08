@@ -10,6 +10,7 @@ use crate::{
         status::{InconsistentTopicStatus, StatusKind},
     },
 };
+use dust_dds::topic_definition::topic_description::TopicDescription as TopicDescriptionTrait;
 
 use super::topic_listener::TopicListener;
 
