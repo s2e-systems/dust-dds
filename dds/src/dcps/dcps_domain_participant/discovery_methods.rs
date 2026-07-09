@@ -178,7 +178,7 @@ impl DcpsDomainParticipant {
                         .any(|t| t.name.value == x.topic_name)
                     || self
                         .domain_participant
-                        .topic_description_list
+                        .locally_created_topic_list
                         .iter()
                         .any(|t| t.topic_name() == x.topic_name)
             })
@@ -236,7 +236,7 @@ impl DcpsDomainParticipant {
         };
         let Some(TopicDescriptionKind::Topic(topic)) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
             .find(|x| x.topic_name() == data_writer.topic_name)
         else {
@@ -359,11 +359,20 @@ impl DcpsDomainParticipant {
         else {
             return;
         };
+
+        if let Some(topic) = self
+            .domain_participant
+            .content_filtered_topic_list
+            .iter()
+            .find(|x| x.topic_name == data_reader.topic_name)
+        {
+        } else {
+        }
         let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == data_reader.topic_name)
+            .find(|x| x.topic_name == data_reader.topic_name)
         else {
             return;
         };
@@ -373,7 +382,7 @@ impl DcpsDomainParticipant {
             TopicDescriptionKind::ContentFilteredTopic(t) => {
                 if let Some(TopicDescriptionKind::Topic(topic)) = self
                     .domain_participant
-                    .topic_description_list
+                    .locally_created_topic_list
                     .iter()
                     .find(|x| x.topic_name() == t.related_topic_name)
                 {
@@ -480,11 +489,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self, runtime))]
     pub fn announce_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return;
         };
@@ -1072,29 +1081,35 @@ impl DcpsDomainParticipant {
             else {
                 return;
             };
-            let Some(matched_topic) = self
+            let (reader_topic_name, reader_type_name) = if let Some(matched_topic) = self
                 .domain_participant
-                .topic_description_list
+                .content_filtered_topic_list
                 .iter()
-                .find(|t| t.topic_name() == data_reader.topic_name)
-            else {
-                return;
-            };
-            let (reader_topic_name, reader_type_name) = match matched_topic {
-                TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name),
-                TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
-                    if let Some(TopicDescriptionKind::Topic(matched_topic)) = self
-                        .domain_participant
-                        .topic_description_list
-                        .iter()
-                        .find(|t| t.topic_name() == content_filtered_topic.related_topic_name)
-                    {
-                        (&matched_topic.topic_name, &matched_topic.type_name)
-                    } else {
-                        return;
-                    }
+                .find(|t| t.topic_name == data_reader.topic_name)
+            {
+                if let Some(t) = self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter()
+                    .find(|x| x.topic_name == matched_topic.related_topic_name)
+                {
+                    (&t.topic_name, &t.type_name)
+                } else {
+                    return;
+                }
+            } else {
+                if let Some(t) = self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter()
+                    .find(|x| x.topic_name == data_reader.topic_name)
+                {
+                    (&t.topic_name, &t.type_name)
+                } else {
+                    return;
                 }
             };
+
             let is_matched_topic_name =
                 discovered_writer_data.dds_publication_data.topic_name() == reader_topic_name;
             let is_matched_type_name =
@@ -1718,22 +1733,23 @@ impl DcpsDomainParticipant {
                                 discovered_topic_data.topic_builtin_topic_data;
                             self.domain_participant
                                 .add_discovered_topic(topic_builtin_topic_data.clone());
-                            for topic in self.domain_participant.topic_description_list.iter_mut() {
-                                if let TopicDescriptionKind::Topic(topic) = topic {
-                                    if topic.topic_name == topic_builtin_topic_data.name()
-                                        && topic.type_name
-                                            == topic_builtin_topic_data.get_type_name()
-                                        && !is_discovered_topic_consistent(
-                                            &topic.qos,
-                                            &topic_builtin_topic_data,
-                                        )
-                                    {
-                                        topic.inconsistent_topic_status.total_count += 1;
-                                        topic.inconsistent_topic_status.total_count_change += 1;
-                                        topic
-                                            .status_condition
-                                            .add_communication_state(StatusKind::InconsistentTopic);
-                                    }
+                            for topic in self
+                                .domain_participant
+                                .locally_created_topic_list
+                                .iter_mut()
+                            {
+                                if topic.topic_name == topic_builtin_topic_data.name()
+                                    && topic.type_name == topic_builtin_topic_data.get_type_name()
+                                    && !is_discovered_topic_consistent(
+                                        &topic.qos,
+                                        &topic_builtin_topic_data,
+                                    )
+                                {
+                                    topic.inconsistent_topic_status.total_count += 1;
+                                    topic.inconsistent_topic_status.total_count_change += 1;
+                                    topic
+                                        .status_condition
+                                        .add_communication_state(StatusKind::InconsistentTopic);
                                 }
                             }
                         }

@@ -35,14 +35,9 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 topic_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.topic_description_list.iter_mut() {
-                    match t {
-                        super::TopicDescriptionKind::Topic(topic_entity) => {
-                            if topic_entity.instance_handle == topic_handle {
-                                return Ok(topic_entity.status_condition.get_enabled_statuses());
-                            }
-                        }
-                        super::TopicDescriptionKind::ContentFilteredTopic(_) => (),
+                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+                    if t.instance_handle == topic_handle {
+                        return Ok(t.status_condition.get_enabled_statuses());
                     }
                 }
                 return Err(DdsError::AlreadyDeleted);
@@ -126,17 +121,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 topic_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.topic_description_list.iter_mut() {
-                    match t {
-                        super::TopicDescriptionKind::Topic(topic_entity) => {
-                            if topic_entity.instance_handle == topic_handle {
-                                topic_entity
-                                    .status_condition
-                                    .set_enabled_statuses(status_mask);
-                                return Ok(());
-                            }
-                        }
-                        super::TopicDescriptionKind::ContentFilteredTopic(_) => (),
+                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+                    if t.instance_handle == topic_handle {
+                        t.status_condition.set_enabled_statuses(status_mask);
+                        return Ok(());
                     }
                 }
                 return Err(DdsError::AlreadyDeleted);
@@ -220,14 +208,9 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 topic_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.topic_description_list.iter_mut() {
-                    match t {
-                        super::TopicDescriptionKind::Topic(topic_entity) => {
-                            if topic_entity.instance_handle == topic_handle {
-                                return Ok(topic_entity.status_condition.get_trigger_value());
-                            }
-                        }
-                        super::TopicDescriptionKind::ContentFilteredTopic(_) => (),
+                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+                    if t.instance_handle == topic_handle {
+                        return Ok(t.status_condition.get_trigger_value());
                     }
                 }
                 return Err(DdsError::AlreadyDeleted);
@@ -312,17 +295,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 topic_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.topic_description_list.iter_mut() {
-                    match t {
-                        super::TopicDescriptionKind::Topic(topic_entity) => {
-                            if topic_entity.instance_handle == topic_handle {
-                                topic_entity
-                                    .status_condition
-                                    .register_notification(notification_sender);
-                                return Ok(());
-                            }
-                        }
-                        super::TopicDescriptionKind::ContentFilteredTopic(_) => (),
+                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+                    if t.instance_handle == topic_handle {
+                        t.status_condition
+                            .register_notification(notification_sender);
+                        return Ok(());
                     }
                 }
                 return Err(DdsError::AlreadyDeleted);

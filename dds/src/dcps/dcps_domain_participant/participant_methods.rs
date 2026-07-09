@@ -10,8 +10,7 @@ use crate::{
         channels::oneshot::OneshotSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            FindTopicNotification, PublisherEntity, SubscriberEntity, TopicDescriptionKind,
-            TopicEntity,
+            FindTopicNotification, PublisherEntity, SubscriberEntity, TopicEntity,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -231,9 +230,9 @@ impl DcpsDomainParticipant {
     ) -> DdsResult<InstanceHandle> {
         if self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name() == topic_name)
+            .any(|x| x.topic_name == topic_name)
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Topic with name {topic_name} already exists.
@@ -279,8 +278,8 @@ impl DcpsDomainParticipant {
         );
 
         self.domain_participant
-            .topic_description_list
-            .push(TopicDescriptionKind::Topic(topic));
+            .locally_created_topic_list
+            .push(topic);
 
         if self.domain_participant.enabled
             && self
@@ -311,11 +310,11 @@ impl DcpsDomainParticipant {
             return Ok(());
         }
 
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -341,8 +340,8 @@ impl DcpsDomainParticipant {
         }
 
         self.domain_participant
-            .topic_description_list
-            .retain(|x| x.topic_name() != topic_name);
+            .locally_created_topic_list
+            .retain(|x| x.topic_name != topic_name);
 
         Ok(())
     }
@@ -358,9 +357,9 @@ impl DcpsDomainParticipant {
     ) -> DdsResult<InstanceHandle> {
         if !self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name() == related_topic_name)
+            .any(|x| x.topic_name == related_topic_name)
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Related topic with name {related_topic_name} does not exist."
@@ -394,8 +393,8 @@ impl DcpsDomainParticipant {
             expression_parameters,
         );
         self.domain_participant
-            .topic_description_list
-            .push(TopicDescriptionKind::ContentFilteredTopic(topic));
+            .content_filtered_topic_list
+            .push(topic);
 
         Ok(topic_handle)
     }
@@ -439,11 +438,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn lookup_topicdescription(&mut self, topic_name: String) -> DdsResult<Option<String>> {
-        if let Some(TopicDescriptionKind::Topic(topic)) = self
+        if let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         {
             Ok(Some(topic.type_name.clone()))
         } else {
@@ -521,8 +520,8 @@ impl DcpsDomainParticipant {
         }
 
         self.domain_participant
-            .topic_description_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name()));
+            .locally_created_topic_list
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_str()));
 
         Ok(())
     }
@@ -676,10 +675,8 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn enable_domain_participant(&mut self, runtime: &impl DdsRuntime) -> DdsResult<()> {
         if !self.domain_participant.enabled {
-            for t in &mut self.domain_participant.topic_description_list {
-                if let TopicDescriptionKind::Topic(t) = t {
-                    t.enabled = true;
-                }
+            for t in &mut self.domain_participant.locally_created_topic_list {
+                t.enabled = true;
             }
             for dw in &mut self.domain_participant.builtin_publisher.data_writer_list {
                 dw.enabled = true;

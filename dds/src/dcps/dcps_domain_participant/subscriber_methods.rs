@@ -41,9 +41,9 @@ impl DcpsDomainParticipant {
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .content_filtered_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -53,7 +53,7 @@ impl DcpsDomainParticipant {
             TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
                 if let Some(TopicDescriptionKind::Topic(topic)) = self
                     .domain_participant
-                    .topic_description_list
+                    .locally_created_topic_list
                     .iter()
                     .find(|x| x.topic_name() == content_filtered_topic.related_topic_name)
                 {
@@ -186,9 +186,9 @@ impl DcpsDomainParticipant {
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name() == topic_name)
+            .any(|x| x.topic_name == topic_name)
         {
             return Err(DdsError::BadParameter);
         }
