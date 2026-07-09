@@ -26,7 +26,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
             ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
-            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
+            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
         },
         listeners::domain_participant_listener::ListenerMail,
     },
@@ -180,7 +180,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .locally_created_topic_list
                         .iter()
-                        .any(|t| t.topic_name() == x.topic_name)
+                        .any(|t| t.topic_name == x.topic_name)
             })
             .collect::<Vec<_>>();
         for t in found_topics {
@@ -234,11 +234,11 @@ impl DcpsDomainParticipant {
         else {
             return;
         };
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == data_writer.topic_name)
+            .find(|x| x.topic_name == data_writer.topic_name)
         else {
             return;
         };
@@ -360,37 +360,31 @@ impl DcpsDomainParticipant {
             return;
         };
 
-        if let Some(topic) = self
+        let topic = if let Some(content_filtered_topic) = self
             .domain_participant
             .content_filtered_topic_list
             .iter()
             .find(|x| x.topic_name == data_reader.topic_name)
         {
+            let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == content_filtered_topic.related_topic_name)
+            else {
+                return;
+            };
+            t
         } else {
-        }
-        let Some(topic) = self
-            .domain_participant
-            .locally_created_topic_list
-            .iter()
-            .find(|x| x.topic_name == data_reader.topic_name)
-        else {
-            return;
-        };
-
-        let topic = match topic {
-            TopicDescriptionKind::Topic(t) => t,
-            TopicDescriptionKind::ContentFilteredTopic(t) => {
-                if let Some(TopicDescriptionKind::Topic(topic)) = self
-                    .domain_participant
-                    .locally_created_topic_list
-                    .iter()
-                    .find(|x| x.topic_name() == t.related_topic_name)
-                {
-                    topic
-                } else {
-                    return;
-                }
-            }
+            let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == data_reader.topic_name)
+            else {
+                return;
+            };
+            t
         };
         let guid = data_reader.transport_reader.guid();
         let dds_subscription_data = SubscriptionBuiltinTopicData {
@@ -1097,17 +1091,15 @@ impl DcpsDomainParticipant {
                 } else {
                     return;
                 }
+            } else if let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == data_reader.topic_name)
+            {
+                (&t.topic_name, &t.type_name)
             } else {
-                if let Some(t) = self
-                    .domain_participant
-                    .locally_created_topic_list
-                    .iter()
-                    .find(|x| x.topic_name == data_reader.topic_name)
-                {
-                    (&t.topic_name, &t.type_name)
-                } else {
-                    return;
-                }
+                return;
             };
 
             let is_matched_topic_name =

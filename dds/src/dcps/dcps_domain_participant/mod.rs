@@ -1356,21 +1356,6 @@ impl SubscriberEntity {
     }
 }
 
-#[allow(clippy::large_enum_variant)]
-enum TopicDescriptionKind {
-    Topic(TopicEntity),
-    ContentFilteredTopic(ContentFilteredTopicEntity),
-}
-
-impl TopicDescriptionKind {
-    fn topic_name(&self) -> &str {
-        match self {
-            TopicDescriptionKind::Topic(t) => &t.topic_name,
-            TopicDescriptionKind::ContentFilteredTopic(t) => &t.topic_name,
-        }
-    }
-}
-
 struct TopicEntity {
     qos: TopicQos,
     type_name: String,

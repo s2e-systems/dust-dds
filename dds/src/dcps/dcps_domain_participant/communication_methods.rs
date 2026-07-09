@@ -53,16 +53,6 @@ impl DcpsDomainParticipant {
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
-                    let Some(reader_topic) = self
-                        .domain_participant
-                        .locally_created_topic_list
-                        .iter()
-                        .find(|t| t.topic_name == data_reader.topic_name)
-                    else {
-                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic_name for reader");
-                        return;
-                    };
-
                     let (topic_name, type_name) = if let Some(content_filtered_topic) = self
                         .domain_participant
                         .content_filtered_topic_list
@@ -73,7 +63,7 @@ impl DcpsDomainParticipant {
                             .domain_participant
                             .locally_created_topic_list
                             .iter()
-                            .find(|t| t.topic_name == data_reader.topic_name)
+                            .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
                         else {
                             tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
                             return;

@@ -4,7 +4,6 @@ use crate::{
     dcps::{
         dcps_domain_participant::{
             DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
-            TopicDescriptionKind,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -39,29 +38,31 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
-        let Some(topic) = self
+        let topic = if let Some(content_filtered_topic) = self
             .domain_participant
             .content_filtered_topic_list
             .iter()
             .find(|x| x.topic_name == topic_name)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-
-        let topic = match topic {
-            TopicDescriptionKind::Topic(t) => t,
-            TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
-                if let Some(TopicDescriptionKind::Topic(topic)) = self
-                    .domain_participant
-                    .locally_created_topic_list
-                    .iter()
-                    .find(|x| x.topic_name() == content_filtered_topic.related_topic_name)
-                {
-                    topic
-                } else {
-                    return Err(DdsError::AlreadyDeleted);
-                }
-            }
+        {
+            let Some(topic) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == content_filtered_topic.related_topic_name)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            topic
+        } else {
+            let Some(topic) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == topic_name)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            topic
         };
 
         let topic_kind = KeyHolderType::from_dynamic_type(&topic.type_support)?.get_topic_kind();
