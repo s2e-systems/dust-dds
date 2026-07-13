@@ -302,7 +302,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_type_lookup_request_cache_change(
                         &domain_participant_factory.runtime,
                     );
-                    dp.process_type_lookup_reply_cache_change(&domain_participant_factory.runtime);
+                    dp.process_type_lookup_reply_cache_change();
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());

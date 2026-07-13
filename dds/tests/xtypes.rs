@@ -11,7 +11,6 @@ use dust_dds::{
         time::{Duration, DurationKind},
         type_support::DdsType,
     },
-    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 

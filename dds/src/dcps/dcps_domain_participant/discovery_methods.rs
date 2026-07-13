@@ -60,8 +60,8 @@ use crate::{
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
         type_object::{
-            CompleteTypeObject, TypeIdentifier, TypeIdentifierTypeObjectPair, TypeInformation,
-            TypeObject,
+            CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierTypeObjectPair,
+            TypeInformation, TypeObject,
         },
         type_support::{_String, Type, TypeSupport},
     },
@@ -1764,7 +1764,7 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
+            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
         {
             if let Ok(samples) = type_lookup_request_reader.take(
                 i32::MAX,
@@ -1807,7 +1807,7 @@ impl DcpsDomainParticipant {
                                             let type_lookup_reply = TypeLookupReply {
                                                 header: ReplyHeader {
                                                     related_request_id: type_lookup_request.header.request_id.clone(),
-                                                    remote_ex: RemoteExceptionCode::RemoteExOk
+                                                    remote_ex: RemoteExceptionCode::Ok
                                                 },
                                                 r#return:
                                                     TypeLookupReturn::TypeLookupGetTypesHash {
@@ -1856,13 +1856,13 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_type_lookup_reply_cache_change(&mut self, runtime: &impl DdsRuntime) {
+    pub fn process_type_lookup_reply_cache_change(&mut self) {
         if let Some(type_lookup_reply_reader) = self
             .domain_participant
             .builtin_subscriber
             .data_reader_list
             .iter_mut()
-            .find(|x| &x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
+            .find(|x| x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
         {
             if let Ok(samples) = type_lookup_reply_reader.take(
                 i32::MAX,
@@ -1876,7 +1876,7 @@ impl DcpsDomainParticipant {
                         deserialize_top_level_type(TypeLookupReply::TYPE, &sample_data)
                     {
                         let type_lookup_reply = TypeLookupReply::create_sample(&mut d);
-                        if type_lookup_reply.header.remote_ex != RemoteExceptionCode::RemoteExOk {
+                        if type_lookup_reply.header.remote_ex != RemoteExceptionCode::Ok {
                             tracing::warn!(return_code=?type_lookup_reply.header.remote_ex, "Received exception on type lookup reply");
                             continue;
                         }
@@ -1900,9 +1900,22 @@ impl DcpsDomainParticipant {
                                                         == type_identifier_pair.type_identifier
                                                 })
                                             {
-                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(type_identifier_pair.type_object.clone());
+                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(() /*type_identifier_pair.type_object.clone()*/);
 
-                                                todo!("Check for topic type compatibility");
+                                                let is_type_assignable = match &type_identifier_pair.type_object{
+                                                    TypeObject::EkComplete { complete } => {
+                                                        CompleteTypeObject::from(topic.type_support).is_assignable_from(complete)
+                                                    },
+                                                    TypeObject::EkMinimal { minimal } => &MinimalTypeObject::from(topic.type_support) == minimal,
+                                                };
+                                                if !is_type_assignable {
+                                                    topic.inconsistent_topic_status.total_count += 1;
+                                                    topic.inconsistent_topic_status.total_count_change += 1;
+                                                    topic
+                                                        .status_condition
+                                                        .add_communication_state(StatusKind::InconsistentTopic);
+                                                }
+
                                             }
                                         }
                                     }
@@ -1928,7 +1941,7 @@ impl DcpsDomainParticipant {
             {
                 let type_information = TypeInformation::from(topic.type_support);
                 if let Some(discovered_type_information) = &discovered_topic.type_information {
-                    if &discovered_type_information.minimal != &type_information.minimal
+                    if discovered_type_information.minimal != type_information.minimal
                         && !topic
                             .discovered_type_representation
                             .iter()
