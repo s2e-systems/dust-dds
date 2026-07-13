@@ -1778,7 +1778,10 @@ impl DcpsDomainParticipant {
                                             + 1)
                                         .into(),
                                     },
-                                    instance_name: String::new(),
+                                    instance_name: format!(
+                                        "dds.builtin.TOS.{:x}",
+                                        self.domain_participant.instance_handle,
+                                    ),
                                 },
                                 call: TypeLookupCall::TypeLookupGetTypesHashId {
                                     get_types: TypeLookupGetTypesIn {
