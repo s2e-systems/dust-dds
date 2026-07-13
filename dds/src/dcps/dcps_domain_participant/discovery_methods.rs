@@ -36,7 +36,7 @@ use crate::{
     infrastructure::{
         error::DdsError,
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos, SubscriberQos},
         qos_policy::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
@@ -1732,25 +1732,6 @@ impl DcpsDomainParticipant {
                                 discovered_topic_data.topic_builtin_topic_data;
                             self.domain_participant
                                 .add_discovered_topic(topic_builtin_topic_data.clone());
-                            for topic in self
-                                .domain_participant
-                                .locally_created_topic_list
-                                .iter_mut()
-                            {
-                                if topic.topic_name == topic_builtin_topic_data.name()
-                                    && topic.type_name == topic_builtin_topic_data.get_type_name()
-                                    && !is_discovered_topic_consistent(
-                                        &topic.qos,
-                                        &topic_builtin_topic_data,
-                                    )
-                                {
-                                    topic.inconsistent_topic_status.total_count += 1;
-                                    topic.inconsistent_topic_status.total_count_change += 1;
-                                    topic
-                                        .status_condition
-                                        .add_communication_state(StatusKind::InconsistentTopic);
-                                }
-                            }
                         }
                     }
                 }
@@ -2967,24 +2948,6 @@ fn get_discovered_writer_incompatible_qos_policy_list(
     }
 
     incompatible_qos_policy_list
-}
-
-fn is_discovered_topic_consistent(
-    topic_qos: &TopicQos,
-    topic_builtin_topic_data: &TopicBuiltinTopicData,
-) -> bool {
-    &topic_qos.topic_data == topic_builtin_topic_data.topic_data()
-        && &topic_qos.durability == topic_builtin_topic_data.durability()
-        && &topic_qos.deadline == topic_builtin_topic_data.deadline()
-        && &topic_qos.latency_budget == topic_builtin_topic_data.latency_budget()
-        && &topic_qos.liveliness == topic_builtin_topic_data.liveliness()
-        && &topic_qos.reliability == topic_builtin_topic_data.reliability()
-        && &topic_qos.destination_order == topic_builtin_topic_data.destination_order()
-        && &topic_qos.history == topic_builtin_topic_data.history()
-        && &topic_qos.resource_limits == topic_builtin_topic_data.resource_limits()
-        && &topic_qos.transport_priority == topic_builtin_topic_data.transport_priority()
-        && &topic_qos.lifespan == topic_builtin_topic_data.lifespan()
-        && &topic_qos.ownership == topic_builtin_topic_data.ownership()
 }
 
 fn fnmatch_to_regex(pattern: &str) -> String {
