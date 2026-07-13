@@ -2384,10 +2384,6 @@ impl CompleteTypeObject {
     /// This methods implements the rules defined in the DDS-XTypes standard chapter 7.2.4
     /// which defines the compatibility between two types.
     pub fn is_assignable_from(&self, _t2: &CompleteTypeObject) -> bool {
-        // If two types T1 and T2 are equivalent according to the MINIMAL relation (see Clause 7.3.4.7),
-        // then they are mutually assignable, that is, T1 is-assignable-from T2 and T2 is-assignable-from
-        // T1.
-
         // Members that are marked as non-serialized, see Sub Clause 7.3.1.2.1.14, shall be ignored during
         // type compatibility checking.
 
