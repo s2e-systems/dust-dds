@@ -78,6 +78,7 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
+        type_object::{TypeInformation, TypeObject},
         type_support::{Type, TypeSupport},
     },
 };
@@ -1356,6 +1357,11 @@ impl SubscriberEntity {
     }
 }
 
+pub enum DiscoveredTypeRepresentationState {
+    Requested,
+    Discovered(TypeObject),
+}
+
 struct TopicEntity {
     qos: TopicQos,
     type_name: String,
@@ -1367,6 +1373,7 @@ struct TopicEntity {
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _listener_mask: StatusMask,
     type_support: DynamicType<'static>,
+    discovered_type_representation: Vec<(TypeInformation, DiscoveredTypeRepresentationState)>,
 }
 
 impl TopicEntity {
@@ -1392,6 +1399,7 @@ impl TopicEntity {
             _listener_sender: listener_sender,
             _listener_mask: listener_mask,
             type_support,
+            discovered_type_representation: Vec::new(),
         }
     }
 }
