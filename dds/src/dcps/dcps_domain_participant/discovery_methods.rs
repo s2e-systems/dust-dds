@@ -55,7 +55,7 @@ use crate::{
     xtypes::{
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
-        type_object::TypeIdentifier,
+        type_object::{TypeIdentifier, TypeInformation},
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -1744,6 +1744,68 @@ impl DcpsDomainParticipant {
                                         .add_communication_state(StatusKind::InconsistentTopic);
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
+        for topic in &self.domain_participant.locally_created_topic_list {
+            for discovered_topic in self
+                .domain_participant
+                .discovered_topic_list
+                .iter()
+                .filter(|t| t.name.value == topic.topic_name)
+            {
+                let type_information = TypeInformation::from(topic.type_support);
+                if let Some(discovered_type_information) = &discovered_topic.type_information {
+                    if discovered_type_information != &type_information {
+                        if let Some(type_request_writer) = self
+                            .domain_participant
+                            .builtin_publisher
+                            .data_writer_list
+                            .iter_mut()
+                            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
+                        {
+                            let type_lookup_request = TypeLookupRequest {
+                                header: RequestHeader {
+                                    request_id: SampleIdentity {
+                                        writer_guid: type_request_writer.transport_writer.guid(),
+                                        sequence_number: (type_request_writer
+                                            .last_change_sequence_number
+                                            + 1)
+                                        .into(),
+                                    },
+                                    instance_name: String::new(),
+                                },
+                                call: TypeLookupCall::TypeLookupGetTypesHashId {
+                                    get_types: TypeLookupGetTypesIn {
+                                        type_ids: vec![
+                                            discovered_type_information
+                                                .complete
+                                                .typeid_with_size
+                                                .type_id
+                                                .clone(),
+                                        ],
+                                    },
+                                },
+                            };
+                            let sample_instance_handle = InstanceHandle::default();
+                            let serialized_data =
+                                serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
+                                    .unwrap();
+                            type_request_writer
+                                .write_w_timestamp(
+                                    sample_instance_handle,
+                                    serialized_data,
+                                    runtime.clock().now(),
+                                    runtime.clock().now(),
+                                    self.transport.message_writer.as_ref(),
+                                    runtime,
+                                )
+                                .ok();
                         }
                     }
                 }
