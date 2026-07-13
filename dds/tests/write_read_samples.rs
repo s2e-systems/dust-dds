@@ -4,7 +4,7 @@ use dust_dds::{
         error::DdsError,
         instance::InstanceHandle,
         listener::NO_LISTENER,
-        qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
