@@ -46,7 +46,7 @@ pub struct TypeLookupGetTypesOut {
 }
 
 #[derive(DdsType)]
-#[dust_dds(switch(i32))]
+#[dust_dds(extensibility = "appendable", switch(i32))]
 pub enum TypeLookupGetTypesResult {
     #[dust_dds(case = 0)]
     Ok { result: TypeLookupGetTypesOut },
@@ -114,7 +114,7 @@ pub enum TypeLookupReturn {
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final")]
 pub struct TypeLookupReply {
-    pub header: RequestHeader,
+    pub header: ReplyHeader,
     pub r#return: TypeLookupReturn,
 }
 
@@ -128,8 +128,9 @@ pub struct RequestHeader {
 
 #[derive(DdsType)]
 #[dust_dds(extensibility = "final")]
-pub struct _ReplyHeader {
+pub struct ReplyHeader {
     pub related_request_id: SampleIdentity,
+    pub remote_ex: RemoteExceptionCode,
 }
 
 #[derive(DdsType, Clone)]
@@ -140,3 +141,13 @@ pub struct SampleIdentity {
 }
 
 pub type InstanceName = String; //typedef string<255> InstanceName;
+
+#[derive(DdsType, Clone)]
+pub enum RemoteExceptionCode {
+    RemoteExOk,
+    RemoteExUnsupported,
+    RemoteExInvalidArgument,
+    RemoteExOutOfResources,
+    RemoteExUnknownOperation,
+    RemoteExUnknownException,
+}

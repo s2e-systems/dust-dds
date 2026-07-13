@@ -14,9 +14,9 @@ use crate::{
                 SpdpDiscoveredParticipantData,
             },
             type_lookup::{
-                RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn,
-                TypeLookupGetTypesOut, TypeLookupGetTypesResult, TypeLookupReply,
-                TypeLookupRequest, TypeLookupReturn,
+                RemoteExceptionCode, ReplyHeader, RequestHeader, SampleIdentity, TypeLookupCall,
+                TypeLookupGetTypesIn, TypeLookupGetTypesOut, TypeLookupGetTypesResult,
+                TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
             },
         },
         dcps_domain_participant::{
@@ -1805,7 +1805,10 @@ impl DcpsDomainParticipant {
                                             .find(|x| x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
                                         {
                                             let type_lookup_reply = TypeLookupReply {
-                                                header: type_lookup_request.header.clone(),
+                                                header: ReplyHeader {
+                                                    related_request_id: type_lookup_request.header.request_id.clone(),
+                                                    remote_ex: RemoteExceptionCode::RemoteExOk
+                                                },
                                                 r#return:
                                                     TypeLookupReturn::TypeLookupGetTypesHash {
                                                         get_type: TypeLookupGetTypesResult::Ok {
