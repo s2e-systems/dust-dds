@@ -2429,7 +2429,83 @@ impl CompleteTypeObject {
         // AND if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the ‘optional’ attribute and the T1 member type is strongly assignable from the T2 member type.
         // AND if T1 is final, then they meet the same condition as for T1 being appendable and in addition T1 and T2 have the same set of member IDs. For the purposes of the above conditions, members belonging to base types of T1 or T2 shall be considered “expanded” inside T1 or T2 respectively, as if they had been directly defined as part of the sub-type.
 
-        false
+        if self == _t2 {
+            return true;
+        }
+
+        match (self, _t2) {
+            (
+                CompleteTypeObject::TkArray { array_type: t1 },
+                CompleteTypeObject::TkArray { array_type: t2 },
+            ) => {
+                t1.header.common.bound_seq == t2.header.common.bound_seq
+                    && t1.element.common._type == t2.element.common._type
+            }
+            (
+                CompleteTypeObject::TkSequence { sequence_type: t1 },
+                CompleteTypeObject::TkSequence { sequence_type: t2 },
+            ) => t1.element.common._type == t2.element.common._type,
+            (
+                CompleteTypeObject::TkMap { map_type: t1 },
+                CompleteTypeObject::TkMap { map_type: t2 },
+            ) => {
+                t1.key.common._type == t2.key.common._type
+                    && t1.element.common._type == t2.element.common._type
+            }
+            (
+                CompleteTypeObject::TkBitmask { bitmask_type: t1 },
+                CompleteTypeObject::TkBitmask { bitmask_type: t2 },
+            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
+            (
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t1,
+                },
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t2,
+                },
+            ) => t1.enum_flags == t2.enum_flags && t1.literal_seq == t2.literal_seq,
+            (
+                CompleteTypeObject::TkStructure { struct_type: t1 },
+                CompleteTypeObject::TkStructure { struct_type: t2 },
+            ) => {
+                if t1.struct_flags != t2.struct_flags {
+                    return false;
+                }
+                let mut has_common_id = false;
+                for m2 in &t2.member_seq {
+                    if let Some(m1) = t1
+                        .member_seq
+                        .iter()
+                        .find(|m| m.common.member_id == m2.common.member_id)
+                    {
+                        has_common_id = true;
+                        if m1.common.member_type_id != m2.common.member_type_id {
+                            return false;
+                        }
+                        if m1.detail.name != m2.detail.name {
+                            return false;
+                        }
+                    }
+                }
+                if !has_common_id && !t1.member_seq.is_empty() && !t2.member_seq.is_empty() {
+                    return false;
+                }
+                true
+            }
+            (
+                CompleteTypeObject::TkUnion { union_type: t1 },
+                CompleteTypeObject::TkUnion { union_type: t2 },
+            ) => {
+                if t1.union_flags != t2.union_flags {
+                    return false;
+                }
+                if t1.discriminator.common.type_id != t2.discriminator.common.type_id {
+                    return false;
+                }
+                true
+            }
+            _ => false,
+        }
     }
 }
 
