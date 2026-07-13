@@ -5,7 +5,7 @@ use crate::{
     dcps::{
         dcps_domain_participant::{
             AddChangeResult, DcpsDomainParticipant, RtpsReaderKind, RtpsWriterKind,
-            TopicDescriptionKind, reader_methods::deserialize_topic_type,
+            reader_methods::deserialize_topic_type,
         },
         dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
@@ -53,19 +53,21 @@ impl DcpsDomainParticipant {
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
-                    let Some(reader_topic) = self
+                    let (topic_name, type_name) = if let Some(content_filtered_topic) = self
                         .domain_participant
-                        .topic_description_list
+                        .content_filtered_topic_list
                         .iter()
-                        .find(|t| t.topic_name() == data_reader.topic_name)
-                    else {
-                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic_name for reader");
-                        return;
-                    };
-
-                    if let TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) =
-                        reader_topic
+                        .find(|t| t.topic_name == data_reader.topic_name)
                     {
+                        let Some(reader_topic) = self
+                            .domain_participant
+                            .locally_created_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
+                        else {
+                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                            return;
+                        };
                         if cache_change.kind == ChangeKind::Alive {
                             let Some(data) = deserialize_topic_type(
                                 &data_reader.topic_name,
@@ -179,7 +181,25 @@ impl DcpsDomainParticipant {
                                 return;
                             };
                         }
-                    }
+                        (
+                            reader_topic.type_name.clone(),
+                            reader_topic.topic_name.clone(),
+                        )
+                    } else {
+                        let Some(reader_topic) = self
+                            .domain_participant
+                            .locally_created_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == data_reader.topic_name)
+                        else {
+                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                            return;
+                        };
+                        (
+                            reader_topic.type_name.clone(),
+                            reader_topic.topic_name.clone(),
+                        )
+                    };
 
                     let participant_handle = self.domain_participant.instance_handle;
                     let change_instance_handle = if let Some(i) = cache_change.instance_handle {
@@ -245,25 +265,7 @@ impl DcpsDomainParticipant {
                     );
                     let the_subscriber =
                         SubscriberAsync::new(*subscriber_handle, the_participant.clone());
-                    let (topic_name, type_name) = match reader_topic {
-                        TopicDescriptionKind::Topic(topic_entity) => (
-                            topic_entity.type_name.clone(),
-                            topic_entity.topic_name.clone(),
-                        ),
-                        TopicDescriptionKind::ContentFilteredTopic(t) => {
-                            let topic = self
-                                .domain_participant
-                                .topic_description_list
-                                .iter()
-                                .filter_map(|x| match x {
-                                    TopicDescriptionKind::Topic(t) => Some(t),
-                                    TopicDescriptionKind::ContentFilteredTopic(_) => None,
-                                })
-                                .find(|x| x.topic_name == t.related_topic_name)
-                                .expect("Must exist");
-                            (topic.type_name.clone(), topic.topic_name.clone())
-                        }
-                    };
+
                     let the_reader = DataReaderAsync::new(
                         *data_reader_handle,
                         the_subscriber.clone(),

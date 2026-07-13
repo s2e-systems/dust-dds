@@ -342,7 +342,7 @@ impl DcpsDomainParticipant {
         let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
         let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "SpdpDiscoveredParticipantData".to_string(),
             String::from(DCPS_PARTICIPANT),
@@ -351,9 +351,9 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             ParticipantBuiltinTopicData::TYPE,
-        )));
+        ));
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredTopicData".to_string(),
             String::from(DCPS_TOPIC),
@@ -362,9 +362,9 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             TopicBuiltinTopicData::TYPE,
-        )));
+        ));
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredWriterData".to_string(),
             String::from(DCPS_PUBLICATION),
@@ -373,9 +373,9 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             PublicationBuiltinTopicData::TYPE,
-        )));
+        ));
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "DiscoveredReaderData".to_string(),
             String::from(DCPS_SUBSCRIPTION),
@@ -384,9 +384,9 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             SubscriptionBuiltinTopicData::TYPE,
-        )));
+        ));
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "TypeLookup_Request".to_string(),
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
@@ -395,9 +395,9 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             TypeLookupRequest::TYPE,
-        )));
+        ));
 
-        topic_list.push(TopicDescriptionKind::Topic(TopicEntity::new(
+        topic_list.push(TopicEntity::new(
             TopicQos::default(),
             "TypeLookup_Reply".to_string(),
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
@@ -406,7 +406,7 @@ impl DcpsDomainParticipant {
             None,
             StatusMask::default(),
             TypeLookupReply::TYPE,
-        )));
+        ));
 
         let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
             guid_prefix,
@@ -683,16 +683,13 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| &x.instance_handle == data_reader_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        let type_name = match self
+        let type_name = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == data_reader.topic_name)
-            .ok_or(DdsError::AlreadyDeleted)?
-        {
-            TopicDescriptionKind::Topic(topic_entity) => topic_entity.type_name.clone(),
-            TopicDescriptionKind::ContentFilteredTopic(_) => todo!(),
-        };
+            .find(|x| x.topic_name == data_reader.topic_name)
+            .map(|x| x.type_name.clone())
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         Ok(DataReaderAsync::new(
             *data_reader_handle,
@@ -733,20 +730,19 @@ impl DcpsDomainParticipant {
     }
 
     fn get_topic_async(&self, topic_name: String) -> DdsResult<TopicAsync> {
-        match self
-            .domain_participant
-            .topic_description_list
+        self.domain_participant
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
-        {
-            Some(TopicDescriptionKind::Topic(topic)) => Ok(TopicAsync::new(
-                topic.instance_handle,
-                topic.type_name.clone(),
-                topic_name,
-                self.get_participant_async(),
-            )),
-            _ => Err(DdsError::AlreadyDeleted),
-        }
+            .find(|x| x.topic_name == topic_name)
+            .map(|x| {
+                TopicAsync::new(
+                    x.instance_handle,
+                    x.type_name.clone(),
+                    topic_name,
+                    self.get_participant_async(),
+                )
+            })
+            .ok_or(DdsError::AlreadyDeleted)
     }
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {
@@ -1085,7 +1081,8 @@ struct DomainParticipantEntity {
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
-    topic_description_list: Vec<TopicDescriptionKind>,
+    locally_created_topic_list: Vec<TopicEntity>,
+    content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
     default_topic_qos: TopicQos,
     discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -1111,7 +1108,7 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: PublisherEntity,
         builtin_subscriber: SubscriberEntity,
-        topic_description_list: Vec<TopicDescriptionKind>,
+        locally_created_topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -1125,7 +1122,8 @@ impl DomainParticipantEntity {
             default_subscriber_qos: SubscriberQos::const_default(),
             user_defined_publisher_list: Vec::new(),
             default_publisher_qos: PublisherQos::const_default(),
-            topic_description_list,
+            locally_created_topic_list,
+            content_filtered_topic_list: Vec::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -1173,10 +1171,10 @@ impl DomainParticipantEntity {
         topic_name: &str,
         type_support: DynamicType<'static>,
     ) -> Option<(InstanceHandle, String)> {
-        if let Some(TopicDescriptionKind::Topic(topic)) = self
-            .topic_description_list
+        if let Some(topic) = self
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         {
             Some((topic.instance_handle, topic.type_name.clone()))
         } else if let Some(discovered_topic_data) = self
@@ -1233,17 +1231,12 @@ impl DomainParticipantEntity {
             topic.enabled = true;
 
             match self
-                .topic_description_list
+                .locally_created_topic_list
                 .iter_mut()
-                .find(|x| x.topic_name() == topic.topic_name)
+                .find(|x| x.topic_name == topic.topic_name)
             {
-                Some(TopicDescriptionKind::Topic(x)) => *x = topic,
-                Some(TopicDescriptionKind::ContentFilteredTopic(_)) => {
-                    unimplemented!()
-                }
-                None => self
-                    .topic_description_list
-                    .push(TopicDescriptionKind::Topic(topic)),
+                Some(x) => *x = topic,
+                None => self.locally_created_topic_list.push(topic),
             }
 
             Some((topic_handle, type_name.into()))
@@ -1295,14 +1288,15 @@ impl DomainParticipantEntity {
 
     fn is_empty(&self) -> bool {
         let no_user_defined_topics = self
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_str()))
             .count()
             == 0;
 
         self.user_defined_publisher_list.is_empty()
             && self.user_defined_subscriber_list.is_empty()
+            && self.content_filtered_topic_list.is_empty()
             && no_user_defined_topics
     }
 }
@@ -1358,21 +1352,6 @@ impl SubscriberEntity {
             status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
-        }
-    }
-}
-
-#[allow(clippy::large_enum_variant)]
-enum TopicDescriptionKind {
-    Topic(TopicEntity),
-    ContentFilteredTopic(ContentFilteredTopicEntity),
-}
-
-impl TopicDescriptionKind {
-    fn topic_name(&self) -> &str {
-        match self {
-            TopicDescriptionKind::Topic(t) => &t.topic_name,
-            TopicDescriptionKind::ContentFilteredTopic(t) => &t.topic_name,
         }
     }
 }

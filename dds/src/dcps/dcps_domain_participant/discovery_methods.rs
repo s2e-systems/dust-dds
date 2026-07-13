@@ -26,7 +26,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
             ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
-            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME, TopicDescriptionKind,
+            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
         },
         listeners::domain_participant_listener::ListenerMail,
     },
@@ -178,9 +178,9 @@ impl DcpsDomainParticipant {
                         .any(|t| t.name.value == x.topic_name)
                     || self
                         .domain_participant
-                        .topic_description_list
+                        .locally_created_topic_list
                         .iter()
-                        .any(|t| t.topic_name() == x.topic_name)
+                        .any(|t| t.topic_name == x.topic_name)
             })
             .collect::<Vec<_>>();
         for t in found_topics {
@@ -234,11 +234,11 @@ impl DcpsDomainParticipant {
         else {
             return;
         };
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == data_writer.topic_name)
+            .find(|x| x.topic_name == data_writer.topic_name)
         else {
             return;
         };
@@ -359,29 +359,32 @@ impl DcpsDomainParticipant {
         else {
             return;
         };
-        let Some(topic) = self
-            .domain_participant
-            .topic_description_list
-            .iter()
-            .find(|x| x.topic_name() == data_reader.topic_name)
-        else {
-            return;
-        };
 
-        let topic = match topic {
-            TopicDescriptionKind::Topic(t) => t,
-            TopicDescriptionKind::ContentFilteredTopic(t) => {
-                if let Some(TopicDescriptionKind::Topic(topic)) = self
-                    .domain_participant
-                    .topic_description_list
-                    .iter()
-                    .find(|x| x.topic_name() == t.related_topic_name)
-                {
-                    topic
-                } else {
-                    return;
-                }
-            }
+        let topic = if let Some(content_filtered_topic) = self
+            .domain_participant
+            .content_filtered_topic_list
+            .iter()
+            .find(|x| x.topic_name == data_reader.topic_name)
+        {
+            let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == content_filtered_topic.related_topic_name)
+            else {
+                return;
+            };
+            t
+        } else {
+            let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == data_reader.topic_name)
+            else {
+                return;
+            };
+            t
         };
         let guid = data_reader.transport_reader.guid();
         let dds_subscription_data = SubscriptionBuiltinTopicData {
@@ -480,11 +483,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self, runtime))]
     pub fn announce_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return;
         };
@@ -1072,29 +1075,33 @@ impl DcpsDomainParticipant {
             else {
                 return;
             };
-            let Some(matched_topic) = self
+            let (reader_topic_name, reader_type_name) = if let Some(matched_topic) = self
                 .domain_participant
-                .topic_description_list
+                .content_filtered_topic_list
                 .iter()
-                .find(|t| t.topic_name() == data_reader.topic_name)
-            else {
+                .find(|t| t.topic_name == data_reader.topic_name)
+            {
+                if let Some(t) = self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter()
+                    .find(|x| x.topic_name == matched_topic.related_topic_name)
+                {
+                    (&t.topic_name, &t.type_name)
+                } else {
+                    return;
+                }
+            } else if let Some(t) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == data_reader.topic_name)
+            {
+                (&t.topic_name, &t.type_name)
+            } else {
                 return;
             };
-            let (reader_topic_name, reader_type_name) = match matched_topic {
-                TopicDescriptionKind::Topic(t) => (&t.topic_name, &t.type_name),
-                TopicDescriptionKind::ContentFilteredTopic(content_filtered_topic) => {
-                    if let Some(TopicDescriptionKind::Topic(matched_topic)) = self
-                        .domain_participant
-                        .topic_description_list
-                        .iter()
-                        .find(|t| t.topic_name() == content_filtered_topic.related_topic_name)
-                    {
-                        (&matched_topic.topic_name, &matched_topic.type_name)
-                    } else {
-                        return;
-                    }
-                }
-            };
+
             let is_matched_topic_name =
                 discovered_writer_data.dds_publication_data.topic_name() == reader_topic_name;
             let is_matched_type_name =
@@ -1718,22 +1725,23 @@ impl DcpsDomainParticipant {
                                 discovered_topic_data.topic_builtin_topic_data;
                             self.domain_participant
                                 .add_discovered_topic(topic_builtin_topic_data.clone());
-                            for topic in self.domain_participant.topic_description_list.iter_mut() {
-                                if let TopicDescriptionKind::Topic(topic) = topic {
-                                    if topic.topic_name == topic_builtin_topic_data.name()
-                                        && topic.type_name
-                                            == topic_builtin_topic_data.get_type_name()
-                                        && !is_discovered_topic_consistent(
-                                            &topic.qos,
-                                            &topic_builtin_topic_data,
-                                        )
-                                    {
-                                        topic.inconsistent_topic_status.total_count += 1;
-                                        topic.inconsistent_topic_status.total_count_change += 1;
-                                        topic
-                                            .status_condition
-                                            .add_communication_state(StatusKind::InconsistentTopic);
-                                    }
+                            for topic in self
+                                .domain_participant
+                                .locally_created_topic_list
+                                .iter_mut()
+                            {
+                                if topic.topic_name == topic_builtin_topic_data.name()
+                                    && topic.type_name == topic_builtin_topic_data.get_type_name()
+                                    && !is_discovered_topic_consistent(
+                                        &topic.qos,
+                                        &topic_builtin_topic_data,
+                                    )
+                                {
+                                    topic.inconsistent_topic_status.total_count += 1;
+                                    topic.inconsistent_topic_status.total_count_change += 1;
+                                    topic
+                                        .status_condition
+                                        .add_communication_state(StatusKind::InconsistentTopic);
                                 }
                             }
                         }
