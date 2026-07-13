@@ -142,7 +142,7 @@ pub struct SampleIdentity {
 
 pub type InstanceName = String; //typedef string<255> InstanceName;
 
-#[derive(DdsType, Clone)]
+#[derive(DdsType, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RemoteExceptionCode {
     RemoteExOk,
     RemoteExUnsupported,

@@ -1856,6 +1856,68 @@ impl DcpsDomainParticipant {
         }
     }
 
+    pub fn process_type_lookup_reply_cache_change(&mut self, runtime: &impl DdsRuntime) {
+        if let Some(type_lookup_reply_reader) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| &x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
+        {
+            if let Ok(samples) = type_lookup_reply_reader.take(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample_data, _sample_info) in samples {
+                    if let Ok(mut d) =
+                        deserialize_top_level_type(TypeLookupReply::TYPE, &sample_data)
+                    {
+                        let type_lookup_reply = TypeLookupReply::create_sample(&mut d);
+                        if type_lookup_reply.header.remote_ex != RemoteExceptionCode::RemoteExOk {
+                            tracing::warn!(return_code=?type_lookup_reply.header.remote_ex, "Received exception on type lookup reply");
+                            continue;
+                        }
+                        match type_lookup_reply.r#return {
+                            TypeLookupReturn::TypeLookupGetTypesHash { get_type } => match get_type
+                            {
+                                TypeLookupGetTypesResult::Ok { result } => {
+                                    for type_identifier_pair in result.types {
+                                        for topic in
+                                            &mut self.domain_participant.locally_created_topic_list
+                                        {
+                                            if let Some((_,discovered_type_state)) = topic
+                                                .discovered_type_representation
+                                                .iter_mut()
+                                                .filter(|(_,x)| matches!(x,DiscoveredTypeRepresentationState::Requested))
+                                                .find(|(type_information, _)| {
+                                                    type_information
+                                                        .complete
+                                                        .typeid_with_size
+                                                        .type_id
+                                                        == type_identifier_pair.type_identifier
+                                                })
+                                            {
+                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(type_identifier_pair.type_object.clone());
+
+                                                todo!("Check for topic type compatibility");
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            TypeLookupReturn::TypeLookupGetDependenciesHash {
+                                get_type_dependencies: _,
+                            } => todo!(),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
         for topic in &mut self.domain_participant.locally_created_topic_list {
             for discovered_topic in self
@@ -1866,7 +1928,7 @@ impl DcpsDomainParticipant {
             {
                 let type_information = TypeInformation::from(topic.type_support);
                 if let Some(discovered_type_information) = &discovered_topic.type_information {
-                    if discovered_type_information != &type_information
+                    if &discovered_type_information.minimal != &type_information.minimal
                         && !topic
                             .discovered_type_representation
                             .iter()
