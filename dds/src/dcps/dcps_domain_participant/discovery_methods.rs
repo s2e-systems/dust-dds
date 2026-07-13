@@ -3,7 +3,8 @@ use crate::{
         BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    }, dcps::{
+    },
+    dcps::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -14,12 +15,25 @@ use crate::{
             },
             type_lookup::{
                 RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn,
-                TypeLookupRequest,
+                TypeLookupGetTypesOut, TypeLookupGetTypesResult, TypeLookupReply,
+                TypeLookupRequest, TypeLookupReturn,
             },
-        }, dcps_domain_participant::{
-            BuiltInKeyHolder, DataReaderEntity, DataWriterEntity, DcpsDomainParticipant, DiscoveredParticipantInfo, DiscoveredTypeRepresentationState, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER, ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER, RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
-        }, listeners::domain_participant_listener::ListenerMail,
-    }, infrastructure::{
+        },
+        dcps_domain_participant::{
+            BUILT_IN_TOPIC_NAME_LIST, BuiltInKeyHolder, DataReaderEntity, DataWriterEntity,
+            DcpsDomainParticipant, DiscoveredParticipantInfo, DiscoveredTypeRepresentationState,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
+            ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
+            RtpsReaderKind, RtpsWriterKind, TYPE_LOOKUP_REPLY_TOPIC_NAME,
+            TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+        },
+        listeners::domain_participant_listener::ListenerMail,
+    },
+    infrastructure::{
         error::DdsError,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, SubscriberQos, TopicQos},
@@ -31,16 +45,24 @@ use crate::{
             RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
             TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
         },
-        sample_info::{ANY_INSTANCE_STATE, ANY_VIEW_STATE, SampleStateKind},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::StatusKind,
         time::{Duration, Time},
-    }, rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E}, runtime::{Clock, DdsRuntime}, transport::{
+    },
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    runtime::{Clock, DdsRuntime},
+    transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
-    }, xtypes::{
+    },
+    xtypes::{
+        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
-        type_object::{TypeIdentifier, TypeInformation},
+        type_object::{
+            CompleteTypeObject, TypeIdentifier, TypeIdentifierTypeObjectPair, TypeInformation,
+            TypeObject,
+        },
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -1736,6 +1758,101 @@ impl DcpsDomainParticipant {
         }
     }
 
+    pub fn process_type_lookup_request_cache_change(&mut self, runtime: &impl DdsRuntime) {
+        if let Some(type_lookup_request_reader) = self
+            .domain_participant
+            .builtin_subscriber
+            .data_reader_list
+            .iter_mut()
+            .find(|x| &x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
+        {
+            if let Ok(samples) = type_lookup_request_reader.take(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                &None,
+            ) {
+                for (sample_data, _sample_info) in samples {
+                    if let Ok(mut d) =
+                        deserialize_top_level_type(TypeLookupRequest::TYPE, &sample_data)
+                    {
+                        let type_lookup_request = TypeLookupRequest::create_sample(&mut d);
+                        match type_lookup_request.call {
+                            TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
+                                for type_id in get_types.type_ids {
+                                    if let Some(topic) = self
+                                        .domain_participant
+                                        .locally_created_topic_list
+                                        .iter()
+                                        .filter(|x| {
+                                            !BUILT_IN_TOPIC_NAME_LIST
+                                                .contains(&x.topic_name.as_ref())
+                                        })
+                                        .find(|x| {
+                                            TypeInformation::from(x.type_support)
+                                                .complete
+                                                .typeid_with_size
+                                                .type_id
+                                                == type_id
+                                        })
+                                    {
+                                        if let Some(type_lookup_reply_writer) = self
+                                            .domain_participant
+                                            .builtin_publisher
+                                            .data_writer_list
+                                            .iter_mut()
+                                            .find(|x| x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
+                                        {
+                                            let type_lookup_reply = TypeLookupReply {
+                                                header: type_lookup_request.header.clone(),
+                                                r#return:
+                                                    TypeLookupReturn::TypeLookupGetTypesHash {
+                                                        get_type: TypeLookupGetTypesResult::Ok {
+                                                            result: TypeLookupGetTypesOut {
+                                                                types: vec![
+                                                                    TypeIdentifierTypeObjectPair {
+                                                                        type_identifier: type_id,
+                                                                        type_object:
+                                                                            TypeObject::EkComplete {
+                                                                                complete: CompleteTypeObject::from(topic.type_support),
+                                                                            },
+                                                                    },
+                                                                ],
+                                                                complete_to_minimal: Vec::new(),
+                                                            },
+                                                        },
+                                                    },
+                                            };
+                                            let serialized_data = serialize_cdr2_le(
+                                                &type_lookup_reply.create_dynamic_sample(),
+                                            )
+                                            .unwrap();
+
+                                            type_lookup_reply_writer
+                                                .write_w_timestamp(
+                                                    InstanceHandle::default(),
+                                                    serialized_data,
+                                                    runtime.clock().now(),
+                                                    runtime.clock().now(),
+                                                    self.transport.message_writer.as_ref(),
+                                                    runtime,
+                                                )
+                                                .ok();
+                                        }
+                                    }
+                                }
+                            }
+                            TypeLookupCall::TypeLookupGetDependenciesHash {
+                                get_type_dependencies: _,
+                            } => todo!(),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
         for topic in &mut self.domain_participant.locally_created_topic_list {
             for discovered_topic in self
@@ -1802,8 +1919,10 @@ impl DcpsDomainParticipant {
                                         runtime,
                                     )
                                     .ok();
-                                    topic
-                            .discovered_type_representation.push((discovered_type_information.clone(), DiscoveredTypeRepresentationState::Requested));
+                                topic.discovered_type_representation.push((
+                                    discovered_type_information.clone(),
+                                    DiscoveredTypeRepresentationState::Requested,
+                                ));
                             }
                         }
                     }

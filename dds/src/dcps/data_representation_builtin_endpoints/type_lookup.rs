@@ -8,7 +8,7 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 
-#[derive(DdsType)]
+#[derive(DdsType, Clone)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -119,7 +119,7 @@ pub struct TypeLookupReply {
 }
 
 // DDS RPC Types
-#[derive(DdsType)]
+#[derive(DdsType, Clone)]
 #[dust_dds(extensibility = "final")]
 pub struct RequestHeader {
     pub request_id: SampleIdentity,
@@ -132,7 +132,7 @@ pub struct _ReplyHeader {
     pub related_request_id: SampleIdentity,
 }
 
-#[derive(DdsType)]
+#[derive(DdsType, Clone)]
 #[dust_dds(extensibility = "final")]
 pub struct SampleIdentity {
     pub writer_guid: Guid,

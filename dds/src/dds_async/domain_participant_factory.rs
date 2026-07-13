@@ -299,6 +299,9 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_builtin_publications_detector_cache_change();
                     dp.process_builtin_subscriptions_detector_cache_change();
                     dp.process_builtin_topics_detector_cache_change();
+                    dp.process_type_lookup_request_cache_change(
+                        &domain_participant_factory.runtime,
+                    );
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());
