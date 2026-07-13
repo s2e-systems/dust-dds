@@ -134,10 +134,7 @@ fn ext_appendable_struct_4() {
         .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    let status_cond = match &topic1 {
-        TopicDescription::Topic(topic) => topic.get_statuscondition(),
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    };
+    let status_cond = topic1.get_statuscondition();
     status_cond
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
