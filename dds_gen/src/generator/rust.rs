@@ -1376,7 +1376,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "pub mod root{pub mod a{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
+            "pub mod root{pub mod a{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
         );
     }
 
