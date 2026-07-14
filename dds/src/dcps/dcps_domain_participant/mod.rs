@@ -1373,12 +1373,13 @@ struct TopicEntity {
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _listener_mask: StatusMask,
     type_support: DynamicType<'static>,
+    type_information: TypeInformation,
     discovered_type_representation: Vec<(TypeInformation, DiscoveredTypeRepresentationState)>,
 }
 
 impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
@@ -1399,6 +1400,7 @@ impl TopicEntity {
             _listener_sender: listener_sender,
             _listener_mask: listener_mask,
             type_support,
+            type_information: TypeInformation::from(type_support),
             discovered_type_representation: Vec::new(),
         }
     }

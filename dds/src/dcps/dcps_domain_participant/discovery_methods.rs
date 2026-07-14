@@ -1923,13 +1923,12 @@ impl DcpsDomainParticipant {
                 .iter()
                 .filter(|t| t.name.value == topic.topic_name)
             {
-                let type_information = TypeInformation::from(topic.type_support);
                 if let Some(discovered_type_information) = &discovered_topic.type_information {
-                    if discovered_type_information.minimal != type_information.minimal
+                    if discovered_type_information.minimal != topic.type_information.minimal
                         && !topic
                             .discovered_type_representation
                             .iter()
-                            .any(|x| x.0 != type_information)
+                            .any(|x| x.0 != topic.type_information)
                     {
                         {
                             if let Some(type_request_writer) = self
