@@ -787,6 +787,12 @@ impl DcpsDomainParticipant {
                             &discovered_reader_data
                                 .dds_subscription_data
                                 .type_information
+                            // This additional check is done for interoperability with implementations that do not communicate the correct type information. In that case we fallback to matching on type name 
+                            && discovered_type_information
+                                .complete
+                                .typeid_with_size
+                                .typeobject_serialized_size
+                                > 0
                         {
                             // If the minimal hash match it is guaranteed compatible
                             if writer_associated_topic
