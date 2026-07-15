@@ -1229,6 +1229,7 @@ impl SubscriberEntity {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum DiscoveredTypeRepresentationState {
     Requested,
     Discovered(TypeObject),
@@ -1661,8 +1662,6 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
     }
-
-   
 
     fn get_instance_write_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
         self.instance_publication_time

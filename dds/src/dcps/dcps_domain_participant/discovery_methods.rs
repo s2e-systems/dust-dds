@@ -796,19 +796,18 @@ impl DcpsDomainParticipant {
                                 == discovered_type_information.minimal.typeid_with_size
                             {
                                 true
-                            } else {
-                                if let Some(discovered_type_information) = writer_associated_topic
+                            } else if let Some(discovered_type_information) =
+                                writer_associated_topic
                                     .discovered_type_representation
                                     .iter()
                                     .find(|(x, _)| x == discovered_type_information)
-                                {
-                                    match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => {
-                                            return;
-                                        }
-                                        DiscoveredTypeRepresentationState::Discovered(
-                                            type_object,
-                                        ) => match &type_object {
+                            {
+                                match &discovered_type_information.1 {
+                                    DiscoveredTypeRepresentationState::Requested => {
+                                        return;
+                                    }
+                                    DiscoveredTypeRepresentationState::Discovered(type_object) => {
+                                        match &type_object {
                                             TypeObject::EkComplete { complete } => {
                                                 CompleteTypeObject::from(
                                                     writer_associated_topic.type_support,
@@ -820,11 +819,11 @@ impl DcpsDomainParticipant {
                                                     writer_associated_topic.type_support,
                                                 ) == minimal
                                             }
-                                        },
+                                        }
                                     }
-                                } else {
-                                    todo!("Must send a request for this type")
                                 }
+                            } else {
+                                todo!("Must send a request for this type")
                             }
                         } else {
                             discovered_reader_data.dds_subscription_data.get_type_name()
