@@ -562,7 +562,7 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
 
     let cond = reader.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched, StatusKind::DataAvailable])
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
@@ -570,6 +570,13 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
     writer.write(UnKeyedData::On, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let sample = reader
