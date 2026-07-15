@@ -651,6 +651,25 @@ impl DcpsDomainParticipant {
             .min()
     }
 
+    pub fn time_until_missed_reader_deadline(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_subscriber_list
+            .iter()
+            .flat_map(|subscriber| subscriber.data_reader_list.iter())
+            .filter_map(|data_reader| {
+                if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
+                    data_reader
+                        .instance_ownership
+                        .iter()
+                        .map(|instance| deadline - (now - instance.last_received_time))
+                        .min()
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             self.dcps_sender,

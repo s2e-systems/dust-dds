@@ -274,6 +274,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let poke_time = Duration::new(0, 50_000_000);
+                let time_until_missed_reader_deadline =
+                    domain_participant_factory.time_until_missed_reader_deadline();
                 let next_task_time = domain_participant_factory
                     .time_until_stale_participant()
                     .unwrap_or(poke_time)
