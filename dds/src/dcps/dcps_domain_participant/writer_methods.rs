@@ -47,7 +47,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let status = data_writer.get_publication_matched_status();
+        let status = data_writer.publication_matched_status.get();
 
         data_writer
             .status_condition
@@ -540,16 +540,6 @@ impl DcpsDomainParticipant {
         };
         if !data_writer.enabled {
             data_writer.enabled = true;
-
-            let discovered_reader_list: Vec<_> =
-                self.domain_participant.discovered_reader_list.to_vec();
-            for discovered_reader_data in discovered_reader_list {
-                self.add_discovered_reader(
-                    &discovered_reader_data,
-                    publisher_handle,
-                    data_writer_handle,
-                );
-            }
 
             self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
         }

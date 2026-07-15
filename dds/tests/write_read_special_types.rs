@@ -212,7 +212,7 @@ fn nested_types_should_read_and_write() {
 
     #[derive(Clone, PartialEq, Eq, Debug, DdsType)]
     struct OuterType {
-        inner: InnerType,
+        inner: Box<InnerType>,
         flag: bool,
     }
 
@@ -281,7 +281,7 @@ fn nested_types_should_read_and_write() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data = OuterType {
-        inner: InnerType { a: 20, b: 5 },
+        inner: Box::new(InnerType { a: 20, b: 5 }),
         flag: true,
     };
 
@@ -562,7 +562,7 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
 
     let cond = reader.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched, StatusKind::DataAvailable])
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
@@ -570,6 +570,13 @@ fn enum_should_be_always_same_instance() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
     writer.write(UnKeyedData::On, None).unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
     let sample = reader

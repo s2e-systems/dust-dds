@@ -61,17 +61,15 @@ impl Subscriber {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &TopicDescription,
+        a_topic: &dyn TopicDescription,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<impl DataReaderListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>> {
-        block_on(self.subscriber_async.create_datareader::<Foo>(
-            &a_topic.clone().into(),
-            qos,
-            a_listener,
-            mask,
-        ))
+        block_on(
+            self.subscriber_async
+                .create_datareader::<Foo>(&a_topic, qos, a_listener, mask),
+        )
         .map(DataReader::from)
     }
 
@@ -111,7 +109,7 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DomainParticipant {
-        DomainParticipant::new(self.subscriber_async.get_participant())
+        DomainParticipant::from(self.subscriber_async.get_participant())
     }
 
     /// This operation allows access to the [`SampleLostStatus`].

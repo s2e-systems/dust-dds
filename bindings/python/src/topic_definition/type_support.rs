@@ -290,7 +290,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "reason"]
+    #[ignore]
     fn test_convert_python_to_dynamic_type() {
         Python::initialize();
         Python::attach(|py| {
@@ -363,7 +363,7 @@ class MyDataType:
     }
 
     #[test]
-    #[ignore = "reason"]
+    #[ignore]
     fn test_convert_python_instance_to_dynamic_data() {
         Python::initialize();
         Python::attach(|py| {

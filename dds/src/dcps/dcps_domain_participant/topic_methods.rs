@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 use crate::{
-    dcps::dcps_domain_participant::{DcpsDomainParticipant, TopicDescriptionKind},
+    dcps::dcps_domain_participant::DcpsDomainParticipant,
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
@@ -17,11 +17,11 @@ impl DcpsDomainParticipant {
         &mut self,
         topic_name: String,
     ) -> DdsResult<InconsistentTopicStatus> {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -44,11 +44,11 @@ impl DcpsDomainParticipant {
             QosKind::Default => self.domain_participant.default_topic_qos.clone(),
             QosKind::Specific(q) => q,
         };
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -73,11 +73,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn get_topic_qos(&mut self, topic_name: String) -> DdsResult<TopicQos> {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -87,11 +87,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self, runtime))]
     pub fn enable_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) -> DdsResult<()> {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -106,11 +106,11 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<DynamicType<'static>> {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

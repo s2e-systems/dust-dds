@@ -321,7 +321,7 @@ impl<'a> RustGenerator<'a> {
             .expect("Identifier must exist according to the grammar");
 
         self.writer
-            .push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
         for annotation_appl in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::annotation_appl)
@@ -397,7 +397,7 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::identifier)
             .expect("Must have an identifier according to the grammar");
         self.writer
-            .push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
         if !self.modules.is_empty() {
             let name = format!(
                 "#[dust_dds(name = \"{}\")]\n",
@@ -472,7 +472,7 @@ impl<'a> RustGenerator<'a> {
             .expect("Must have a switch_body according to the grammar");
 
         self.writer
-            .push_str("#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n");
+            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
 
         self.writer.push_str("#[dust_dds(switch(");
         self.generate(switch_type_spec);
@@ -1202,7 +1202,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
         );
     }
 
@@ -1225,7 +1225,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\npub enum MyEnum {A,B,C,}\n",
+            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\npub enum MyEnum {A,B,C,}\n",
         );
     }
 
@@ -1241,7 +1241,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
+            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
         );
     }
 
@@ -1376,7 +1376,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "pub mod root{pub mod a{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
+            "pub mod root{pub mod a{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
         );
     }
 

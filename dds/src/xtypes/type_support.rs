@@ -249,21 +249,18 @@ impl Type for char {
     };
 }
 
-impl<T> Type for Box<T> {
-    const TYPE: DynamicType<'static> = DynamicType {
-        descriptor: &TypeDescriptor {
-            kind: TypeKind::ALIAS,
-            name: "",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Final,
-            is_nested: false,
-        },
-        member_list: &[],
-    };
+impl<T: Type> Type for Box<T> {
+    const TYPE: DynamicType<'static> = T::TYPE;
+}
+
+impl<T: TypeSupport> TypeSupport for Box<T> {
+    fn create_sample(src: &mut DynamicData<'static>) -> Self {
+        Box::new(T::create_sample(src))
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        T::create_dynamic_sample(*self)
+    }
 }
 
 impl<T: Type> Type for Option<T> {

@@ -9,7 +9,7 @@ fn union_types() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(switch(u8))]
             pub enum TestUnion {
                 #[dust_dds(case = 10, )]

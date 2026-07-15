@@ -161,10 +161,5 @@ fn data_reader_get_topicdescription_should_return_same_topic_as_used_for_creatio
         .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    match reader.get_topicdescription() {
-        TopicDescription::Topic(topic) => {
-            assert!(topic.get_instance_handle() == topic.get_instance_handle())
-        }
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    }
+    assert_eq!(reader.get_topicdescription().get_name(), topic.get_name())
 }

@@ -213,6 +213,22 @@ impl Sub<Time> for Time {
     }
 }
 
+impl Add<Duration> for Time {
+    type Output = Time;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        let mut sec = self.sec + rhs.sec;
+        let mut nanosec = (self.nanosec as u64) + (rhs.nanosec as u64);
+        let sec_in_nanosec = nanosec / 1_000_000_000;
+        nanosec -= sec_in_nanosec * 1_000_000_000;
+        sec += sec_in_nanosec as i32;
+        Self {
+            sec,
+            nanosec: nanosec as u32,
+        }
+    }
+}
+
 /// Pre-defined value representing a zero duration seconds
 pub const DURATION_ZERO_SEC: i32 = 0;
 /// Pre-defined value representing a zero duration nano seconds
@@ -270,5 +286,13 @@ mod tests {
         assert_eq!(d1.cmp(&d1), std::cmp::Ordering::Equal);
         assert_eq!(d1.cmp(&d2), std::cmp::Ordering::Less);
         assert_eq!(d2.cmp(&d1), std::cmp::Ordering::Greater);
+    }
+
+    #[test]
+    fn time_add_duration() {
+        let t = Time::new(10, 500_000_000);
+        let d = Duration::new(5, 600_000_000);
+        let expected = Time::new(16, 100_000_000);
+        assert_eq!(t + d, expected);
     }
 }

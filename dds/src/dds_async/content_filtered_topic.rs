@@ -1,5 +1,8 @@
 use crate::{
-    dds_async::{domain_participant::DomainParticipantAsync, topic::TopicAsync},
+    dds_async::{
+        domain_participant::DomainParticipantAsync, topic::TopicAsync,
+        topic_description::TopicDescriptionAsync,
+    },
     infrastructure::error::DdsResult,
 };
 use alloc::{string::String, vec::Vec};
@@ -37,22 +40,16 @@ impl ContentFilteredTopicAsync {
     }
 }
 
-impl ContentFilteredTopicAsync {
-    /// Async version of [`get_participant`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_participant).
-    #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync {
+impl TopicDescriptionAsync for ContentFilteredTopicAsync {
+    fn get_participant(&self) -> DomainParticipantAsync {
         self.topic.get_participant()
     }
 
-    /// Async version of [`get_type_name`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_type_name).
-    #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.topic.get_type_name()
     }
 
-    /// Async version of [`get_name`](crate::topic_definition::content_filtered_topic::ContentFilteredTopic::get_name).
-    #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.name.clone()
     }
 }

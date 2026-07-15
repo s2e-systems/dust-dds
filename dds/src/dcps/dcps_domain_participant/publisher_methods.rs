@@ -2,9 +2,7 @@ use alloc::string::String;
 
 use crate::{
     dcps::{
-        dcps_domain_participant::{
-            DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind, TopicDescriptionKind,
-        },
+        dcps_domain_participant::{DataWriterEntity, DcpsDomainParticipant, RtpsWriterKind},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
@@ -35,11 +33,11 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
-        let Some(TopicDescriptionKind::Topic(topic)) = self
+        let Some(topic) = self
             .domain_participant
-            .topic_description_list
+            .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name() == topic_name)
+            .find(|x| x.topic_name == topic_name)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

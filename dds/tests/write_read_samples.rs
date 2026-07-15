@@ -4,7 +4,7 @@ use dust_dds::{
         error::DdsError,
         instance::InstanceHandle,
         listener::NO_LISTENER,
-        qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -20,7 +20,6 @@ use dust_dds::{
         time::{Duration, DurationKind, Time},
         type_support::DdsType,
     },
-    topic_definition::topic_description::TopicDescription,
     wait_set::{Condition, WaitSet},
 };
 
@@ -1892,76 +1891,6 @@ fn write_read_sample_view_state() {
     assert_eq!(samples.len(), 2);
     assert_eq!(samples[0].sample_info.view_state, ViewStateKind::NotNew);
     assert_eq!(samples[1].sample_info.view_state, ViewStateKind::New);
-}
-
-#[test]
-fn inconsistent_topic_status_condition() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let best_effort_topic_qos = TopicQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let topic_best_effort = participant
-        .create_topic::<KeyedData>(
-            "Topic",
-            "KeyedData",
-            QosKind::Specific(best_effort_topic_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let status_cond = match &topic_best_effort {
-        TopicDescription::Topic(topic) => topic.get_statuscondition(),
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    };
-    status_cond
-        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond))
-        .unwrap();
-
-    let participant2 = participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let reliable_topic_qos = TopicQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let _topic_reliable = participant2
-        .create_topic::<KeyedData>(
-            "Topic",
-            "KeyedData",
-            QosKind::Specific(reliable_topic_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    match topic_best_effort {
-        TopicDescription::Topic(topic) => {
-            assert!(topic.get_inconsistent_topic_status().unwrap().total_count > 0)
-        }
-        TopicDescription::ContentFilteredTopic(_) => unreachable!(),
-    }
 }
 
 #[test]

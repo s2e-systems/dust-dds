@@ -1,7 +1,9 @@
 use crate::{
     dds_async::content_filtered_topic::ContentFilteredTopicAsync,
-    domain::domain_participant::DomainParticipant, infrastructure::error::DdsResult,
-    std_runtime::executor::block_on, topic_definition::topic::Topic,
+    domain::domain_participant::DomainParticipant,
+    infrastructure::error::DdsResult,
+    std_runtime::executor::block_on,
+    topic_definition::{topic::Topic, topic_description::TopicDescription},
 };
 use alloc::{string::String, vec::Vec};
 
@@ -45,23 +47,16 @@ impl ContentFilteredTopic {
     }
 }
 
-/// This implementation block represents the TopicDescription operations for the [`Topic`].
-impl ContentFilteredTopic {
-    /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
-    #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipant {
-        DomainParticipant::new(self.topic.get_participant())
+impl TopicDescription for ContentFilteredTopic {
+    fn get_participant(&self) -> DomainParticipant {
+        self.topic.get_participant()
     }
 
-    /// The name of the type used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.topic.get_type_name()
     }
 
-    /// The name used to create the [`Topic`]
-    #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.topic.get_name()
     }
 }

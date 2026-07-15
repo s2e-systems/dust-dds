@@ -8,6 +8,7 @@ use crate::{
         dcps_mail::{DcpsMail, TopicServiceMail},
         status_condition::StatusConditionEntity,
     },
+    dds_async::topic_description::TopicDescriptionAsync,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -62,22 +63,16 @@ impl TopicAsync {
     }
 }
 
-impl TopicAsync {
-    /// Async version of [`get_participant`](crate::topic_definition::topic::Topic::get_participant).
-    #[tracing::instrument(skip(self))]
-    pub fn get_participant(&self) -> DomainParticipantAsync {
+impl TopicDescriptionAsync for TopicAsync {
+    fn get_participant(&self) -> DomainParticipantAsync {
         self.participant.clone()
     }
 
-    /// Async version of [`get_type_name`](crate::topic_definition::topic::Topic::get_type_name).
-    #[tracing::instrument(skip(self))]
-    pub fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
 
-    /// Async version of [`get_name`](crate::topic_definition::topic::Topic::get_name).
-    #[tracing::instrument(skip(self))]
-    pub fn get_name(&self) -> String {
+    fn get_name(&self) -> String {
         self.topic_name.clone()
     }
 }

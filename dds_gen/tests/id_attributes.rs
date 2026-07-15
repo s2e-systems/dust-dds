@@ -8,7 +8,7 @@ fn id_attributes() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Person {
                 #[dust_dds(id = 1)]
                 pub name: String,
@@ -18,7 +18,7 @@ fn id_attributes() {
                 pub height: f64,
             }
 
-            #[derive(Debug, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
             pub struct Message {
                 #[dust_dds(key)]
                 #[dust_dds(id = 1)]

@@ -11,7 +11,7 @@ use crate::{
     },
     publication::data_writer::DataWriter,
     std_runtime::executor::block_on,
-    topic_definition::topic_description::TopicDescription,
+    topic_definition::topic::Topic,
 };
 use alloc::vec::Vec;
 
@@ -58,7 +58,7 @@ impl Publisher {
     #[tracing::instrument(skip(self, a_topic, a_listener))]
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &TopicDescription,
+        a_topic: &Topic,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<impl DataWriterListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
@@ -160,7 +160,7 @@ impl Publisher {
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     #[tracing::instrument(skip(self))]
     pub fn get_participant(&self) -> DomainParticipant {
-        DomainParticipant::new(self.publisher_async.get_participant())
+        DomainParticipant::from(self.publisher_async.get_participant())
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
