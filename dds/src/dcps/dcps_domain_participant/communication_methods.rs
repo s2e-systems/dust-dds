@@ -7,7 +7,6 @@ use crate::{
             AddChangeResult, DcpsDomainParticipant, RtpsReaderKind, RtpsWriterKind,
             reader_methods::deserialize_topic_type,
         },
-        dcps_mail::{DcpsMail, EventServiceMail},
         listeners::domain_participant_listener::ListenerMail,
         xtypes_glue::key_and_instance_handle::{
             KeyHolderType, get_instance_handle_from_dynamic_data,
@@ -17,7 +16,7 @@ use crate::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync,
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind, time::DurationKind},
+    infrastructure::{instance::InstanceHandle, status::StatusKind},
     rtps::message_receiver::MessageReceiver,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -26,7 +25,7 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    runtime::{Clock, DdsRuntime, Spawner, Timer},
+    runtime::{Clock, DdsRuntime},
     transport::types::{ChangeKind, Guid},
     xtypes::deserializer::deserialize_top_level_type,
 };
@@ -201,7 +200,6 @@ impl DcpsDomainParticipant {
                         )
                     };
 
-                    let participant_handle = self.domain_participant.instance_handle;
                     let change_instance_handle = if let Some(i) = cache_change.instance_handle {
                         InstanceHandle::new(i)
                     } else {
@@ -281,32 +279,9 @@ impl DcpsDomainParticipant {
                         cache_change.source_timestamp.map(Into::into),
                         reception_timestamp,
                     ) {
-                        Ok(AddChangeResult::Added(change_instance_handle)) => {
+                        Ok(AddChangeResult::Added) => {
                             tracing::info!("New change added");
-                            if let DurationKind::Finite(deadline_missed_period) =
-                                data_reader.qos.deadline.period
-                            {
-                                let dcps_sender = self.dcps_sender;
 
-                                let mut timer_handle = runtime.timer();
-                                let subscriber_handle = *subscriber_handle;
-                                let data_reader_handle = *data_reader_handle;
-                                runtime.spawner().spawn(async move {
-                                    loop {
-                                        timer_handle.delay(deadline_missed_period.into()).await;
-                                        dcps_sender
-                                            .send(DcpsMail::Event(
-                                                EventServiceMail::RequestedDeadlineMissed {
-                                                    participant_handle,
-                                                    subscriber_handle,
-                                                    data_reader_handle,
-                                                    change_instance_handle,
-                                                },
-                                            ))
-                                            .await;
-                                    }
-                                });
-                            }
                             let data_reader_on_data_available_active = data_reader
                                 .listener_mask
                                 .is_enabled(&StatusKind::DataAvailable);

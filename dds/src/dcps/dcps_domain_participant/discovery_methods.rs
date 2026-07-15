@@ -33,6 +33,10 @@ use crate::{
         },
         listeners::domain_participant_listener::ListenerMail,
     },
+    dds_async::{
+        data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
+        subscriber::SubscriberAsync,
+    },
     infrastructure::{
         error::DdsError,
         instance::InstanceHandle,
@@ -47,7 +51,7 @@ use crate::{
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::StatusKind,
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     runtime::{Clock, DdsRuntime},
@@ -66,7 +70,7 @@ use crate::{
         type_support::{_String, Type, TypeSupport},
     },
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{format, string::String, vec, vec::Vec};
 use regex::Regex;
 
 impl DcpsDomainParticipant {
@@ -216,6 +220,128 @@ impl DcpsDomainParticipant {
             })
         {
             self.remove_discovered_participant(&handle);
+        }
+    }
+
+    pub fn check_missed_reader_deadline(&mut self, now: Time) {
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &mut subscriber.data_reader_list {
+                if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
+                    for change_instance_handle in data_reader.instances.iter().filter_map(|x| {
+                        if now - x.last_received_time_stamp() > deadline {
+                            Some(x.handle)
+                        } else {
+                            None
+                        }
+                    }) {
+                        data_reader
+                            .instance_ownership
+                            .retain(|x| x.instance_handle != change_instance_handle);
+
+                        data_reader.requested_deadline_missed_status.total_count += 1;
+                        data_reader
+                            .requested_deadline_missed_status
+                            .total_count_change += 1;
+                        data_reader
+                            .requested_deadline_missed_status
+                            .last_instance_handle = change_instance_handle;
+
+                        let the_participant = DomainParticipantAsync::new(
+                            self.dcps_sender,
+                            self.domain_participant.domain_id,
+                            self.domain_participant.instance_handle,
+                        );
+                        let the_subscriber = SubscriberAsync::new(
+                            subscriber.instance_handle,
+                            the_participant.clone(),
+                        );
+
+                        let type_name = if let Some(content_filtered_topic) = self
+                            .domain_participant
+                            .content_filtered_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == data_reader.topic_name)
+                        {
+                            let topic = self
+                                .domain_participant
+                                .locally_created_topic_list
+                                .iter()
+                                .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
+                                .expect("Topic is guaranteed to exist");
+                            topic.type_name.clone()
+                        } else if let Some(topic) = self
+                            .domain_participant
+                            .locally_created_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == data_reader.topic_name)
+                        {
+                            topic.type_name.clone()
+                        } else {
+                            panic!("Reader is guaranteed to always have a related topic");
+                        };
+
+                        let the_reader = DataReaderAsync::new(
+                            data_reader.instance_handle,
+                            the_subscriber.clone(),
+                            data_reader.topic_name.clone(),
+                            type_name,
+                        );
+                        if data_reader
+                            .listener_mask
+                            .is_enabled(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = data_reader.requested_deadline_missed_status.clone();
+                            data_reader
+                                .requested_deadline_missed_status
+                                .total_count_change = 0;
+                            if let Some(l) = &data_reader.listener_sender {
+                                l.send(ListenerMail::RequestedDeadlineMissed {
+                                    the_reader,
+                                    status,
+                                })
+                                .ok();
+                            }
+                        } else if subscriber
+                            .listener_mask
+                            .is_enabled(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = data_reader.requested_deadline_missed_status.clone();
+                            data_reader
+                                .requested_deadline_missed_status
+                                .total_count_change = 0;
+                            if let Some(l) = &subscriber.listener_sender {
+                                l.send(ListenerMail::RequestedDeadlineMissed {
+                                    the_reader,
+                                    status,
+                                })
+                                .ok();
+                            }
+                        } else if self
+                            .domain_participant
+                            .listener_mask
+                            .is_enabled(&StatusKind::RequestedDeadlineMissed)
+                        {
+                            let status = data_reader.requested_deadline_missed_status.clone();
+                            data_reader
+                                .requested_deadline_missed_status
+                                .total_count_change = 0;
+                            if let Some(l) = &self.domain_participant.listener_sender {
+                                l.send(ListenerMail::RequestedDeadlineMissed {
+                                    the_reader,
+                                    status,
+                                })
+                                .ok();
+                            }
+                        }
+
+                        data_reader
+                            .status_condition
+                            .add_communication_state(StatusKind::RequestedDeadlineMissed);
+                    }
+                } else {
+                    continue;
+                }
+            }
         }
     }
 
