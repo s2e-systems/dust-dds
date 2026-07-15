@@ -3,7 +3,7 @@ use crate::xtypes::{
     dynamic_type::{DynamicData, DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
     error::XTypesError,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 pub use dust_dds_derive::TypeSupport;
 
 use super::{data_storage::DataStorage, error::XTypesResult};
