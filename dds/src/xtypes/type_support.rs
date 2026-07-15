@@ -3,7 +3,7 @@ use crate::xtypes::{
     dynamic_type::{DynamicData, DynamicType, ExtensibilityKind, TypeDescriptor, TypeKind},
     error::XTypesError,
 };
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 pub use dust_dds_derive::TypeSupport;
 
 use super::{data_storage::DataStorage, error::XTypesResult};
@@ -244,23 +244,6 @@ impl Type for char {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
-        },
-        member_list: &[],
-    };
-}
-
-impl<T> Type for Box<T> {
-    const TYPE: DynamicType<'static> = DynamicType {
-        descriptor: &TypeDescriptor {
-            kind: TypeKind::ALIAS,
-            name: "",
-            base_type: None,
-            discriminator_type: None,
-            bound: None,
-            element_type: None,
-            key_element_type: None,
-            extensibility_kind: ExtensibilityKind::Final,
-            is_nested: false,
         },
         member_list: &[],
     };

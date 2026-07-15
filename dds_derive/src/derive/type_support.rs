@@ -103,13 +103,26 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_external = struct_member_attributes.external;
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
 
+                let member_dynamic_type = if is_external {
+                    todo!("Check that the type of this member is Box<T>, otherwise return error message saying that Box<T> is expected for external");
+                    todo!("Retrieve the type T from the inside of the Box");
+                    quote! {
+                        dust_dds::xtypes::dynamic_type::DynamicType {
+                            descriptor: todo!("Use the descriptor of type T to fill up this information"),
+                            member_list: &[]
+                        }
+                    }
+                } else {
+                    quote! { <#member_type as dust_dds::xtypes::type_support::Type>::TYPE}
+                };
+
                 member_list.push(
                     quote! {
                          dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #member_name,
                                 id: #member_id,
-                                r#type: <#member_type as dust_dds::xtypes::type_support::Type>::TYPE,
+                                r#type: #member_dynamic_type,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
