@@ -302,11 +302,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_builtin_publications_detector_cache_change();
                     dp.process_builtin_subscriptions_detector_cache_change();
                     dp.process_builtin_topics_detector_cache_change();
-                    dp.process_type_lookup_request_cache_change(
+                    dp.process_builtin_type_lookup_request_cache_change(
                         &domain_participant_factory.runtime,
                     );
-                    dp.process_type_lookup_reply_cache_change();
+                    dp.process_builtin_type_lookup_reply_cache_change();
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
+                    dp.process_discovered_readers();
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.check_missed_reader_deadline(
                         domain_participant_factory.runtime.clock().now(),

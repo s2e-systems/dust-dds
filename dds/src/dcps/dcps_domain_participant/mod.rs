@@ -1353,6 +1353,12 @@ struct InstanceSamples {
     samples: VecDeque<i64>,
 }
 
+#[derive(Default)]
+struct IncompatibleSubscriptions {
+    incompatible_subscription_list: Vec<InstanceHandle>,
+    offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
+}
+
 struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: RtpsWriterKind,
@@ -1361,8 +1367,7 @@ struct DataWriterEntity {
     type_support: DynamicType<'static>,
     matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     publication_matched_status: PublicationMatchedStatus,
-    incompatible_subscription_list: Vec<InstanceHandle>,
-    offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
+    incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
     status_condition: DcpsStatusCondition,
     listener_sender: Option<MpscSender<ListenerMail>>,
@@ -1401,8 +1406,7 @@ impl DataWriterEntity {
             type_support,
             matched_subscription_list: Vec::new(),
             publication_matched_status: PublicationMatchedStatus::const_default(),
-            incompatible_subscription_list: Vec::new(),
-            offered_incompatible_qos_status: OfferedIncompatibleQosStatus::const_default(),
+            incompatible_subscriptions: IncompatibleSubscriptions::default(),
             enabled: false,
             status_condition: DcpsStatusCondition::default(),
             listener_sender,
@@ -1644,26 +1648,6 @@ impl DataWriterEntity {
         Ok(())
     }
 
-    fn add_matched_subscription(
-        &mut self,
-        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
-    ) {
-        match self
-            .matched_subscription_list
-            .iter_mut()
-            .find(|x| x.key() == subscription_builtin_topic_data.key())
-        {
-            Some(x) => *x = subscription_builtin_topic_data,
-            None => self
-                .matched_subscription_list
-                .push(subscription_builtin_topic_data),
-        };
-        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
-        self.publication_matched_status.current_count_change += 1;
-        self.publication_matched_status.total_count += 1;
-        self.publication_matched_status.total_count_change += 1;
-    }
-
     fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_subscription_list
@@ -1678,50 +1662,7 @@ impl DataWriterEntity {
         self.publication_matched_status.current_count_change -= 1;
     }
 
-    fn add_incompatible_subscription(
-        &mut self,
-        handle: InstanceHandle,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
-        if !self.incompatible_subscription_list.contains(&handle) {
-            self.offered_incompatible_qos_status.total_count += 1;
-            self.offered_incompatible_qos_status.total_count_change += 1;
-            self.offered_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
-
-            self.incompatible_subscription_list.push(handle);
-            for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-                if let Some(policy_count) = self
-                    .offered_incompatible_qos_status
-                    .policies
-                    .iter_mut()
-                    .find(|x| x.policy_id == incompatible_qos_policy)
-                {
-                    policy_count.count += 1;
-                } else {
-                    self.offered_incompatible_qos_status
-                        .policies
-                        .push(QosPolicyCount {
-                            policy_id: incompatible_qos_policy,
-                            count: 1,
-                        })
-                }
-            }
-        }
-    }
-
-    fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
-        let status = self.offered_incompatible_qos_status.clone();
-        self.offered_incompatible_qos_status.total_count_change = 0;
-        status
-    }
-
-    fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
-        let status = self.publication_matched_status.clone();
-        self.publication_matched_status.current_count_change = 0;
-        self.publication_matched_status.total_count_change = 0;
-
-        status
-    }
+   
 
     fn get_instance_write_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
         self.instance_publication_time
