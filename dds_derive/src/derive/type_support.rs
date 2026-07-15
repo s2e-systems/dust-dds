@@ -103,13 +103,72 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_external = struct_member_attributes.external;
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
 
+                let member_dynamic_type = if is_external {
+                    let inner_type = if let syn::Type::Path(type_path) = member_type {
+                        if let Some(segment) = type_path.path.segments.last() {
+                            if segment.ident == "Box" {
+                                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+                                {
+                                    if args.args.len() == 1 {
+                                        if let syn::GenericArgument::Type(inner_type) =
+                                            &args.args[0]
+                                        {
+                                            Some(inner_type)
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    let inner_type = inner_type.ok_or_else(|| {
+                        syn::Error::new(
+                            member_type.span(),
+                            "#[dust_dds(external)] is only supported on Box<T> types",
+                        )
+                    })?;
+
+                    let member_type_name = quote::quote!(#inner_type).to_string().replace(" ", "");
+
+                    quote! {
+                        dust_dds::xtypes::dynamic_type::DynamicType {
+                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
+                                name: #member_type_name,
+                                base_type: None,
+                                discriminator_type: None,
+                                bound: None,
+                                element_type: None,
+                                key_element_type: None,
+                                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                                is_nested: false,
+                            },
+                            member_list: &[]
+                        }
+                    }
+                } else {
+                    quote! { <#member_type as dust_dds::xtypes::type_support::Type>::TYPE}
+                };
+
                 member_list.push(
                     quote! {
                          dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                             descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
                                 name: #member_name,
                                 id: #member_id,
-                                r#type: <#member_type as dust_dds::xtypes::type_support::Type>::TYPE,
+                                r#type: #member_dynamic_type,
                                 default_value: None,
                                 index: #index as u32,
                                 try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
