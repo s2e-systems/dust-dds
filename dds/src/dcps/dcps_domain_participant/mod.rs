@@ -78,7 +78,7 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
-        type_object::TypeInformation,
+        type_object::{TypeInformation, TypeObject},
         type_support::{Type, TypeSupport},
     },
 };
@@ -1231,7 +1231,7 @@ impl SubscriberEntity {
 
 pub enum DiscoveredTypeRepresentationState {
     Requested,
-    Discovered(() /*TypeObject*/),
+    Discovered(TypeObject),
 }
 
 struct TopicEntity {

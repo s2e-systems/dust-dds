@@ -776,10 +776,62 @@ impl DcpsDomainParticipant {
                 .topic_name
                 .value
                 == data_writer.topic_name;
-            let is_matched_type_name = discovered_reader_data.dds_subscription_data.get_type_name()
-                == data_writer.type_name;
+            let writer_associated_topic = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == data_writer.topic_name)
+                .expect("A matched topic to the writer must exist");
 
-            if is_matched_topic_name && is_matched_type_name {
+            let is_matched_type = if let Some(discovered_type_information) = &discovered_reader_data
+                .dds_subscription_data
+                .type_information
+            {
+                // If the minimal hash match it is guaranteed compatible
+                if writer_associated_topic
+                    .type_information
+                    .minimal
+                    .typeid_with_size
+                    == discovered_type_information.minimal.typeid_with_size
+                {
+                    true
+                } else {
+                    if let Some(discovered_type_information) = writer_associated_topic
+                        .discovered_type_representation
+                        .iter()
+                        .find(|(x, _)| x == discovered_type_information)
+                    {
+                        match &discovered_type_information.1 {
+                            DiscoveredTypeRepresentationState::Requested => {
+                                todo!("Must discover after information received");
+                                return;
+                            }
+                            DiscoveredTypeRepresentationState::Discovered(type_object) => {
+                                match &type_object {
+                                    TypeObject::EkComplete { complete } => {
+                                        CompleteTypeObject::from(
+                                            writer_associated_topic.type_support,
+                                        )
+                                        .is_assignable_from(complete)
+                                    }
+                                    TypeObject::EkMinimal { minimal } => {
+                                        &MinimalTypeObject::from(
+                                            writer_associated_topic.type_support,
+                                        ) == minimal
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        todo!("Must send a request for this type")
+                    }
+                }
+            } else {
+                discovered_reader_data.dds_subscription_data.get_type_name()
+                    == writer_associated_topic.type_name
+            };
+
+            if is_matched_topic_name && is_matched_type {
                 let incompatible_qos_policy_list =
                     get_discovered_reader_incompatible_qos_policy_list(
                         &data_writer.qos,
@@ -2007,7 +2059,7 @@ impl DcpsDomainParticipant {
                                                         == type_identifier_pair.type_identifier
                                                 })
                                             {
-                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(() /*type_identifier_pair.type_object.clone()*/);
+                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(type_identifier_pair.type_object.clone());
 
                                                 // If two types T1 and T2 are equivalent according to the MINIMAL relation (see Clause 7.3.4.7),
                                                 // then they are mutually assignable, that is, T1 is-assignable-from T2 and T2 is-assignable-from
