@@ -2383,7 +2383,7 @@ impl From<TryConstructKind> for MemberFlag {
 impl CompleteTypeObject {
     /// This methods implements the rules defined in the DDS-XTypes standard chapter 7.2.4
     /// which defines the compatibility between two types.
-    pub fn is_assignable_from(&self, _t2: &CompleteTypeObject) -> bool {
+    pub fn is_assignable_from(&self, t2: &CompleteTypeObject) -> bool {
         // Members that are marked as non-serialized, see Sub Clause 7.3.1.2.1.14, shall be ignored during
         // type compatibility checking.
 
@@ -2429,11 +2429,11 @@ impl CompleteTypeObject {
         // AND if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the ‘optional’ attribute and the T1 member type is strongly assignable from the T2 member type.
         // AND if T1 is final, then they meet the same condition as for T1 being appendable and in addition T1 and T2 have the same set of member IDs. For the purposes of the above conditions, members belonging to base types of T1 or T2 shall be considered “expanded” inside T1 or T2 respectively, as if they had been directly defined as part of the sub-type.
 
-        if self == _t2 {
+        if self == t2 {
             return true;
         }
 
-        match (self, _t2) {
+        match (self, t2) {
             (
                 CompleteTypeObject::TkArray { array_type: t1 },
                 CompleteTypeObject::TkArray { array_type: t2 },
