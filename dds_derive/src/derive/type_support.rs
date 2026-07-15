@@ -104,11 +104,57 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
 
                 let member_dynamic_type = if is_external {
-                    todo!("Check that the type of this member is Box<T>, otherwise return error message saying that Box<T> is expected for external");
-                    todo!("Retrieve the type T from the inside of the Box");
+                    let inner_type = if let syn::Type::Path(type_path) = member_type {
+                        if let Some(segment) = type_path.path.segments.last() {
+                            if segment.ident == "Box" {
+                                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+                                {
+                                    if args.args.len() == 1 {
+                                        if let syn::GenericArgument::Type(inner_type) =
+                                            &args.args[0]
+                                        {
+                                            Some(inner_type)
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    let inner_type = inner_type.ok_or_else(|| {
+                        syn::Error::new(
+                            member_type.span(),
+                            "#[dust_dds(external)] is only supported on Box<T> types",
+                        )
+                    })?;
+
+                    let member_type_name = quote::quote!(#inner_type).to_string().replace(" ", "");
+
                     quote! {
                         dust_dds::xtypes::dynamic_type::DynamicType {
-                            descriptor: todo!("Use the descriptor of type T to fill up this information"),
+                            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                                kind: dust_dds::xtypes::dynamic_type::TypeKind::NONE,
+                                name: #member_type_name,
+                                base_type: None,
+                                discriminator_type: None,
+                                bound: None,
+                                element_type: None,
+                                key_element_type: None,
+                                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                                is_nested: false,
+                            },
                             member_list: &[]
                         }
                     }

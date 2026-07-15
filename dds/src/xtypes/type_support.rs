@@ -249,6 +249,20 @@ impl Type for char {
     };
 }
 
+impl<T: Type> Type for Box<T> {
+    const TYPE: DynamicType<'static> = T::TYPE;
+}
+
+impl<T: TypeSupport> TypeSupport for Box<T> {
+    fn create_sample(src: &mut DynamicData<'static>) -> Self {
+        Box::new(T::create_sample(src))
+    }
+
+    fn create_dynamic_sample(self) -> DynamicData<'static> {
+        T::create_dynamic_sample(*self)
+    }
+}
+
 impl<T: Type> Type for Option<T> {
     const TYPE: DynamicType<'static> = T::TYPE;
 }

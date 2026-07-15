@@ -3,7 +3,7 @@ use crate::xtypes::{
     error::{XTypesError, XTypesResult},
     type_support::TypeSupport,
 };
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 /// Representation of data storage for dynamic types.
 #[derive(Debug, Clone, PartialEq)]
@@ -663,18 +663,6 @@ impl<T: DataStorageMapping> DataStorageMapping for Option<T> {
 
     fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
         Ok(Some(T::try_from_storage(data_storage)?))
-    }
-}
-
-impl DataStorageMapping for Box<super::type_object::TypeIdentifier> {
-    fn into_storage(self) -> DataStorage {
-        super::type_object::TypeIdentifier::into_storage(*self)
-    }
-
-    fn try_from_storage(data_storage: DataStorage) -> XTypesResult<Self> {
-        Ok(Box::new(
-            super::type_object::TypeIdentifier::try_from_storage(data_storage)?,
-        ))
     }
 }
 

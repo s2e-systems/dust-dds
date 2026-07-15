@@ -212,7 +212,7 @@ fn nested_types_should_read_and_write() {
 
     #[derive(Clone, PartialEq, Eq, Debug, DdsType)]
     struct OuterType {
-        inner: InnerType,
+        inner: Box<InnerType>,
         flag: bool,
     }
 
@@ -281,7 +281,7 @@ fn nested_types_should_read_and_write() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data = OuterType {
-        inner: InnerType { a: 20, b: 5 },
+        inner: Box::new(InnerType { a: 20, b: 5 }),
         flag: true,
     };
 
