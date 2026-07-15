@@ -162,4 +162,12 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             .filter_map(|x| x.time_until_stale_participant(now))
             .min()
     }
+
+    pub(crate) fn time_until_missed_reader_deadline(&self) -> Option<Duration> {
+        let now = self.runtime.clock().now();
+        self.domain_participant_list
+            .iter()
+            .filter_map(|x| x.time_until_missed_reader_deadline(now))
+            .min()
+    }
 }

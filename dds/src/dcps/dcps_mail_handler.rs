@@ -1105,26 +1105,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     )
                 }
             }
-            DcpsMail::Event(EventServiceMail::RequestedDeadlineMissed {
-                participant_handle,
-                subscriber_handle,
-                data_reader_handle,
-                change_instance_handle,
-            }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.requested_deadline_missed(
-                        &subscriber_handle,
-                        &data_reader_handle,
-                        &change_instance_handle,
-                        &self.runtime,
-                    )
-                }
-            }
+
             DcpsMail::Discovery(DiscoveryServiceMail::AnnounceParticipant {
                 participant_handle,
             }) => {

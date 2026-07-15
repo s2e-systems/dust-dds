@@ -615,12 +615,6 @@ pub enum EventServiceMail {
         data_writer_handle: InstanceHandle,
         change_instance_handle: InstanceHandle,
     },
-    RequestedDeadlineMissed {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        change_instance_handle: InstanceHandle,
-    },
 }
 
 pub enum DiscoveryServiceMail {

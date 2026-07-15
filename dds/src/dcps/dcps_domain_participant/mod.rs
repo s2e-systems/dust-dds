@@ -59,7 +59,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
             StatusKind, SubscriptionMatchedStatus,
         },
-        time::{Duration, DurationKind, Time},
+        time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     rtps::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
@@ -78,6 +78,7 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
+        type_object::TypeInformation,
         type_support::{Type, TypeSupport},
     },
 };
@@ -650,6 +651,25 @@ impl DcpsDomainParticipant {
             .min()
     }
 
+    pub fn time_until_missed_reader_deadline(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_subscriber_list
+            .iter()
+            .flat_map(|subscriber| subscriber.data_reader_list.iter())
+            .filter_map(|data_reader| {
+                if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
+                    data_reader
+                        .instance_ownership
+                        .iter()
+                        .map(|instance| deadline - (now - instance.last_received_time))
+                        .min()
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             self.dcps_sender,
@@ -903,153 +923,6 @@ impl DcpsDomainParticipant {
         data_writer
             .status_condition
             .add_communication_state(StatusKind::OfferedDeadlineMissed);
-    }
-
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn requested_deadline_missed(
-        &mut self,
-        subscriber_handle: &InstanceHandle,
-        data_reader_handle: &InstanceHandle,
-        change_instance_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
-    ) {
-        let current_time = runtime.clock().now();
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return;
-        };
-
-        if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-            if let Some(t) = data_reader.get_instance_received_time(change_instance_handle) {
-                if current_time - t < deadline {
-                    return;
-                }
-            } else {
-                return;
-            }
-        }
-
-        data_reader.remove_instance_ownership(change_instance_handle);
-        data_reader.increment_requested_deadline_missed_status(*change_instance_handle);
-
-        if data_reader
-            .listener_mask
-            .is_enabled(&StatusKind::RequestedDeadlineMissed)
-        {
-            let status = data_reader.get_requested_deadline_missed_status();
-            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
-            else {
-                return;
-            };
-            let Some(subscriber) = self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
-            else {
-                return;
-            };
-            let Some(data_reader) = subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
-            else {
-                return;
-            };
-            if let Some(l) = &data_reader.listener_sender {
-                l.send(ListenerMail::RequestedDeadlineMissed { the_reader, status })
-                    .ok();
-            }
-        } else if subscriber
-            .listener_mask
-            .is_enabled(&StatusKind::RequestedDeadlineMissed)
-        {
-            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
-            else {
-                return;
-            };
-
-            let Some(subscriber) = self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
-            else {
-                return;
-            };
-            let Some(data_reader) = subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
-            else {
-                return;
-            };
-            let status = data_reader.get_requested_deadline_missed_status();
-            if let Some(l) = &subscriber.listener_sender {
-                l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .ok();
-            }
-        } else if self
-            .domain_participant
-            .listener_mask
-            .is_enabled(&StatusKind::RequestedDeadlineMissed)
-        {
-            let Ok(the_reader) = self.get_data_reader_async(subscriber_handle, data_reader_handle)
-            else {
-                return;
-            };
-
-            let Some(subscriber) = self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
-            else {
-                return;
-            };
-            let Some(data_reader) = subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
-            else {
-                return;
-            };
-            let status = data_reader.get_requested_deadline_missed_status();
-            if let Some(l) = &self.domain_participant.listener_sender {
-                l.send(ListenerMail::RequestedDeadlineMissed { status, the_reader })
-                    .ok();
-            }
-        }
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return;
-        };
-
-        data_reader
-            .status_condition
-            .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 }
 
@@ -1356,6 +1229,11 @@ impl SubscriberEntity {
     }
 }
 
+pub enum DiscoveredTypeRepresentationState {
+    Requested,
+    Discovered(() /*TypeObject*/),
+}
+
 struct TopicEntity {
     qos: TopicQos,
     type_name: String,
@@ -1367,11 +1245,13 @@ struct TopicEntity {
     _listener_sender: Option<MpscSender<ListenerMail>>,
     _listener_mask: StatusMask,
     type_support: DynamicType<'static>,
+    type_information: TypeInformation,
+    discovered_type_representation: Vec<(TypeInformation, DiscoveredTypeRepresentationState)>,
 }
 
 impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    fn new(
         qos: TopicQos,
         type_name: String,
         topic_name: String,
@@ -1392,6 +1272,8 @@ impl TopicEntity {
             _listener_sender: listener_sender,
             _listener_mask: listener_mask,
             type_support,
+            type_information: TypeInformation::from(type_support),
+            discovered_type_representation: Vec::new(),
         }
     }
 }
@@ -1861,7 +1743,7 @@ impl DataWriterEntity {
 type SampleList = Vec<(Arc<[u8]>, SampleInfo)>;
 
 enum AddChangeResult {
-    Added(InstanceHandle),
+    Added,
     NotAdded,
     Rejected(InstanceHandle, SampleRejectedStatusKind),
 }
@@ -1872,6 +1754,7 @@ struct InstanceState {
     instance_state: InstanceStateKind,
     most_recent_disposed_generation_count: i32,
     most_recent_no_writers_generation_count: i32,
+    last_received_time_stamp: Time,
 }
 
 impl InstanceState {
@@ -1882,10 +1765,11 @@ impl InstanceState {
             instance_state: InstanceStateKind::Alive,
             most_recent_disposed_generation_count: 0,
             most_recent_no_writers_generation_count: 0,
+            last_received_time_stamp: Time::new(TIME_INVALID_SEC, TIME_INVALID_NSEC),
         }
     }
 
-    fn update_state(&mut self, change_kind: ChangeKind) {
+    fn update_state(&mut self, change_kind: ChangeKind, now: Option<Time>) {
         match self.instance_state {
             InstanceStateKind::Alive => {
                 if change_kind == ChangeKind::NotAliveDisposed
@@ -1920,6 +1804,9 @@ impl InstanceState {
                 }
             }
         }
+        if let Some(t) = now {
+            self.last_received_time_stamp = t;
+        }
     }
 
     fn mark_viewed(&mut self) {
@@ -1928,6 +1815,10 @@ impl InstanceState {
 
     fn handle(&self) -> &InstanceHandle {
         &self.handle
+    }
+
+    fn last_received_time_stamp(&self) -> Time {
+        self.last_received_time_stamp
     }
 }
 
@@ -2074,7 +1965,7 @@ impl DataReaderEntity {
                 .iter_mut()
                 .find(|x| x.handle() == &cache_change.instance_handle)
                 .expect("Instance must exist");
-            instance_from_collection.update_state(cache_change.kind);
+            instance_from_collection.update_state(cache_change.kind, None);
             let sample_state = cache_change.sample_state;
             let view_state = instance.view_state;
             let instance_state = instance.instance_state;
@@ -2214,10 +2105,10 @@ impl DataReaderEntity {
                     .iter_mut()
                     .find(|x| x.handle() == &instance_handle)
                 {
-                    Some(x) => x.update_state(change_kind),
+                    Some(x) => x.update_state(change_kind, Some(reception_timestamp)),
                     None => {
                         let mut s = InstanceState::new(instance_handle);
-                        s.update_state(change_kind);
+                        s.update_state(change_kind, Some(reception_timestamp));
                         self.instances.push(s);
                     }
                 }
@@ -2232,7 +2123,7 @@ impl DataReaderEntity {
                     .find(|x| x.handle() == &instance_handle)
                 {
                     Some(instance) => {
-                        instance.update_state(change_kind);
+                        instance.update_state(change_kind, Some(reception_timestamp));
                         Ok(())
                     }
                     None => Err(DdsError::Error(
@@ -2422,10 +2313,10 @@ impl DataReaderEntity {
                     .iter_mut()
                     .find(|x| x.handle() == &sample.instance_handle)
                 {
-                    Some(x) => x.update_state(sample.kind),
+                    Some(x) => x.update_state(sample.kind, Some(reception_timestamp)),
                     None => {
                         let mut s = InstanceState::new(sample.instance_handle);
-                        s.update_state(sample.kind);
+                        s.update_state(sample.kind, Some(reception_timestamp));
                         self.instances.push(s);
                     }
                 }
@@ -2440,7 +2331,7 @@ impl DataReaderEntity {
                     .find(|x| x.handle() == &sample.instance_handle)
                 {
                     Some(instance) => {
-                        instance.update_state(sample.kind);
+                        instance.update_state(sample.kind, Some(reception_timestamp));
                         Ok(())
                     }
                     None => Err(DdsError::Error(
@@ -2484,7 +2375,7 @@ impl DataReaderEntity {
                 owner_handle: sample_writer_guid,
             }),
         }
-        Ok(AddChangeResult::Added(change_instance_handle))
+        Ok(AddChangeResult::Added)
     }
 
     fn add_matched_publication(
@@ -2506,28 +2397,6 @@ impl DataReaderEntity {
         self.subscription_matched_status.current_count_change += 1;
         self.subscription_matched_status.total_count += 1;
         self.subscription_matched_status.total_count_change += 1;
-    }
-
-    fn increment_requested_deadline_missed_status(&mut self, instance_handle: InstanceHandle) {
-        self.requested_deadline_missed_status.total_count += 1;
-        self.requested_deadline_missed_status.total_count_change += 1;
-        self.requested_deadline_missed_status.last_instance_handle = instance_handle;
-    }
-
-    fn get_requested_deadline_missed_status(&mut self) -> RequestedDeadlineMissedStatus {
-        let status = self.requested_deadline_missed_status.clone();
-        self.requested_deadline_missed_status.total_count_change = 0;
-        status
-    }
-
-    fn remove_instance_ownership(&mut self, instance_handle: &InstanceHandle) {
-        if let Some(i) = self
-            .instance_ownership
-            .iter()
-            .position(|x| &x.instance_handle == instance_handle)
-        {
-            self.instance_ownership.remove(i);
-        }
     }
 
     fn add_requested_incompatible_qos(
@@ -2598,13 +2467,6 @@ impl DataReaderEntity {
             .iter()
             .map(|x| InstanceHandle::new(x.key().value))
             .collect()
-    }
-
-    fn get_instance_received_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
-        self.instance_ownership
-            .iter()
-            .find(|x| &x.instance_handle == instance_handle)
-            .map(|x| x.last_received_time)
     }
 
     fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
