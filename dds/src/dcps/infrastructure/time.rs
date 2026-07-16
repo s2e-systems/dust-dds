@@ -2,8 +2,7 @@ use crate::xtypes::{
     dynamic_type::DynamicData,
     type_support::{Type, TypeSupport},
 };
-use core::ops::{Add, Sub};
-use std::ops::AddAssign;
+use core::ops::{Add, AddAssign, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
