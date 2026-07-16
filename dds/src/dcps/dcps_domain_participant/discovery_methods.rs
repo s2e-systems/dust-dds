@@ -1211,11 +1211,11 @@ impl DcpsDomainParticipant {
                     if is_partition_matched {
                         let subscriber_qos = subscriber.qos.clone();
 
-                        let reader_associated_topic = if let Some(matched_topic) =
-                            self.domain_participant
-                                .content_filtered_topic_list
-                                .iter()
-                                .find(|t| t.topic_name == data_reader.topic_name)
+                        let reader_associated_topic = if let Some(matched_topic) = self
+                            .domain_participant
+                            .content_filtered_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == data_reader.topic_name)
                         {
                             if let Some(t) = self
                                 .domain_participant
