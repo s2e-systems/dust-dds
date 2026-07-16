@@ -28,10 +28,7 @@ use crate::{
             KeyHolderData, get_instance_handle_from_key_holder_data,
         },
     },
-    dds_async::{
-        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
-        domain_participant_factory::DcpsSender, publisher::PublisherAsync, topic::TopicAsync,
-    },
+    dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
         error::{DdsError, DdsResult},
@@ -64,7 +61,7 @@ use crate::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
-    runtime::{Clock, DdsRuntime, Timer},
+    runtime::{DdsRuntime, Timer},
     transport::{
         interface::{RtpsTransportParticipant, WriteMessage},
         types::{
@@ -669,218 +666,27 @@ impl DcpsDomainParticipant {
             .min()
     }
 
-    fn get_participant_async(&self) -> DomainParticipantAsync {
-        DomainParticipantAsync::new(
-            self.dcps_sender,
-            self.domain_participant.domain_id,
-            self.domain_participant.instance_handle,
-        )
-    }
-
-    fn get_publisher_async(&self, publisher_handle: InstanceHandle) -> DdsResult<PublisherAsync> {
-        Ok(PublisherAsync::new(
-            publisher_handle,
-            self.get_participant_async(),
-        ))
-    }
-
-    fn get_data_writer_async<Foo>(
-        &self,
-        publisher_handle: &InstanceHandle,
-        data_writer_handle: &InstanceHandle,
-    ) -> DdsResult<DataWriterAsync<Foo>> {
-        let data_writer = self
-            .domain_participant
+    pub fn time_until_missed_writer_deadline(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
             .user_defined_publisher_list
             .iter()
-            .find(|x| &x.instance_handle == publisher_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .data_writer_list
-            .iter()
-            .find(|x| &x.instance_handle == data_writer_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        Ok(DataWriterAsync::new(
-            *data_writer_handle,
-            self.get_publisher_async(*publisher_handle)?,
-            self.get_topic_async(data_writer.topic_name.clone())?,
-        ))
-    }
-
-    fn get_topic_async(&self, topic_name: String) -> DdsResult<TopicAsync> {
-        self.domain_participant
-            .locally_created_topic_list
-            .iter()
-            .find(|x| x.topic_name == topic_name)
-            .map(|x| {
-                TopicAsync::new(
-                    x.instance_handle,
-                    x.type_name.clone(),
-                    topic_name,
-                    self.get_participant_async(),
-                )
+            .flat_map(|publisher| publisher.data_writer_list.iter())
+            .filter_map(|data_writer| {
+                if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
+                    data_writer
+                        .instance_publication_time
+                        .iter()
+                        .map(|instance| deadline - (now - instance.last_write_time))
+                        .min()
+                } else {
+                    None
+                }
             })
-            .ok_or(DdsError::AlreadyDeleted)
+            .min()
     }
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {
         &self.domain_participant.instance_handle
-    }
-
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn offered_deadline_missed(
-        &mut self,
-        publisher_handle: &InstanceHandle,
-        data_writer_handle: &InstanceHandle,
-        change_instance_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
-    ) {
-        let current_time = runtime.clock().now();
-        let Some(publisher) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            return;
-        };
-
-        if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-            match data_writer.get_instance_write_time(change_instance_handle) {
-                Some(t) => {
-                    if current_time - t < deadline {
-                        return;
-                    }
-                }
-                None => return,
-            }
-        } else {
-            return;
-        }
-
-        data_writer
-            .offered_deadline_missed_status
-            .last_instance_handle = *change_instance_handle;
-        data_writer.offered_deadline_missed_status.total_count += 1;
-        data_writer
-            .offered_deadline_missed_status
-            .total_count_change += 1;
-
-        if data_writer
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let status = data_writer.get_offered_deadline_missed_status();
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-
-            if let Some(l) = &data_writer.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        } else if publisher
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-            let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = &publisher.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        } else if self
-            .domain_participant
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-            let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = &self.domain_participant.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        }
-
-        let Some(publisher) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            return;
-        };
-        data_writer
-            .status_condition
-            .add_communication_state(StatusKind::OfferedDeadlineMissed);
     }
 }
 
@@ -1619,13 +1425,6 @@ impl DataWriterEntity {
 
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
-    }
-
-    fn get_instance_write_time(&self, instance_handle: &InstanceHandle) -> Option<Time> {
-        self.instance_publication_time
-            .iter()
-            .find(|x| &x.instance == instance_handle)
-            .map(|x| x.last_write_time)
     }
 
     fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {

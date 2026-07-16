@@ -52,7 +52,8 @@ use crate::{
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            QosPolicyCount, StatusKind,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -343,6 +344,94 @@ impl DcpsDomainParticipant {
                     }
                 } else {
                     continue;
+                }
+            }
+        }
+    }
+
+    pub fn check_missed_writer_deadline(&mut self, now: Time) {
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
+                    for instance_publication_time in data_writer
+                        .instance_publication_time
+                        .iter_mut()
+                        .filter(|x| now - x.last_write_time > deadline)
+                    {
+                        instance_publication_time.last_write_time += deadline;
+                        let the_participant = DomainParticipantAsync::new(
+                            self.dcps_sender,
+                            self.domain_participant.domain_id,
+                            self.domain_participant.instance_handle,
+                        );
+                        let the_publisher =
+                            PublisherAsync::new(publisher.instance_handle, the_participant.clone());
+                        let topic = self
+                            .domain_participant
+                            .locally_created_topic_list
+                            .iter()
+                            .find(|x| x.topic_name == data_writer.topic_name)
+                            .expect("Writer is guaranteed to have matching topic");
+                        let the_topic = TopicAsync::new(
+                            topic.instance_handle,
+                            data_writer.type_name.clone(),
+                            data_writer.topic_name.clone(),
+                            the_participant,
+                        );
+                        let the_writer = DataWriterAsync::new(
+                            data_writer.instance_handle,
+                            the_publisher,
+                            the_topic,
+                        );
+                        data_writer
+                            .offered_deadline_missed_status
+                            .last_instance_handle = instance_publication_time.instance;
+                        data_writer.offered_deadline_missed_status.total_count += 1;
+                        data_writer
+                            .offered_deadline_missed_status
+                            .total_count_change += 1;
+
+                        if data_writer
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer
+                                .offered_deadline_missed_status
+                                .get_offered_deadline_missed_status();
+
+                            if let Some(l) = &data_writer.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        } else if publisher
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer
+                                .offered_deadline_missed_status
+                                .get_offered_deadline_missed_status();
+                            if let Some(l) = &publisher.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        } else if self
+                            .domain_participant
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer
+                                .offered_deadline_missed_status
+                                .get_offered_deadline_missed_status();
+                            if let Some(l) = &self.domain_participant.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        }
+
+                        data_writer
+                            .status_condition
+                            .add_communication_state(StatusKind::OfferedDeadlineMissed);
+                    }
                 }
             }
         }
@@ -3147,6 +3236,15 @@ impl IncompatibleSubscriptions {
     fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
         let status = self.offered_incompatible_qos_status.clone();
         self.offered_incompatible_qos_status.total_count_change = 0;
+        status
+    }
+}
+
+impl OfferedDeadlineMissedStatus {
+    fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+        let status = self.clone();
+        self.total_count_change = 0;
+
         status
     }
 }

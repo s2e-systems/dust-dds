@@ -5,7 +5,7 @@ use crate::{
     dcps::{
         channels::oneshot::{OneshotSender, oneshot},
         dcps_domain_participant::{DcpsDomainParticipant, RtpsWriterKind, serialize},
-        dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
+        dcps_mail::{DcpsMail, MessageServiceMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::{
@@ -408,27 +408,6 @@ impl DcpsDomainParticipant {
             return;
         }
 
-        let dcps_sender_clone = self.dcps_sender;
-        let participant_handle = self.domain_participant.instance_handle;
-        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
-            let mut timer_handle = runtime.timer();
-            let publisher_handle = *publisher_handle;
-            let data_writer_handle = *data_writer_handle;
-            runtime.spawner().spawn(async move {
-                loop {
-                    timer_handle.delay(deadline_missed_period.into()).await;
-                    dcps_sender_clone
-                        .send(DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
-                            participant_handle,
-                            publisher_handle,
-                            data_writer_handle,
-                            change_instance_handle: instance_handle,
-                        }))
-                        .await;
-                }
-            });
-        }
-
         let sequence_number = data_writer.last_change_sequence_number;
 
         if let DurationKind::Finite(lifespan_duration) = data_writer.qos.lifespan.duration {
@@ -438,6 +417,7 @@ impl DcpsDomainParticipant {
                 return;
             }
 
+            let participant_handle = self.domain_participant.instance_handle;
             let dcps_sender_clone = self.dcps_sender;
             let mut timer_handle = runtime.timer();
             let publisher_handle = *publisher_handle;

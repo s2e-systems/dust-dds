@@ -1,10 +1,9 @@
 use crate::{
     dcps::{
         dcps_mail::{
-            DcpsMail, DiscoveryServiceMail, EventServiceMail, MessageServiceMail,
-            ParticipantFactoryMail, ParticipantServiceMail, PublisherServiceMail,
-            ReaderServiceMail, StatusConditionMail, SubscriberServiceMail, TopicServiceMail,
-            WriterServiceMail,
+            DcpsMail, DiscoveryServiceMail, MessageServiceMail, ParticipantFactoryMail,
+            ParticipantServiceMail, PublisherServiceMail, ReaderServiceMail, StatusConditionMail,
+            SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
@@ -1083,26 +1082,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .ok_or(DdsError::AlreadyDeleted)
                 {
                     p.handle_data(data_message.as_slice(), &self.runtime);
-                }
-            }
-            DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
-                participant_handle,
-                publisher_handle,
-                data_writer_handle,
-                change_instance_handle,
-            }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.offered_deadline_missed(
-                        &publisher_handle,
-                        &data_writer_handle,
-                        &change_instance_handle,
-                        &self.runtime,
-                    )
                 }
             }
 

@@ -2,7 +2,7 @@ use crate::xtypes::{
     dynamic_type::DynamicData,
     type_support::{Type, TypeSupport},
 };
-use core::ops::{Add, Sub};
+use core::ops::{Add, AddAssign, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -226,6 +226,11 @@ impl Add<Duration> for Time {
             sec,
             nanosec: nanosec as u32,
         }
+    }
+}
+impl AddAssign<Duration> for Time {
+    fn add_assign(&mut self, rhs: Duration) {
+        *self = *self + rhs;
     }
 }
 
