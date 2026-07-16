@@ -1,7 +1,8 @@
 use crate::derive::{
     attributes::{
-        BitBound, Extensibility, get_enumerated_type_attributes, get_struct_attributes,
-        get_structure_member_attributes, get_union_type_attributes, get_union_variant_attributes,
+        BitBound, Extensibility, TryConstructKind, get_enumerated_type_attributes,
+        get_struct_attributes, get_structure_member_attributes, get_union_type_attributes,
+        get_union_variant_attributes,
     },
     enum_support::read_enum_variant_discriminant_mapping,
 };
@@ -102,6 +103,17 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_optional = struct_member_attributes.optional;
                 let is_external = struct_member_attributes.external;
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
+                let try_construct = match struct_member_attributes.try_construct {
+                    Some(TryConstructKind::Discard) | None => {
+                        quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::Discard}
+                    }
+                    Some(TryConstructKind::UseDefault) => {
+                        quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault}
+                    }
+                    Some(TryConstructKind::Trim) => {
+                        quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::Trim}
+                    }
+                };
 
                 let member_dynamic_type = if is_external {
                     let inner_type = if let syn::Type::Path(type_path) = member_type {
@@ -162,27 +174,25 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     quote! { <#member_type as dust_dds::xtypes::type_support::Type>::TYPE}
                 };
 
-                member_list.push(
-                    quote! {
-                         dust_dds::xtypes::dynamic_type::DynamicTypeMember {
-                            descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                                name: #member_name,
-                                id: #member_id,
-                                r#type: #member_dynamic_type,
-                                default_value: None,
-                                index: #index as u32,
-                                try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
-                                label: &[],
-                                is_key: #is_key,
-                                is_optional: #is_optional,
-                                is_must_understand: #is_key,
-                                is_shared: false,
-                                is_default_label: false,
-                                is_external: #is_external,
-                            }
+                member_list.push(quote! {
+                     dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                        descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                            name: #member_name,
+                            id: #member_id,
+                            r#type: #member_dynamic_type,
+                            default_value: None,
+                            index: #index as u32,
+                            try_construct_kind: #try_construct,
+                            label: &[],
+                            is_key: #is_key,
+                            is_optional: #is_optional,
+                            is_must_understand: #is_key,
+                            is_shared: false,
+                            is_default_label: false,
+                            is_external: #is_external,
                         }
                     }
-                );
+                });
 
                 let member_type = &member.ty;
                 let member_default_value = default_value
