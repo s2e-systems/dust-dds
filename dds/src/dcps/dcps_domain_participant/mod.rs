@@ -29,9 +29,8 @@ use crate::{
         },
     },
     dds_async::{
-        data_reader::DataReaderAsync, data_writer::DataWriterAsync,
-        domain_participant::DomainParticipantAsync, domain_participant_factory::DcpsSender,
-        publisher::PublisherAsync, subscriber::SubscriberAsync, topic::TopicAsync,
+        data_writer::DataWriterAsync, domain_participant::DomainParticipantAsync,
+        domain_participant_factory::DcpsSender, publisher::PublisherAsync, topic::TopicAsync,
     },
     infrastructure::{
         domain::DomainId,
@@ -676,47 +675,6 @@ impl DcpsDomainParticipant {
             self.domain_participant.domain_id,
             self.domain_participant.instance_handle,
         )
-    }
-
-    fn get_subscriber_async(
-        &self,
-        subscriber_handle: InstanceHandle,
-    ) -> DdsResult<SubscriberAsync> {
-        Ok(SubscriberAsync::new(
-            subscriber_handle,
-            self.get_participant_async(),
-        ))
-    }
-
-    fn get_data_reader_async<Foo>(
-        &self,
-        subscriber_handle: &InstanceHandle,
-        data_reader_handle: &InstanceHandle,
-    ) -> DdsResult<DataReaderAsync<Foo>> {
-        let data_reader = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .data_reader_list
-            .iter()
-            .find(|x| &x.instance_handle == data_reader_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let type_name = self
-            .domain_participant
-            .locally_created_topic_list
-            .iter()
-            .find(|x| x.topic_name == data_reader.topic_name)
-            .map(|x| x.type_name.clone())
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        Ok(DataReaderAsync::new(
-            *data_reader_handle,
-            self.get_subscriber_async(*subscriber_handle)?,
-            data_reader.topic_name.clone(),
-            type_name,
-        ))
     }
 
     fn get_publisher_async(&self, publisher_handle: InstanceHandle) -> DdsResult<PublisherAsync> {
