@@ -1211,7 +1211,7 @@ impl DcpsDomainParticipant {
                     if is_partition_matched {
                         let subscriber_qos = subscriber.qos.clone();
 
-                        let (reader_topic_name, reader_type_name) = if let Some(matched_topic) =
+                        let reader_associated_topic = if let Some(matched_topic) =
                             self.domain_participant
                                 .content_filtered_topic_list
                                 .iter()
@@ -1223,7 +1223,7 @@ impl DcpsDomainParticipant {
                                 .iter()
                                 .find(|x| x.topic_name == matched_topic.related_topic_name)
                             {
-                                (&t.topic_name, &t.type_name)
+                                t
                             } else {
                                 continue;
                             }
@@ -1233,18 +1233,72 @@ impl DcpsDomainParticipant {
                             .iter()
                             .find(|x| x.topic_name == data_reader.topic_name)
                         {
-                            (&t.topic_name, &t.type_name)
+                            t
                         } else {
                             continue;
                         };
 
                         let is_matched_topic_name =
                             discovered_writer_data.dds_publication_data.topic_name()
-                                == reader_topic_name;
+                                == reader_associated_topic.topic_name;
 
-                        let is_matched_type_name =
-                            discovered_writer_data.dds_publication_data.get_type_name()
-                                == reader_type_name;
+                        let is_matched_type = match &discovered_writer_data
+                            .dds_publication_data
+                            .type_information
+                        {
+                            Some(discovered_type_information)
+                            // This additional check is done for interoperability with implementations that 
+                            // do not communicate the correct type information. 
+                            // In that case we fallback to matching on type name 
+                                if discovered_type_information
+                                    .complete
+                                    .typeid_with_size
+                                    .typeobject_serialized_size
+                                    > 0 =>
+                            {
+                                // If the minimal hash match it is guaranteed compatible
+                                if reader_associated_topic
+                                    .type_information
+                                    .minimal
+                                    .typeid_with_size
+                                    == discovered_type_information.minimal.typeid_with_size
+                                {
+                                    true
+                                } else if let Some(discovered_type_information) =
+                                    reader_associated_topic
+                                        .discovered_type_representation
+                                        .iter()
+                                        .find(|(x, _)| x == discovered_type_information)
+                                {
+                                    match &discovered_type_information.1 {
+                                        DiscoveredTypeRepresentationState::Requested => {
+                                            return;
+                                        }
+                                        DiscoveredTypeRepresentationState::Discovered(
+                                            type_object,
+                                        ) => match &type_object {
+                                            TypeObject::EkComplete { complete } => {
+                                                CompleteTypeObject::from(
+                                                    reader_associated_topic.type_support,
+                                                )
+                                                .is_assignable_from(complete)
+                                            }
+                                            TypeObject::EkMinimal { minimal } => {
+                                                &MinimalTypeObject::from(
+                                                    reader_associated_topic.type_support,
+                                                ) == minimal
+                                            }
+                                        },
+                                    }
+                                } else {
+                                    todo!("Must send a request for this type")
+                                }
+                            }
+                            _ => {
+                                discovered_writer_data.dds_publication_data.get_type_name()
+                                    == reader_associated_topic.type_name
+                            }
+                        };
 
                         let the_participant = DomainParticipantAsync::new(
                             self.dcps_sender,
@@ -1259,10 +1313,10 @@ impl DcpsDomainParticipant {
                             data_reader.instance_handle,
                             the_subscriber,
                             data_reader.topic_name.clone(),
-                            reader_type_name.clone(),
+                            reader_associated_topic.type_name.clone(),
                         );
 
-                        if is_matched_topic_name && is_matched_type_name {
+                        if is_matched_topic_name && is_matched_type {
                             let incompatible_qos_policy_list =
                                 get_discovered_writer_incompatible_qos_policy_list(
                                     data_reader,
