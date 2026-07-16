@@ -905,7 +905,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         let dynamic_type = dynamic_data.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_fmember(member, dynamic_data)?;
+            let result = self.deserialize_fmember(member, dynamic_data);
+            if result.is_err() {
+                break;
+            }
         }
         Ok(())
     }
@@ -1993,7 +1996,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_limited_data() {
+    fn deserialize_partial_data() {
         #[derive(TypeSupport, Debug, PartialEq, Clone)]
         #[dust_dds(extensibility = "appendable")]
         struct A1 {
