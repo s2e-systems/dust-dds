@@ -1991,4 +1991,31 @@ mod tests {
             expected
         );
     }
+
+    #[test]
+    fn deserialize_limited_data() {
+        #[derive(TypeSupport, Debug, PartialEq, Clone)]
+        #[dust_dds(extensibility = "appendable")]
+        struct A1 {
+            x1: i32,
+        }
+
+        #[derive(TypeSupport, Debug, PartialEq, Clone)]
+        #[dust_dds(extensibility = "appendable")]
+        struct A2 {
+            x1: i32,
+            x2: i32,
+        }
+        assert_eq!(
+            deserialize_top_level_type(
+                A2::TYPE,
+                &[
+                    0x00u8, 0x01, 0x00, 0x00, // CDR_LE + 0 padding
+                    1, 0, 0, 0,
+                ]
+            )
+            .unwrap(),
+            A1 { x1: 1 }.create_dynamic_sample()
+        );
+    }
 }
