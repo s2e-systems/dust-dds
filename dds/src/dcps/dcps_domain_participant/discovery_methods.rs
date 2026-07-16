@@ -348,6 +348,69 @@ impl DcpsDomainParticipant {
         }
     }
 
+    pub fn check_missed_writer_deadline(&mut self, now: Time) {
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
+                    for change_instance_handle in data_writer
+                        .instance_publication_time
+                        .iter()
+                        .filter_map(|x| {
+                            if now - x.last_write_time > deadline {
+                                Some(x.instance)
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        data_writer
+                            .offered_deadline_missed_status
+                            .last_instance_handle = change_instance_handle;
+                        data_writer.offered_deadline_missed_status.total_count += 1;
+                        data_writer
+                            .offered_deadline_missed_status
+                            .total_count_change += 1;
+
+                        if data_writer
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer.get_offered_deadline_missed_status();
+
+                            if let Some(l) = &data_writer.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        } else if publisher
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer.get_offered_deadline_missed_status();
+                            if let Some(l) = &publisher.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        } else if self
+                            .domain_participant
+                            .listener_mask
+                            .is_enabled(&StatusKind::OfferedDeadlineMissed)
+                        {
+                            let status = data_writer.get_offered_deadline_missed_status();
+                            if let Some(l) = &self.domain_participant.listener_sender {
+                                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
+                                    .ok();
+                            }
+                        }
+
+                        data_writer
+                            .status_condition
+                            .add_communication_state(StatusKind::OfferedDeadlineMissed);
+                    }
+                }
+            }
+        }
+    }
+
     #[tracing::instrument(skip(self, runtime))]
     pub fn announce_data_writer(
         &mut self,

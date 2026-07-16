@@ -669,6 +669,25 @@ impl DcpsDomainParticipant {
             .min()
     }
 
+    pub fn time_until_missed_writer_deadline(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_publisher_list
+            .iter()
+            .flat_map(|publisher| publisher.data_writer_list.iter())
+            .filter_map(|data_writer| {
+                if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
+                    data_writer
+                        .instance_publication_time
+                        .iter()
+                        .map(|instance| deadline - (now - instance.last_write_time))
+                        .min()
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
     fn get_participant_async(&self) -> DomainParticipantAsync {
         DomainParticipantAsync::new(
             self.dcps_sender,
@@ -725,162 +744,6 @@ impl DcpsDomainParticipant {
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {
         &self.domain_participant.instance_handle
-    }
-
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn offered_deadline_missed(
-        &mut self,
-        publisher_handle: &InstanceHandle,
-        data_writer_handle: &InstanceHandle,
-        change_instance_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
-    ) {
-        let current_time = runtime.clock().now();
-        let Some(publisher) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            return;
-        };
-
-        if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-            match data_writer.get_instance_write_time(change_instance_handle) {
-                Some(t) => {
-                    if current_time - t < deadline {
-                        return;
-                    }
-                }
-                None => return,
-            }
-        } else {
-            return;
-        }
-
-        data_writer
-            .offered_deadline_missed_status
-            .last_instance_handle = *change_instance_handle;
-        data_writer.offered_deadline_missed_status.total_count += 1;
-        data_writer
-            .offered_deadline_missed_status
-            .total_count_change += 1;
-
-        if data_writer
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let status = data_writer.get_offered_deadline_missed_status();
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-
-            if let Some(l) = &data_writer.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        } else if publisher
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-            let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = &publisher.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        } else if self
-            .domain_participant
-            .listener_mask
-            .is_enabled(&StatusKind::OfferedDeadlineMissed)
-        {
-            let Ok(the_writer) = self.get_data_writer_async(publisher_handle, data_writer_handle)
-            else {
-                return;
-            };
-
-            let Some(publisher) = self
-                .domain_participant
-                .user_defined_publisher_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == publisher_handle)
-            else {
-                return;
-            };
-            let Some(data_writer) = publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_writer_handle)
-            else {
-                return;
-            };
-            let status = data_writer.get_offered_deadline_missed_status();
-            if let Some(l) = &self.domain_participant.listener_sender {
-                l.send(ListenerMail::OfferedDeadlineMissed { the_writer, status })
-                    .ok();
-            }
-        }
-
-        let Some(publisher) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            return;
-        };
-        let Some(data_writer) = publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            return;
-        };
-        data_writer
-            .status_condition
-            .add_communication_state(StatusKind::OfferedDeadlineMissed);
     }
 }
 

@@ -48,7 +48,6 @@ pub enum DcpsMail {
     Reader(ReaderServiceMail),
     StatusCondition(StatusConditionMail),
     Message(MessageServiceMail),
-    Event(EventServiceMail),
     Discovery(DiscoveryServiceMail),
 }
 
@@ -605,15 +604,6 @@ pub enum MessageServiceMail {
     HandleData {
         participant_handle: InstanceHandle,
         data_message: Vec<u8>,
-    },
-}
-
-pub enum EventServiceMail {
-    OfferedDeadlineMissed {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        change_instance_handle: InstanceHandle,
     },
 }
 

@@ -276,10 +276,13 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                 let poke_time = Duration::new(0, 50_000_000);
                 let time_until_missed_reader_deadline =
                     domain_participant_factory.time_until_missed_reader_deadline();
+                let time_until_missed_writer_deadline =
+                    domain_participant_factory.time_until_missed_writer_deadline();
                 let time_until_stale_participant =
                     domain_participant_factory.time_until_stale_participant();
                 let next_task_time = poke_time
                     .min(time_until_missed_reader_deadline.unwrap_or(poke_time))
+                    .min(time_until_missed_writer_deadline.unwrap_or(poke_time))
                     .min(time_until_stale_participant.unwrap_or(poke_time));
 
                 match select_future(
@@ -311,6 +314,9 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_discovered_writers();
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.check_missed_reader_deadline(
+                        domain_participant_factory.runtime.clock().now(),
+                    );
+                    dp.check_missed_writer_deadline(
                         domain_participant_factory.runtime.clock().now(),
                     );
                     dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());
