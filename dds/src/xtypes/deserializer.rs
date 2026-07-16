@@ -1,7 +1,7 @@
 use crate::xtypes::{
     dynamic_type::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
-        TypeKind,
+        TryConstructKind, TypeKind,
     },
     error::{
         XTypesError::{self, PidNotFound},
@@ -905,7 +905,15 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         let dynamic_type = dynamic_data.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
-            self.deserialize_fmember(member, dynamic_data)?;
+            let result = self.deserialize_fmember(member, dynamic_data);
+            // Allow data to be missing if members are marked use default
+            if member.descriptor.try_construct_kind == TryConstructKind::UseDefault
+                && result == Err(XTypesError::NotEnoughData)
+            {
+                break;
+            } else {
+                result?;
+            }
         }
         Ok(())
     }
@@ -1989,6 +1997,34 @@ mod tests {
             )
             .unwrap(),
             expected
+        );
+    }
+
+    #[test]
+    fn deserialize_partial_data() {
+        #[derive(TypeSupport, Debug, PartialEq, Clone)]
+        #[dust_dds(extensibility = "appendable")]
+        struct A1 {
+            x1: i32,
+        }
+
+        #[derive(TypeSupport, Debug, PartialEq, Clone)]
+        #[dust_dds(extensibility = "appendable")]
+        struct A2 {
+            x1: i32,
+            #[dust_dds(try_construct = "USE_DEFAULT")]
+            x2: i32,
+        }
+        assert_eq!(
+            deserialize_top_level_type(
+                A2::TYPE,
+                &[
+                    0x00u8, 0x01, 0x00, 0x00, // CDR_LE + 0 padding
+                    1, 0, 0, 0,
+                ]
+            )
+            .unwrap(),
+            A1 { x1: 1 }.create_dynamic_sample()
         );
     }
 }

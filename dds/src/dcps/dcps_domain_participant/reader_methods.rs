@@ -104,11 +104,15 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_topic_type(
-                        &data_reader.topic_name,
-                        data_reader.type_support,
-                        data.as_ref(),
-                    ),
+                    if info.valid_data {
+                        deserialize_topic_type(
+                            &data_reader.topic_name,
+                            data_reader.type_support,
+                            data.as_ref(),
+                        )
+                    } else {
+                        None
+                    },
                     info,
                 )
             })
@@ -154,11 +158,15 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_topic_type(
-                        &data_reader.topic_name,
-                        data_reader.type_support,
-                        data.as_ref(),
-                    ),
+                    if info.valid_data {
+                        deserialize_topic_type(
+                            &data_reader.topic_name,
+                            data_reader.type_support,
+                            data.as_ref(),
+                        )
+                    } else {
+                        None
+                    },
                     info,
                 )
             })
@@ -204,11 +212,15 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_topic_type(
-                        &data_reader.topic_name,
-                        data_reader.type_support,
-                        data.as_ref(),
-                    ),
+                    if info.valid_data {
+                        deserialize_topic_type(
+                            &data_reader.topic_name,
+                            data_reader.type_support,
+                            data.as_ref(),
+                        )
+                    } else {
+                        None
+                    },
                     info,
                 )
             })
@@ -254,11 +266,15 @@ impl DcpsDomainParticipant {
             .into_iter()
             .map(|(data, info)| {
                 (
-                    deserialize_topic_type(
-                        &data_reader.topic_name,
-                        data_reader.type_support,
-                        data.as_ref(),
-                    ),
+                    if info.valid_data {
+                        deserialize_topic_type(
+                            &data_reader.topic_name,
+                            data_reader.type_support,
+                            data.as_ref(),
+                        )
+                    } else {
+                        None
+                    },
                     info,
                 )
             })

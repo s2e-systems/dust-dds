@@ -9,6 +9,13 @@ impl std::fmt::Display for UnknownAttributeError {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TryConstructKind {
+    Discard,
+    UseDefault,
+    Trim,
+}
+
 pub struct StructureMemberAttributes {
     pub id: Option<Expr>,
     pub key: bool,
@@ -17,6 +24,7 @@ pub struct StructureMemberAttributes {
     pub external: bool,
     pub hashid: bool,
     pub default_value: Option<Expr>,
+    pub try_construct: Option<TryConstructKind>,
 }
 
 pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberAttributes> {
@@ -27,6 +35,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut non_serialized = false;
     let mut external = false;
     let mut hashid = false;
+    let mut try_construct = None;
 
     if let Some(xtypes_attribute) = field
         .attrs
@@ -55,6 +64,23 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
             } else if meta.path.is_ident("hashid") {
                 hashid = true;
                 Ok(())
+            } else if meta.path.is_ident("try_construct") {
+               let format_str: syn::LitStr = meta.value()?.parse()?;
+                match format_str.value().as_ref() {
+                    "DISCARD" => {
+                        try_construct = Some(TryConstructKind::Discard);
+                        Ok(())
+                    }
+                    "USE_DEFAULT" => {
+                        try_construct = Some(TryConstructKind::UseDefault);
+                        Ok(())
+                    }
+                    "TRIM" => {
+                        try_construct = Some(TryConstructKind::Trim);
+                        Ok(())
+                    }
+                    _ => Err(meta.error(r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#))
+                }
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -69,6 +95,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         external,
         hashid,
         default_value,
+        try_construct,
     })
 }
 
