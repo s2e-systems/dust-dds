@@ -559,16 +559,6 @@ impl DcpsDomainParticipant {
         if !data_reader.enabled {
             data_reader.enabled = true;
 
-            let discovered_writer_list: Vec<_> =
-                self.domain_participant.discovered_writer_list.to_vec();
-            for discovered_writer_data in discovered_writer_list {
-                self.add_discovered_writer(
-                    &discovered_writer_data,
-                    subscriber_handle,
-                    data_reader_handle,
-                );
-            }
-
             self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
         }
         Ok(())
