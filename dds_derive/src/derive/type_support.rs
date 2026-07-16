@@ -227,9 +227,20 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                         }
                                     });
                             } else {
-                                member_sample_seq.push(quote! {
+                                member_sample_seq.push(
+                                    if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
+                                        quote! {
+                                            #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
+                                                dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
+                                            }),
+                                        }
+                                    } else {
+                                        quote! {
                                     #member_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
-                                });
+                                        }
+                                    }
+                                    );
+
                                 member_dynamic_sample_seq
                                     .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#member_ident));});
                             }
@@ -249,7 +260,16 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     }
                                 })
                             } else {
-                                member_sample_seq.push(quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),});
+                                member_sample_seq.push(if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
+                                    quote! {
+                                        src.remove_value(#member_id).map_or(#member_default_value, |x| {
+                                            DataStorageMapping::try_from_storage(x).expect("Must match")
+                                        }),
+                                    }
+                                } else {
+                                     quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),}
+                                });
+
                                 member_dynamic_sample_seq.push(quote! {
                                     data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
                                 })

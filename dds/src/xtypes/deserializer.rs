@@ -1,7 +1,7 @@
 use crate::xtypes::{
     dynamic_type::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
-        TypeKind,
+        TryConstructKind, TypeKind,
     },
     error::{
         XTypesError::{self, PidNotFound},
@@ -906,8 +906,13 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let result = self.deserialize_fmember(member, dynamic_data);
-            if result.is_err() {
+            // Allow data to be missing if members are marked use default
+            if member.descriptor.try_construct_kind == TryConstructKind::UseDefault
+                && result == Err(XTypesError::NotEnoughData)
+            {
                 break;
+            } else {
+                result?;
             }
         }
         Ok(())
@@ -2007,6 +2012,7 @@ mod tests {
         #[dust_dds(extensibility = "appendable")]
         struct A2 {
             x1: i32,
+            #[dust_dds(try_construct="USE_DEFAULT")]
             x2: i32,
         }
         assert_eq!(

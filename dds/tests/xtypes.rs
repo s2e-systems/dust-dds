@@ -44,7 +44,6 @@ struct A3 {
 }
 
 #[test]
-#[ignore = "not yet working"]
 fn ext_appendable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant1 = DomainParticipantFactory::get_instance()

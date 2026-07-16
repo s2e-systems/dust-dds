@@ -9,6 +9,7 @@ impl std::fmt::Display for UnknownAttributeError {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TryConstructKind {
     Discard,
     UseDefault,
