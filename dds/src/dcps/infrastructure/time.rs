@@ -3,6 +3,7 @@ use crate::xtypes::{
     type_support::{Type, TypeSupport},
 };
 use core::ops::{Add, Sub};
+use std::ops::AddAssign;
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -226,6 +227,11 @@ impl Add<Duration> for Time {
             sec,
             nanosec: nanosec as u32,
         }
+    }
+}
+impl AddAssign<Duration> for Time {
+    fn add_assign(&mut self, rhs: Duration) {
+        *self = *self + rhs;
     }
 }
 
