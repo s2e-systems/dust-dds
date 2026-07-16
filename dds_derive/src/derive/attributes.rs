@@ -80,7 +80,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
                         Ok(())
                     }
                     _ => Err(meta.error(r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#))
-                } 
+                }
             } else {
                 Err(meta.error(UnknownAttributeError))
             }

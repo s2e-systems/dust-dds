@@ -2012,7 +2012,7 @@ mod tests {
         #[dust_dds(extensibility = "appendable")]
         struct A2 {
             x1: i32,
-            #[dust_dds(try_construct="USE_DEFAULT")]
+            #[dust_dds(try_construct = "USE_DEFAULT")]
             x2: i32,
         }
         assert_eq!(
