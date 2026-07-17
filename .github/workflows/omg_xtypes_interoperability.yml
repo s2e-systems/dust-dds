@@ -1,0 +1,162 @@
+name: OMG XTypes interoperability
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create_bin_release:
+    name: Create binary release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v7
+      with:
+        path: dust-dds
+    - name: Checkout omg dds-xtypes from s2e-systems fork
+      uses: actions/checkout@v7
+      with:
+        repository: s2e-systems/dds-xtypes
+        ref: update-dust-dds-src
+        path: dds-xtypes
+    - name: Build executable
+      run: cargo build --package dust_dds_test_main --release --manifest-path dds-xtypes/src/rs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
+    - name: Zip executable  # Zipping done here to preserve executable bit
+      run: |
+        version=$( cargo tree --package dust_dds --depth 0 --prefix none | sed -n 's/.*v\([0-9.]*\).*/\1/p' )
+        echo $version
+        cp ../dds-xtypes/src/rs/DustDDS/target/release/dust_dds_test_main dust_dds-${version}_test_main_linux
+        mkdir ../artifacts
+        zip --junk-paths ../artifacts/dust_dds-${version}_test_main_linux.zip dust_dds-${version}_test_main_linux
+      working-directory:
+        dust-dds
+    - name: Upload executable artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: interoperability_executable
+        path: artifacts
+
+  run_tests:
+    runs-on: ubuntu-latest
+    needs: create_bin_release
+    strategy:
+      matrix:
+        include:
+        - publisher: dust_dds
+          subscriber: dust_dds
+        - publisher: dust_dds
+          subscriber: connext_dds
+        - publisher: dust_dds
+          subscriber: eprosima_fastdds
+        - publisher: dust_dds
+          subscriber: toc_coredx_dds
+        - publisher: dust_dds
+          subscriber: opendds
+
+        - publisher: connext_dds
+          subscriber: dust_dds
+        - publisher: eprosima_fastdds
+          subscriber: dust_dds
+        - publisher: toc_coredx_dds
+          subscriber: dust_dds
+        - publisher: opendds
+          subscriber: dust_dds
+
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v7
+    - name: Checkout omg dds-xtypes
+      uses: actions/checkout@v7
+      with:
+        repository: s2e-systems/dds-xtypes
+        ref: feature/update-dust-dds
+        path: dds-xtypes
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12.13'
+    - name: Downloads test_main executables from OMG
+      uses: robinraju/release-downloader@v1.13
+      with:
+        repository: omg-dds/dds-rtps
+        latest: true
+        preRelease: false
+        fileName: "*"
+        out-file-path: zipped_executables
+    - name: Remove DustDDS
+      run: rm zipped_executables/dust_dds*
+      continue-on-error: true
+    - name: Download dust_dds_test_main executable artifact from create_bin_release
+      uses: actions/download-artifact@v8
+      with:
+        name: interoperability_executable
+        path: zipped_executables
+    - name: Unzip executables
+      run: unzip 'zipped_executables/*.zip' -d executables
+    - name: List directory
+      run: ls -l executables
+    - name: Install omg-dds dds-xtypes Python requirements
+      run: pip install --requirement dds-xtypes/requirements.txt
+
+    - name: Run Interoperability script
+      timeout-minutes: 30
+      run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 1
+    # - name: Run Interoperability script
+    #   timeout-minutes: 30
+    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 1
+    # - name: Run Interoperability script
+    #   timeout-minutes: 30
+    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 2
+    # - name: Run Interoperability script
+    #   timeout-minutes: 30
+    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2
+    # - name: Run Interoperability script
+    #   timeout-minutes: 30
+    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 1
+    # - name: Run Interoperability script
+    #   timeout-minutes: 30
+    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 2
+    
+    - name: Upload reports
+      uses: actions/upload-artifact@v7
+      with:
+        name: junit_reports
+        path: ./reports
+
+  report:
+    runs-on: ubuntu-latest
+    needs: run_tests
+    steps:
+    - name: Download junit reports
+      uses: actions/download-artifact@v8
+      with:
+        pattern: junit_report-*
+        merge-multiple: true
+    - name: Checkout omg-dds dds-xtypes
+      uses: actions/checkout@v7
+      with:
+        repository: s2e-systems/dds-rtps
+        ref: update-dust-dds-src
+        path: omg-dds-rtps
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12.13'
+    - name: Install omg-dds dds-rtps Python requirements
+      run: pip install --requirement omg-dds-rtps/requirements.txt
+    - name: merge reports
+      run: junitparser merge *.xml junit_interoperability_report.xml
+    - name: List directory
+      run: ls -l
+    - name: Generate xlsx report
+      run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
+    - name: XUnit
+      uses: AutoModality/action-xunit-viewer@v1
+      with:
+        results: ./junit_interoperability_report.xml
+        fail: false
+    - name: Upload report
+      uses: actions/upload-artifact@v7
+      with:
+        name: interoperability_report_complete
+        path: |
+          ./index.html
+          ./junit_interoperability_report.xml
+          ./interoperability_report.xlsx
