@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v7
       with:
         repository: s2e-systems/dds-xtypes
-        ref: update-dust-dds-src
+        ref: feature/update-dust-dds
         path: dds-xtypes
     - name: Build executable
       run: cargo build --package dust_dds_test_main --release --manifest-path dds-xtypes/src/rs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
