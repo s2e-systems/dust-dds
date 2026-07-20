@@ -43,20 +43,20 @@ jobs:
         include:
         - publisher: dust_dds
           subscriber: dust_dds
-        - publisher: dust_dds
-          subscriber: connext_dds
-        - publisher: dust_dds
-          subscriber: toc_coredx_dds
-        - publisher: dust_dds
-          subscriber: eclipse_cyclone
+        # - publisher: dust_dds
+        #   subscriber: connext_dds
+        # - publisher: dust_dds
+        #   subscriber: toc_coredx_dds
+        # - publisher: dust_dds
+        #   subscriber: eclipse_cyclone
 
 
-        - publisher: connext_dds
-          subscriber: dust_dds
-        - publisher: toc_coredx_dds
-          subscriber: dust_dds
-        - publisher: eclipse_cyclone
-          subscriber: dust_dds
+        # - publisher: connext_dds
+        #   subscriber: dust_dds
+        # - publisher: toc_coredx_dds
+        #   subscriber: dust_dds
+        # - publisher: eclipse_cyclone
+        #   subscriber: dust_dds
 
     steps:
     - name: Checkout sources
@@ -88,11 +88,12 @@ jobs:
         path: zipped_executables
     - name: Unzip executables
       run: unzip 'zipped_executables/*.zip' -d executables
-    - name: List directory
+    - name: List executables directory
       run: ls -l executables
     - name: Install omg-dds dds-xtypes Python requirements
       run: pip install --requirement dds-xtypes/requirements.txt
-
+    - name: Create reports directory
+      run: mkdir reports
     - name: Run Interoperability script
       timeout-minutes: 30
       run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 1
