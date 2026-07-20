@@ -128,11 +128,11 @@ jobs:
       with:
         pattern: junit_report-*
         merge-multiple: true
-    - name: Checkout omg-dds dds-xtypes
+    - name: Checkout dds-xtypes from s2e-systems fork
       uses: actions/checkout@v7
       with:
         repository: s2e-systems/dds-xtypes
-        ref: update-dust-dds-src
+        ref: feature/update-dust-dds
         path: dds-xtypes
     - uses: actions/setup-python@v5
       with:
