@@ -67,7 +67,7 @@ jobs:
         repository: s2e-systems/dds-xtypes
         ref: feature/update-dust-dds
         path: dds-xtypes
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.12.13'
     - name: Downloads test_main executables from OMG
@@ -136,7 +136,7 @@ jobs:
         repository: s2e-systems/dds-xtypes
         ref: feature/update-dust-dds
         path: dds-xtypes
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.12.13'
     - name: Install omg-dds dds-xtypes Python requirements
