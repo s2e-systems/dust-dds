@@ -673,8 +673,14 @@ impl DynamicTypeBuilder {
     }
 
     /// Returns all members indexed by their ID.
-    pub fn get_all_members(&self) -> Result<Vec<(MemberId, DynamicTypeMember)>, XTypesError> {
-        todo!()
+    pub fn get_all_members(
+        &mut self,
+    ) -> Result<Vec<(MemberId, &mut DynamicTypeMember)>, XTypesError> {
+        Ok(self
+            .member_list
+            .iter_mut()
+            .map(|m| (m.descriptor.id, m))
+            .collect())
     }
 
     /// Returns the number of annotations on this type.
