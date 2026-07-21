@@ -443,7 +443,7 @@ impl DcpsDomainParticipant {
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
                     data_writer.transport_writer.changes_mut().retain(|cc| {
                         if let Some(timestamp) = &cc.source_timestamp {
-                            now - (Time::from(*timestamp) + lifespan) > Duration::new(0, 0)
+                            Time::from(*timestamp) + lifespan > now
                         } else {
                             true
                         }
