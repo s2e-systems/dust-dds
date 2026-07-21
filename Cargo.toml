@@ -8,6 +8,7 @@ members = [
     "shapes_demo/android",
     "fuzz",
     "bindings/python",
+    "bindings/c",
     "nostd_test_project",
 ]
 default-members = [
@@ -15,6 +16,7 @@ default-members = [
     "dds_derive",
     "dds_gen",
     "bindings/python",
+    "bindings/c",
     "nostd_test_project",
 ]
 resolver = "3"

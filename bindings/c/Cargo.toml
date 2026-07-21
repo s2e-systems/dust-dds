@@ -1,0 +1,27 @@
+[package]
+name = "dust_dds_c"
+version = "0.16.0"
+description = "Dust DDS C bindings"
+readme = true
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+name = "dust_dds_c"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+dust_dds = { path = "../../dds" }
+
+[build-dependencies]
+cbindgen = "0.28"
+
+[dev-dependencies]
+cc = "1.0"
