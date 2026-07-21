@@ -1357,6 +1357,44 @@ impl DataWriterEntity {
         Ok(())
     }
 
+    fn register_w_timestamp(
+        &mut self,
+        dynamic_data: &DynamicData<'static>,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+
+        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
+
+        if !self.registered_instance_list.contains(&instance_handle) {
+            self.registered_instance_list.push(instance_handle);
+        }
+
+        if let Some(i) = self
+            .instance_publication_time
+            .iter_mut()
+            .find(|x| x.instance == instance_handle)
+        {
+            i.last_write_time = timestamp;
+        } else {
+            self.instance_publication_time
+                .push(InstancePublicationTime {
+                    instance: instance_handle,
+                    last_write_time: timestamp,
+                });
+        }
+
+        Ok(Some(instance_handle))
+    }
+
     fn unregister_w_timestamp(
         &mut self,
         dynamic_data: &DynamicData<'static>,

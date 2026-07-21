@@ -66,7 +66,7 @@ where
     /// The explicit use of this operation is optional as the application may call directly [`DataWriter::write`]
     /// and specify no [`InstanceHandle`] to indicate that the *key* should be examined to identify the instance.
     #[tracing::instrument(skip(self, instance))]
-    pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         block_on(self.writer_async.register_instance(instance))
     }
 
@@ -77,7 +77,7 @@ where
     #[tracing::instrument(skip(self, instance))]
     pub fn register_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance: Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         block_on(

@@ -170,6 +170,33 @@ impl DcpsDomainParticipant {
             .cloned()
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn register_instance(
+        &mut self,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
+        dynamic_data: &DynamicData<'static>,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        data_writer.register_w_timestamp(dynamic_data, timestamp)
+    }
+
     #[tracing::instrument(skip(self, runtime))]
     pub fn unregister_instance(
         &mut self,
