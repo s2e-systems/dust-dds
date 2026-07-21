@@ -56,43 +56,238 @@ pub unsafe extern "C" fn dust_dds_string_free(
     }
 }
 
-// Macro helper to implement primitive getters
-macro_rules! impl_get_value {
-    ($fn_name:ident, $t:ty, $rust_fn:ident) => {
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $fn_name(
-            data: Option<NonNull<DustDdsDynamicData>>,
-            id: u32,
-            value: *mut $t,
-        ) -> ReturnCode {
-            let Some(data) = data else {
-                return RETCODE_BAD_PARAMETER;
-            };
-            if value.is_null() {
-                return RETCODE_BAD_PARAMETER;
-            }
-            match unsafe { data.as_ref() }.inner().$rust_fn(id) {
-                Ok(val) => {
-                    unsafe { *value = *val };
-                    RETCODE_OK
-                }
-                Err(_) => RETCODE_ERROR,
-            }
-        }
+// Explicit primitive getters
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_boolean_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut bool,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
     };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_boolean_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
 }
 
-impl_get_value!(dust_dds_dynamic_data_get_boolean_value, bool, get_boolean_value);
-impl_get_value!(dust_dds_dynamic_data_get_int8_value, i8, get_int8_value);
-impl_get_value!(dust_dds_dynamic_data_get_uint8_value, u8, get_uint8_value);
-impl_get_value!(dust_dds_dynamic_data_get_int16_value, i16, get_int16_value);
-impl_get_value!(dust_dds_dynamic_data_get_uint16_value, u16, get_uint16_value);
-impl_get_value!(dust_dds_dynamic_data_get_int32_value, i32, get_int32_value);
-impl_get_value!(dust_dds_dynamic_data_get_uint32_value, u32, get_uint32_value);
-impl_get_value!(dust_dds_dynamic_data_get_int64_value, i64, get_int64_value);
-impl_get_value!(dust_dds_dynamic_data_get_uint64_value, u64, get_uint64_value);
-impl_get_value!(dust_dds_dynamic_data_get_float32_value, f32, get_float32_value);
-impl_get_value!(dust_dds_dynamic_data_get_float64_value, f64, get_float64_value);
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_int8_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut i8,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_int8_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint8_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut u8,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_uint8_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_int16_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut i16,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_int16_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint16_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut u16,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_uint16_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_int32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut i32,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_int32_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut u32,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_uint32_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_int64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut i64,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_int64_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut u64,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_uint64_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_float32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut f32,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_float32_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_get_float64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: *mut f64,
+) -> ReturnCode {
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if value.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    match unsafe { data.as_ref() }.inner().get_float64_value(id) {
+        Ok(val) => {
+            unsafe { *value = *val };
+            RETCODE_OK
+        }
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_dynamic_data_get_char8_value(
@@ -162,37 +357,171 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_complex_value(
     }
 }
 
-// Macro helper to implement primitive setters
-macro_rules! impl_set_value {
-    ($fn_name:ident, $t:ty, $rust_fn:ident) => {
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $fn_name(
-            data: Option<NonNull<DustDdsDynamicData>>,
-            id: u32,
-            value: $t,
-        ) -> ReturnCode {
-            let Some(mut data) = data else {
-                return RETCODE_BAD_PARAMETER;
-            };
-            match unsafe { data.as_mut() }.inner_mut().$rust_fn(id, value) {
-                Ok(()) => RETCODE_OK,
-                Err(_) => RETCODE_ERROR,
-            }
-        }
+// Explicit primitive setters
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_boolean_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: bool,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
     };
+    match unsafe { data.as_mut() }.inner_mut().set_boolean_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
 }
 
-impl_set_value!(dust_dds_dynamic_data_set_boolean_value, bool, set_boolean_value);
-impl_set_value!(dust_dds_dynamic_data_set_int8_value, i8, set_int8_value);
-impl_set_value!(dust_dds_dynamic_data_set_uint8_value, u8, set_uint8_value);
-impl_set_value!(dust_dds_dynamic_data_set_int16_value, i16, set_int16_value);
-impl_set_value!(dust_dds_dynamic_data_set_uint16_value, u16, set_uint16_value);
-impl_set_value!(dust_dds_dynamic_data_set_int32_value, i32, set_int32_value);
-impl_set_value!(dust_dds_dynamic_data_set_uint32_value, u32, set_uint32_value);
-impl_set_value!(dust_dds_dynamic_data_set_int64_value, i64, set_int64_value);
-impl_set_value!(dust_dds_dynamic_data_set_uint64_value, u64, set_uint64_value);
-impl_set_value!(dust_dds_dynamic_data_set_float32_value, f32, set_float32_value);
-impl_set_value!(dust_dds_dynamic_data_set_float64_value, f64, set_float64_value);
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_int8_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: i8,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_int8_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint8_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: u8,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_uint8_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_int16_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: i16,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_int16_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint16_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: u16,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_uint16_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_int32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: i32,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_int32_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: u32,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_uint32_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_int64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: i64,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_int64_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: u64,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_uint64_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_float32_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: f32,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_float32_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_data_set_float64_value(
+    data: Option<NonNull<DustDdsDynamicData>>,
+    id: u32,
+    value: f64,
+) -> ReturnCode {
+    let Some(mut data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    match unsafe { data.as_mut() }.inner_mut().set_float64_value(id, value) {
+        Ok(()) => RETCODE_OK,
+        Err(_) => RETCODE_ERROR,
+    }
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_dynamic_data_set_char8_value(
@@ -251,3 +580,70 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_complex_value(
         Err(_) => RETCODE_ERROR,
     }
 }
+
+/// Writes data using the generic DustDdsDataWriter.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datawriter_write(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    data: Option<NonNull<DustDdsDynamicData>>,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let data_val = unsafe { data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }.inner().write(data_val, None) {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Reads data using the generic DustDdsDataReader.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datareader_read(
+    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
+    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    max_samples: i32,
+    received_samples: *mut i32,
+) -> ReturnCode {
+    let Some(reader) = reader else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if data_values.is_null() || received_samples.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+
+    let reader_ref = unsafe { reader.as_ref() };
+    match reader_ref.inner().read(
+        max_samples,
+        dust_dds::infrastructure::sample_info::ANY_SAMPLE_STATE,
+        dust_dds::infrastructure::sample_info::ANY_VIEW_STATE,
+        dust_dds::infrastructure::sample_info::ANY_INSTANCE_STATE,
+    ) {
+        Ok(samples) => {
+            let count = samples.len() as i32;
+            unsafe {
+                *received_samples = count;
+                for (i, sample) in samples.into_iter().enumerate() {
+                    if let Some(dynamic_data) = sample.data {
+                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
+                        *data_values.offset(i as isize) = ptr;
+                    } else {
+                        *data_values.offset(i as isize) = None;
+                    }
+                }
+            }
+            RETCODE_OK
+        }
+        Err(e) => {
+            if let dust_dds::infrastructure::error::DdsError::NoData = e {
+                unsafe { *received_samples = 0 };
+            }
+            e.into()
+        }
+    }
+}
+

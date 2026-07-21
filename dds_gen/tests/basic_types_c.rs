@@ -59,7 +59,7 @@ fn basic_types() {
         return type;
     }
 
-    static inline struct BasicTypes BasicTypes_create_sample(const DustDdsDynamicData* src) {
+    static inline struct BasicTypes BasicTypes_create_sample(DustDdsDynamicData* src) {
         struct BasicTypes sample;
         memset(&sample, 0, sizeof(sample));
         dust_dds_dynamic_data_get_boolean_value(src, 0, &sample.a);
@@ -130,6 +130,40 @@ fn basic_types() {
         dust_dds_string_free(sample->e);
         free(sample->f);
         }
+    }
+
+    static inline ReturnCode dust_dds_datawriter_write_BasicTypes(DustDdsDataWriter* writer, const struct BasicTypes* data) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = BasicTypes_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dust_dds_datawriter_write(writer, sample);
+        dust_dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode dust_dds_datareader_read_BasicTypes(DustDdsDataReader* reader, struct BasicTypes* data_values, int32_t max_samples, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dust_dds_datareader_read(reader, samples, max_samples, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = BasicTypes_create_sample(samples[i]);
+                    dust_dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
     }
 "#;
 

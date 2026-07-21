@@ -167,3 +167,72 @@ pub unsafe extern "C" fn dust_dds_topic_qos_free(qos: Option<NonNull<DustDdsTopi
         }
     }
 }
+
+/// cbindgen:opaque
+pub struct DustDdsDataWriterQos(pub(crate) dust_dds::infrastructure::qos::DataWriterQos);
+
+pub type DataWriterQos = DustDdsDataWriterQos;
+
+impl DustDdsDataWriterQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::DataWriterQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::DataWriterQos {
+        &self.0
+    }
+}
+
+/// Creates a default DataWriterQos object.
+/// Returns a raw pointer to DustDdsDataWriterQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datawriter_qos_default() -> Option<NonNull<DustDdsDataWriterQos>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsDataWriterQos(
+        dust_dds::infrastructure::qos::DataWriterQos::default(),
+    ))))
+}
+
+/// Frees a DataWriterQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datawriter_qos_free(qos: Option<NonNull<DustDdsDataWriterQos>>) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
+}
+
+/// cbindgen:opaque
+pub struct DustDdsDataReaderQos(pub(crate) dust_dds::infrastructure::qos::DataReaderQos);
+
+pub type DataReaderQos = DustDdsDataReaderQos;
+
+impl DustDdsDataReaderQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::DataReaderQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::DataReaderQos {
+        &self.0
+    }
+}
+
+/// Creates a default DataReaderQos object.
+/// Returns a raw pointer to DustDdsDataReaderQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datareader_qos_default() -> Option<NonNull<DustDdsDataReaderQos>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsDataReaderQos(
+        dust_dds::infrastructure::qos::DataReaderQos::default(),
+    ))))
+}
+
+/// Frees a DataReaderQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datareader_qos_free(qos: Option<NonNull<DustDdsDataReaderQos>>) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
+}
+

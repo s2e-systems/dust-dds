@@ -556,7 +556,7 @@ impl<'a> CGenerator<'a> {
         }
 
         self.writer.push_str(&format!(
-            "\n    static inline struct {} {}_create_sample(const DustDdsDynamicData* src) {{\n        struct {} sample;\n        memset(&sample, 0, sizeof(sample));\n{}        return sample;\n    }}\n",
+            "\n    static inline struct {} {}_create_sample(DustDdsDynamicData* src) {{\n        struct {} sample;\n        memset(&sample, 0, sizeof(sample));\n{}        return sample;\n    }}\n",
             struct_name, struct_name, struct_name, create_sample_code
         ));
 
@@ -568,6 +568,16 @@ impl<'a> CGenerator<'a> {
         self.writer.push_str(&format!(
             "\n    static inline void {}_free_sample(struct {}* sample) {{\n        if (sample != NULL) {{\n{}        }}\n    }}\n",
             struct_name, struct_name, free_sample_code
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode dust_dds_datawriter_write_{}(DustDdsDataWriter* writer, const struct {}* data) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dust_dds_datawriter_write(writer, sample);\n        dust_dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            struct_name, struct_name, struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode dust_dds_datareader_read_{}(DustDdsDataReader* reader, struct {}* data_values, int32_t max_samples, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return RETCODE_OUT_OF_RESOURCES;\n        }}\n        ReturnCode result = dust_dds_datareader_read(reader, samples, max_samples, received_samples);\n        if (result == RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dust_dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            struct_name, struct_name, struct_name
         ));
     }
 
