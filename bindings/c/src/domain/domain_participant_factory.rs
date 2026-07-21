@@ -54,22 +54,26 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_create_participant(
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_factory_delete_participant(
-    factory: *const DustDdsDomainParticipantFactory,
-    participant: *mut DustDdsDomainParticipant,
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> ReturnCode {
-    if participant.is_null() {
+    let Some(participant) = participant else {
         return RETCODE_OK;
-    }
-
-    let factory_ref = if factory.is_null() {
-        dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance()
-    } else {
-        unsafe { (*factory).0 }
     };
 
-    let dp_box = unsafe { Box::from_raw(participant) };
-    match factory_ref.delete_participant(dp_box.inner()) {
-        Ok(()) => RETCODE_OK,
+    let factory_ref = factory.map_or_else(
+        || dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance(),
+        |f| unsafe { f.as_ref() }.0,
+    );
+
+    let participant_ref = unsafe { participant.as_ref() };
+    match factory_ref.delete_participant(participant_ref.inner()) {
+        Ok(()) => {
+            unsafe {
+                drop(Box::from_raw(participant.as_ptr()));
+            }
+            RETCODE_OK
+        }
         Err(e) => e.into(),
     }
 }
@@ -77,7 +81,6 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_delete_participant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::domain_participant::dust_dds_domain_participant_free;
 
     #[test]
     fn create_participant_null_factory() {
@@ -96,8 +99,12 @@ mod tests {
             )
         };
         assert!(participant.is_some());
-        unsafe {
-            dust_dds_domain_participant_free(participant.unwrap().as_ptr());
-        }
+        let result = unsafe {
+            dust_dds_domain_participant_factory_delete_participant(
+                NonNull::new(factory as *mut _),
+                participant,
+            )
+        };
+        assert_eq!(result, RETCODE_OK);
     }
 }
