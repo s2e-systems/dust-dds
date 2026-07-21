@@ -290,14 +290,120 @@ impl<'a> CGenerator<'a> {
             .expect("Identifier must exist according to the grammar");
 
         self.writer.push_str("    struct ");
-        self.generate(identifier);
+        self.generate(identifier.clone());
         self.writer.push_str(" {\n");
 
-        for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
+        for member in inner_pairs.clone().filter(|p| p.as_rule() == Rule::member) {
             self.generate(member);
         }
 
         self.writer.push_str("    };\n");
+
+        let struct_name = identifier.as_str();
+
+        self.writer.push_str("\n    static inline const DustDdsDynamicType* ");
+        self.writer.push_str(struct_name);
+        self.writer.push_str("_get_type(void) {\n");
+        self.writer.push_str("        static const DustDdsDynamicType* type = NULL;\n");
+        self.writer.push_str("        if (type == NULL) {\n");
+        self.writer.push_str(&format!(
+            "            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct(\"{}\");\n",
+            struct_name
+        ));
+
+        let mut member_id = 0;
+        for member in inner_pairs.clone().filter(|p| p.as_rule() == Rule::member) {
+            let m_inner = member.into_inner();
+            let type_spec = m_inner
+                .clone()
+                .find(|p| p.as_rule() == Rule::type_spec)
+                .expect("Type spec must exist according to grammar");
+            let declarators = m_inner
+                .clone()
+                .find(|p| p.as_rule() == Rule::declarators)
+                .expect("Declarator must exist according to grammar");
+
+            let type_expr = self.get_dynamic_type_expr(type_spec);
+
+            for declarator in declarators.into_inner() {
+                let array_or_simple_declarator = declarator
+                    .into_inner()
+                    .next()
+                    .expect("Must have an element according to the grammar");
+                let field_name = match array_or_simple_declarator.as_rule() {
+                    Rule::simple_declarator => array_or_simple_declarator.as_str(),
+                    _ => todo!(),
+                };
+
+                if type_expr.contains("create_string_type") {
+                    self.writer.push_str("            {\n");
+                    self.writer.push_str(&format!("                DustDdsDynamicType* member_type = {};\n", type_expr));
+                    self.writer.push_str(&format!(
+                        "                dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, member_type);\n",
+                        field_name, member_id
+                    ));
+                    self.writer.push_str("                dust_dds_dynamic_type_free(member_type);\n");
+                    self.writer.push_str("            }\n");
+                } else {
+                    self.writer.push_str(&format!(
+                        "            dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, {});\n",
+                        field_name, member_id, type_expr
+                    ));
+                }
+                member_id += 1;
+            }
+        }
+
+        self.writer.push_str("            type = dust_dds_dynamic_type_builder_build(builder);\n");
+        self.writer.push_str("        }\n");
+        self.writer.push_str("        return type;\n");
+        self.writer.push_str("    }\n");
+    }
+
+    fn get_dynamic_type_expr(&self, type_spec: IdlPair) -> String {
+        let mut current = type_spec;
+        loop {
+            match current.as_rule() {
+                Rule::type_spec
+                | Rule::simple_type_spec
+                | Rule::base_type_spec
+                | Rule::template_type_spec
+                | Rule::integer_type
+                | Rule::signed_int
+                | Rule::unsigned_int => {
+                    current = current.into_inner().next().expect("Rule must have inner content");
+                }
+                Rule::boolean_type => return "dust_dds_dynamic_type_get_primitive_type(1)".to_string(),
+                Rule::char_type => return "dust_dds_dynamic_type_get_primitive_type(16)".to_string(),
+                Rule::wide_char_type => return "dust_dds_dynamic_type_get_primitive_type(17)".to_string(),
+                Rule::octet_type => return "dust_dds_dynamic_type_get_primitive_type(13)".to_string(),
+                Rule::signed_tiny_int => return "dust_dds_dynamic_type_get_primitive_type(12)".to_string(),
+                Rule::unsigned_tiny_int => return "dust_dds_dynamic_type_get_primitive_type(13)".to_string(),
+                Rule::signed_short_int => return "dust_dds_dynamic_type_get_primitive_type(3)".to_string(),
+                Rule::unsigned_short_int => return "dust_dds_dynamic_type_get_primitive_type(6)".to_string(),
+                Rule::signed_long_int => return "dust_dds_dynamic_type_get_primitive_type(4)".to_string(),
+                Rule::unsigned_long_int => return "dust_dds_dynamic_type_get_primitive_type(7)".to_string(),
+                Rule::signed_longlong_int => return "dust_dds_dynamic_type_get_primitive_type(5)".to_string(),
+                Rule::unsigned_longlong_int => return "dust_dds_dynamic_type_get_primitive_type(8)".to_string(),
+                Rule::floating_pt_type => {
+                    match current.as_str() {
+                        "float" => return "dust_dds_dynamic_type_get_primitive_type(9)".to_string(),
+                        "double" => return "dust_dds_dynamic_type_get_primitive_type(10)".to_string(),
+                        "long double" => return "dust_dds_dynamic_type_get_primitive_type(11)".to_string(),
+                        _ => panic!("Invalid floating point type"),
+                    }
+                }
+                Rule::string_type | Rule::wide_string_type => {
+                    let bound = current.into_inner().next()
+                        .map(|p| p.as_str().to_string())
+                        .unwrap_or_else(|| "4294967295".to_string());
+                    return format!("dust_dds_dynamic_type_create_string_type({})", bound);
+                }
+                _ => {
+                    return format!("(DustDdsDynamicType*){}_get_type()", current.as_str());
+                }
+            }
+        }
     }
 
     fn member(&mut self, pair: IdlPair) {

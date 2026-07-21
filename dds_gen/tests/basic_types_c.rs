@@ -25,6 +25,37 @@ fn basic_types() {
         float m;
         double n;
     };
+
+    static inline const DustDdsDynamicType* BasicTypes_get_type(void) {
+        static const DustDdsDynamicType* type = NULL;
+        if (type == NULL) {
+            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("BasicTypes");
+            dust_dds_dynamic_type_builder_add_member(builder, "a", 0, dust_dds_dynamic_type_get_primitive_type(1));
+            dust_dds_dynamic_type_builder_add_member(builder, "b", 1, dust_dds_dynamic_type_get_primitive_type(16));
+            dust_dds_dynamic_type_builder_add_member(builder, "c", 2, dust_dds_dynamic_type_get_primitive_type(17));
+            dust_dds_dynamic_type_builder_add_member(builder, "d", 3, dust_dds_dynamic_type_get_primitive_type(13));
+            {
+                DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
+                dust_dds_dynamic_type_builder_add_member(builder, "e", 4, member_type);
+                dust_dds_dynamic_type_free(member_type);
+            }
+            {
+                DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
+                dust_dds_dynamic_type_builder_add_member(builder, "f", 5, member_type);
+                dust_dds_dynamic_type_free(member_type);
+            }
+            dust_dds_dynamic_type_builder_add_member(builder, "g", 6, dust_dds_dynamic_type_get_primitive_type(3));
+            dust_dds_dynamic_type_builder_add_member(builder, "h", 7, dust_dds_dynamic_type_get_primitive_type(6));
+            dust_dds_dynamic_type_builder_add_member(builder, "i", 8, dust_dds_dynamic_type_get_primitive_type(4));
+            dust_dds_dynamic_type_builder_add_member(builder, "j", 9, dust_dds_dynamic_type_get_primitive_type(7));
+            dust_dds_dynamic_type_builder_add_member(builder, "k", 10, dust_dds_dynamic_type_get_primitive_type(5));
+            dust_dds_dynamic_type_builder_add_member(builder, "l", 11, dust_dds_dynamic_type_get_primitive_type(8));
+            dust_dds_dynamic_type_builder_add_member(builder, "m", 12, dust_dds_dynamic_type_get_primitive_type(9));
+            dust_dds_dynamic_type_builder_add_member(builder, "n", 13, dust_dds_dynamic_type_get_primitive_type(10));
+            type = dust_dds_dynamic_type_builder_build(builder);
+        }
+        return type;
+    }
 "#;
 
     let result = dust_dds_gen::compile_idl_c(idl_file).unwrap();

@@ -5,6 +5,7 @@ use crate::infrastructure::qos::{DustDdsPublisherQos, DustDdsSubscriberQos, Dust
 use crate::publication::publisher::DustDdsPublisher;
 use crate::subscription::subscriber::DustDdsSubscriber;
 use crate::topic_definition::topic::DustDdsTopic;
+use crate::topic_definition::dynamic_type::DustDdsDynamicType;
 use dust_dds::infrastructure::qos::QosKind;
 use dust_dds::publication::publisher_listener::PublisherListener;
 use dust_dds::subscription::subscriber_listener::SubscriberListener;
@@ -153,12 +154,47 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_subscriber(
 /// Returns a raw pointer to DustDdsTopic on success, or NULL on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_create_topic(
-    _participant: Option<NonNull<DustDdsDomainParticipant>>,
-    _topic_name: *const std::os::raw::c_char,
-    _type_name: *const std::os::raw::c_char,
-    _qos: Option<NonNull<DustDdsTopicQos>>,
+    participant: Option<NonNull<DustDdsDomainParticipant>>,
+    topic_name: *const std::os::raw::c_char,
+    type_name: *const std::os::raw::c_char,
+    qos: Option<NonNull<DustDdsTopicQos>>,
+    dynamic_type: Option<NonNull<DustDdsDynamicType>>,
 ) -> Option<NonNull<DustDdsTopic>> {
-    todo!()
+    let Some(participant) = participant else {
+        return None;
+    };
+    if topic_name.is_null() || type_name.is_null() {
+        return None;
+    }
+    let Some(dynamic_type) = dynamic_type else {
+        return None;
+    };
+
+    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }.to_str().ok()?;
+    let type_name_str = unsafe { std::ffi::CStr::from_ptr(type_name) }.to_str().ok()?;
+
+    let qos = match qos {
+        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
+        None => QosKind::Default,
+    };
+
+    struct NoTopicListener;
+    impl dust_dds::topic_definition::topic_listener::TopicListener for NoTopicListener {}
+
+    let participant_ref = unsafe { participant.as_ref() };
+    let dynamic_type_ref = unsafe { dynamic_type.as_ref() };
+
+    match participant_ref.inner().create_dynamic_topic(
+        topic_name_str,
+        type_name_str,
+        qos,
+        None::<NoTopicListener>,
+        &[],
+        dynamic_type_ref.inner().clone(),
+    ) {
+        Ok(topic) => NonNull::new(Box::into_raw(Box::new(DustDdsTopic::new(topic)))),
+        Err(_) => None,
+    }
 }
 
 /// Deletes an existing Topic object.
@@ -268,6 +304,71 @@ mod tests {
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
+            dust_dds_domain_participant_factory_delete_participant(
+                NonNull::new(factory as *mut _),
+                participant,
+            );
+        }
+    }
+
+    #[test]
+    fn create_delete_topic() {
+        use crate::topic_definition::dynamic_type::{
+            dust_dds_dynamic_type_builder_add_member,
+            dust_dds_dynamic_type_builder_create_struct, dust_dds_dynamic_type_builder_build,
+            dust_dds_dynamic_type_free, dust_dds_dynamic_type_get_primitive_type,
+        };
+
+        let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
+        let participant = unsafe {
+            dust_dds_domain_participant_factory_create_participant(
+                NonNull::new(factory as *mut _),
+                0,
+                None,
+            )
+        };
+        assert!(participant.is_some());
+
+        let struct_name = std::ffi::CString::new("MyStruct").unwrap();
+        let builder = unsafe { dust_dds_dynamic_type_builder_create_struct(struct_name.as_ptr()) };
+        assert!(builder.is_some());
+
+        let field_name = std::ffi::CString::new("a").unwrap();
+        let int32_type = unsafe { dust_dds_dynamic_type_get_primitive_type(4) }; // TypeKind::INT32
+        assert!(int32_type.is_some());
+
+        let res = unsafe {
+            dust_dds_dynamic_type_builder_add_member(
+                builder,
+                field_name.as_ptr(),
+                0,
+                int32_type,
+            )
+        };
+        assert_eq!(res, RETCODE_OK);
+
+        let dynamic_type = unsafe { dust_dds_dynamic_type_builder_build(builder) };
+        assert!(dynamic_type.is_some());
+
+        let topic_name = std::ffi::CString::new("MyTopic").unwrap();
+        let type_name = std::ffi::CString::new("MyStruct").unwrap();
+
+        let topic = unsafe {
+            dust_dds_domain_participant_create_topic(
+                participant,
+                topic_name.as_ptr(),
+                type_name.as_ptr(),
+                None,
+                dynamic_type,
+            )
+        };
+        assert!(topic.is_some());
+
+        let res = unsafe { dust_dds_domain_participant_delete_topic(participant, topic) };
+        assert_eq!(res, RETCODE_OK);
+
+        unsafe {
+            dust_dds_dynamic_type_free(dynamic_type);
             dust_dds_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
