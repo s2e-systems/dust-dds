@@ -18,17 +18,17 @@ impl<'a> CGenerator<'a> {
 
     pub fn generate(&mut self, pair: IdlPair) {
         match pair.as_rule() {
-            Rule::EOI => todo!(),
+            Rule::EOI => (),
             Rule::escape => todo!(),
             Rule::octal_escape => todo!(),
             Rule::hex_escape => todo!(),
             Rule::unicode_escape => todo!(),
-            Rule::WHITESPACE => todo!(),
-            Rule::block_comment => todo!(),
-            Rule::line_comment => todo!(),
-            Rule::COMMENT => todo!(),
-            Rule::reserved_keyword => todo!(),
-            Rule::identifier => todo!(),
+            Rule::WHITESPACE => (),
+            Rule::block_comment => (),
+            Rule::line_comment => (),
+            Rule::COMMENT => (),
+            Rule::reserved_keyword => (),
+            Rule::identifier => self.identifier(pair),
             Rule::character_literal => todo!(),
             Rule::string_literal => todo!(),
             Rule::wide_character_literal => todo!(),
@@ -43,9 +43,9 @@ impl<'a> CGenerator<'a> {
             Rule::fractional_part => todo!(),
             Rule::exponent => todo!(),
             Rule::float_suffix => todo!(),
-            Rule::specification => todo!(),
-            Rule::semicolon => todo!(),
-            Rule::definition => todo!(),
+            Rule::specification => self.specification(pair),
+            Rule::semicolon => (),
+            Rule::definition => self.definition(pair),
             Rule::module_dcl => todo!(),
             Rule::scoped_name => todo!(),
             Rule::const_dcl => todo!(),
@@ -67,35 +67,37 @@ impl<'a> CGenerator<'a> {
             Rule::literal => todo!(),
             Rule::boolean_literal => todo!(),
             Rule::positive_int_const => todo!(),
-            Rule::type_dcl => todo!(),
-            Rule::type_spec => todo!(),
-            Rule::simple_type_spec => todo!(),
-            Rule::base_type_spec => todo!(),
-            Rule::floating_pt_type => todo!(),
-            Rule::integer_type => todo!(),
-            Rule::signed_int => todo!(),
-            Rule::signed_short_int => todo!(),
-            Rule::signed_long_int => todo!(),
-            Rule::signed_longlong_int => todo!(),
-            Rule::unsigned_int => todo!(),
-            Rule::unsigned_short_int => todo!(),
-            Rule::unsigned_long_int => todo!(),
-            Rule::unsigned_longlong_int => todo!(),
-            Rule::char_type => todo!(),
-            Rule::wide_char_type => todo!(),
-            Rule::boolean_type => todo!(),
-            Rule::octet_type => todo!(),
-            Rule::template_type_spec => todo!(),
+            Rule::type_dcl => self.type_dcl(pair),
+            Rule::type_spec => self.type_spec(pair),
+            Rule::simple_type_spec => self.simple_type_spec(pair),
+            Rule::base_type_spec => self.base_type_spec(pair),
+            Rule::floating_pt_type => self.floating_pt_type(pair),
+            Rule::integer_type => self.integer_type(pair),
+            Rule::signed_tiny_int => self.signed_tiny_int(pair),
+            Rule::signed_int => self.signed_int(pair),
+            Rule::signed_short_int => self.signed_short_int(pair),
+            Rule::signed_long_int => self.signed_long_int(pair),
+            Rule::signed_longlong_int => self.signed_longlong_int(pair),
+            Rule::unsigned_tiny_int => self.unsigned_tiny_int(pair),
+            Rule::unsigned_int => self.unsigned_int(pair),
+            Rule::unsigned_short_int => self.unsigned_short_int(pair),
+            Rule::unsigned_long_int => self.unsigned_long_int(pair),
+            Rule::unsigned_longlong_int => self.unsigned_longlong_int(pair),
+            Rule::char_type => self.char_type(pair),
+            Rule::wide_char_type => self.wide_char_type(pair),
+            Rule::boolean_type => self.boolean(pair),
+            Rule::octet_type => self.octet_type(pair),
+            Rule::template_type_spec => self.template_type_spec(pair),
             Rule::sequence_type => todo!(),
-            Rule::string_type => todo!(),
-            Rule::wide_string_type => todo!(),
+            Rule::string_type => self.string_type(pair),
+            Rule::wide_string_type => self.wide_string_type(pair),
             Rule::fixed_pt_type => todo!(),
             Rule::fixed_pt_const_type => todo!(),
-            Rule::constr_type_dcl => todo!(),
-            Rule::struct_dcl => todo!(),
-            Rule::struct_def => todo!(),
-            Rule::member => todo!(),
-            Rule::struct_forward_dcl => todo!(),
+            Rule::constr_type_dcl => self.constr_type_dcl(pair),
+            Rule::struct_dcl => self.struct_dcl(pair),
+            Rule::struct_def => self.struct_def(pair),
+            Rule::member => self.member(pair),
+            Rule::struct_forward_dcl => (),
             Rule::union_dcl => todo!(),
             Rule::union_def => todo!(),
             Rule::switch_type_spec => todo!(),
@@ -109,7 +111,7 @@ impl<'a> CGenerator<'a> {
             Rule::array_declarator => todo!(),
             Rule::fixed_array_size => todo!(),
             Rule::native_dcl => todo!(),
-            Rule::simple_declarator => todo!(),
+            Rule::simple_declarator => self.simple_declarator(pair),
             Rule::typedef_dcl => todo!(),
             Rule::type_declarator => todo!(),
             Rule::any_declarators => todo!(),
@@ -224,8 +226,6 @@ impl<'a> CGenerator<'a> {
             Rule::destination_type => todo!(),
             Rule::bitmask_dcl => todo!(),
             Rule::bit_value => todo!(),
-            Rule::signed_tiny_int => todo!(),
-            Rule::unsigned_tiny_int => todo!(),
             Rule::annotation_dcl => todo!(),
             Rule::annotation_header => todo!(),
             Rule::annotation_body => todo!(),
@@ -237,4 +237,253 @@ impl<'a> CGenerator<'a> {
             Rule::annotation_appl_param => todo!(),
         }
     }
+
+    fn specification(&mut self, pair: IdlPair) {
+        self.writer
+            .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n\n");
+        for definition in pair.into_inner() {
+            self.generate(definition);
+        }
+    }
+
+    #[inline]
+    fn definition(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn type_dcl(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn constr_type_dcl(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn struct_dcl(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    fn struct_def(&mut self, pair: IdlPair) {
+        let inner_pairs = pair.into_inner();
+        let identifier = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::identifier)
+            .expect("Identifier must exist according to the grammar");
+
+        self.writer.push_str("    struct ");
+        self.generate(identifier);
+        self.writer.push_str(" {\n");
+
+        for member in inner_pairs.filter(|p| p.as_rule() == Rule::member) {
+            self.generate(member);
+        }
+
+        self.writer.push_str("    };\n");
+    }
+
+    fn member(&mut self, pair: IdlPair) {
+        let inner_pairs = pair.into_inner();
+
+        let type_spec = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::type_spec)
+            .expect("Type spec must exist according to grammar");
+        let declarators = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::declarators)
+            .expect("Declarator must exist according to grammar");
+
+        for declarator in declarators.into_inner() {
+            let array_or_simple_declarator = declarator
+                .into_inner()
+                .next()
+                .expect("Must have an element according to the grammar");
+            self.writer.push_str("        ");
+            self.generate(type_spec.clone());
+            self.writer.push(' ');
+            match array_or_simple_declarator.as_rule() {
+                Rule::simple_declarator => {
+                    self.generate(array_or_simple_declarator);
+                }
+                _ => todo!(),
+            }
+            self.writer.push_str(";\n");
+        }
+    }
+
+    #[inline]
+    fn simple_declarator(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn identifier(&mut self, pair: IdlPair) {
+        self.writer.push_str(pair.as_str())
+    }
+
+    #[inline]
+    fn type_spec(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn simple_type_spec(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn base_type_spec(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    fn floating_pt_type(&mut self, pair: IdlPair) {
+        match pair.as_str() {
+            "float" => self.writer.push_str("float"),
+            "double" => self.writer.push_str("double"),
+            "long double" => self.writer.push_str("long double"),
+            _ => panic!("Invalid option by grammar"),
+        }
+    }
+
+    #[inline]
+    fn integer_type(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn signed_tiny_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("int8_t")
+    }
+
+    #[inline]
+    fn signed_int(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn signed_short_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("int16_t")
+    }
+
+    #[inline]
+    fn signed_long_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("int32_t")
+    }
+
+    #[inline]
+    fn signed_longlong_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("int64_t")
+    }
+
+    #[inline]
+    fn unsigned_tiny_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("uint8_t")
+    }
+
+    #[inline]
+    fn unsigned_int(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn unsigned_short_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("uint16_t")
+    }
+
+    #[inline]
+    fn unsigned_long_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("uint32_t")
+    }
+
+    #[inline]
+    fn unsigned_longlong_int(&mut self, _pair: IdlPair) {
+        self.writer.push_str("uint64_t")
+    }
+
+    #[inline]
+    fn octet_type(&mut self, _pair: IdlPair) {
+        self.writer.push_str("uint8_t")
+    }
+
+    #[inline]
+    fn template_type_spec(&mut self, pair: IdlPair) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    #[inline]
+    fn string_type(&mut self, _pair: IdlPair) {
+        self.writer.push_str("char*")
+    }
+
+    #[inline]
+    fn wide_string_type(&mut self, _pair: IdlPair) {
+        self.writer.push_str("wchar_t*")
+    }
+
+    #[inline]
+    fn char_type(&mut self, _pair: IdlPair) {
+        self.writer.push_str("char")
+    }
+
+    #[inline]
+    fn wide_char_type(&mut self, _pair: IdlPair) {
+        self.writer.push_str("wchar_t")
+    }
+
+    #[inline]
+    fn boolean(&mut self, _pair: IdlPair) {
+        self.writer.push_str("bool")
+    }
 }
+
