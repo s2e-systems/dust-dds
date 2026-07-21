@@ -361,29 +361,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn remove_writer_change(
-        &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        sequence_number: i64,
-    ) {
-        if let Some(p) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
-        {
-            if let Some(dw) = p
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.instance_handle == data_writer_handle)
-            {
-                dw.transport_writer.remove_change(sequence_number);
-            }
-        }
-    }
-
     #[tracing::instrument(skip(self, data_message, runtime))]
     pub fn handle_data(&mut self, data_message: &[u8], runtime: &impl DdsRuntime) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
