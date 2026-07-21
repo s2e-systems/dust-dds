@@ -301,10 +301,12 @@ impl<'a> CGenerator<'a> {
 
         let struct_name = identifier.as_str();
 
-        self.writer.push_str("\n    static inline const DustDdsDynamicType* ");
+        self.writer
+            .push_str("\n    static inline const DustDdsDynamicType* ");
         self.writer.push_str(struct_name);
         self.writer.push_str("_get_type(void) {\n");
-        self.writer.push_str("        static const DustDdsDynamicType* type = NULL;\n");
+        self.writer
+            .push_str("        static const DustDdsDynamicType* type = NULL;\n");
         self.writer.push_str("        if (type == NULL) {\n");
         self.writer.push_str(&format!(
             "            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct(\"{}\");\n",
@@ -337,12 +339,16 @@ impl<'a> CGenerator<'a> {
 
                 if type_expr.contains("create_string_type") {
                     self.writer.push_str("            {\n");
-                    self.writer.push_str(&format!("                DustDdsDynamicType* member_type = {};\n", type_expr));
+                    self.writer.push_str(&format!(
+                        "                DustDdsDynamicType* member_type = {};\n",
+                        type_expr
+                    ));
                     self.writer.push_str(&format!(
                         "                dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, member_type);\n",
                         field_name, member_id
                     ));
-                    self.writer.push_str("                dust_dds_dynamic_type_free(member_type);\n");
+                    self.writer
+                        .push_str("                dust_dds_dynamic_type_free(member_type);\n");
                     self.writer.push_str("            }\n");
                 } else {
                     self.writer.push_str(&format!(
@@ -354,7 +360,8 @@ impl<'a> CGenerator<'a> {
             }
         }
 
-        self.writer.push_str("            type = dust_dds_dynamic_type_builder_build(builder);\n");
+        self.writer
+            .push_str("            type = dust_dds_dynamic_type_builder_build(builder);\n");
         self.writer.push_str("        }\n");
         self.writer.push_str("        return type;\n");
         self.writer.push_str("    }\n");
@@ -371,30 +378,67 @@ impl<'a> CGenerator<'a> {
                 | Rule::integer_type
                 | Rule::signed_int
                 | Rule::unsigned_int => {
-                    current = current.into_inner().next().expect("Rule must have inner content");
+                    current = current
+                        .into_inner()
+                        .next()
+                        .expect("Rule must have inner content");
                 }
-                Rule::boolean_type => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN)".to_string(),
-                Rule::char_type => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8)".to_string(),
-                Rule::wide_char_type => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8)".to_string(),
-                Rule::octet_type => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8)".to_string(),
-                Rule::signed_tiny_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT8)".to_string(),
-                Rule::unsigned_tiny_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8)".to_string(),
-                Rule::signed_short_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16)".to_string(),
-                Rule::unsigned_short_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16)".to_string(),
-                Rule::signed_long_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32)".to_string(),
-                Rule::unsigned_long_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32)".to_string(),
-                Rule::signed_longlong_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64)".to_string(),
-                Rule::unsigned_longlong_int => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64)".to_string(),
-                Rule::floating_pt_type => {
-                    match current.as_str() {
-                        "float" => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32)".to_string(),
-                        "double" => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64)".to_string(),
-                        "long double" => return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT128)".to_string(),
-                        _ => panic!("Invalid floating point type"),
+                Rule::boolean_type => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN)"
+                        .to_string();
+                }
+                Rule::char_type => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8)".to_string();
+                }
+                Rule::wide_char_type => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8)".to_string();
+                }
+                Rule::octet_type => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8)".to_string();
+                }
+                Rule::signed_tiny_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT8)".to_string();
+                }
+                Rule::unsigned_tiny_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8)".to_string();
+                }
+                Rule::signed_short_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16)".to_string();
+                }
+                Rule::unsigned_short_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16)".to_string();
+                }
+                Rule::signed_long_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32)".to_string();
+                }
+                Rule::unsigned_long_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32)".to_string();
+                }
+                Rule::signed_longlong_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64)".to_string();
+                }
+                Rule::unsigned_longlong_int => {
+                    return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64)".to_string();
+                }
+                Rule::floating_pt_type => match current.as_str() {
+                    "float" => {
+                        return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32)"
+                            .to_string();
                     }
-                }
+                    "double" => {
+                        return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64)"
+                            .to_string();
+                    }
+                    "long double" => {
+                        return "dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT128)"
+                            .to_string();
+                    }
+                    _ => panic!("Invalid floating point type"),
+                },
                 Rule::string_type | Rule::wide_string_type => {
-                    let bound = current.into_inner().next()
+                    let bound = current
+                        .into_inner()
+                        .next()
                         .map(|p| p.as_str().to_string())
                         .unwrap_or_else(|| "4294967295".to_string());
                     return format!("dust_dds_dynamic_type_create_string_type({})", bound);

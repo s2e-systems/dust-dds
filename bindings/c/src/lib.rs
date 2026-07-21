@@ -10,5 +10,5 @@ pub use infrastructure::error::*;
 pub use infrastructure::qos::*;
 pub use publication::publisher::*;
 pub use subscription::subscriber::*;
-pub use topic_definition::topic::*;
 pub use topic_definition::dynamic_type::*;
+pub use topic_definition::topic::*;

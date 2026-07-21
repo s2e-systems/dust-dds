@@ -35,4 +35,3 @@ pub fn compile_idl_c(idl_filepath: &Path) -> Result<String, String> {
     c_generator.generate(parsed_idl);
     Ok(output)
 }
-

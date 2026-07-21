@@ -4,8 +4,8 @@ use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode
 use crate::infrastructure::qos::{DustDdsPublisherQos, DustDdsSubscriberQos, DustDdsTopicQos};
 use crate::publication::publisher::DustDdsPublisher;
 use crate::subscription::subscriber::DustDdsSubscriber;
-use crate::topic_definition::topic::DustDdsTopic;
 use crate::topic_definition::dynamic_type::DustDdsDynamicType;
+use crate::topic_definition::topic::DustDdsTopic;
 use dust_dds::infrastructure::qos::QosKind;
 use dust_dds::publication::publisher_listener::PublisherListener;
 use dust_dds::subscription::subscriber_listener::SubscriberListener;
@@ -170,8 +170,12 @@ pub unsafe extern "C" fn dust_dds_domain_participant_create_topic(
         return None;
     };
 
-    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }.to_str().ok()?;
-    let type_name_str = unsafe { std::ffi::CStr::from_ptr(type_name) }.to_str().ok()?;
+    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }
+        .to_str()
+        .ok()?;
+    let type_name_str = unsafe { std::ffi::CStr::from_ptr(type_name) }
+        .to_str()
+        .ok()?;
 
     let qos = match qos {
         Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
@@ -215,10 +219,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_topic(
     let participant_ref = unsafe { participant.as_ref() };
     let topic_ref = unsafe { topic.as_ref() };
 
-    match participant_ref
-        .inner()
-        .delete_topic(topic_ref.inner())
-    {
+    match participant_ref.inner().delete_topic(topic_ref.inner()) {
         Ok(()) => {
             unsafe {
                 drop(Box::from_raw(topic.as_ptr()));
@@ -314,10 +315,9 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            dust_dds_dynamic_type_builder_add_member,
-            dust_dds_dynamic_type_builder_create_struct, dust_dds_dynamic_type_builder_build,
+            TYPE_KIND_INT32, dust_dds_dynamic_type_builder_add_member,
+            dust_dds_dynamic_type_builder_build, dust_dds_dynamic_type_builder_create_struct,
             dust_dds_dynamic_type_free, dust_dds_dynamic_type_get_primitive_type,
-            TYPE_KIND_INT32,
         };
 
         let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
@@ -339,12 +339,7 @@ mod tests {
         assert!(int32_type.is_some());
 
         let res = unsafe {
-            dust_dds_dynamic_type_builder_add_member(
-                builder,
-                field_name.as_ptr(),
-                0,
-                int32_type,
-            )
+            dust_dds_dynamic_type_builder_add_member(builder, field_name.as_ptr(), 0, int32_type)
         };
         assert_eq!(res, RETCODE_OK);
 
