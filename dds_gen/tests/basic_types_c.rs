@@ -7,6 +7,8 @@ fn basic_types() {
     #include <stdbool.h>
     #include <stdint.h>
     #include <stddef.h>
+    #include <stdlib.h>
+    #include <string.h>
     #include "dust_dds.h"
 
     struct BasicTypes {
@@ -55,6 +57,79 @@ fn basic_types() {
             type = dust_dds_dynamic_type_builder_build(builder);
         }
         return type;
+    }
+
+    static inline struct BasicTypes BasicTypes_create_sample(const DustDdsDynamicData* src) {
+        struct BasicTypes sample;
+        memset(&sample, 0, sizeof(sample));
+        dust_dds_dynamic_data_get_boolean_value(src, 0, &sample.a);
+        dust_dds_dynamic_data_get_char8_value(src, 1, &sample.b);
+        {
+            char temp;
+            dust_dds_dynamic_data_get_char8_value(src, 2, &temp);
+            sample.c = (wchar_t)temp;
+        }
+        dust_dds_dynamic_data_get_uint8_value(src, 3, &sample.d);
+        dust_dds_dynamic_data_get_string_value(src, 4, &sample.e);
+        {
+            char* temp = NULL;
+            dust_dds_dynamic_data_get_string_value(src, 5, &temp);
+            if (temp != NULL) {
+                size_t len = mbstowcs(NULL, temp, 0);
+                if (len != (size_t)-1) {
+                    sample.f = malloc((len + 1) * sizeof(wchar_t));
+                    mbstowcs(sample.f, temp, len + 1);
+                }
+                dust_dds_string_free(temp);
+            }
+        }
+        dust_dds_dynamic_data_get_int16_value(src, 6, &sample.g);
+        dust_dds_dynamic_data_get_uint16_value(src, 7, &sample.h);
+        dust_dds_dynamic_data_get_int32_value(src, 8, &sample.i);
+        dust_dds_dynamic_data_get_uint32_value(src, 9, &sample.j);
+        dust_dds_dynamic_data_get_int64_value(src, 10, &sample.k);
+        dust_dds_dynamic_data_get_uint64_value(src, 11, &sample.l);
+        dust_dds_dynamic_data_get_float32_value(src, 12, &sample.m);
+        dust_dds_dynamic_data_get_float64_value(src, 13, &sample.n);
+        return sample;
+    }
+
+    static inline DustDdsDynamicData* BasicTypes_create_dynamic_sample(const struct BasicTypes* src) {
+        DustDdsDynamicData* sample = dust_dds_dynamic_data_create(BasicTypes_get_type());
+        if (sample != NULL) {
+            dust_dds_dynamic_data_set_boolean_value(sample, 0, src->a);
+            dust_dds_dynamic_data_set_char8_value(sample, 1, src->b);
+            dust_dds_dynamic_data_set_char8_value(sample, 2, (char)src->c);
+            dust_dds_dynamic_data_set_uint8_value(sample, 3, src->d);
+            dust_dds_dynamic_data_set_string_value(sample, 4, src->e);
+            {
+                if (src->f != NULL) {
+                    size_t len = wcstombs(NULL, src->f, 0);
+                    if (len != (size_t)-1) {
+                        char* temp = malloc(len + 1);
+                        wcstombs(temp, src->f, len + 1);
+                        dust_dds_dynamic_data_set_string_value(sample, 5, temp);
+                        free(temp);
+                    }
+                }
+            }
+            dust_dds_dynamic_data_set_int16_value(sample, 6, src->g);
+            dust_dds_dynamic_data_set_uint16_value(sample, 7, src->h);
+            dust_dds_dynamic_data_set_int32_value(sample, 8, src->i);
+            dust_dds_dynamic_data_set_uint32_value(sample, 9, src->j);
+            dust_dds_dynamic_data_set_int64_value(sample, 10, src->k);
+            dust_dds_dynamic_data_set_uint64_value(sample, 11, src->l);
+            dust_dds_dynamic_data_set_float32_value(sample, 12, src->m);
+            dust_dds_dynamic_data_set_float64_value(sample, 13, src->n);
+        }
+        return sample;
+    }
+
+    static inline void BasicTypes_free_sample(struct BasicTypes* sample) {
+        if (sample != NULL) {
+        dust_dds_string_free(sample->e);
+        free(sample->f);
+        }
     }
 "#;
 

@@ -240,7 +240,7 @@ impl<'a> CGenerator<'a> {
 
     fn specification(&mut self, pair: IdlPair) {
         self.writer
-            .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n    #include \"dust_dds.h\"\n\n");
+            .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n    #include <stdlib.h>\n    #include <string.h>\n    #include \"dust_dds.h\"\n\n");
         for definition in pair.into_inner() {
             self.generate(definition);
         }
@@ -313,6 +313,7 @@ impl<'a> CGenerator<'a> {
             struct_name
         ));
 
+        let mut members = Vec::new();
         let mut member_id = 0;
         for member in inner_pairs.clone().filter(|p| p.as_rule() == Rule::member) {
             let m_inner = member.into_inner();
@@ -325,38 +326,40 @@ impl<'a> CGenerator<'a> {
                 .find(|p| p.as_rule() == Rule::declarators)
                 .expect("Declarator must exist according to grammar");
 
-            let type_expr = self.get_dynamic_type_expr(type_spec);
-
             for declarator in declarators.into_inner() {
                 let array_or_simple_declarator = declarator
                     .into_inner()
                     .next()
                     .expect("Must have an element according to the grammar");
                 let field_name = match array_or_simple_declarator.as_rule() {
-                    Rule::simple_declarator => array_or_simple_declarator.as_str(),
+                    Rule::simple_declarator => array_or_simple_declarator.as_str().to_string(),
                     _ => todo!(),
                 };
-
-                if type_expr.contains("create_string_type") {
-                    self.writer.push_str("            {\n");
-                    self.writer.push_str(&format!(
-                        "                DustDdsDynamicType* member_type = {};\n",
-                        type_expr
-                    ));
-                    self.writer.push_str(&format!(
-                        "                dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, member_type);\n",
-                        field_name, member_id
-                    ));
-                    self.writer
-                        .push_str("                dust_dds_dynamic_type_free(member_type);\n");
-                    self.writer.push_str("            }\n");
-                } else {
-                    self.writer.push_str(&format!(
-                        "            dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, {});\n",
-                        field_name, member_id, type_expr
-                    ));
-                }
+                members.push((member_id, type_spec.clone(), field_name));
                 member_id += 1;
+            }
+        }
+
+        for (member_id, type_spec, field_name) in &members {
+            let type_expr = self.get_dynamic_type_expr(type_spec.clone());
+            if type_expr.contains("create_string_type") {
+                self.writer.push_str("            {\n");
+                self.writer.push_str(&format!(
+                    "                DustDdsDynamicType* member_type = {};\n",
+                    type_expr
+                ));
+                self.writer.push_str(&format!(
+                    "                dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, member_type);\n",
+                    field_name, member_id
+                ));
+                self.writer
+                    .push_str("                dust_dds_dynamic_type_free(member_type);\n");
+                self.writer.push_str("            }\n");
+            } else {
+                self.writer.push_str(&format!(
+                    "            dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, {});\n",
+                    field_name, member_id, type_expr
+                ));
             }
         }
 
@@ -365,6 +368,228 @@ impl<'a> CGenerator<'a> {
         self.writer.push_str("        }\n");
         self.writer.push_str("        return type;\n");
         self.writer.push_str("    }\n");
+
+        let mut create_sample_code = String::new();
+        let mut create_dynamic_sample_code = String::new();
+        let mut free_sample_code = String::new();
+
+        for (member_id, type_spec, field_name) in &members {
+            let (leaf_rule, leaf_str) = self.get_type_leaf(type_spec.clone());
+            match leaf_rule {
+                Rule::boolean_type => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_boolean_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_boolean_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::char_type => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_char8_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_char8_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::wide_char_type => {
+                    create_sample_code.push_str(&format!(
+                        "        {{\n            char temp;\n            dust_dds_dynamic_data_get_char8_value(src, {}, &temp);\n            sample.{} = (wchar_t)temp;\n        }}\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_char8_value(sample, {}, (char)src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::octet_type | Rule::unsigned_tiny_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_uint8_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_uint8_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::signed_tiny_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_int8_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_int8_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::signed_short_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_int16_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_int16_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::unsigned_short_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_uint16_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_uint16_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::signed_long_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_int32_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_int32_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::unsigned_long_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_uint32_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_uint32_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::signed_longlong_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_int64_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_int64_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::unsigned_longlong_int => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_uint64_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_uint64_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                }
+                Rule::floating_pt_type => {
+                    if leaf_str == "float" {
+                        create_sample_code.push_str(&format!(
+                            "        dust_dds_dynamic_data_get_float32_value(src, {}, &sample.{});\n",
+                            member_id, field_name
+                        ));
+                        create_dynamic_sample_code.push_str(&format!(
+                            "            dust_dds_dynamic_data_set_float32_value(sample, {}, src->{});\n",
+                            member_id, field_name
+                        ));
+                    } else if leaf_str == "double" {
+                        create_sample_code.push_str(&format!(
+                            "        dust_dds_dynamic_data_get_float64_value(src, {}, &sample.{});\n",
+                            member_id, field_name
+                        ));
+                        create_dynamic_sample_code.push_str(&format!(
+                            "            dust_dds_dynamic_data_set_float64_value(sample, {}, src->{});\n",
+                            member_id, field_name
+                        ));
+                    } else {
+                        panic!("long double not implemented yet");
+                    }
+                }
+                Rule::string_type => {
+                    create_sample_code.push_str(&format!(
+                        "        dust_dds_dynamic_data_get_string_value(src, {}, &sample.{});\n",
+                        member_id, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            dust_dds_dynamic_data_set_string_value(sample, {}, src->{});\n",
+                        member_id, field_name
+                    ));
+                    free_sample_code.push_str(&format!(
+                        "        dust_dds_string_free(sample->{});\n",
+                        field_name
+                    ));
+                }
+                Rule::wide_string_type => {
+                    create_sample_code.push_str(&format!(
+                        "        {{\n            char* temp = NULL;\n            dust_dds_dynamic_data_get_string_value(src, {}, &temp);\n            if (temp != NULL) {{\n                size_t len = mbstowcs(NULL, temp, 0);\n                if (len != (size_t)-1) {{\n                    sample.{} = malloc((len + 1) * sizeof(wchar_t));\n                    mbstowcs(sample.{}, temp, len + 1);\n                }}\n                dust_dds_string_free(temp);\n            }}\n        }}\n",
+                        member_id, field_name, field_name
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            {{\n                if (src->{} != NULL) {{\n                    size_t len = wcstombs(NULL, src->{}, 0);\n                    if (len != (size_t)-1) {{\n                        char* temp = malloc(len + 1);\n                        wcstombs(temp, src->{}, len + 1);\n                        dust_dds_dynamic_data_set_string_value(sample, {}, temp);\n                        free(temp);\n                    }}\n                }}\n            }}\n",
+                        field_name, field_name, field_name, member_id
+                    ));
+                    free_sample_code.push_str(&format!(
+                        "        free(sample->{});\n",
+                        field_name
+                    ));
+                }
+                _ => {
+                    // Custom identifier / nested struct
+                    create_sample_code.push_str(&format!(
+                        "        {{\n            DustDdsDynamicData* member_data = NULL;\n            dust_dds_dynamic_data_get_complex_value(src, {}, &member_data);\n            if (member_data != NULL) {{\n                sample.{} = {}_create_sample(member_data);\n                dust_dds_dynamic_data_free(member_data);\n            }}\n        }}\n",
+                        member_id, field_name, leaf_str
+                    ));
+                    create_dynamic_sample_code.push_str(&format!(
+                        "            {{\n                DustDdsDynamicData* member_data = {}_create_dynamic_sample(&src->{});\n                dust_dds_dynamic_data_set_complex_value(sample, {}, member_data);\n                dust_dds_dynamic_data_free(member_data);\n            }}\n",
+                        leaf_str, field_name, member_id
+                    ));
+                    free_sample_code.push_str(&format!(
+                        "        {}_free_sample(&sample->{});\n",
+                        leaf_str, field_name
+                    ));
+                }
+            }
+        }
+
+        self.writer.push_str(&format!(
+            "\n    static inline struct {} {}_create_sample(const DustDdsDynamicData* src) {{\n        struct {} sample;\n        memset(&sample, 0, sizeof(sample));\n{}        return sample;\n    }}\n",
+            struct_name, struct_name, struct_name, create_sample_code
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline DustDdsDynamicData* {}_create_dynamic_sample(const struct {}* src) {{\n        DustDdsDynamicData* sample = dust_dds_dynamic_data_create({}_get_type());\n        if (sample != NULL) {{\n{}        }}\n        return sample;\n    }}\n",
+            struct_name, struct_name, struct_name, create_dynamic_sample_code
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline void {}_free_sample(struct {}* sample) {{\n        if (sample != NULL) {{\n{}        }}\n    }}\n",
+            struct_name, struct_name, free_sample_code
+        ));
+    }
+
+    fn get_type_leaf(&self, type_spec: IdlPair) -> (Rule, String) {
+        let mut current = type_spec;
+        loop {
+            match current.as_rule() {
+                Rule::type_spec
+                | Rule::simple_type_spec
+                | Rule::base_type_spec
+                | Rule::template_type_spec
+                | Rule::integer_type
+                | Rule::signed_int
+                | Rule::unsigned_int => {
+                    current = current
+                        .into_inner()
+                        .next()
+                        .expect("Rule must have inner content");
+                }
+                rule => return (rule, current.as_str().to_string()),
+            }
+        }
     }
 
     fn get_dynamic_type_expr(&self, type_spec: IdlPair) -> String {
