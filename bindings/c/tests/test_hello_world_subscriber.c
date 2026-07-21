@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include "../include/dust_dds.h"
-#include "hello_world.h"
+#include "build/hello_world.h"
 
 int main(void) {
     DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dust_dds_domain_participant_factory_get_instance();
@@ -33,7 +33,7 @@ int main(void) {
     assert(subscriber != NULL);
 
     // Create data reader
-    DustDdsDataReader* reader = dust_dds_subscriber_create_datareader_HelloWorld(
+    DustDdsDataReader* reader = dust_dds_subscriber_create_datareader(
         subscriber,
         topic,
         DUST_DDS_DATAREADER_QOS_DEFAULT
@@ -60,7 +60,7 @@ int main(void) {
     assert(success == 1);
 
     // Clean up
-    result = dust_dds_subscriber_delete_datareader_HelloWorld(subscriber, reader);
+    result = dust_dds_subscriber_delete_datareader(subscriber, reader);
     assert(result == RETCODE_OK);
 
     result = dust_dds_domain_participant_delete_subscriber(participant, subscriber);
