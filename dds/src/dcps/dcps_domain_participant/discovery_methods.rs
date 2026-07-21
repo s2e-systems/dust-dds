@@ -353,14 +353,12 @@ impl DcpsDomainParticipant {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-                    for instance in data_writer
-                        .registered_instance_info
-                        .iter_mut()
-                        .filter(|x| match x.last_write_time {
+                    for instance in data_writer.registered_instance_info.iter_mut().filter(|x| {
+                        match x.last_write_time {
                             Some(t) => now - t > deadline,
                             None => false,
-                        })
-                    {
+                        }
+                    }) {
                         if let Some(t) = &mut instance.last_write_time {
                             *t += deadline;
                         }

@@ -1351,16 +1351,14 @@ impl DataWriterEntity {
             .find(|x| x.instance_handle == instance_handle)
         {
             instance_info.last_write_time = Some(timestamp);
+        } else if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
+            self.registered_instance_info.push(RegisteredInstanceInfo {
+                instance_handle,
+                last_write_time: Some(timestamp),
+                samples: VecDeque::new(),
+            });
         } else {
-            if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_info.push(RegisteredInstanceInfo {
-                    instance_handle,
-                    last_write_time: Some(timestamp),
-                    samples: VecDeque::new(),
-                });
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
+            return Err(DdsError::OutOfResources);
         }
 
         Ok(Some(instance_handle))
