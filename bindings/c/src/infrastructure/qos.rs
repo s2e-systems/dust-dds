@@ -133,3 +133,37 @@ pub unsafe extern "C" fn dust_dds_subscriber_qos_free(qos: Option<NonNull<DustDd
         }
     }
 }
+
+/// cbindgen:opaque
+pub struct DustDdsTopicQos(pub(crate) dust_dds::infrastructure::qos::TopicQos);
+
+pub type TopicQos = DustDdsTopicQos;
+
+impl DustDdsTopicQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::TopicQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::TopicQos {
+        &self.0
+    }
+}
+
+/// Creates a default TopicQos object.
+/// Returns a raw pointer to DustDdsTopicQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_topic_qos_default() -> Option<NonNull<DustDdsTopicQos>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsTopicQos(
+        dust_dds::infrastructure::qos::TopicQos::default(),
+    ))))
+}
+
+/// Frees a TopicQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_topic_qos_free(qos: Option<NonNull<DustDdsTopicQos>>) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
+}

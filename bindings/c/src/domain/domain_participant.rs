@@ -1,9 +1,10 @@
 use std::ptr::NonNull;
 
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::{DustDdsPublisherQos, DustDdsSubscriberQos};
+use crate::infrastructure::qos::{DustDdsPublisherQos, DustDdsSubscriberQos, DustDdsTopicQos};
 use crate::publication::publisher::DustDdsPublisher;
 use crate::subscription::subscriber::DustDdsSubscriber;
+use crate::topic_definition::topic::DustDdsTopic;
 use dust_dds::infrastructure::qos::QosKind;
 use dust_dds::publication::publisher_listener::PublisherListener;
 use dust_dds::subscription::subscriber_listener::SubscriberListener;
@@ -140,6 +141,51 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_subscriber(
         Ok(()) => {
             unsafe {
                 drop(Box::from_raw(subscriber.as_ptr()));
+            }
+            RETCODE_OK
+        }
+        Err(e) => e.into(),
+    }
+}
+
+/// Creates a new Topic object.
+/// Passing NULL (`DUST_DDS_TOPIC_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Returns a raw pointer to DustDdsTopic on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_domain_participant_create_topic(
+    _participant: Option<NonNull<DustDdsDomainParticipant>>,
+    _topic_name: *const std::os::raw::c_char,
+    _type_name: *const std::os::raw::c_char,
+    _qos: Option<NonNull<DustDdsTopicQos>>,
+) -> Option<NonNull<DustDdsTopic>> {
+    todo!()
+}
+
+/// Deletes an existing Topic object.
+/// Returns RETCODE_OK on success, or standard DDS return code on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_domain_participant_delete_topic(
+    participant: Option<NonNull<DustDdsDomainParticipant>>,
+    topic: Option<NonNull<DustDdsTopic>>,
+) -> ReturnCode {
+    let Some(topic) = topic else {
+        return RETCODE_OK;
+    };
+
+    let Some(participant) = participant else {
+        return RETCODE_BAD_PARAMETER;
+    };
+
+    let participant_ref = unsafe { participant.as_ref() };
+    let topic_ref = unsafe { topic.as_ref() };
+
+    match participant_ref
+        .inner()
+        .delete_topic(topic_ref.inner())
+    {
+        Ok(()) => {
+            unsafe {
+                drop(Box::from_raw(topic.as_ptr()));
             }
             RETCODE_OK
         }
