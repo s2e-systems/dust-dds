@@ -41,7 +41,7 @@ fn ext_appendable_struct_2_with_dynamic_data() {
     </dds>
     "#;
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(&type_xml, "struct_a1", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a1", vec![]).unwrap();
     let a1_dynamic_type = type_builder.build();
     let topic1 = participant1
         .create_dynamic_topic(
@@ -76,7 +76,7 @@ fn ext_appendable_struct_2_with_dynamic_data() {
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let mut type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(&type_xml, "struct_a2", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a2", vec![]).unwrap();
     for (_id, member) in type_builder.get_all_members().unwrap() {
         member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
     }
