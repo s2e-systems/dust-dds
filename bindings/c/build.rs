@@ -6,8 +6,8 @@ use std::path::PathBuf;
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    let mut config = cbindgen::Config::from_file(format!("{}/cbindgen.toml", crate_dir))
-        .unwrap_or_default();
+    let mut config =
+        cbindgen::Config::from_file(format!("{}/cbindgen.toml", crate_dir)).unwrap_or_default();
     config.language = cbindgen::Language::C;
 
     let include_dir = PathBuf::from(&crate_dir).join("include");

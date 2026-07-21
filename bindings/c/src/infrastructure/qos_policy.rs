@@ -20,8 +20,8 @@ impl DustDdsUserDataQosPolicy {
 /// Creates a default UserDataQosPolicy object.
 /// Returns a raw pointer to DustDdsUserDataQosPolicy on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_default(
-) -> Option<NonNull<DustDdsUserDataQosPolicy>> {
+pub unsafe extern "C" fn dust_dds_user_data_qos_policy_default()
+-> Option<NonNull<DustDdsUserDataQosPolicy>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsUserDataQosPolicy(
         dust_dds::infrastructure::qos_policy::UserDataQosPolicy::default(),
     ))))

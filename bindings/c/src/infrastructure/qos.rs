@@ -22,8 +22,8 @@ impl DustDdsDomainParticipantQos {
 /// Creates a default DomainParticipantQos object.
 /// Returns a raw pointer to DustDdsDomainParticipantQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_qos_default(
-) -> Option<NonNull<DustDdsDomainParticipantQos>> {
+pub unsafe extern "C" fn dust_dds_domain_participant_qos_default()
+-> Option<NonNull<DustDdsDomainParticipantQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipantQos(
         dust_dds::infrastructure::qos::DomainParticipantQos::default(),
     ))))
@@ -63,4 +63,73 @@ pub unsafe extern "C" fn dust_dds_domain_participant_qos_get_user_data(
     NonNull::new(Box::into_raw(Box::new(DustDdsUserDataQosPolicy::new(
         user_data,
     ))))
+}
+
+/// cbindgen:opaque
+pub struct DustDdsPublisherQos(pub(crate) dust_dds::infrastructure::qos::PublisherQos);
+
+pub type PublisherQos = DustDdsPublisherQos;
+
+impl DustDdsPublisherQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::PublisherQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::PublisherQos {
+        &self.0
+    }
+}
+
+/// Creates a default PublisherQos object.
+/// Returns a raw pointer to DustDdsPublisherQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_publisher_qos_default() -> Option<NonNull<DustDdsPublisherQos>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsPublisherQos(
+        dust_dds::infrastructure::qos::PublisherQos::default(),
+    ))))
+}
+
+/// Frees a PublisherQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_publisher_qos_free(qos: Option<NonNull<DustDdsPublisherQos>>) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
+}
+
+/// cbindgen:opaque
+pub struct DustDdsSubscriberQos(pub(crate) dust_dds::infrastructure::qos::SubscriberQos);
+
+pub type SubscriberQos = DustDdsSubscriberQos;
+
+impl DustDdsSubscriberQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::SubscriberQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::SubscriberQos {
+        &self.0
+    }
+}
+
+/// Creates a default SubscriberQos object.
+/// Returns a raw pointer to DustDdsSubscriberQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_subscriber_qos_default() -> Option<NonNull<DustDdsSubscriberQos>>
+{
+    NonNull::new(Box::into_raw(Box::new(DustDdsSubscriberQos(
+        dust_dds::infrastructure::qos::SubscriberQos::default(),
+    ))))
+}
+
+/// Frees a SubscriberQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_subscriber_qos_free(qos: Option<NonNull<DustDdsSubscriberQos>>) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
 }

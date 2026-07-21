@@ -51,6 +51,33 @@ int main(void) {
     );
     assert(participant != NULL);
 
+    // Test creating publisher and subscriber on participant
+    DustDdsPublisher* publisher = dust_dds_domain_participant_create_publisher(participant, NULL);
+    assert(publisher != NULL);
+    result = dust_dds_domain_participant_delete_publisher(participant, publisher);
+    assert(result == RETCODE_OK);
+
+    DustDdsPublisherQos* pub_qos = dust_dds_publisher_qos_default();
+    assert(pub_qos != NULL);
+    publisher = dust_dds_domain_participant_create_publisher(participant, pub_qos);
+    assert(publisher != NULL);
+    dust_dds_publisher_qos_free(pub_qos);
+    result = dust_dds_domain_participant_delete_publisher(participant, publisher);
+    assert(result == RETCODE_OK);
+
+    DustDdsSubscriber* subscriber = dust_dds_domain_participant_create_subscriber(participant, NULL);
+    assert(subscriber != NULL);
+    result = dust_dds_domain_participant_delete_subscriber(participant, subscriber);
+    assert(result == RETCODE_OK);
+
+    DustDdsSubscriberQos* sub_qos = dust_dds_subscriber_qos_default();
+    assert(sub_qos != NULL);
+    subscriber = dust_dds_domain_participant_create_subscriber(participant, sub_qos);
+    assert(subscriber != NULL);
+    dust_dds_subscriber_qos_free(sub_qos);
+    result = dust_dds_domain_participant_delete_subscriber(participant, subscriber);
+    assert(result == RETCODE_OK);
+
     result = dust_dds_domain_participant_factory_delete_participant(
         factory,
         participant
@@ -59,8 +86,9 @@ int main(void) {
 
     dust_dds_domain_participant_qos_free(qos);
 
-    printf("C test passed: create_participant with qos and custom UserDataQosPolicy succeeded!\n");
+    printf("C test passed: create_participant, create_publisher, create_subscriber succeeded!\n");
     return 0;
 }
+
 
 

@@ -44,12 +44,10 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_create_participant(
         None => QosKind::Default,
     };
 
-    match unsafe { factory.as_ref() }.0.create_participant(
-        domain_id,
-        qos,
-        None::<NoListener>,
-        &[],
-    ) {
+    match unsafe { factory.as_ref() }
+        .0
+        .create_participant(domain_id, qos, None::<NoListener>, &[])
+    {
         Ok(participant) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
             participant,
         )))),
