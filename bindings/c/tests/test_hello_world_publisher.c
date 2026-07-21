@@ -40,20 +40,42 @@ int main(void) {
     );
     assert(writer != NULL);
 
+    DustDdsStatusCondition* writer_cond = dust_dds_datawriter_get_statuscondition(writer);
+    assert(writer_cond != NULL);
+    ReturnCode result = dust_dds_status_condition_set_enabled_statuses(writer_cond, DUST_DDS_STATUS_PUBLICATION_MATCHED_STATUS);
+    assert(result == RETCODE_OK);
+
+    DustDdsWaitSet* wait_set = dust_dds_wait_set_new();
+    assert(wait_set != NULL);
+    result = dust_dds_wait_set_attach_condition(wait_set, writer_cond);
+    assert(result == RETCODE_OK);
+
     printf("Publisher waiting for subscriber discovery...\n");
-    sleep(5);
+    DustDdsDuration wait_timeout = { 60, 0 };
+    result = dust_dds_wait_set_wait(wait_set, wait_timeout);
+    assert(result == RETCODE_OK);
 
     struct HelloWorld sample;
     sample.msg = "Hello from C bindings!";
     sample.count = 42;
 
     printf("Writing HelloWorld sample...\n");
-    ReturnCode result = dust_dds_datawriter_write_HelloWorld(writer, &sample);
+    result = dust_dds_datawriter_write_HelloWorld(writer, &sample);
     assert(result == RETCODE_OK);
 
-    sleep(1);
+    DustDdsDuration ack_timeout = { 30, 0 };
+    result = dust_dds_datawriter_wait_for_acknowledgments(writer, ack_timeout);
+    assert(result == RETCODE_OK);
+
+    sleep(2);
 
     // Clean up
+    result = dust_dds_wait_set_free(wait_set);
+    assert(result == RETCODE_OK);
+
+    result = dust_dds_status_condition_free(writer_cond);
+    assert(result == RETCODE_OK);
+
     result = dust_dds_publisher_delete_datawriter(publisher, writer);
     assert(result == RETCODE_OK);
 

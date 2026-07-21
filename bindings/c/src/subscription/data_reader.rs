@@ -1,4 +1,5 @@
 use std::ptr::NonNull;
+use crate::DustDdsStatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use crate::infrastructure::qos::DustDdsDataReaderQos;
 use crate::subscription::subscriber::DustDdsSubscriber;
@@ -83,4 +84,18 @@ pub unsafe extern "C" fn dust_dds_subscriber_delete_datareader(
         }
         Err(e) => e.into(),
     }
+}
+
+/// Gets the StatusCondition associated with the DataReader.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datareader_get_statuscondition(
+    reader: Option<NonNull<DustDdsDataReader>>,
+) -> Option<NonNull<DustDdsStatusCondition>> {
+    let Some(reader) = reader else {
+        return None;
+    };
+
+    let reader_ref = unsafe { reader.as_ref() };
+    let condition = reader_ref.inner().get_statuscondition();
+    NonNull::new(Box::into_raw(Box::new(DustDdsStatusCondition::new(condition))))
 }

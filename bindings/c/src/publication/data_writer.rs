@@ -1,4 +1,5 @@
 use std::ptr::NonNull;
+use crate::DustDdsStatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use crate::infrastructure::qos::DustDdsDataWriterQos;
 use crate::publication::publisher::DustDdsPublisher;
@@ -81,6 +82,37 @@ pub unsafe extern "C" fn dust_dds_publisher_delete_datawriter(
             }
             RETCODE_OK
         }
+        Err(e) => e.into(),
+    }
+}
+
+/// Gets the StatusCondition associated with the DataWriter.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datawriter_get_statuscondition(
+    writer: Option<NonNull<DustDdsDataWriter>>,
+) -> Option<NonNull<DustDdsStatusCondition>> {
+    let Some(writer) = writer else {
+        return None;
+    };
+
+    let writer_ref = unsafe { writer.as_ref() };
+    let condition = writer_ref.inner().get_statuscondition();
+    NonNull::new(Box::into_raw(Box::new(DustDdsStatusCondition::new(condition))))
+}
+
+/// Waits for all acknowledged samples.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_datawriter_wait_for_acknowledgments(
+    writer: Option<NonNull<DustDdsDataWriter>>,
+    max_wait: crate::infrastructure::wait_set::DustDdsDuration,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+
+    let writer_ref = unsafe { writer.as_ref() };
+    match writer_ref.inner().wait_for_acknowledgments(max_wait.into()) {
+        Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
 }

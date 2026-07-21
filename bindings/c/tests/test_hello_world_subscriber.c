@@ -40,26 +40,43 @@ int main(void) {
     );
     assert(reader != NULL);
 
+    DustDdsStatusCondition* reader_cond = dust_dds_datareader_get_statuscondition(reader);
+    assert(reader_cond != NULL);
+    ReturnCode result = dust_dds_status_condition_set_enabled_statuses(reader_cond, DUST_DDS_STATUS_SUBSCRIPTION_MATCHED_STATUS);
+    assert(result == RETCODE_OK);
+
+    DustDdsWaitSet* wait_set = dust_dds_wait_set_new();
+    assert(wait_set != NULL);
+    result = dust_dds_wait_set_attach_condition(wait_set, reader_cond);
+    assert(result == RETCODE_OK);
+
+    printf("Subscriber waiting for discovery...\n");
+    DustDdsDuration wait_timeout1 = { 60, 0 };
+    result = dust_dds_wait_set_wait(wait_set, wait_timeout1);
+    assert(result == RETCODE_OK);
+
+    result = dust_dds_status_condition_set_enabled_statuses(reader_cond, DUST_DDS_STATUS_DATA_AVAILABLE_STATUS);
+    assert(result == RETCODE_OK);
+
     printf("Subscriber waiting for data...\n");
+    DustDdsDuration wait_timeout2 = { 30, 0 };
+    result = dust_dds_wait_set_wait(wait_set, wait_timeout2);
+    assert(result == RETCODE_OK);
+
     struct HelloWorld samples[1];
     int32_t received = 0;
-    ReturnCode result;
-    int success = 0;
-
-    for (int i = 0; i < 20; i++) {
-        result = dust_dds_datareader_read_HelloWorld(reader, samples, 1, &received);
-        if (result == RETCODE_OK && received > 0) {
-            printf("Received message: %s (count: %u)\n", samples[0].msg, samples[0].count);
-            HelloWorld_free_sample(&samples[0]);
-            success = 1;
-            break;
-        }
-        sleep(1);
-    }
-
-    assert(success == 1);
+    result = dust_dds_datareader_read_HelloWorld(reader, samples, 1, &received);
+    assert(result == RETCODE_OK && received > 0);
+    printf("Received message: %s (count: %u)\n", samples[0].msg, samples[0].count);
+    HelloWorld_free_sample(&samples[0]);
 
     // Clean up
+    result = dust_dds_wait_set_free(wait_set);
+    assert(result == RETCODE_OK);
+
+    result = dust_dds_status_condition_free(reader_cond);
+    assert(result == RETCODE_OK);
+
     result = dust_dds_subscriber_delete_datareader(subscriber, reader);
     assert(result == RETCODE_OK);
 

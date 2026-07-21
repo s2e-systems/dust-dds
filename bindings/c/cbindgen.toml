@@ -15,8 +15,3 @@ after_includes = """
 #define DUST_DDS_TOPIC_QOS_DEFAULT NULL
 """
 
-
-
-
-
-
