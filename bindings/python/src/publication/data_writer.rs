@@ -51,7 +51,7 @@ impl DataWriter {
     ) -> PyResult<Option<InstanceHandle>> {
         Ok(self
             .0
-            .register_instance(&convert_python_instance_to_dynamic_data(instance)?.into())
+            .register_instance(convert_python_instance_to_dynamic_data(instance)?.into())
             .map_err(into_pyerr)?
             .map(InstanceHandle::from))
     }
@@ -64,7 +64,7 @@ impl DataWriter {
         Ok(self
             .0
             .register_instance_w_timestamp(
-                &convert_python_instance_to_dynamic_data(instance)?.into(),
+                convert_python_instance_to_dynamic_data(instance)?.into(),
                 timestamp.into(),
             )
             .map_err(into_pyerr)?

@@ -170,6 +170,33 @@ impl DcpsDomainParticipant {
             .cloned()
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn register_instance(
+        &mut self,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
+        dynamic_data: &DynamicData<'static>,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        data_writer.register_w_timestamp(dynamic_data, timestamp)
+    }
+
     #[tracing::instrument(skip(self, runtime))]
     pub fn unregister_instance(
         &mut self,
@@ -244,8 +271,9 @@ impl DcpsDomainParticipant {
         };
 
         Ok(data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
+            .registered_instance_info
+            .iter()
+            .any(|x| x.instance_handle == instance_handle)
             .then_some(instance_handle))
     }
 
@@ -307,9 +335,9 @@ impl DcpsDomainParticipant {
 
         if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
             if let Some(s) = data_writer
-                .instance_samples
+                .registered_instance_info
                 .iter_mut()
-                .find(|x| x.instance == instance_handle)
+                .find(|x| x.instance_handle == instance_handle)
             {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
