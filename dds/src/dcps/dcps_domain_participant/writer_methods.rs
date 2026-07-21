@@ -271,8 +271,9 @@ impl DcpsDomainParticipant {
         };
 
         Ok(data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
+            .registered_instance_info
+            .iter()
+            .any(|x| x.instance_handle == instance_handle)
             .then_some(instance_handle))
     }
 
@@ -334,9 +335,9 @@ impl DcpsDomainParticipant {
 
         if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
             if let Some(s) = data_writer
-                .instance_samples
+                .registered_instance_info
                 .iter_mut()
-                .find(|x| x.instance == instance_handle)
+                .find(|x| x.instance_handle == instance_handle)
             {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {

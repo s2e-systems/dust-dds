@@ -353,12 +353,17 @@ impl DcpsDomainParticipant {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-                    for instance_publication_time in data_writer
-                        .instance_publication_time
+                    for instance in data_writer
+                        .registered_instance_info
                         .iter_mut()
-                        .filter(|x| now - x.last_write_time > deadline)
+                        .filter(|x| match x.last_write_time {
+                            Some(t) => now - t > deadline,
+                            None => false,
+                        })
                     {
-                        instance_publication_time.last_write_time += deadline;
+                        if let Some(t) = &mut instance.last_write_time {
+                            *t += deadline;
+                        }
                         let the_participant = DomainParticipantAsync::new(
                             self.dcps_sender,
                             self.domain_participant.domain_id,
@@ -385,7 +390,7 @@ impl DcpsDomainParticipant {
                         );
                         data_writer
                             .offered_deadline_missed_status
-                            .last_instance_handle = instance_publication_time.instance;
+                            .last_instance_handle = instance.instance_handle;
                         data_writer.offered_deadline_missed_status.total_count += 1;
                         data_writer
                             .offered_deadline_missed_status
