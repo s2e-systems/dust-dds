@@ -257,6 +257,10 @@ impl RtpsStatefulWriter {
             }
         }
     }
+
+    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        &mut self.changes
+    }
 }
 
 impl RtpsReaderProxy {

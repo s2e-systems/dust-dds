@@ -685,6 +685,27 @@ impl DcpsDomainParticipant {
             .min()
     }
 
+    pub fn time_until_stale_writer_sample(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_publisher_list
+            .iter()
+            .flat_map(|publisher| publisher.data_writer_list.iter())
+            .filter_map(|data_writer| {
+                if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
+                    data_writer
+                        .transport_writer
+                        .changes_mut()
+                        .iter()
+                        .filter_map(|cc| cc.source_timestamp)
+                        .map(|source_timestamp| now - (source_timestamp + lifespan))
+                        .min()
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
     pub fn get_instance_handle(&self) -> &InstanceHandle {
         &self.domain_participant.instance_handle
     }
@@ -1104,6 +1125,13 @@ impl RtpsWriterKind {
         match self {
             RtpsWriterKind::Stateful(w) => w.remove_change(sequence_number),
             RtpsWriterKind::Stateless(w) => w.remove_change(sequence_number),
+        }
+    }
+
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        match self {
+            RtpsWriterKind::Stateful(w) => w.changes_mut(),
+            RtpsWriterKind::Stateless(w) => w.changes_mut(),
         }
     }
 }
