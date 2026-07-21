@@ -317,6 +317,7 @@ mod tests {
             dust_dds_dynamic_type_builder_add_member,
             dust_dds_dynamic_type_builder_create_struct, dust_dds_dynamic_type_builder_build,
             dust_dds_dynamic_type_free, dust_dds_dynamic_type_get_primitive_type,
+            TYPE_KIND_INT32,
         };
 
         let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
@@ -334,7 +335,7 @@ mod tests {
         assert!(builder.is_some());
 
         let field_name = std::ffi::CString::new("a").unwrap();
-        let int32_type = unsafe { dust_dds_dynamic_type_get_primitive_type(4) }; // TypeKind::INT32
+        let int32_type = unsafe { dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
         assert!(int32_type.is_some());
 
         let res = unsafe {
