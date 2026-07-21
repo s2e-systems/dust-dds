@@ -7,6 +7,7 @@ fn basic_types() {
     #include <stdbool.h>
     #include <stdint.h>
     #include <stddef.h>
+    #include "dust_dds.h"
 
     struct BasicTypes {
         bool a;

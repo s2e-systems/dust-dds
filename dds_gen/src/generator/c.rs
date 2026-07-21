@@ -240,7 +240,7 @@ impl<'a> CGenerator<'a> {
 
     fn specification(&mut self, pair: IdlPair) {
         self.writer
-            .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n\n");
+            .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n    #include \"dust_dds.h\"\n\n");
         for definition in pair.into_inner() {
             self.generate(definition);
         }
@@ -486,4 +486,3 @@ impl<'a> CGenerator<'a> {
         self.writer.push_str("bool")
     }
 }
-
