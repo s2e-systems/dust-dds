@@ -3,6 +3,9 @@ name: OMG XTypes interoperability
 on:
   workflow_dispatch:
 
+env:
+  dds_xtypes_rep_ref: feature/update-dust-dds
+
 jobs:
   create_bin_release:
     name: Create binary release
@@ -16,7 +19,7 @@ jobs:
       uses: actions/checkout@v7
       with:
         repository: s2e-systems/dds-xtypes
-        ref: feature/update-dust-dds
+        ref: ${{ env.dds_xtypes_rep_ref }}
         path: dds-xtypes
     - name: Build executable
       run: cargo build --package dust_dds_test_main --release --manifest-path dds-xtypes/src/rs/DustDDS/Cargo.toml --config patch.crates-io.dust_dds.path="'dust-dds/dds'"
@@ -59,14 +62,11 @@ jobs:
         #   subscriber: dust_dds
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v7
     - name: Checkout omg dds-xtypes
       uses: actions/checkout@v7
       with:
         repository: s2e-systems/dds-xtypes
-        ref: feature/update-dust-dds
-        path: dds-xtypes
+        ref: ${{ env.dds_xtypes_rep_ref }}
     - uses: actions/setup-python@v7
       with:
         python-version: '3.12.13'
@@ -91,27 +91,27 @@ jobs:
     - name: List executables directory
       run: ls -l executables
     - name: Install omg-dds dds-xtypes Python requirements
-      run: pip install --requirement dds-xtypes/requirements.txt
+      run: pip install --requirement requirements.txt
     - name: Create reports directory
       run: mkdir reports
     # - name: Run Interoperability script
     #   timeout-minutes: 30
-    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 1
+    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 1
     # - name: Run Interoperability script
     #   timeout-minutes: 30
-    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 1
+    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 1
     # - name: Run Interoperability script
     #   timeout-minutes: 30
-    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 2
+    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 2
     - name: Run Interoperability script
       timeout-minutes: 30
-      run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2
+      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2
     # - name: Run Interoperability script
     #   timeout-minutes: 30
-    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 1
+    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 1
     # - name: Run Interoperability script
     #   timeout-minutes: 30
-    #   run: python3 ./dds-xtypes/interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 2
+    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 2
 
     - name: Upload reports
       uses: actions/upload-artifact@v7
@@ -134,19 +134,18 @@ jobs:
       uses: actions/checkout@v7
       with:
         repository: s2e-systems/dds-xtypes
-        ref: feature/update-dust-dds
-        path: dds-xtypes
+        ref: ${{ env.dds_xtypes_rep_ref }}
     - uses: actions/setup-python@v7
       with:
         python-version: '3.12.13'
     - name: Install omg-dds dds-xtypes Python requirements
-      run: pip install --requirement dds-xtypes/requirements.txt
+      run: pip install --requirement requirements.txt
     - name: merge reports
       run: junitparser merge *.xml junit_interoperability_report.xml
     - name: List directory
       run: ls -l
     - name: Generate xlsx report
-      run: python3 ./dds-xtypes/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
+      run: python3 ./generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: XUnit
       uses: AutoModality/action-xunit-viewer@v1
       with:
