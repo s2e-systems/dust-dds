@@ -52,6 +52,14 @@ impl DcpsDomainParticipant {
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
+                    if let Some(matched_participant) = self
+                        .domain_participant
+                        .discovered_participant_list
+                        .iter_mut()
+                        .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                    {
+                        matched_participant.last_communication_timestamp = runtime.clock().now();
+                    }
                     let (topic_name, type_name) = if let Some(content_filtered_topic) = self
                         .domain_participant
                         .content_filtered_topic_list
@@ -357,29 +365,6 @@ impl DcpsDomainParticipant {
                         Err(_) => (),
                     }
                 }
-            }
-        }
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn remove_writer_change(
-        &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        sequence_number: i64,
-    ) {
-        if let Some(p) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
-        {
-            if let Some(dw) = p
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.instance_handle == data_writer_handle)
-            {
-                dw.transport_writer.remove_change(sequence_number);
             }
         }
     }
