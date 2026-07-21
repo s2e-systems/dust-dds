@@ -694,10 +694,10 @@ impl DcpsDomainParticipant {
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
                     data_writer
                         .transport_writer
-                        .changes_mut()
+                        .changes()
                         .iter()
                         .filter_map(|cc| cc.source_timestamp)
-                        .map(|source_timestamp| now - (source_timestamp + lifespan))
+                        .map(|source_timestamp| Time::from(source_timestamp) + lifespan - now)
                         .min()
                 } else {
                     None
@@ -1128,7 +1128,14 @@ impl RtpsWriterKind {
         }
     }
 
-    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+    pub(crate) fn changes(&self) -> &[CacheChange] {
+        match self {
+            RtpsWriterKind::Stateful(w) => w.changes(),
+            RtpsWriterKind::Stateless(w) => w.changes(),
+        }
+    }
+
+    pub(crate) fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         match self {
             RtpsWriterKind::Stateful(w) => w.changes_mut(),
             RtpsWriterKind::Stateless(w) => w.changes_mut(),
@@ -2356,4 +2363,19 @@ fn serialize<'a>(
             panic!("Invalid data representation")
         }?,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_time_until_stale_writer_sample_calculation() {
+        let source_timestamp = crate::transport::types::Time::new(100, 0);
+        let lifespan = Duration::new(10, 0);
+        let now = Time::new(105, 0);
+
+        let remaining = Time::from(source_timestamp) + lifespan - now;
+        assert_eq!(remaining, Duration::new(5, 0));
+    }
 }

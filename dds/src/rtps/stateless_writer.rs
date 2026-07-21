@@ -102,6 +102,10 @@ impl RtpsStatelessWriter {
         &mut self.reader_locators
     }
 
+    pub fn changes(&self) -> &[CacheChange] {
+        &self.changes
+    }
+
     pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         &mut self.changes
     }
