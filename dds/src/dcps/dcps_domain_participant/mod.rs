@@ -674,9 +674,10 @@ impl DcpsDomainParticipant {
             .filter_map(|data_writer| {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
                     data_writer
-                        .instance_publication_time
+                        .registered_instance_info
                         .iter()
-                        .map(|instance| deadline - (now - instance.last_write_time))
+                        .filter_map(|instance| instance.last_write_time)
+                        .map(|last_write_time| deadline - (now - last_write_time))
                         .min()
                 } else {
                     None
@@ -1143,13 +1144,9 @@ impl RtpsWriterKind {
     }
 }
 
-struct InstancePublicationTime {
-    instance: InstanceHandle,
-    last_write_time: Time,
-}
-
-struct InstanceSamples {
-    instance: InstanceHandle,
+struct RegisteredInstanceInfo {
+    instance_handle: InstanceHandle,
+    last_write_time: Option<Time>,
     samples: VecDeque<i64>,
 }
 
@@ -1174,10 +1171,8 @@ struct DataWriterEntity {
     listener_mask: StatusMask,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
-    registered_instance_list: Vec<InstanceHandle>,
+    registered_instance_info: Vec<RegisteredInstanceInfo>,
     offered_deadline_missed_status: OfferedDeadlineMissedStatus,
-    instance_publication_time: Vec<InstancePublicationTime>,
-    instance_samples: Vec<InstanceSamples>,
     /// Member used for notifying reliable writers which are waiting to send
     /// their samples without losing data
     acknowledgement_notification: Option<OneshotSender<()>>,
@@ -1213,10 +1208,8 @@ impl DataWriterEntity {
             listener_mask,
             last_change_sequence_number: 0,
             qos,
-            registered_instance_list: Vec::new(),
+            registered_instance_info: Vec::new(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
-            instance_publication_time: Vec::new(),
-            instance_samples: Vec::new(),
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),
         }
@@ -1232,23 +1225,17 @@ impl DataWriterEntity {
         runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self
-            .registered_instance_list
-            .contains(&sample_instance_handle)
+            .registered_instance_info
+            .iter()
+            .any(|x| x.instance_handle == sample_instance_handle)
         {
-            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_list.push(sample_instance_handle);
+            if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
+                self.registered_instance_info.push(RegisteredInstanceInfo {
+                    instance_handle: sample_instance_handle,
+                    last_write_time: None,
+                    samples: VecDeque::new(),
+                });
             } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_instances) = self.qos.resource_limits.max_instances {
-            if !self
-                .instance_samples
-                .iter()
-                .any(|x| x.instance == sample_instance_handle)
-                && self.instance_samples.len() == max_instances as usize
-            {
                 return Err(DdsError::OutOfResources);
             }
         }
@@ -1263,9 +1250,9 @@ impl DataWriterEntity {
                     if depth as i32 <= max_samples_per_instance => {}
                 _ => {
                     if let Some(s) = self
-                        .instance_samples
+                        .registered_instance_info
                         .iter()
-                        .find(|x| x.instance == sample_instance_handle)
+                        .find(|x| x.instance_handle == sample_instance_handle)
                     {
                         // Only Alive changes count towards the resource limits
                         if s.samples.len() >= max_samples_per_instance as usize {
@@ -1278,7 +1265,7 @@ impl DataWriterEntity {
 
         if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
             let total_samples = self
-                .instance_samples
+                .registered_instance_info
                 .iter()
                 .fold(0, |acc, x| acc + x.samples.len());
 
@@ -1297,38 +1284,24 @@ impl DataWriterEntity {
             data_value: serialized_data.into(),
         };
 
-        match self
-            .instance_publication_time
+        let instance_info = self
+            .registered_instance_info
             .iter_mut()
-            .find(|x| x.instance == sample_instance_handle)
-        {
-            Some(x) => {
-                if x.last_write_time < sample_timestamp {
-                    x.last_write_time = sample_timestamp;
+            .find(|x| x.instance_handle == sample_instance_handle)
+            .expect("Instance info must exist");
+
+        match &mut instance_info.last_write_time {
+            Some(last_write_time) => {
+                if *last_write_time < sample_timestamp {
+                    *last_write_time = sample_timestamp;
                 }
             }
-            None => self
-                .instance_publication_time
-                .push(InstancePublicationTime {
-                    instance: sample_instance_handle,
-                    last_write_time: sample_timestamp,
-                }),
-        }
-
-        match self
-            .instance_samples
-            .iter_mut()
-            .find(|x| x.instance == sample_instance_handle)
-        {
-            Some(s) => s.samples.push_back(change.sequence_number),
             None => {
-                let s = InstanceSamples {
-                    instance: sample_instance_handle,
-                    samples: VecDeque::from([change.sequence_number]),
-                };
-                self.instance_samples.push(s);
+                instance_info.last_write_time = Some(sample_timestamp);
             }
         }
+
+        instance_info.samples.push_back(change.sequence_number);
 
         if let DurationKind::Finite(lifespan_duration) = self.qos.lifespan.duration {
             let duration_until_expired = sample_timestamp - now + lifespan_duration;
@@ -1362,20 +1335,18 @@ impl DataWriterEntity {
 
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
 
-        if !self.registered_instance_list.contains(&instance_handle) {
+        let Some(instance_info) = self
+            .registered_instance_info
+            .iter_mut()
+            .find(|x| x.instance_handle == instance_handle)
+        else {
             return Err(DdsError::BadParameter);
-        }
+        };
+
+        instance_info.last_write_time = None;
 
         let serialized_key =
             serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
-
-        if let Some(i) = self
-            .instance_publication_time
-            .iter()
-            .position(|x| x.instance == instance_handle)
-        {
-            self.instance_publication_time.remove(i);
-        }
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -1390,6 +1361,42 @@ impl DataWriterEntity {
             .add_change(cache_change, message_writer, runtime);
 
         Ok(())
+    }
+
+    fn register_w_timestamp(
+        &mut self,
+        dynamic_data: &DynamicData<'static>,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+
+        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
+
+        if let Some(instance_info) = self
+            .registered_instance_info
+            .iter_mut()
+            .find(|x| x.instance_handle == instance_handle)
+        {
+            instance_info.last_write_time = Some(timestamp);
+        } else if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
+            self.registered_instance_info.push(RegisteredInstanceInfo {
+                instance_handle,
+                last_write_time: Some(timestamp),
+                samples: VecDeque::new(),
+            });
+        } else {
+            return Err(DdsError::OutOfResources);
+        }
+
+        Ok(Some(instance_handle))
     }
 
     fn unregister_w_timestamp(
@@ -1410,17 +1417,15 @@ impl DataWriterEntity {
         }
 
         let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
-        if !self.registered_instance_list.contains(&instance_handle) {
+        let Some(instance_info) = self
+            .registered_instance_info
+            .iter_mut()
+            .find(|x| x.instance_handle == instance_handle)
+        else {
             return Err(DdsError::BadParameter);
-        }
+        };
 
-        if let Some(i) = self
-            .instance_publication_time
-            .iter()
-            .position(|x| x.instance == instance_handle)
-        {
-            self.instance_publication_time.remove(i);
-        }
+        instance_info.last_write_time = None;
 
         let serialized_key =
             serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
