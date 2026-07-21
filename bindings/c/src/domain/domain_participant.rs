@@ -30,6 +30,7 @@ impl DustDdsDomainParticipant {
 }
 
 /// Creates a new Publisher object.
+/// Passing NULL (`DUST_DDS_PUBLISHER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsPublisher on success, or NULL on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_create_publisher(
@@ -88,6 +89,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_publisher(
 }
 
 /// Creates a new Subscriber object.
+/// Passing NULL (`DUST_DDS_SUBSCRIBER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsSubscriber on success, or NULL on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_create_subscriber(

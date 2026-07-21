@@ -11,7 +11,7 @@ int main(void) {
     DustDdsDomainParticipant* participant = dust_dds_domain_participant_factory_create_participant(
         factory,
         0,
-        NULL
+        DUST_DDS_PARTICIPANT_QOS_DEFAULT
     );
     assert(participant != NULL);
 
@@ -51,8 +51,8 @@ int main(void) {
     );
     assert(participant != NULL);
 
-    // Test creating publisher and subscriber on participant
-    DustDdsPublisher* publisher = dust_dds_domain_participant_create_publisher(participant, NULL);
+    // Test creating publisher and subscriber on participant with default QoS macros and NULL
+    DustDdsPublisher* publisher = dust_dds_domain_participant_create_publisher(participant, DUST_DDS_PUBLISHER_QOS_DEFAULT);
     assert(publisher != NULL);
     result = dust_dds_domain_participant_delete_publisher(participant, publisher);
     assert(result == RETCODE_OK);
@@ -65,7 +65,7 @@ int main(void) {
     result = dust_dds_domain_participant_delete_publisher(participant, publisher);
     assert(result == RETCODE_OK);
 
-    DustDdsSubscriber* subscriber = dust_dds_domain_participant_create_subscriber(participant, NULL);
+    DustDdsSubscriber* subscriber = dust_dds_domain_participant_create_subscriber(participant, DUST_DDS_SUBSCRIBER_QOS_DEFAULT);
     assert(subscriber != NULL);
     result = dust_dds_domain_participant_delete_subscriber(participant, subscriber);
     assert(result == RETCODE_OK);

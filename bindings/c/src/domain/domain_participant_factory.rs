@@ -28,6 +28,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_get_instance()
 }
 
 /// Creates a new DomainParticipant object.
+/// Passing NULL (`DUST_DDS_PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_factory_create_participant(
