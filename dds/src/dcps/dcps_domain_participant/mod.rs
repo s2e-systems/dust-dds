@@ -280,7 +280,7 @@ struct DiscoveredParticipantInfo {
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
     lease_duration: Duration,
-    reception_timestamp: Time,
+    last_communication_timestamp: Time,
 }
 
 fn poll_timeout<T>(
@@ -643,7 +643,7 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .discovered_participant_list
             .iter()
-            .map(|dp| dp.lease_duration - (now - dp.reception_timestamp))
+            .map(|dp| dp.lease_duration - (now - dp.last_communication_timestamp))
             .min()
     }
 

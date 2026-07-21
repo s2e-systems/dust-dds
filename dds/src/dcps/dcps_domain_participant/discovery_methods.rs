@@ -216,7 +216,7 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find_map(|x| {
-                if now - x.reception_timestamp > x.lease_duration {
+                if now - x.last_communication_timestamp > x.lease_duration {
                     Some(InstanceHandle::new(x.dds_participant_data.key.value))
                 } else {
                     None
@@ -2224,7 +2224,7 @@ impl DcpsDomainParticipant {
                     .default_multicast_locator_list
                     .clone(),
                 lease_duration: discovered_participant_data.lease_duration,
-                reception_timestamp: runtime.clock().now(),
+                last_communication_timestamp: runtime.clock().now(),
             };
             match self
                 .domain_participant
