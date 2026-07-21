@@ -232,9 +232,9 @@ impl<'a> CGenerator<'a> {
             Rule::annotation_member => todo!(),
             Rule::annotation_member_type => todo!(),
             Rule::any_const_type => todo!(),
-            Rule::annotation_appl => todo!(),
-            Rule::annotation_appl_params => todo!(),
-            Rule::annotation_appl_param => todo!(),
+            Rule::annotation_appl => (),
+            Rule::annotation_appl_params => (),
+            Rule::annotation_appl_param => (),
         }
     }
 
@@ -282,6 +282,45 @@ impl<'a> CGenerator<'a> {
         )
     }
 
+    /// Returns the extensibility annotation string for a struct, if present.
+    /// Returns `None` when no extensibility annotation is found (Final by convention
+    /// in the DDS type system, so no explicit call is needed).
+    fn get_extensibility_annotation(inner_pairs: pest::iterators::Pairs<Rule>) -> Option<&'static str> {
+        for annotation_appl in inner_pairs.filter(|p| p.as_rule() == Rule::annotation_appl) {
+            let inner = annotation_appl.into_inner();
+            if let Some(scoped_name) = inner.clone().find(|p| p.as_rule() == Rule::scoped_name) {
+                if let Some(ident) = scoped_name.into_inner().next() {
+                    match ident.as_str() {
+                        "appendable" => return Some("EXTENSIBILITY_KIND_APPENDABLE"),
+                        "mutable" => return Some("EXTENSIBILITY_KIND_MUTABLE"),
+                        "final" => return Some("EXTENSIBILITY_KIND_FINAL"),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns `(is_key, is_optional)` for a member based on its annotations.
+    fn get_member_annotations(inner_pairs: pest::iterators::Pairs<Rule>) -> (bool, bool) {
+        let mut is_key = false;
+        let mut is_optional = false;
+        for annotation_appl in inner_pairs.filter(|p| p.as_rule() == Rule::annotation_appl) {
+            let inner = annotation_appl.into_inner();
+            if let Some(scoped_name) = inner.clone().find(|p| p.as_rule() == Rule::scoped_name) {
+                if let Some(ident) = scoped_name.into_inner().next() {
+                    match ident.as_str() {
+                        "key" => is_key = true,
+                        "optional" => is_optional = true,
+                        _ => {}
+                    }
+                }
+            }
+        }
+        (is_key, is_optional)
+    }
+
     fn struct_def(&mut self, pair: IdlPair) {
         let inner_pairs = pair.into_inner();
         let identifier = inner_pairs
@@ -301,6 +340,7 @@ impl<'a> CGenerator<'a> {
 
         let struct_name = identifier.as_str();
 
+        // --- get_type() ---
         self.writer
             .push_str("\n    static inline const DustDdsDynamicType* ");
         self.writer.push_str(struct_name);
@@ -313,8 +353,17 @@ impl<'a> CGenerator<'a> {
             struct_name
         ));
 
+        // Emit extensibility setter if an annotation is present
+        if let Some(ext) = Self::get_extensibility_annotation(inner_pairs.clone()) {
+            self.writer.push_str(&format!(
+                "            dust_dds_dynamic_type_builder_set_extensibility(builder, {});\n",
+                ext
+            ));
+        }
+
+        // Collect members with their types and annotation flags
         let mut members = Vec::new();
-        let mut member_id = 0;
+        let mut member_id = 0u32;
         for member in inner_pairs.clone().filter(|p| p.as_rule() == Rule::member) {
             let m_inner = member.into_inner();
             let type_spec = m_inner
@@ -325,6 +374,8 @@ impl<'a> CGenerator<'a> {
                 .clone()
                 .find(|p| p.as_rule() == Rule::declarators)
                 .expect("Declarator must exist according to grammar");
+            let (is_key, is_optional) =
+                Self::get_member_annotations(m_inner.clone());
 
             for declarator in declarators.into_inner() {
                 let array_or_simple_declarator = declarator
@@ -335,32 +386,53 @@ impl<'a> CGenerator<'a> {
                     Rule::simple_declarator => array_or_simple_declarator.as_str().to_string(),
                     _ => todo!(),
                 };
-                members.push((member_id, type_spec.clone(), field_name));
+                members.push((member_id, type_spec.clone(), field_name, is_key, is_optional));
                 member_id += 1;
             }
         }
 
-        for (member_id, type_spec, field_name) in &members {
+        // Emit add_member calls using DustDdsMemberDescriptor
+        for (member_id, type_spec, field_name, is_key, is_optional) in &members {
             let type_expr = self.get_dynamic_type_expr(type_spec.clone());
-            if type_expr.contains("create_string_type") {
-                self.writer.push_str("            {\n");
+            let needs_type_var = type_expr.contains("create_string_type")
+                || type_expr.contains("_get_type");
+
+            self.writer.push_str("            {\n");
+            if needs_type_var {
                 self.writer.push_str(&format!(
                     "                DustDdsDynamicType* member_type = {};\n",
                     type_expr
                 ));
                 self.writer.push_str(&format!(
-                    "                dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, member_type);\n",
+                    "                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new(\"{}\", {}, member_type);\n",
                     field_name, member_id
                 ));
-                self.writer
-                    .push_str("                dust_dds_dynamic_type_free(member_type);\n");
-                self.writer.push_str("            }\n");
             } else {
                 self.writer.push_str(&format!(
-                    "            dust_dds_dynamic_type_builder_add_member(builder, \"{}\", {}, {});\n",
+                    "                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new(\"{}\", {}, {});\n",
                     field_name, member_id, type_expr
                 ));
             }
+            if *is_key {
+                self.writer.push_str(
+                    "                dust_dds_member_descriptor_set_is_key(member, true);\n",
+                );
+            }
+            if *is_optional {
+                self.writer.push_str(
+                    "                dust_dds_member_descriptor_set_is_optional(member, true);\n",
+                );
+            }
+            self.writer.push_str(
+                "                dust_dds_dynamic_type_builder_add_member(builder, member);\n",
+            );
+            self.writer
+                .push_str("                dust_dds_member_descriptor_free(member);\n");
+            if needs_type_var {
+                self.writer
+                    .push_str("                dust_dds_dynamic_type_free(member_type);\n");
+            }
+            self.writer.push_str("            }\n");
         }
 
         self.writer
@@ -369,11 +441,12 @@ impl<'a> CGenerator<'a> {
         self.writer.push_str("        return type;\n");
         self.writer.push_str("    }\n");
 
+        // --- create_sample / create_dynamic_sample / free_sample ---
         let mut create_sample_code = String::new();
         let mut create_dynamic_sample_code = String::new();
         let mut free_sample_code = String::new();
 
-        for (member_id, type_spec, field_name) in &members {
+        for (member_id, type_spec, field_name, _is_key, _is_optional) in &members {
             let (leaf_rule, leaf_str) = self.get_type_leaf(type_spec.clone());
             match leaf_rule {
                 Rule::boolean_type => {

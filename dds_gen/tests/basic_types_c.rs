@@ -32,28 +32,80 @@ fn basic_types() {
         static const DustDdsDynamicType* type = NULL;
         if (type == NULL) {
             DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("BasicTypes");
-            dust_dds_dynamic_type_builder_add_member(builder, "a", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN));
-            dust_dds_dynamic_type_builder_add_member(builder, "b", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
-            dust_dds_dynamic_type_builder_add_member(builder, "c", 2, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
-            dust_dds_dynamic_type_builder_add_member(builder, "d", 3, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8));
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("a", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("b", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("c", 2, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("d", 3, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
             {
                 DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
-                dust_dds_dynamic_type_builder_add_member(builder, "e", 4, member_type);
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("e", 4, member_type);
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
                 dust_dds_dynamic_type_free(member_type);
             }
             {
                 DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
-                dust_dds_dynamic_type_builder_add_member(builder, "f", 5, member_type);
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("f", 5, member_type);
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
                 dust_dds_dynamic_type_free(member_type);
             }
-            dust_dds_dynamic_type_builder_add_member(builder, "g", 6, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16));
-            dust_dds_dynamic_type_builder_add_member(builder, "h", 7, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16));
-            dust_dds_dynamic_type_builder_add_member(builder, "i", 8, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32));
-            dust_dds_dynamic_type_builder_add_member(builder, "j", 9, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32));
-            dust_dds_dynamic_type_builder_add_member(builder, "k", 10, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64));
-            dust_dds_dynamic_type_builder_add_member(builder, "l", 11, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64));
-            dust_dds_dynamic_type_builder_add_member(builder, "m", 12, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32));
-            dust_dds_dynamic_type_builder_add_member(builder, "n", 13, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("g", 6, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("h", 7, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("i", 8, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("j", 9, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("k", 10, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("l", 11, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("m", 12, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
+            {
+                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("n", 13, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
+                dust_dds_dynamic_type_builder_add_member(builder, member);
+                dust_dds_member_descriptor_free(member);
+            }
             type = dust_dds_dynamic_type_builder_build(builder);
         }
         return type;

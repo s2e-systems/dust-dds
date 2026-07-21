@@ -35,6 +35,11 @@ pub const TYPE_KIND_SEQUENCE: u8 = 0x60;
 pub const TYPE_KIND_ARRAY: u8 = 0x61;
 pub const TYPE_KIND_MAP: u8 = 0x62;
 
+// Extensibility kind constants (matching DDS spec ExtensibilityKind)
+pub const EXTENSIBILITY_KIND_FINAL: u8 = 0;
+pub const EXTENSIBILITY_KIND_APPENDABLE: u8 = 1;
+pub const EXTENSIBILITY_KIND_MUTABLE: u8 = 2;
+
 /// cbindgen:opaque
 pub struct DustDdsDynamicType(pub(crate) DynamicType<'static>);
 
@@ -59,6 +64,31 @@ impl DustDdsDynamicTypeBuilder {
     pub fn inner(&self) -> &DynamicTypeBuilder {
         &self.0
     }
+}
+
+/// Opaque C wrapper around the DDS MemberDescriptor valuetype.
+///
+/// Mirrors the DDS spec:
+/// ```text
+/// valuetype MemberDescriptor {
+///   public ObjectName name;
+///   public MemberId   id;
+///   public DynamicType type;
+///   public boolean    is_key;
+///   public boolean    is_optional;
+///   public boolean    is_must_understand;
+///   ...
+/// };
+/// ```
+///
+/// cbindgen:opaque
+pub struct DustDdsMemberDescriptor {
+    pub(crate) name: &'static str,
+    pub(crate) id: u32,
+    pub(crate) r#type: DynamicType<'static>,
+    pub(crate) is_key: bool,
+    pub(crate) is_optional: bool,
+    pub(crate) is_must_understand: bool,
 }
 
 // Compile-time static instances of DustDdsDynamicType for standard primitive types
@@ -171,49 +201,65 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_create_struct(
     ))))
 }
 
-/// Adds a member to a structure being built.
-/// Returns RETCODE_OK on success, or standard DDS return code on failure.
+/// Sets the extensibility kind on a DynamicTypeBuilder.
+///
+/// `kind`: one of `EXTENSIBILITY_KIND_FINAL` (0), `EXTENSIBILITY_KIND_APPENDABLE` (1),
+/// or `EXTENSIBILITY_KIND_MUTABLE` (2).
+///
+/// Returns RETCODE_OK on success, RETCODE_BAD_PARAMETER on invalid arguments.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_add_member(
+pub unsafe extern "C" fn dust_dds_dynamic_type_builder_set_extensibility(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
-    name: *const std::os::raw::c_char,
-    id: u32,
-    r#type: Option<NonNull<DustDdsDynamicType>>,
+    kind: u8,
 ) -> ReturnCode {
     let Some(mut builder) = builder else {
         return RETCODE_BAD_PARAMETER;
     };
-    let Some(r#type) = r#type else {
+    let extensibility = match kind {
+        EXTENSIBILITY_KIND_FINAL => ExtensibilityKind::Final,
+        EXTENSIBILITY_KIND_APPENDABLE => ExtensibilityKind::Appendable,
+        EXTENSIBILITY_KIND_MUTABLE => ExtensibilityKind::Mutable,
+        _ => return RETCODE_BAD_PARAMETER,
+    };
+    unsafe { builder.as_mut() }.0.set_extensibility(extensibility);
+    RETCODE_OK
+}
+
+/// Adds a member described by `descriptor` to a structure being built.
+///
+/// Mirrors the DDS spec `add_member(in MemberDescriptor descriptor)` interface.
+/// The caller retains ownership of `descriptor` and must call
+/// `dust_dds_member_descriptor_free` when done.
+///
+/// Returns RETCODE_OK on success, or a standard DDS return code on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_type_builder_add_member(
+    builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
+    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
+) -> ReturnCode {
+    let Some(mut builder) = builder else {
         return RETCODE_BAD_PARAMETER;
     };
-    if name.is_null() {
+    let Some(descriptor) = descriptor else {
         return RETCODE_BAD_PARAMETER;
-    }
-    let name_str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return RETCODE_BAD_PARAMETER,
     };
-
-    let type_ref = unsafe { r#type.as_ref() };
-    let builder_ref = unsafe { builder.as_mut() };
-
+    let desc_ref = unsafe { descriptor.as_ref() };
     let member_descriptor = MemberDescriptor {
-        name: name_str.to_string().leak(),
-        id,
-        r#type: type_ref.0,
+        name: desc_ref.name,
+        id: desc_ref.id,
+        r#type: desc_ref.r#type,
         default_value: None,
-        index: id,
+        index: desc_ref.id,
         label: &[],
         try_construct_kind: TryConstructKind::UseDefault,
-        is_key: false,
-        is_optional: false,
-        is_must_understand: true,
+        is_key: desc_ref.is_key,
+        is_optional: desc_ref.is_optional,
+        is_must_understand: desc_ref.is_must_understand,
         is_shared: false,
         is_default_label: false,
         is_external: false,
     };
-
-    match builder_ref.0.add_member(member_descriptor) {
+    match unsafe { builder.as_mut() }.0.add_member(member_descriptor) {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -243,6 +289,82 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_free(
     if let Some(b) = builder {
         unsafe {
             drop(Box::from_raw(b.as_ptr()));
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MemberDescriptor lifecycle
+// ---------------------------------------------------------------------------
+
+/// Creates a new `DustDdsMemberDescriptor` with the given name, member ID, and type.
+///
+/// Defaults: `is_key = false`, `is_optional = false`, `is_must_understand = true`.
+/// The `type` pointer must remain valid for the lifetime of the descriptor.
+///
+/// Returns NULL on failure (NULL arguments or invalid UTF-8 name).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_member_descriptor_new(
+    name: *const std::os::raw::c_char,
+    id: u32,
+    r#type: Option<NonNull<DustDdsDynamicType>>,
+) -> Option<NonNull<DustDdsMemberDescriptor>> {
+    if name.is_null() {
+        return None;
+    }
+    let Some(r#type) = r#type else {
+        return None;
+    };
+    let name_str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s.to_string().leak() as &'static str,
+        Err(_) => return None,
+    };
+    let desc = DustDdsMemberDescriptor {
+        name: name_str,
+        id,
+        r#type: unsafe { r#type.as_ref() }.0,
+        is_key: false,
+        is_optional: false,
+        is_must_understand: true,
+    };
+    NonNull::new(Box::into_raw(Box::new(desc)))
+}
+
+/// Sets the `is_key` flag on a `DustDdsMemberDescriptor`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_member_descriptor_set_is_key(
+    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
+    is_key: bool,
+) {
+    if let Some(mut d) = descriptor {
+        unsafe { d.as_mut() }.is_key = is_key;
+    }
+}
+
+/// Sets the `is_optional` flag on a `DustDdsMemberDescriptor`.
+/// Setting `is_optional = true` also clears `is_must_understand`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_member_descriptor_set_is_optional(
+    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
+    is_optional: bool,
+) {
+    if let Some(mut d) = descriptor {
+        let desc = unsafe { d.as_mut() };
+        desc.is_optional = is_optional;
+        if is_optional {
+            desc.is_must_understand = false;
+        }
+    }
+}
+
+/// Frees a `DustDdsMemberDescriptor` created by `dust_dds_member_descriptor_new`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_member_descriptor_free(
+    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
+) {
+    if let Some(d) = descriptor {
+        unsafe {
+            drop(Box::from_raw(d.as_ptr()));
         }
     }
 }
