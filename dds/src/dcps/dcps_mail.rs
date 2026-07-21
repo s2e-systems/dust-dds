@@ -591,12 +591,6 @@ pub enum StatusConditionMail {
 }
 
 pub enum MessageServiceMail {
-    RemoveWriterChange {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        sequence_number: i64,
-    },
     NotifyAcknowledgments {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,

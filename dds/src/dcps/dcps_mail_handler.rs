@@ -1034,16 +1034,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         )
                     }),
             ),
-            DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
-                participant_handle,
-                publisher_handle,
-                data_writer_handle,
-                sequence_number,
-            }) => {
-                if let Ok(p) = self.find_participant(&participant_handle) {
-                    p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
-                }
-            }
             DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionEnabledStatuses {
                 entity,
                 reply_sender,

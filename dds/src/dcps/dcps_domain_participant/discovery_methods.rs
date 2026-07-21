@@ -216,7 +216,7 @@ impl DcpsDomainParticipant {
             .discovered_participant_list
             .iter()
             .find_map(|x| {
-                if now - x.reception_timestamp > x.lease_duration {
+                if now - x.last_communication_timestamp > x.lease_duration {
                     Some(InstanceHandle::new(x.dds_participant_data.key.value))
                 } else {
                     None
@@ -435,6 +435,22 @@ impl DcpsDomainParticipant {
                             .status_condition
                             .add_communication_state(StatusKind::OfferedDeadlineMissed);
                     }
+                }
+            }
+        }
+    }
+
+    pub fn remove_stale_writer_samples(&mut self, now: Time) {
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
+                    data_writer.transport_writer.changes_mut().retain(|cc| {
+                        if let Some(timestamp) = &cc.source_timestamp {
+                            Time::from(*timestamp) + lifespan > now
+                        } else {
+                            true
+                        }
+                    });
                 }
             }
         }
@@ -880,9 +896,9 @@ impl DcpsDomainParticipant {
                             .type_information
                         {
                             Some(discovered_type_information)
-                            // This additional check is done for interoperability with implementations that 
-                            // do not communicate the correct type information. 
-                            // In that case we fallback to matching on type name 
+                            // This additional check is done for interoperability with implementations that
+                            // do not communicate the correct type information.
+                            // In that case we fallback to matching on type name
                                 if discovered_type_information
                                     .complete
                                     .typeid_with_size
@@ -1339,9 +1355,9 @@ impl DcpsDomainParticipant {
                             .type_information
                         {
                             Some(discovered_type_information)
-                            // This additional check is done for interoperability with implementations that 
-                            // do not communicate the correct type information. 
-                            // In that case we fallback to matching on type name 
+                            // This additional check is done for interoperability with implementations that
+                            // do not communicate the correct type information.
+                            // In that case we fallback to matching on type name
                                 if discovered_type_information
                                     .complete
                                     .typeid_with_size
@@ -2211,7 +2227,7 @@ impl DcpsDomainParticipant {
                     .default_multicast_locator_list
                     .clone(),
                 lease_duration: discovered_participant_data.lease_duration,
-                reception_timestamp: runtime.clock().now(),
+                last_communication_timestamp: runtime.clock().now(),
             };
             match self
                 .domain_participant

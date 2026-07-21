@@ -280,7 +280,7 @@ struct DiscoveredParticipantInfo {
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
     lease_duration: Duration,
-    reception_timestamp: Time,
+    last_communication_timestamp: Time,
 }
 
 fn poll_timeout<T>(
@@ -643,7 +643,7 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .discovered_participant_list
             .iter()
-            .map(|dp| dp.lease_duration - (now - dp.reception_timestamp))
+            .map(|dp| dp.lease_duration - (now - dp.last_communication_timestamp))
             .min()
     }
 
@@ -678,6 +678,27 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|instance| instance.last_write_time)
                         .map(|last_write_time| deadline - (now - last_write_time))
+                        .min()
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
+    pub fn time_until_stale_writer_sample(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_publisher_list
+            .iter()
+            .flat_map(|publisher| publisher.data_writer_list.iter())
+            .filter_map(|data_writer| {
+                if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
+                    data_writer
+                        .transport_writer
+                        .changes()
+                        .iter()
+                        .filter_map(|cc| cc.source_timestamp)
+                        .map(|source_timestamp| Time::from(source_timestamp) + lifespan - now)
                         .min()
                 } else {
                     None
@@ -1105,6 +1126,20 @@ impl RtpsWriterKind {
         match self {
             RtpsWriterKind::Stateful(w) => w.remove_change(sequence_number),
             RtpsWriterKind::Stateless(w) => w.remove_change(sequence_number),
+        }
+    }
+
+    pub(crate) fn changes(&self) -> &[CacheChange] {
+        match self {
+            RtpsWriterKind::Stateful(w) => w.changes(),
+            RtpsWriterKind::Stateless(w) => w.changes(),
+        }
+    }
+
+    pub(crate) fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        match self {
+            RtpsWriterKind::Stateful(w) => w.changes_mut(),
+            RtpsWriterKind::Stateless(w) => w.changes_mut(),
         }
     }
 }
@@ -2333,4 +2368,19 @@ fn serialize<'a>(
             panic!("Invalid data representation")
         }?,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_time_until_stale_writer_sample_calculation() {
+        let source_timestamp = crate::transport::types::Time::new(100, 0);
+        let lifespan = Duration::new(10, 0);
+        let now = Time::new(105, 0);
+
+        let remaining = Time::from(source_timestamp) + lifespan - now;
+        assert_eq!(remaining, Duration::new(5, 0));
+    }
 }
