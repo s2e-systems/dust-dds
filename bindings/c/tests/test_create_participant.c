@@ -12,11 +12,11 @@ int main(void) {
     );
     assert(participant != NULL);
 
-    DustDdsReturnCode result = dust_dds_domain_participant_factory_delete_participant(
+    ReturnCode result = dust_dds_domain_participant_factory_delete_participant(
         factory,
         participant
     );
-    assert(result == DUST_DDS_OK);
+    assert(result == RETCODE_OK);
 
     printf("C test passed: create_participant and delete_participant succeeded!\n");
     return 0;

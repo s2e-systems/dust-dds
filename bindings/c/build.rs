@@ -14,7 +14,7 @@ fn main() {
     std::fs::create_dir_all(&include_dir).ok();
 
     cbindgen::Builder::new()
-        .with_crate(crate_dir.clone())
+        .with_crate(crate_dir)
         .with_config(config)
         .generate()
         .expect("Unable to generate bindings")
