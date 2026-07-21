@@ -1,3 +1,5 @@
+use std::ptr::NonNull;
+
 use crate::domain::domain_participant::DustDdsDomainParticipant;
 use crate::infrastructure::error::{RETCODE_OK, ReturnCode};
 use dust_dds::domain::domain_participant_listener::DomainParticipantListener;
@@ -28,18 +30,23 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_get_instance()
 /// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_domain_participant_factory_create_participant(
-    factory: *const DustDdsDomainParticipantFactory,
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     domain_id: i32,
-) -> *mut DustDdsDomainParticipant {
-    let factory_ref = if factory.is_null() {
-        dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance()
-    } else {
-        unsafe { (*factory).0 }
+) -> Option<NonNull<DustDdsDomainParticipant>> {
+    let Some(factory) = factory else {
+        return None;
     };
 
-    match factory_ref.create_participant(domain_id, QosKind::Default, None::<NoListener>, &[]) {
-        Ok(participant) => Box::into_raw(Box::new(DustDdsDomainParticipant::new(participant))),
-        Err(_) => std::ptr::null_mut(),
+    match unsafe { factory.as_ref() }.0.create_participant(
+        domain_id,
+        QosKind::Default,
+        None::<NoListener>,
+        &[],
+    ) {
+        Ok(participant) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
+            participant,
+        )))),
+        Err(_) => None,
     }
 }
 
@@ -64,5 +71,33 @@ pub unsafe extern "C" fn dust_dds_domain_participant_factory_delete_participant(
     match factory_ref.delete_participant(dp_box.inner()) {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::domain_participant::dust_dds_domain_participant_free;
+
+    #[test]
+    fn create_participant_null_factory() {
+        let participant =
+            unsafe { dust_dds_domain_participant_factory_create_participant(None, 0) };
+        assert!(participant.is_none());
+    }
+
+    #[test]
+    fn create_participant_valid_factory() {
+        let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
+        let participant = unsafe {
+            dust_dds_domain_participant_factory_create_participant(
+                NonNull::new(factory as *mut _),
+                0,
+            )
+        };
+        assert!(participant.is_some());
+        unsafe {
+            dust_dds_domain_participant_free(participant.unwrap().as_ptr());
+        }
     }
 }
