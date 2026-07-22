@@ -52,8 +52,8 @@ use crate::{
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::{
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            QosPolicyCount, StatusKind,
+            InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
         time::{Duration, DurationKind, Time},
     },
@@ -2065,6 +2065,19 @@ impl DcpsDomainParticipant {
                                                 if !is_type_assignable {
                                                     topic.inconsistent_topic_status.total_count += 1;
                                                     topic.inconsistent_topic_status.total_count_change += 1;
+                                                    let participant = DomainParticipantAsync::new(self.dcps_sender.clone(), self.domain_participant.domain_id, self.domain_participant.instance_handle);
+                                                    let the_topic = TopicAsync::new(topic.instance_handle, topic.type_name.clone(), topic.topic_name.clone(), participant);
+                                                    if topic.listener_mask.is_enabled(&StatusKind::InconsistentTopic) {
+                                                        let status = topic.inconsistent_topic_status.get_inconsistent_topic_status();
+                                                        if let Some(l) = &topic.listener_sender {
+                                                            l.send(ListenerMail::InconsistentTopic { the_topic, status }).ok();
+                                                        }
+                                                    } else if self.domain_participant.listener_mask.is_enabled(&StatusKind::InconsistentTopic){
+                                                        let status = topic.inconsistent_topic_status.get_inconsistent_topic_status();
+                                                        if let Some(l) = &self.domain_participant.listener_sender {
+                                                            l.send(ListenerMail::InconsistentTopic { the_topic, status }).ok();
+                                                        }
+                                                    }
                                                     topic
                                                         .status_condition
                                                         .add_communication_state(StatusKind::InconsistentTopic);
@@ -3261,6 +3274,15 @@ impl IncompatibleSubscriptions {
 
 impl OfferedDeadlineMissedStatus {
     fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
+        let status = self.clone();
+        self.total_count_change = 0;
+
+        status
+    }
+}
+
+impl InconsistentTopicStatus {
+    fn get_inconsistent_topic_status(&mut self) -> InconsistentTopicStatus {
         let status = self.clone();
         self.total_count_change = 0;
 

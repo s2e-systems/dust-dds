@@ -61,6 +61,12 @@ impl DcpsSubscriberListener {
                     } => {
                         panic!("Not valid for subscriber")
                     }
+                    ListenerMail::InconsistentTopic {
+                        the_topic: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for subscriber")
+                    }
                 }
             }
         });
