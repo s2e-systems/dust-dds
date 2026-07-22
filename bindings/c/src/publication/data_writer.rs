@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 use crate::DustDdsStatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::DustDdsDataWriterQos;
+use crate::infrastructure::qos::DataWriterQos;
 use crate::publication::publisher::DustDdsPublisher;
 use crate::topic_definition::topic::DustDdsTopic;
 use dust_dds::xtypes::dynamic_type::DynamicData;
@@ -24,7 +24,7 @@ impl DustDdsDataWriter {
 pub unsafe extern "C" fn dds_publisher_create_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     topic: Option<NonNull<DustDdsTopic>>,
-    qos: Option<NonNull<DustDdsDataWriterQos>>,
+    qos: *const DataWriterQos,
 ) -> Option<NonNull<DustDdsDataWriter>> {
     let Some(publisher) = publisher else {
         return None;
@@ -33,9 +33,10 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
         return None;
     };
 
-    let qos = match qos {
-        Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
-        None => dust_dds::infrastructure::qos::QosKind::Default,
+    let qos = if qos.is_null() {
+        dust_dds::infrastructure::qos::QosKind::Default
+    } else {
+        dust_dds::infrastructure::qos::QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
     struct NoDataWriterListener;

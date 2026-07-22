@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::{DustDdsPublisherQos, DustDdsSubscriberQos, DustDdsTopicQos};
+use crate::infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
 use crate::publication::publisher::DustDdsPublisher;
 use crate::subscription::subscriber::DustDdsSubscriber;
 use crate::topic_definition::dynamic_type::DustDdsDynamicType;
@@ -37,15 +37,16 @@ impl DustDdsDomainParticipant {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_create_publisher(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
-    qos: Option<NonNull<DustDdsPublisherQos>>,
+    qos: *const PublisherQos,
 ) -> Option<NonNull<DustDdsPublisher>> {
     let Some(participant) = participant else {
         return None;
     };
 
-    let qos = match qos {
-        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
-        None => QosKind::Default,
+    let qos = if qos.is_null() {
+        QosKind::Default
+    } else {
+        QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
     match unsafe { participant.as_ref() }.inner().create_publisher(
@@ -96,15 +97,16 @@ pub unsafe extern "C" fn dds_domain_participant_delete_publisher(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
-    qos: Option<NonNull<DustDdsSubscriberQos>>,
+    qos: *const SubscriberQos,
 ) -> Option<NonNull<DustDdsSubscriber>> {
     let Some(participant) = participant else {
         return None;
     };
 
-    let qos = match qos {
-        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
-        None => QosKind::Default,
+    let qos = if qos.is_null() {
+        QosKind::Default
+    } else {
+        QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
     match unsafe { participant.as_ref() }.inner().create_subscriber(
@@ -157,7 +159,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_name: *const std::os::raw::c_char,
     type_name: *const std::os::raw::c_char,
-    qos: Option<NonNull<DustDdsTopicQos>>,
+    qos: *const TopicQos,
     dynamic_type: Option<NonNull<DustDdsDynamicType>>,
 ) -> Option<NonNull<DustDdsTopic>> {
     let Some(participant) = participant else {
@@ -177,9 +179,10 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
         .to_str()
         .ok()?;
 
-    let qos = match qos {
-        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
-        None => QosKind::Default,
+    let qos = if qos.is_null() {
+        QosKind::Default
+    } else {
+        QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
     struct NoTopicListener;
@@ -239,8 +242,7 @@ mod tests {
         dds_domain_participant_factory_get_instance,
     };
     use crate::infrastructure::qos::{
-        dds_publisher_qos_default, dds_publisher_qos_free,
-        dds_subscriber_qos_default, dds_subscriber_qos_free,
+        dds_publisher_qos_default, dds_subscriber_qos_default,
     };
 
     #[test]
@@ -250,21 +252,20 @@ mod tests {
             dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
-                None,
+                std::ptr::null(),
             )
         };
         assert!(participant.is_some());
 
-        let publisher = unsafe { dds_domain_participant_create_publisher(participant, None) };
+        let publisher = unsafe { dds_domain_participant_create_publisher(participant, std::ptr::null()) };
         assert!(publisher.is_some());
 
         let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
 
         let qos = unsafe { dds_publisher_qos_default() };
-        let publisher = unsafe { dds_domain_participant_create_publisher(participant, qos) };
+        let publisher = unsafe { dds_domain_participant_create_publisher(participant, &qos) };
         assert!(publisher.is_some());
-        unsafe { dds_publisher_qos_free(qos) };
 
         let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
@@ -284,22 +285,21 @@ mod tests {
             dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
-                None,
+                std::ptr::null(),
             )
         };
         assert!(participant.is_some());
 
         let subscriber =
-            unsafe { dds_domain_participant_create_subscriber(participant, None) };
+            unsafe { dds_domain_participant_create_subscriber(participant, std::ptr::null()) };
         assert!(subscriber.is_some());
 
         let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
 
         let qos = unsafe { dds_subscriber_qos_default() };
-        let subscriber = unsafe { dds_domain_participant_create_subscriber(participant, qos) };
+        let subscriber = unsafe { dds_domain_participant_create_subscriber(participant, &qos) };
         assert!(subscriber.is_some());
-        unsafe { dds_subscriber_qos_free(qos) };
 
         let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
@@ -325,7 +325,7 @@ mod tests {
             dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
-                None,
+                std::ptr::null(),
             )
         };
         assert!(participant.is_some());
@@ -363,7 +363,7 @@ mod tests {
                 participant,
                 topic_name.as_ptr(),
                 type_name.as_ptr(),
-                None,
+                std::ptr::null(),
                 dynamic_type,
             )
         };

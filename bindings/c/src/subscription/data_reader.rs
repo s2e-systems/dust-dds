@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 use crate::DustDdsStatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::DustDdsDataReaderQos;
+use crate::infrastructure::qos::DataReaderQos;
 use crate::subscription::subscriber::DustDdsSubscriber;
 use crate::topic_definition::topic::DustDdsTopic;
 use dust_dds::xtypes::dynamic_type::DynamicData;
@@ -24,7 +24,7 @@ impl DustDdsDataReader {
 pub unsafe extern "C" fn dds_subscriber_create_datareader(
     subscriber: Option<NonNull<DustDdsSubscriber>>,
     topic: Option<NonNull<DustDdsTopic>>,
-    qos: Option<NonNull<DustDdsDataReaderQos>>,
+    qos: *const DataReaderQos,
 ) -> Option<NonNull<DustDdsDataReader>> {
     let Some(subscriber) = subscriber else {
         return None;
@@ -33,9 +33,10 @@ pub unsafe extern "C" fn dds_subscriber_create_datareader(
         return None;
     };
 
-    let qos = match qos {
-        Some(q) => dust_dds::infrastructure::qos::QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
-        None => dust_dds::infrastructure::qos::QosKind::Default,
+    let qos = if qos.is_null() {
+        dust_dds::infrastructure::qos::QosKind::Default
+    } else {
+        dust_dds::infrastructure::qos::QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
     struct NoDataReaderListener;

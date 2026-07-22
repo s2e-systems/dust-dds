@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 #include "../include/dust_dds.h"
 
 int main(void) {
@@ -11,7 +12,7 @@ int main(void) {
     DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        DUST_DDS_PARTICIPANT_QOS_DEFAULT
+        NULL
     );
     assert(participant != NULL);
 
@@ -22,59 +23,49 @@ int main(void) {
     assert(result == RETCODE_OK);
 
     // Test creating participant with specific DomainParticipantQos object and custom UserDataQosPolicy
-    DustDdsDomainParticipantQos* qos = dds_domain_participant_qos_default();
-    assert(qos != NULL);
+    DomainParticipantQos qos = dds_domain_participant_qos_default();
 
     const uint8_t custom_user_data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
-    DustDdsUserDataQosPolicy* user_data = dds_user_data_qos_policy_new(custom_user_data, sizeof(custom_user_data));
-    assert(user_data != NULL);
+    qos.user_data.value.length = sizeof(custom_user_data);
+    qos.user_data.value.buffer = malloc(sizeof(custom_user_data));
+    memcpy(qos.user_data.value.buffer, custom_user_data, sizeof(custom_user_data));
 
-    dds_domain_participant_qos_set_user_data(qos, user_data);
-
-    // Verify getting user_data back from qos
-    DustDdsUserDataQosPolicy* retrieved_user_data = dds_domain_participant_qos_get_user_data(qos);
-    assert(retrieved_user_data != NULL);
-    assert(dds_user_data_qos_policy_get_value_length(retrieved_user_data) == sizeof(custom_user_data));
-
-    uint8_t buffer[10] = {0};
-    size_t copied = dds_user_data_qos_policy_get_value(retrieved_user_data, buffer, sizeof(buffer));
-    assert(copied == sizeof(custom_user_data));
-    assert(memcmp(buffer, custom_user_data, sizeof(custom_user_data)) == 0);
-
-    dds_user_data_qos_policy_free(retrieved_user_data);
-    dds_user_data_qos_policy_free(user_data);
+    // Verify user data matches
+    assert(qos.user_data.value.length == sizeof(custom_user_data));
+    assert(memcmp(qos.user_data.value.buffer, custom_user_data, sizeof(custom_user_data)) == 0);
 
     participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        qos
+        &qos
     );
     assert(participant != NULL);
 
-    // Test creating publisher and subscriber on participant with default QoS macros and NULL
-    DustDdsPublisher* publisher = dds_domain_participant_create_publisher(participant, DUST_DDS_PUBLISHER_QOS_DEFAULT);
+    // Clean up our allocated buffer (the Rust function will make a copy internal to DDS)
+    free(qos.user_data.value.buffer);
+    qos.user_data.value.buffer = NULL;
+    qos.user_data.value.length = 0;
+
+    // Test creating publisher and subscriber on participant with default QoS and NULL
+    DustDdsPublisher* publisher = dds_domain_participant_create_publisher(participant, NULL);
     assert(publisher != NULL);
     result = dds_domain_participant_delete_publisher(participant, publisher);
     assert(result == RETCODE_OK);
 
-    DustDdsPublisherQos* pub_qos = dds_publisher_qos_default();
-    assert(pub_qos != NULL);
-    publisher = dds_domain_participant_create_publisher(participant, pub_qos);
+    PublisherQos pub_qos = dds_publisher_qos_default();
+    publisher = dds_domain_participant_create_publisher(participant, &pub_qos);
     assert(publisher != NULL);
-    dds_publisher_qos_free(pub_qos);
     result = dds_domain_participant_delete_publisher(participant, publisher);
     assert(result == RETCODE_OK);
 
-    DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(participant, DUST_DDS_SUBSCRIBER_QOS_DEFAULT);
+    DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(participant, NULL);
     assert(subscriber != NULL);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
     assert(result == RETCODE_OK);
 
-    DustDdsSubscriberQos* sub_qos = dds_subscriber_qos_default();
-    assert(sub_qos != NULL);
-    subscriber = dds_domain_participant_create_subscriber(participant, sub_qos);
+    SubscriberQos sub_qos = dds_subscriber_qos_default();
+    subscriber = dds_domain_participant_create_subscriber(participant, &sub_qos);
     assert(subscriber != NULL);
-    dds_subscriber_qos_free(sub_qos);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
     assert(result == RETCODE_OK);
 
@@ -84,13 +75,11 @@ int main(void) {
     );
     assert(result == RETCODE_OK);
 
-    dds_domain_participant_qos_free(qos);
-
     // Test lookup_participant
     participant = dds_domain_participant_factory_create_participant(
         factory,
         1, // domain_id = 1
-        DUST_DDS_PARTICIPANT_QOS_DEFAULT
+        NULL
     );
     assert(participant != NULL);
 
@@ -104,79 +93,54 @@ int main(void) {
     looked_up = dds_domain_participant_factory_lookup_participant(factory, 1);
     assert(looked_up == NULL);
 
-    // Manually delete/free the other wrapper. Since it's already deleted in DDS, calling delete_participant will fail, but we don't have a direct free function in the C API.
-    // That's ok for integration tests to just let it leak or we can test delete failing.
     result = dds_domain_participant_factory_delete_participant(factory, participant);
     assert(result == RETCODE_ALREADY_DELETED);
 
     // Test get/set default participant QoS
-    DustDdsDomainParticipantQos* default_part_qos = dds_domain_participant_factory_get_default_participant_qos(factory);
-    assert(default_part_qos != NULL);
+    DomainParticipantQos default_part_qos;
+    result = dds_domain_participant_factory_get_default_participant_qos(factory, &default_part_qos);
+    assert(result == RETCODE_OK);
 
-    // Verify entity factory get/set on participant QoS
-    DustDdsEntityFactoryQosPolicy* entity_factory = dds_domain_participant_qos_get_entity_factory(default_part_qos);
-    assert(entity_factory != NULL);
-    assert(dds_entity_factory_qos_policy_get_autoenable_created_entities(entity_factory) == true);
+    // Verify entity factory default
+    assert(default_part_qos.entity_factory.autoenable_created_entities == true);
 
-    dds_entity_factory_qos_policy_set_autoenable_created_entities(entity_factory, false);
-    assert(dds_entity_factory_qos_policy_get_autoenable_created_entities(entity_factory) == false);
-
-    dds_domain_participant_qos_set_entity_factory(default_part_qos, entity_factory);
-    dds_entity_factory_qos_policy_free(entity_factory);
+    default_part_qos.entity_factory.autoenable_created_entities = false;
 
     // Set as default participant QoS
-    result = dds_domain_participant_factory_set_default_participant_qos(factory, default_part_qos);
+    result = dds_domain_participant_factory_set_default_participant_qos(factory, &default_part_qos);
     assert(result == RETCODE_OK);
-    dds_domain_participant_qos_free(default_part_qos);
 
     // Verify default participant QoS was updated
-    default_part_qos = dds_domain_participant_factory_get_default_participant_qos(factory);
-    assert(default_part_qos != NULL);
-    entity_factory = dds_domain_participant_qos_get_entity_factory(default_part_qos);
-    assert(entity_factory != NULL);
-    assert(dds_entity_factory_qos_policy_get_autoenable_created_entities(entity_factory) == false);
-    dds_entity_factory_qos_policy_free(entity_factory);
-    dds_domain_participant_qos_free(default_part_qos);
+    DomainParticipantQos default_part_qos2;
+    result = dds_domain_participant_factory_get_default_participant_qos(factory, &default_part_qos2);
+    assert(result == RETCODE_OK);
+    assert(default_part_qos2.entity_factory.autoenable_created_entities == false);
 
     // Restore to standard default QoS
-    result = dds_domain_participant_factory_set_default_participant_qos(factory, DUST_DDS_PARTICIPANT_QOS_DEFAULT);
+    result = dds_domain_participant_factory_set_default_participant_qos(factory, NULL);
     assert(result == RETCODE_OK);
 
     // Test factory QoS
-    DustDdsDomainParticipantFactoryQos* factory_qos = dds_domain_participant_factory_get_qos(factory);
-    assert(factory_qos != NULL);
-
-    DustDdsEntityFactoryQosPolicy* factory_entity_factory = dds_domain_participant_factory_qos_get_entity_factory(factory_qos);
-    assert(factory_entity_factory != NULL);
-    assert(dds_entity_factory_qos_policy_get_autoenable_created_entities(factory_entity_factory) == true);
-
-    dds_entity_factory_qos_policy_set_autoenable_created_entities(factory_entity_factory, false);
-    dds_domain_participant_factory_qos_set_entity_factory(factory_qos, factory_entity_factory);
-    dds_entity_factory_qos_policy_free(factory_entity_factory);
-
-    result = dds_domain_participant_factory_set_qos(factory, factory_qos);
+    DomainParticipantFactoryQos factory_qos;
+    result = dds_domain_participant_factory_get_qos(factory, &factory_qos);
     assert(result == RETCODE_OK);
-    dds_domain_participant_factory_qos_free(factory_qos);
+    assert(factory_qos.entity_factory.autoenable_created_entities == true);
+
+    factory_qos.entity_factory.autoenable_created_entities = false;
+    result = dds_domain_participant_factory_set_qos(factory, &factory_qos);
+    assert(result == RETCODE_OK);
 
     // Verify factory QoS updated
-    factory_qos = dds_domain_participant_factory_get_qos(factory);
-    assert(factory_qos != NULL);
-    factory_entity_factory = dds_domain_participant_factory_qos_get_entity_factory(factory_qos);
-    assert(factory_entity_factory != NULL);
-    assert(dds_entity_factory_qos_policy_get_autoenable_created_entities(factory_entity_factory) == false);
-    dds_entity_factory_qos_policy_free(factory_entity_factory);
-    dds_domain_participant_factory_qos_free(factory_qos);
+    DomainParticipantFactoryQos factory_qos2;
+    result = dds_domain_participant_factory_get_qos(factory, &factory_qos2);
+    assert(result == RETCODE_OK);
+    assert(factory_qos2.entity_factory.autoenable_created_entities == false);
 
     // Restore factory QoS to default
-    DustDdsDomainParticipantFactoryQos* default_factory_qos = dds_domain_participant_factory_qos_default();
-    assert(default_factory_qos != NULL);
-    result = dds_domain_participant_factory_set_qos(factory, default_factory_qos);
+    DomainParticipantFactoryQos default_factory_qos = dds_domain_participant_factory_qos_default();
+    result = dds_domain_participant_factory_set_qos(factory, &default_factory_qos);
     assert(result == RETCODE_OK);
-    dds_domain_participant_factory_qos_free(default_factory_qos);
 
     printf("C test passed: create_participant, create_publisher, create_subscriber, and participant factory methods succeeded!\n");
     return 0;
 }
-
-
-
