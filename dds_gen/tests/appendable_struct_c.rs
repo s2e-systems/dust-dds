@@ -19,17 +19,39 @@ fn appendable_struct() {
     static inline const DustDdsDynamicType* Point_get_type(void) {
         static const DustDdsDynamicType* type = NULL;
         if (type == NULL) {
-            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("Point");
-            dust_dds_dynamic_type_builder_set_extensibility(builder, EXTENSIBILITY_KIND_APPENDABLE);
+            DustDdsTypeDescriptor descriptor = {
+                .kind = TYPE_KIND_STRUCTURE,
+                .name = "Point",
+                .base_type = NULL,
+                .discriminator_type = NULL,
+                .bound = NULL,
+                .element_type = NULL,
+                .key_element_type = NULL,
+                .extensibility_kind = EXTENSIBILITY_KIND_APPENDABLE,
+                .is_nested = false
+            };
+            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("x", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "x",
+                    .id = 0,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("y", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "y",
+                    .id = 1,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             type = dust_dds_dynamic_type_builder_build(builder);
         }
@@ -99,18 +121,39 @@ fn appendable_struct() {
     static inline const DustDdsDynamicType* Data_get_type(void) {
         static const DustDdsDynamicType* type = NULL;
         if (type == NULL) {
-            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("Data");
-            dust_dds_dynamic_type_builder_set_extensibility(builder, EXTENSIBILITY_KIND_MUTABLE);
+            DustDdsTypeDescriptor descriptor = {
+                .kind = TYPE_KIND_STRUCTURE,
+                .name = "Data",
+                .base_type = NULL,
+                .discriminator_type = NULL,
+                .bound = NULL,
+                .element_type = NULL,
+                .key_element_type = NULL,
+                .extensibility_kind = EXTENSIBILITY_KIND_MUTABLE,
+                .is_nested = false
+            };
+            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("id", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16));
-                dust_dds_member_descriptor_set_is_key(member, true);
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "id",
+                    .id = 0,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16),
+                    .is_key = true,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("x", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "x",
+                    .id = 1,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             type = dust_dds_dynamic_type_builder_build(builder);
         }
@@ -181,23 +224,50 @@ fn appendable_struct() {
     static inline const DustDdsDynamicType* MultiDimensionalPoint_get_type(void) {
         static const DustDdsDynamicType* type = NULL;
         if (type == NULL) {
-            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("MultiDimensionalPoint");
-            dust_dds_dynamic_type_builder_set_extensibility(builder, EXTENSIBILITY_KIND_APPENDABLE);
+            DustDdsTypeDescriptor descriptor = {
+                .kind = TYPE_KIND_STRUCTURE,
+                .name = "MultiDimensionalPoint",
+                .base_type = NULL,
+                .discriminator_type = NULL,
+                .bound = NULL,
+                .element_type = NULL,
+                .key_element_type = NULL,
+                .extensibility_kind = EXTENSIBILITY_KIND_APPENDABLE,
+                .is_nested = false
+            };
+            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("x", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "x",
+                    .id = 0,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("y", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "y",
+                    .id = 1,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("z", 2, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_member_descriptor_set_is_optional(member, true);
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "z",
+                    .id = 2,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = true,
+                    .is_must_understand = false
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             type = dust_dds_dynamic_type_builder_build(builder);
         }

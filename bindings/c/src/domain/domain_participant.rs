@@ -315,10 +315,9 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            TYPE_KIND_INT32, dust_dds_dynamic_type_builder_add_member,
+            TYPE_KIND_INT32, DustDdsMemberDescriptor, dust_dds_dynamic_type_builder_add_member,
             dust_dds_dynamic_type_builder_build, dust_dds_dynamic_type_builder_create_struct,
             dust_dds_dynamic_type_free, dust_dds_dynamic_type_get_primitive_type,
-            dust_dds_member_descriptor_free, dust_dds_member_descriptor_new,
         };
 
         let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
@@ -339,16 +338,19 @@ mod tests {
         let int32_type = unsafe { dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
         assert!(int32_type.is_some());
 
-        let member_descriptor =
-            unsafe { dust_dds_member_descriptor_new(field_name.as_ptr(), 0, int32_type) };
-        assert!(member_descriptor.is_some());
+        let member_descriptor = DustDdsMemberDescriptor {
+            name: field_name.as_ptr(),
+            id: 0,
+            r#type: int32_type.unwrap().as_ptr(),
+            is_key: false,
+            is_optional: false,
+            is_must_understand: true,
+        };
 
         let res = unsafe {
-            dust_dds_dynamic_type_builder_add_member(builder, member_descriptor)
+            dust_dds_dynamic_type_builder_add_member(builder, &member_descriptor)
         };
         assert_eq!(res, RETCODE_OK);
-
-        unsafe { dust_dds_member_descriptor_free(member_descriptor) };
 
         let dynamic_type = unsafe { dust_dds_dynamic_type_builder_build(builder) };
         assert!(dynamic_type.is_some());

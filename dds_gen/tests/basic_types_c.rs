@@ -31,80 +31,175 @@ fn basic_types() {
     static inline const DustDdsDynamicType* BasicTypes_get_type(void) {
         static const DustDdsDynamicType* type = NULL;
         if (type == NULL) {
-            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct("BasicTypes");
+            DustDdsTypeDescriptor descriptor = {
+                .kind = TYPE_KIND_STRUCTURE,
+                .name = "BasicTypes",
+                .base_type = NULL,
+                .discriminator_type = NULL,
+                .bound = NULL,
+                .element_type = NULL,
+                .key_element_type = NULL,
+                .extensibility_kind = EXTENSIBILITY_KIND_FINAL,
+                .is_nested = false
+            };
+            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("a", 0, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "a",
+                    .id = 0,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("b", 1, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "b",
+                    .id = 1,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("c", 2, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "c",
+                    .id = 2,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("d", 3, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "d",
+                    .id = 3,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("e", 4, member_type);
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "e",
+                    .id = 4,
+                    .type = member_type,
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
                 dust_dds_dynamic_type_free(member_type);
             }
             {
                 DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("f", 5, member_type);
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "f",
+                    .id = 5,
+                    .type = member_type,
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
                 dust_dds_dynamic_type_free(member_type);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("g", 6, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "g",
+                    .id = 6,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("h", 7, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "h",
+                    .id = 7,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("i", 8, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "i",
+                    .id = 8,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("j", 9, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "j",
+                    .id = 9,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("k", 10, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "k",
+                    .id = 10,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("l", 11, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "l",
+                    .id = 11,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("m", 12, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "m",
+                    .id = 12,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new("n", 13, dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64));
-                dust_dds_dynamic_type_builder_add_member(builder, member);
-                dust_dds_member_descriptor_free(member);
+                DustDdsMemberDescriptor member = {
+                    .name = "n",
+                    .id = 13,
+                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .is_key = false,
+                    .is_optional = false,
+                    .is_must_understand = true
+                };
+                dust_dds_dynamic_type_builder_add_member(builder, &member);
             }
             type = dust_dds_dynamic_type_builder_build(builder);
         }

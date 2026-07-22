@@ -5,7 +5,7 @@
 #include "build/hello_world.h"
 
 int main(void) {
-    DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dust_dds_domain_participant_factory_get_instance();
+    DustDdsDomainParticipantFactory* factory = dust_dds_domain_participant_factory_get_instance();
     assert(factory != NULL);
 
     DustDdsDomainParticipant* participant = dust_dds_domain_participant_factory_create_participant(

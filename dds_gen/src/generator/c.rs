@@ -348,18 +348,21 @@ impl<'a> CGenerator<'a> {
         self.writer
             .push_str("        static const DustDdsDynamicType* type = NULL;\n");
         self.writer.push_str("        if (type == NULL) {\n");
-        self.writer.push_str(&format!(
-            "            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_create_struct(\"{}\");\n",
-            struct_name
-        ));
+            let ext = Self::get_extensibility_annotation(inner_pairs.clone())
+                .unwrap_or("EXTENSIBILITY_KIND_FINAL");
 
-        // Emit extensibility setter if an annotation is present
-        if let Some(ext) = Self::get_extensibility_annotation(inner_pairs.clone()) {
-            self.writer.push_str(&format!(
-                "            dust_dds_dynamic_type_builder_set_extensibility(builder, {});\n",
-                ext
-            ));
-        }
+            self.writer.push_str("            DustDdsTypeDescriptor descriptor = {\n");
+            self.writer.push_str("                .kind = TYPE_KIND_STRUCTURE,\n");
+            self.writer.push_str(&format!("                .name = \"{}\",\n", struct_name));
+            self.writer.push_str("                .base_type = NULL,\n");
+            self.writer.push_str("                .discriminator_type = NULL,\n");
+            self.writer.push_str("                .bound = NULL,\n");
+            self.writer.push_str("                .element_type = NULL,\n");
+            self.writer.push_str("                .key_element_type = NULL,\n");
+            self.writer.push_str(&format!("                .extensibility_kind = {},\n", ext));
+            self.writer.push_str("                .is_nested = false\n");
+            self.writer.push_str("            };\n");
+            self.writer.push_str("            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);\n");
 
         // Collect members with their types and annotation flags
         let mut members = Vec::new();
@@ -398,36 +401,28 @@ impl<'a> CGenerator<'a> {
                 || type_expr.contains("_get_type");
 
             self.writer.push_str("            {\n");
-            if needs_type_var {
+            let type_val = if needs_type_var {
                 self.writer.push_str(&format!(
                     "                DustDdsDynamicType* member_type = {};\n",
                     type_expr
                 ));
-                self.writer.push_str(&format!(
-                    "                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new(\"{}\", {}, member_type);\n",
-                    field_name, member_id
-                ));
+                "member_type"
             } else {
-                self.writer.push_str(&format!(
-                    "                DustDdsMemberDescriptor* member = dust_dds_member_descriptor_new(\"{}\", {}, {});\n",
-                    field_name, member_id, type_expr
-                ));
-            }
-            if *is_key {
-                self.writer.push_str(
-                    "                dust_dds_member_descriptor_set_is_key(member, true);\n",
-                );
-            }
-            if *is_optional {
-                self.writer.push_str(
-                    "                dust_dds_member_descriptor_set_is_optional(member, true);\n",
-                );
-            }
+                &type_expr
+            };
+
+            self.writer.push_str("                DustDdsMemberDescriptor member = {\n");
+            self.writer.push_str(&format!("                    .name = \"{}\",\n", field_name));
+            self.writer.push_str(&format!("                    .id = {},\n", member_id));
+            self.writer.push_str(&format!("                    .type = {},\n", type_val));
+            self.writer.push_str(&format!("                    .is_key = {},\n", if *is_key { "true" } else { "false" }));
+            self.writer.push_str(&format!("                    .is_optional = {},\n", if *is_optional { "true" } else { "false" }));
+            self.writer.push_str(&format!("                    .is_must_understand = {}\n", if *is_optional { "false" } else { "true" }));
+            self.writer.push_str("                };\n");
+
             self.writer.push_str(
-                "                dust_dds_dynamic_type_builder_add_member(builder, member);\n",
+                "                dust_dds_dynamic_type_builder_add_member(builder, &member);\n",
             );
-            self.writer
-                .push_str("                dust_dds_member_descriptor_free(member);\n");
             if needs_type_var {
                 self.writer
                     .push_str("                dust_dds_dynamic_type_free(member_type);\n");

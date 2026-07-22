@@ -80,15 +80,143 @@ impl DustDdsDynamicTypeBuilder {
 ///   ...
 /// };
 /// ```
-///
-/// cbindgen:opaque
+/// C representation of the DDS MemberDescriptor valuetype.
+#[repr(C)]
 pub struct DustDdsMemberDescriptor {
-    pub(crate) name: &'static str,
-    pub(crate) id: u32,
-    pub(crate) r#type: DynamicType<'static>,
-    pub(crate) is_key: bool,
-    pub(crate) is_optional: bool,
-    pub(crate) is_must_understand: bool,
+    pub name: *const std::os::raw::c_char,
+    pub id: u32,
+    pub r#type: *const DustDdsDynamicType,
+    pub is_key: bool,
+    pub is_optional: bool,
+    pub is_must_understand: bool,
+}
+
+/// C representation of the DDS TypeDescriptor valuetype.
+#[repr(C)]
+pub struct DustDdsTypeDescriptor {
+    pub kind: u8,
+    pub name: *const std::os::raw::c_char,
+    pub base_type: *const DustDdsDynamicType,
+    pub discriminator_type: *const DustDdsDynamicType,
+    pub bound: *const u32,
+    pub element_type: *const DustDdsDynamicType,
+    pub key_element_type: *const DustDdsDynamicType,
+    pub extensibility_kind: u8,
+    pub is_nested: bool,
+}
+
+fn type_kind_from_u8(value: u8) -> Option<TypeKind> {
+    match value {
+        TYPE_KIND_NONE => Some(TypeKind::NONE),
+        TYPE_KIND_BOOLEAN => Some(TypeKind::BOOLEAN),
+        TYPE_KIND_BYTE => Some(TypeKind::BYTE),
+        TYPE_KIND_INT16 => Some(TypeKind::INT16),
+        TYPE_KIND_INT32 => Some(TypeKind::INT32),
+        TYPE_KIND_INT64 => Some(TypeKind::INT64),
+        TYPE_KIND_UINT16 => Some(TypeKind::UINT16),
+        TYPE_KIND_UINT32 => Some(TypeKind::UINT32),
+        TYPE_KIND_UINT64 => Some(TypeKind::UINT64),
+        TYPE_KIND_FLOAT32 => Some(TypeKind::FLOAT32),
+        TYPE_KIND_FLOAT64 => Some(TypeKind::FLOAT64),
+        TYPE_KIND_FLOAT128 => Some(TypeKind::FLOAT128),
+        TYPE_KIND_INT8 => Some(TypeKind::INT8),
+        TYPE_KIND_UINT8 => Some(TypeKind::UINT8),
+        TYPE_KIND_CHAR8 => Some(TypeKind::CHAR8),
+        TYPE_KIND_CHAR16 => Some(TypeKind::CHAR16),
+        TYPE_KIND_STRING8 => Some(TypeKind::STRING8),
+        TYPE_KIND_STRING16 => Some(TypeKind::STRING16),
+        TYPE_KIND_ALIAS => Some(TypeKind::ALIAS),
+        TYPE_KIND_ENUM => Some(TypeKind::ENUM),
+        TYPE_KIND_BITMASK => Some(TypeKind::BITMASK),
+        TYPE_KIND_ANNOTATION => Some(TypeKind::ANNOTATION),
+        TYPE_KIND_STRUCTURE => Some(TypeKind::STRUCTURE),
+        TYPE_KIND_UNION => Some(TypeKind::UNION),
+        TYPE_KIND_BITSET => Some(TypeKind::BITSET),
+        TYPE_KIND_SEQUENCE => Some(TypeKind::SEQUENCE),
+        TYPE_KIND_ARRAY => Some(TypeKind::ARRAY),
+        TYPE_KIND_MAP => Some(TypeKind::MAP),
+        _ => None,
+    }
+}
+
+fn extensibility_kind_from_u8(value: u8) -> Option<ExtensibilityKind> {
+    match value {
+        EXTENSIBILITY_KIND_FINAL => Some(ExtensibilityKind::Final),
+        EXTENSIBILITY_KIND_APPENDABLE => Some(ExtensibilityKind::Appendable),
+        EXTENSIBILITY_KIND_MUTABLE => Some(ExtensibilityKind::Mutable),
+        _ => None,
+    }
+}
+
+/// Creates a new DynamicTypeBuilder using the provided TypeDescriptor.
+/// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dust_dds_dynamic_type_builder_factory_create_type(
+    descriptor: *const DustDdsTypeDescriptor,
+) -> Option<NonNull<DustDdsDynamicTypeBuilder>> {
+    if descriptor.is_null() {
+        return None;
+    }
+    let descriptor = unsafe { &*descriptor };
+    let name_str = if descriptor.name.is_null() {
+        ""
+    } else {
+        unsafe { std::ffi::CStr::from_ptr(descriptor.name) }
+            .to_str()
+            .ok()?
+            .to_string()
+            .leak()
+    };
+
+    let base_type = if descriptor.base_type.is_null() {
+        None
+    } else {
+        Some(unsafe { &*descriptor.base_type }.0.clone())
+    };
+
+    let discriminator_type = if descriptor.discriminator_type.is_null() {
+        None
+    } else {
+        Some(unsafe { &*descriptor.discriminator_type }.0.clone())
+    };
+
+    let bound = if descriptor.bound.is_null() {
+        None
+    } else {
+        Some(unsafe { *descriptor.bound })
+    };
+
+    let element_type = if descriptor.element_type.is_null() {
+        None
+    } else {
+        Some(unsafe { &*descriptor.element_type }.0.clone())
+    };
+
+    let key_element_type = if descriptor.key_element_type.is_null() {
+        None
+    } else {
+        Some(unsafe { &*descriptor.key_element_type }.0.clone())
+    };
+
+    let kind = type_kind_from_u8(descriptor.kind)?;
+    let extensibility_kind = extensibility_kind_from_u8(descriptor.extensibility_kind)?;
+
+    let type_desc = TypeDescriptor {
+        kind,
+        name: name_str,
+        base_type,
+        discriminator_type,
+        bound,
+        element_type,
+        key_element_type,
+        extensibility_kind,
+        is_nested: descriptor.is_nested,
+    };
+
+    let builder = DynamicTypeBuilderFactory::create_type(type_desc);
+    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicTypeBuilder::new(
+        builder,
+    ))))
 }
 
 // Compile-time static instances of DustDdsDynamicType for standard primitive types
@@ -201,30 +329,6 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_create_struct(
     ))))
 }
 
-/// Sets the extensibility kind on a DynamicTypeBuilder.
-///
-/// `kind`: one of `EXTENSIBILITY_KIND_FINAL` (0), `EXTENSIBILITY_KIND_APPENDABLE` (1),
-/// or `EXTENSIBILITY_KIND_MUTABLE` (2).
-///
-/// Returns RETCODE_OK on success, RETCODE_BAD_PARAMETER on invalid arguments.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_set_extensibility(
-    builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
-    kind: u8,
-) -> ReturnCode {
-    let Some(mut builder) = builder else {
-        return RETCODE_BAD_PARAMETER;
-    };
-    let extensibility = match kind {
-        EXTENSIBILITY_KIND_FINAL => ExtensibilityKind::Final,
-        EXTENSIBILITY_KIND_APPENDABLE => ExtensibilityKind::Appendable,
-        EXTENSIBILITY_KIND_MUTABLE => ExtensibilityKind::Mutable,
-        _ => return RETCODE_BAD_PARAMETER,
-    };
-    unsafe { builder.as_mut() }.0.set_extensibility(extensibility);
-    RETCODE_OK
-}
-
 /// Adds a member described by `descriptor` to a structure being built.
 ///
 /// Mirrors the DDS spec `add_member(in MemberDescriptor descriptor)` interface.
@@ -235,19 +339,26 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_set_extensibility(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dust_dds_dynamic_type_builder_add_member(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
-    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
+    descriptor: *const DustDdsMemberDescriptor,
 ) -> ReturnCode {
     let Some(mut builder) = builder else {
         return RETCODE_BAD_PARAMETER;
     };
-    let Some(descriptor) = descriptor else {
+    if descriptor.is_null() {
         return RETCODE_BAD_PARAMETER;
+    }
+    let desc_ref = unsafe { &*descriptor };
+    if desc_ref.name.is_null() || desc_ref.r#type.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    let name_str = match unsafe { std::ffi::CStr::from_ptr(desc_ref.name) }.to_str() {
+        Ok(s) => s.to_string().leak() as &'static str,
+        Err(_) => return RETCODE_BAD_PARAMETER,
     };
-    let desc_ref = unsafe { descriptor.as_ref() };
     let member_descriptor = MemberDescriptor {
-        name: desc_ref.name,
+        name: name_str,
         id: desc_ref.id,
-        r#type: desc_ref.r#type,
+        r#type: unsafe { &*desc_ref.r#type }.0.clone(),
         default_value: None,
         index: desc_ref.id,
         label: &[],
@@ -297,77 +408,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_free(
 // MemberDescriptor lifecycle
 // ---------------------------------------------------------------------------
 
-/// Creates a new `DustDdsMemberDescriptor` with the given name, member ID, and type.
-///
-/// Defaults: `is_key = false`, `is_optional = false`, `is_must_understand = true`.
-/// The `type` pointer must remain valid for the lifetime of the descriptor.
-///
-/// Returns NULL on failure (NULL arguments or invalid UTF-8 name).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_member_descriptor_new(
-    name: *const std::os::raw::c_char,
-    id: u32,
-    r#type: Option<NonNull<DustDdsDynamicType>>,
-) -> Option<NonNull<DustDdsMemberDescriptor>> {
-    if name.is_null() {
-        return None;
-    }
-    let Some(r#type) = r#type else {
-        return None;
-    };
-    let name_str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
-        Ok(s) => s.to_string().leak() as &'static str,
-        Err(_) => return None,
-    };
-    let desc = DustDdsMemberDescriptor {
-        name: name_str,
-        id,
-        r#type: unsafe { r#type.as_ref() }.0,
-        is_key: false,
-        is_optional: false,
-        is_must_understand: true,
-    };
-    NonNull::new(Box::into_raw(Box::new(desc)))
-}
 
-/// Sets the `is_key` flag on a `DustDdsMemberDescriptor`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_member_descriptor_set_is_key(
-    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
-    is_key: bool,
-) {
-    if let Some(mut d) = descriptor {
-        unsafe { d.as_mut() }.is_key = is_key;
-    }
-}
-
-/// Sets the `is_optional` flag on a `DustDdsMemberDescriptor`.
-/// Setting `is_optional = true` also clears `is_must_understand`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_member_descriptor_set_is_optional(
-    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
-    is_optional: bool,
-) {
-    if let Some(mut d) = descriptor {
-        let desc = unsafe { d.as_mut() };
-        desc.is_optional = is_optional;
-        if is_optional {
-            desc.is_must_understand = false;
-        }
-    }
-}
-
-/// Frees a `DustDdsMemberDescriptor` created by `dust_dds_member_descriptor_new`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_member_descriptor_free(
-    descriptor: Option<NonNull<DustDdsMemberDescriptor>>,
-) {
-    if let Some(d) = descriptor {
-        unsafe {
-            drop(Box::from_raw(d.as_ptr()));
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
