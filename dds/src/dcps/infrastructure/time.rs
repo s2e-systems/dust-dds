@@ -2,7 +2,7 @@ use crate::xtypes::{
     dynamic_type::DynamicData,
     type_support::{Type, TypeSupport},
 };
-use core::ops::{Add, Sub};
+use core::ops::{Add, AddAssign, Sub};
 
 /// Enumeration representing whether a duration is finite or infinite
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -67,7 +67,7 @@ pub struct Duration {
 impl Duration {
     /// Construct a new [`Duration`] with the corresponding seconds and nanoseconds.
     pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000) as i32;
+        let sec = sec.saturating_add((nanosec / 1_000_000_000) as i32);
         let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
@@ -87,11 +87,11 @@ impl Add<Duration> for Duration {
     type Output = Duration;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        let mut sec = self.sec + rhs.sec;
+        let mut sec = self.sec.saturating_add(rhs.sec);
         let mut nanosec = (self.nanosec as u64) + (rhs.nanosec as u64);
         let sec_in_nanosec = nanosec / 1_000_000_000;
         nanosec -= sec_in_nanosec * 1_000_000_000;
-        sec += sec_in_nanosec as i32;
+        sec = sec.saturating_add(sec_in_nanosec as i32);
         Self {
             sec,
             nanosec: nanosec as u32,
@@ -103,10 +103,10 @@ impl Sub<Duration> for Duration {
     type Output = Duration;
 
     fn sub(self, rhs: Duration) -> Self::Output {
-        let mut sec = self.sec - rhs.sec;
+        let mut sec = self.sec.saturating_sub(rhs.sec);
         let nanosec_diff = (self.nanosec as i64) - (rhs.nanosec as i64);
         let nanosec = if nanosec_diff < 0 {
-            sec -= 1;
+            sec = sec.saturating_sub(1);
             (1_000_000_000 + nanosec_diff) as u32
         } else {
             self.nanosec - rhs.nanosec
@@ -175,7 +175,7 @@ pub struct Time {
 impl Time {
     /// Create a new [`Time`] with a number of seconds and nanoseconds
     pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000) as i32;
+        let sec = sec.saturating_add((nanosec / 1_000_000_000) as i32);
         let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
@@ -217,15 +217,20 @@ impl Add<Duration> for Time {
     type Output = Time;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        let mut sec = self.sec + rhs.sec;
+        let mut sec = self.sec.saturating_add(rhs.sec);
         let mut nanosec = (self.nanosec as u64) + (rhs.nanosec as u64);
         let sec_in_nanosec = nanosec / 1_000_000_000;
         nanosec -= sec_in_nanosec * 1_000_000_000;
-        sec += sec_in_nanosec as i32;
+        sec = sec.saturating_add(sec_in_nanosec as i32);
         Self {
             sec,
             nanosec: nanosec as u32,
         }
+    }
+}
+impl AddAssign<Duration> for Time {
+    fn add_assign(&mut self, rhs: Duration) {
+        *self = *self + rhs;
     }
 }
 

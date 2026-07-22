@@ -48,7 +48,6 @@ pub enum DcpsMail {
     Reader(ReaderServiceMail),
     StatusCondition(StatusConditionMail),
     Message(MessageServiceMail),
-    Event(EventServiceMail),
     Discovery(DiscoveryServiceMail),
 }
 
@@ -405,6 +404,14 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<PublicationMatchedStatus>>,
     },
+    RegisterInstance {
+        participant_handle: InstanceHandle,
+        publisher_handle: InstanceHandle,
+        data_writer_handle: InstanceHandle,
+        dynamic_data: DynamicData<'static>,
+        timestamp: Time,
+        reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
+    },
     UnregisterInstance {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -584,12 +591,6 @@ pub enum StatusConditionMail {
 }
 
 pub enum MessageServiceMail {
-    RemoveWriterChange {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        sequence_number: i64,
-    },
     NotifyAcknowledgments {
         participant_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -605,15 +606,6 @@ pub enum MessageServiceMail {
     HandleData {
         participant_handle: InstanceHandle,
         data_message: Vec<u8>,
-    },
-}
-
-pub enum EventServiceMail {
-    OfferedDeadlineMissed {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        change_instance_handle: InstanceHandle,
     },
 }
 

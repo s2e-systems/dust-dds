@@ -5,7 +5,7 @@ use crate::{
     dcps::{
         channels::oneshot::{OneshotSender, oneshot},
         dcps_domain_participant::{DcpsDomainParticipant, RtpsWriterKind, serialize},
-        dcps_mail::{DcpsMail, EventServiceMail, MessageServiceMail, WriterServiceMail},
+        dcps_mail::{DcpsMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::{
@@ -18,7 +18,7 @@ use crate::{
         qos::{DataWriterQos, QosKind},
         qos_policy::{HistoryQosPolicyKind, ReliabilityQosPolicyKind},
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
-        time::{Duration, DurationKind, Time},
+        time::{DurationKind, Time},
     },
     runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
     xtypes::dynamic_type::DynamicData,
@@ -170,6 +170,33 @@ impl DcpsDomainParticipant {
             .cloned()
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn register_instance(
+        &mut self,
+        publisher_handle: &InstanceHandle,
+        data_writer_handle: &InstanceHandle,
+        dynamic_data: &DynamicData<'static>,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+        let Some(data_writer) = publisher
+            .data_writer_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == data_writer_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        data_writer.register_w_timestamp(dynamic_data, timestamp)
+    }
+
     #[tracing::instrument(skip(self, runtime))]
     pub fn unregister_instance(
         &mut self,
@@ -244,8 +271,9 @@ impl DcpsDomainParticipant {
         };
 
         Ok(data_writer
-            .registered_instance_list
-            .contains(&instance_handle)
+            .registered_instance_info
+            .iter()
+            .any(|x| x.instance_handle == instance_handle)
             .then_some(instance_handle))
     }
 
@@ -307,9 +335,9 @@ impl DcpsDomainParticipant {
 
         if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
             if let Some(s) = data_writer
-                .instance_samples
+                .registered_instance_info
                 .iter_mut()
-                .find(|x| x.instance == instance_handle)
+                .find(|x| x.instance_handle == instance_handle)
             {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
@@ -406,53 +434,6 @@ impl DcpsDomainParticipant {
         if write_result.is_err() {
             reply_sender.send(write_result);
             return;
-        }
-
-        let dcps_sender_clone = self.dcps_sender;
-        let participant_handle = self.domain_participant.instance_handle;
-        if let DurationKind::Finite(deadline_missed_period) = data_writer.qos.deadline.period {
-            let mut timer_handle = runtime.timer();
-            let publisher_handle = *publisher_handle;
-            let data_writer_handle = *data_writer_handle;
-            runtime.spawner().spawn(async move {
-                loop {
-                    timer_handle.delay(deadline_missed_period.into()).await;
-                    dcps_sender_clone
-                        .send(DcpsMail::Event(EventServiceMail::OfferedDeadlineMissed {
-                            participant_handle,
-                            publisher_handle,
-                            data_writer_handle,
-                            change_instance_handle: instance_handle,
-                        }))
-                        .await;
-                }
-            });
-        }
-
-        let sequence_number = data_writer.last_change_sequence_number;
-
-        if let DurationKind::Finite(lifespan_duration) = data_writer.qos.lifespan.duration {
-            let sleep_duration = timestamp - now + lifespan_duration;
-            if sleep_duration <= Duration::new(0, 0) {
-                reply_sender.send(Ok(()));
-                return;
-            }
-
-            let dcps_sender_clone = self.dcps_sender;
-            let mut timer_handle = runtime.timer();
-            let publisher_handle = *publisher_handle;
-            let data_writer_handle = *data_writer_handle;
-            runtime.spawner().spawn(async move {
-                timer_handle.delay(sleep_duration.into()).await;
-                dcps_sender_clone
-                    .send(DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
-                        participant_handle,
-                        publisher_handle,
-                        data_writer_handle,
-                        sequence_number,
-                    }))
-                    .await;
-            });
         }
 
         reply_sender.send(Ok(()));

@@ -19,26 +19,31 @@ use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A1 {
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x1: i32,
 }
 
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A2 {
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x1: i32,
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x2: i32,
 }
 
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A3 {
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x1: i32,
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x3: i32,
+    #[dust_dds(try_construct = "USE_DEFAULT")]
     x2: i32,
 }
 
 #[test]
-#[ignore = "not yet working"]
 fn ext_appendable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant1 = DomainParticipantFactory::get_instance()
