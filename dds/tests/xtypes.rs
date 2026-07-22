@@ -12,10 +12,140 @@ use dust_dds::{
         type_support::DdsType,
     },
     wait_set::{Condition, WaitSet},
+    xtypes::dynamic_type::{
+        DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, TryConstructKind,
+    },
 };
 
 mod utils;
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
+#[test]
+fn ext_appendable_struct_2_with_dynamic_data() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <struct name="struct_a1" extensibility="appendable">
+                <member name="x1" type="int32" />
+            </struct>
+            <struct name="struct_a2" extensibility="appendable">
+                <member name="x1" type="int32" />
+                <member name="x2" type="int32" />
+            </struct>
+        </types>
+    </dds>
+    "#;
+    let type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a1", vec![]).unwrap();
+    let a1_dynamic_type = type_builder.build();
+    let topic1 = participant1
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            a1_dynamic_type,
+        )
+        .unwrap();
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a2", vec![]).unwrap();
+    for (_id, member) in type_builder.get_all_members().unwrap() {
+        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
+    }
+    let topic2 = participant2
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            type_builder.build(),
+        )
+        .unwrap();
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        type_consistency: TypeConsistencyEnforcementQosPolicy {
+            kind: AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: false,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>1</x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
+
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A1 {
