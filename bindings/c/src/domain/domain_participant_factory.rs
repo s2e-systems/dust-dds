@@ -1,8 +1,8 @@
 use std::ptr::NonNull;
 
 use crate::domain::domain_participant::DustDdsDomainParticipant;
-use crate::infrastructure::error::{RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::DustDdsDomainParticipantQos;
+use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
+use crate::infrastructure::qos::{DustDdsDomainParticipantFactoryQos, DustDdsDomainParticipantQos};
 use dust_dds::domain::domain_participant_listener::DomainParticipantListener;
 use dust_dds::infrastructure::qos::QosKind;
 
@@ -84,6 +84,105 @@ pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
     }
 }
 
+/// Retrieves a previously created DomainParticipant belonging to the specified domain_id.
+/// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL if not found or on error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    domain_id: i32,
+) -> Option<NonNull<DustDdsDomainParticipant>> {
+    let Some(factory) = factory else {
+        return None;
+    };
+
+    match unsafe { factory.as_ref() }.0.lookup_participant(domain_id) {
+        Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
+            participant,
+        )))),
+        _ => None,
+    }
+}
+
+/// Sets the default DomainParticipantQos.
+/// Passing NULL (`DUST_DDS_PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Returns RETCODE_OK on success, or standard DDS return code on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_qos(
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    qos: Option<NonNull<DustDdsDomainParticipantQos>>,
+) -> ReturnCode {
+    let Some(factory) = factory else {
+        return RETCODE_BAD_PARAMETER;
+    };
+
+    let qos = match qos {
+        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
+        None => QosKind::Default,
+    };
+
+    match unsafe { factory.as_ref() }.0.set_default_participant_qos(qos) {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Gets the default DomainParticipantQos.
+/// Returns a raw pointer to DustDdsDomainParticipantQos on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_get_default_participant_qos(
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+) -> Option<NonNull<DustDdsDomainParticipantQos>> {
+    let Some(factory) = factory else {
+        return None;
+    };
+
+    match unsafe { factory.as_ref() }.0.get_default_participant_qos() {
+        Ok(qos) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipantQos::new(qos)))),
+        Err(_) => None,
+    }
+}
+
+/// Sets the DomainParticipantFactoryQos policies.
+/// Passing NULL (`DUST_DDS_FACTORY_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Returns RETCODE_OK on success, or standard DDS return code on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    qos: Option<NonNull<DustDdsDomainParticipantFactoryQos>>,
+) -> ReturnCode {
+    let Some(factory) = factory else {
+        return RETCODE_BAD_PARAMETER;
+    };
+
+    let qos = match qos {
+        Some(q) => QosKind::Specific(unsafe { q.as_ref() }.inner().clone()),
+        None => QosKind::Default,
+    };
+
+    match unsafe { factory.as_ref() }.0.set_qos(qos) {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Gets the DomainParticipantFactoryQos policies.
+/// Returns a raw pointer to DustDdsDomainParticipantFactoryQos on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_get_qos(
+    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+) -> Option<NonNull<DustDdsDomainParticipantFactoryQos>> {
+    let Some(factory) = factory else {
+        return None;
+    };
+
+    match unsafe { factory.as_ref() }.0.get_qos() {
+        Ok(qos) => NonNull::new(Box::into_raw(Box::new(
+            DustDdsDomainParticipantFactoryQos::new(qos),
+        ))),
+        Err(_) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,4 +238,84 @@ mod tests {
             crate::infrastructure::qos::dds_domain_participant_qos_free(qos);
         }
     }
+
+    #[test]
+    fn lookup_participant() {
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let participant = unsafe {
+            dds_domain_participant_factory_create_participant(
+                NonNull::new(factory as *mut _),
+                0,
+                None,
+            )
+        };
+        assert!(participant.is_some());
+
+        let looked_up = unsafe {
+            dds_domain_participant_factory_lookup_participant(
+                NonNull::new(factory as *mut _),
+                0,
+            )
+        };
+        assert!(looked_up.is_some());
+
+        unsafe {
+            dds_domain_participant_factory_delete_participant(
+                NonNull::new(factory as *mut _),
+                looked_up,
+            );
+            // Since looked_up deleted the participant, manually free the duplicate wrapper
+            drop(Box::from_raw(participant.unwrap().as_ptr()));
+        }
+    }
+
+    #[test]
+    fn default_participant_qos() {
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let qos = unsafe {
+            dds_domain_participant_factory_get_default_participant_qos(NonNull::new(factory as *mut _))
+        };
+        assert!(qos.is_some());
+
+        let result = unsafe {
+            dds_domain_participant_factory_set_default_participant_qos(
+                NonNull::new(factory as *mut _),
+                qos,
+            )
+        };
+        assert_eq!(result, RETCODE_OK);
+
+        unsafe {
+            crate::infrastructure::qos::dds_domain_participant_qos_free(qos);
+        }
+    }
+
+    #[test]
+    fn factory_qos() {
+        use crate::infrastructure::qos::{
+            dds_domain_participant_factory_qos_default,
+            dds_domain_participant_factory_qos_free,
+        };
+
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let qos = unsafe { dds_domain_participant_factory_get_qos(NonNull::new(factory as *mut _)) };
+        assert!(qos.is_some());
+
+        let result = unsafe {
+            dds_domain_participant_factory_set_qos(
+                NonNull::new(factory as *mut _),
+                qos,
+            )
+        };
+        assert_eq!(result, RETCODE_OK);
+
+        let default_qos = unsafe { dds_domain_participant_factory_qos_default() };
+        assert!(default_qos.is_some());
+
+        unsafe {
+            dds_domain_participant_factory_qos_free(qos);
+            dds_domain_participant_factory_qos_free(default_qos);
+        }
+    }
 }
+

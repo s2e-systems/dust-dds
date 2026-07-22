@@ -1,6 +1,6 @@
 use std::ptr::NonNull;
 
-use crate::infrastructure::qos_policy::DustDdsUserDataQosPolicy;
+use crate::infrastructure::qos_policy::{DustDdsEntityFactoryQosPolicy, DustDdsUserDataQosPolicy};
 
 /// cbindgen:opaque
 pub struct DustDdsDomainParticipantQos(
@@ -64,6 +64,31 @@ pub unsafe extern "C" fn dds_domain_participant_qos_get_user_data(
         user_data,
     ))))
 }
+
+/// Sets the EntityFactoryQosPolicy on a DomainParticipantQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_qos_set_entity_factory(
+    qos: Option<NonNull<DustDdsDomainParticipantQos>>,
+    entity_factory: Option<NonNull<DustDdsEntityFactoryQosPolicy>>,
+) {
+    if let (Some(mut qos), Some(entity_factory)) = (qos, entity_factory) {
+        unsafe { qos.as_mut() }.0.entity_factory = unsafe { entity_factory.as_ref() }.inner().clone();
+    }
+}
+
+/// Gets the EntityFactoryQosPolicy from a DomainParticipantQos object.
+/// Returns a new DustDdsEntityFactoryQosPolicy instance on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_qos_get_entity_factory(
+    qos: Option<NonNull<DustDdsDomainParticipantQos>>,
+) -> Option<NonNull<DustDdsEntityFactoryQosPolicy>> {
+    let qos = qos?;
+    let entity_factory = unsafe { qos.as_ref() }.0.entity_factory.clone();
+    NonNull::new(Box::into_raw(Box::new(DustDdsEntityFactoryQosPolicy::new(
+        entity_factory,
+    ))))
+}
+
 
 /// cbindgen:opaque
 pub struct DustDdsPublisherQos(pub(crate) dust_dds::infrastructure::qos::PublisherQos);
@@ -235,4 +260,68 @@ pub unsafe extern "C" fn dds_datareader_qos_free(qos: Option<NonNull<DustDdsData
         }
     }
 }
+
+/// cbindgen:opaque
+pub struct DustDdsDomainParticipantFactoryQos(
+    pub(crate) dust_dds::infrastructure::qos::DomainParticipantFactoryQos,
+);
+
+pub type DomainParticipantFactoryQos = DustDdsDomainParticipantFactoryQos;
+
+impl DustDdsDomainParticipantFactoryQos {
+    pub fn new(qos: dust_dds::infrastructure::qos::DomainParticipantFactoryQos) -> Self {
+        Self(qos)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos::DomainParticipantFactoryQos {
+        &self.0
+    }
+}
+
+/// Creates a default DomainParticipantFactoryQos object.
+/// Returns a raw pointer to DustDdsDomainParticipantFactoryQos on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_default()
+-> Option<NonNull<DustDdsDomainParticipantFactoryQos>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipantFactoryQos(
+        dust_dds::infrastructure::qos::DomainParticipantFactoryQos::default(),
+    ))))
+}
+
+/// Frees a DomainParticipantFactoryQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_free(
+    qos: Option<NonNull<DustDdsDomainParticipantFactoryQos>>,
+) {
+    if let Some(qos) = qos {
+        unsafe {
+            drop(Box::from_raw(qos.as_ptr()));
+        }
+    }
+}
+
+/// Sets the EntityFactoryQosPolicy on a DomainParticipantFactoryQos object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_set_entity_factory(
+    qos: Option<NonNull<DustDdsDomainParticipantFactoryQos>>,
+    entity_factory: Option<NonNull<DustDdsEntityFactoryQosPolicy>>,
+) {
+    if let (Some(mut qos), Some(entity_factory)) = (qos, entity_factory) {
+        unsafe { qos.as_mut() }.0.entity_factory = unsafe { entity_factory.as_ref() }.inner().clone();
+    }
+}
+
+/// Gets the EntityFactoryQosPolicy from a DomainParticipantFactoryQos object.
+/// Returns a new DustDdsEntityFactoryQosPolicy instance on success, or NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_get_entity_factory(
+    qos: Option<NonNull<DustDdsDomainParticipantFactoryQos>>,
+) -> Option<NonNull<DustDdsEntityFactoryQosPolicy>> {
+    let qos = qos?;
+    let entity_factory = unsafe { qos.as_ref() }.0.entity_factory.clone();
+    NonNull::new(Box::into_raw(Box::new(DustDdsEntityFactoryQosPolicy::new(
+        entity_factory,
+    ))))
+}
+
 

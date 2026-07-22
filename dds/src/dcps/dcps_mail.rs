@@ -82,6 +82,10 @@ pub enum ParticipantFactoryMail {
     GetQos {
         reply_sender: OneshotSender<DomainParticipantFactoryQos>,
     },
+    LookupParticipant {
+        domain_id: DomainId,
+        reply_sender: OneshotSender<Option<InstanceHandle>>,
+    },
 }
 
 pub enum ParticipantServiceMail {

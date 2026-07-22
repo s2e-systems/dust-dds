@@ -107,3 +107,76 @@ pub unsafe extern "C" fn dds_user_data_qos_policy_free(
         }
     }
 }
+
+/// cbindgen:opaque
+pub struct DustDdsEntityFactoryQosPolicy(
+    pub(crate) dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy,
+);
+
+pub type EntityFactoryQosPolicy = DustDdsEntityFactoryQosPolicy;
+
+impl DustDdsEntityFactoryQosPolicy {
+    pub fn new(policy: dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy) -> Self {
+        Self(policy)
+    }
+
+    pub fn inner(&self) -> &dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy {
+        &self.0
+    }
+}
+
+/// Creates a default EntityFactoryQosPolicy object.
+/// Returns a raw pointer to DustDdsEntityFactoryQosPolicy on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_entity_factory_qos_policy_default()
+-> Option<NonNull<DustDdsEntityFactoryQosPolicy>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsEntityFactoryQosPolicy(
+        dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy::default(),
+    ))))
+}
+
+/// Creates an EntityFactoryQosPolicy object with a given value.
+/// Returns a raw pointer to DustDdsEntityFactoryQosPolicy on success.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_entity_factory_qos_policy_new(
+    autoenable_created_entities: bool,
+) -> Option<NonNull<DustDdsEntityFactoryQosPolicy>> {
+    NonNull::new(Box::into_raw(Box::new(DustDdsEntityFactoryQosPolicy(
+        dust_dds::infrastructure::qos_policy::EntityFactoryQosPolicy { autoenable_created_entities },
+    ))))
+}
+
+/// Sets the autoenable_created_entities value of an EntityFactoryQosPolicy object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_entity_factory_qos_policy_set_autoenable_created_entities(
+    policy: Option<NonNull<DustDdsEntityFactoryQosPolicy>>,
+    autoenable_created_entities: bool,
+) {
+    if let Some(mut policy) = policy {
+        unsafe { policy.as_mut() }.0.autoenable_created_entities = autoenable_created_entities;
+    }
+}
+
+/// Gets the autoenable_created_entities value of an EntityFactoryQosPolicy object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_entity_factory_qos_policy_get_autoenable_created_entities(
+    policy: Option<NonNull<DustDdsEntityFactoryQosPolicy>>,
+) -> bool {
+    let Some(policy) = policy else {
+        return false;
+    };
+    unsafe { policy.as_ref() }.0.autoenable_created_entities
+}
+
+/// Frees an EntityFactoryQosPolicy object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_entity_factory_qos_policy_free(
+    policy: Option<NonNull<DustDdsEntityFactoryQosPolicy>>,
+) {
+    if let Some(policy) = policy {
+        unsafe {
+            drop(Box::from_raw(policy.as_ptr()));
+        }
+    }
+}
+

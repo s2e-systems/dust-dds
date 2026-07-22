@@ -9,6 +9,7 @@ pub use domain::domain_participant_factory::*;
 pub use infrastructure::condition::*;
 pub use infrastructure::error::*;
 pub use infrastructure::qos::*;
+pub use infrastructure::qos_policy::*;
 pub use infrastructure::wait_set::*;
 pub use publication::publisher::*;
 pub use publication::data_writer::*;
