@@ -35,7 +35,7 @@ impl DustDdsDomainParticipant {
 /// Passing NULL (`DUST_DDS_PUBLISHER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsPublisher on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_create_publisher(
+pub unsafe extern "C" fn dds_domain_participant_create_publisher(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: Option<NonNull<DustDdsPublisherQos>>,
 ) -> Option<NonNull<DustDdsPublisher>> {
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_create_publisher(
 /// Deletes an existing Publisher object.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_delete_publisher(
+pub unsafe extern "C" fn dds_domain_participant_delete_publisher(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     publisher: Option<NonNull<DustDdsPublisher>>,
 ) -> ReturnCode {
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_publisher(
 /// Passing NULL (`DUST_DDS_SUBSCRIBER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsSubscriber on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_create_subscriber(
+pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: Option<NonNull<DustDdsSubscriberQos>>,
 ) -> Option<NonNull<DustDdsSubscriber>> {
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_create_subscriber(
 /// Deletes an existing Subscriber object.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_delete_subscriber(
+pub unsafe extern "C" fn dds_domain_participant_delete_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     subscriber: Option<NonNull<DustDdsSubscriber>>,
 ) -> ReturnCode {
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_subscriber(
 /// Passing NULL (`DUST_DDS_TOPIC_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsTopic on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_create_topic(
+pub unsafe extern "C" fn dds_domain_participant_create_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_name: *const std::os::raw::c_char,
     type_name: *const std::os::raw::c_char,
@@ -204,7 +204,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_create_topic(
 /// Deletes an existing Topic object.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_delete_topic(
+pub unsafe extern "C" fn dds_domain_participant_delete_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic: Option<NonNull<DustDdsTopic>>,
 ) -> ReturnCode {
@@ -234,20 +234,20 @@ pub unsafe extern "C" fn dust_dds_domain_participant_delete_topic(
 mod tests {
     use super::*;
     use crate::domain::domain_participant_factory::{
-        dust_dds_domain_participant_factory_create_participant,
-        dust_dds_domain_participant_factory_delete_participant,
-        dust_dds_domain_participant_factory_get_instance,
+        dds_domain_participant_factory_create_participant,
+        dds_domain_participant_factory_delete_participant,
+        dds_domain_participant_factory_get_instance,
     };
     use crate::infrastructure::qos::{
-        dust_dds_publisher_qos_default, dust_dds_publisher_qos_free,
-        dust_dds_subscriber_qos_default, dust_dds_subscriber_qos_free,
+        dds_publisher_qos_default, dds_publisher_qos_free,
+        dds_subscriber_qos_default, dds_subscriber_qos_free,
     };
 
     #[test]
     fn create_delete_publisher() {
-        let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dust_dds_domain_participant_factory_create_participant(
+            dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 None,
@@ -255,22 +255,22 @@ mod tests {
         };
         assert!(participant.is_some());
 
-        let publisher = unsafe { dust_dds_domain_participant_create_publisher(participant, None) };
+        let publisher = unsafe { dds_domain_participant_create_publisher(participant, None) };
         assert!(publisher.is_some());
 
-        let res = unsafe { dust_dds_domain_participant_delete_publisher(participant, publisher) };
+        let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
 
-        let qos = unsafe { dust_dds_publisher_qos_default() };
-        let publisher = unsafe { dust_dds_domain_participant_create_publisher(participant, qos) };
+        let qos = unsafe { dds_publisher_qos_default() };
+        let publisher = unsafe { dds_domain_participant_create_publisher(participant, qos) };
         assert!(publisher.is_some());
-        unsafe { dust_dds_publisher_qos_free(qos) };
+        unsafe { dds_publisher_qos_free(qos) };
 
-        let res = unsafe { dust_dds_domain_participant_delete_publisher(participant, publisher) };
+        let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dust_dds_domain_participant_factory_delete_participant(
+            dds_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );
@@ -279,9 +279,9 @@ mod tests {
 
     #[test]
     fn create_delete_subscriber() {
-        let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dust_dds_domain_participant_factory_create_participant(
+            dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 None,
@@ -290,22 +290,22 @@ mod tests {
         assert!(participant.is_some());
 
         let subscriber =
-            unsafe { dust_dds_domain_participant_create_subscriber(participant, None) };
+            unsafe { dds_domain_participant_create_subscriber(participant, None) };
         assert!(subscriber.is_some());
 
-        let res = unsafe { dust_dds_domain_participant_delete_subscriber(participant, subscriber) };
+        let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
 
-        let qos = unsafe { dust_dds_subscriber_qos_default() };
-        let subscriber = unsafe { dust_dds_domain_participant_create_subscriber(participant, qos) };
+        let qos = unsafe { dds_subscriber_qos_default() };
+        let subscriber = unsafe { dds_domain_participant_create_subscriber(participant, qos) };
         assert!(subscriber.is_some());
-        unsafe { dust_dds_subscriber_qos_free(qos) };
+        unsafe { dds_subscriber_qos_free(qos) };
 
-        let res = unsafe { dust_dds_domain_participant_delete_subscriber(participant, subscriber) };
+        let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dust_dds_domain_participant_factory_delete_participant(
+            dds_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );
@@ -315,14 +315,14 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            TYPE_KIND_INT32, DustDdsMemberDescriptor, dust_dds_dynamic_type_builder_add_member,
-            dust_dds_dynamic_type_builder_build, dust_dds_dynamic_type_builder_create_struct,
-            dust_dds_dynamic_type_free, dust_dds_dynamic_type_get_primitive_type,
+            TYPE_KIND_INT32, DustDdsMemberDescriptor, dds_dynamic_type_builder_add_member,
+            dds_dynamic_type_builder_build, dds_dynamic_type_builder_create_struct,
+            dds_dynamic_type_free, dds_dynamic_type_get_primitive_type,
         };
 
-        let factory = unsafe { dust_dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { dds_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dust_dds_domain_participant_factory_create_participant(
+            dds_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 None,
@@ -331,11 +331,11 @@ mod tests {
         assert!(participant.is_some());
 
         let struct_name = std::ffi::CString::new("MyStruct").unwrap();
-        let builder = unsafe { dust_dds_dynamic_type_builder_create_struct(struct_name.as_ptr()) };
+        let builder = unsafe { dds_dynamic_type_builder_create_struct(struct_name.as_ptr()) };
         assert!(builder.is_some());
 
         let field_name = std::ffi::CString::new("a").unwrap();
-        let int32_type = unsafe { dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
+        let int32_type = unsafe { dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
         assert!(int32_type.is_some());
 
         let member_descriptor = DustDdsMemberDescriptor {
@@ -348,18 +348,18 @@ mod tests {
         };
 
         let res = unsafe {
-            dust_dds_dynamic_type_builder_add_member(builder, &member_descriptor)
+            dds_dynamic_type_builder_add_member(builder, &member_descriptor)
         };
         assert_eq!(res, RETCODE_OK);
 
-        let dynamic_type = unsafe { dust_dds_dynamic_type_builder_build(builder) };
+        let dynamic_type = unsafe { dds_dynamic_type_builder_build(builder) };
         assert!(dynamic_type.is_some());
 
         let topic_name = std::ffi::CString::new("MyTopic").unwrap();
         let type_name = std::ffi::CString::new("MyStruct").unwrap();
 
         let topic = unsafe {
-            dust_dds_domain_participant_create_topic(
+            dds_domain_participant_create_topic(
                 participant,
                 topic_name.as_ptr(),
                 type_name.as_ptr(),
@@ -369,12 +369,12 @@ mod tests {
         };
         assert!(topic.is_some());
 
-        let res = unsafe { dust_dds_domain_participant_delete_topic(participant, topic) };
+        let res = unsafe { dds_domain_participant_delete_topic(participant, topic) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dust_dds_dynamic_type_free(dynamic_type);
-            dust_dds_domain_participant_factory_delete_participant(
+            dds_dynamic_type_free(dynamic_type);
+            dds_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );

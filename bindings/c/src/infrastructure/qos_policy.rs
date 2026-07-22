@@ -20,7 +20,7 @@ impl DustDdsUserDataQosPolicy {
 /// Creates a default UserDataQosPolicy object.
 /// Returns a raw pointer to DustDdsUserDataQosPolicy on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_default()
+pub unsafe extern "C" fn dds_user_data_qos_policy_default()
 -> Option<NonNull<DustDdsUserDataQosPolicy>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsUserDataQosPolicy(
         dust_dds::infrastructure::qos_policy::UserDataQosPolicy::default(),
@@ -30,7 +30,7 @@ pub unsafe extern "C" fn dust_dds_user_data_qos_policy_default()
 /// Creates a UserDataQosPolicy object with a given byte array value.
 /// Returns a raw pointer to DustDdsUserDataQosPolicy on success, or NULL if data is NULL and len > 0.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_new(
+pub unsafe extern "C" fn dds_user_data_qos_policy_new(
     data: *const u8,
     len: usize,
 ) -> Option<NonNull<DustDdsUserDataQosPolicy>> {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn dust_dds_user_data_qos_policy_new(
 
 /// Sets the byte array value of a UserDataQosPolicy object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_set_value(
+pub unsafe extern "C" fn dds_user_data_qos_policy_set_value(
     policy: Option<NonNull<DustDdsUserDataQosPolicy>>,
     data: *const u8,
     len: usize,
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn dust_dds_user_data_qos_policy_set_value(
 
 /// Gets the length of the byte array value of a UserDataQosPolicy object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_get_value_length(
+pub unsafe extern "C" fn dds_user_data_qos_policy_get_value_length(
     policy: Option<NonNull<DustDdsUserDataQosPolicy>>,
 ) -> usize {
     let Some(policy) = policy else {
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn dust_dds_user_data_qos_policy_get_value_length(
 /// Copies the byte array value of a UserDataQosPolicy object into a buffer.
 /// Returns the number of bytes copied.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_get_value(
+pub unsafe extern "C" fn dds_user_data_qos_policy_get_value(
     policy: Option<NonNull<DustDdsUserDataQosPolicy>>,
     buffer: *mut u8,
     max_len: usize,
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn dust_dds_user_data_qos_policy_get_value(
 
 /// Frees a UserDataQosPolicy object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_user_data_qos_policy_free(
+pub unsafe extern "C" fn dds_user_data_qos_policy_free(
     policy: Option<NonNull<DustDdsUserDataQosPolicy>>,
 ) {
     if let Some(policy) = policy {

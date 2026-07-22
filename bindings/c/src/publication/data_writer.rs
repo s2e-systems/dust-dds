@@ -21,7 +21,7 @@ impl DustDdsDataWriter {
 
 /// Creates a new DataWriter.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_publisher_create_datawriter(
+pub unsafe extern "C" fn dds_publisher_create_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     topic: Option<NonNull<DustDdsTopic>>,
     qos: Option<NonNull<DustDdsDataWriterQos>>,
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn dust_dds_publisher_create_datawriter(
 
 /// Deletes an existing DataWriter.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_publisher_delete_datawriter(
+pub unsafe extern "C" fn dds_publisher_delete_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     datawriter: Option<NonNull<DustDdsDataWriter>>,
 ) -> ReturnCode {
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn dust_dds_publisher_delete_datawriter(
 
 /// Gets the StatusCondition associated with the DataWriter.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datawriter_get_statuscondition(
+pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
     writer: Option<NonNull<DustDdsDataWriter>>,
 ) -> Option<NonNull<DustDdsStatusCondition>> {
     let Some(writer) = writer else {
@@ -102,7 +102,7 @@ pub unsafe extern "C" fn dust_dds_datawriter_get_statuscondition(
 
 /// Waits for all acknowledged samples.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datawriter_wait_for_acknowledgments(
+pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
     writer: Option<NonNull<DustDdsDataWriter>>,
     max_wait: crate::infrastructure::wait_set::DustDdsDuration,
 ) -> ReturnCode {

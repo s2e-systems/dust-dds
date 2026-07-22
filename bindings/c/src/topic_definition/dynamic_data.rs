@@ -22,7 +22,7 @@ impl DustDdsDynamicData {
 
 /// Creates a new DynamicData instance for a given DynamicType.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_create(
+pub unsafe extern "C" fn dds_dynamic_data_create(
     r#type: *const DustDdsDynamicType,
 ) -> Option<NonNull<DustDdsDynamicData>> {
     if r#type.is_null() {
@@ -34,7 +34,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_create(
 
 /// Frees a DynamicData instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_free(
+pub unsafe extern "C" fn dds_dynamic_data_free(
     data: Option<NonNull<DustDdsDynamicData>>,
 ) {
     if let Some(d) = data {
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_free(
 
 /// Frees a string allocated by the Rust bindings.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_string_free(
+pub unsafe extern "C" fn dds_string_free(
     ptr: *mut std::os::raw::c_char,
 ) {
     if !ptr.is_null() {
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn dust_dds_string_free(
 
 // Explicit primitive getters
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_boolean_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_boolean_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut bool,
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_boolean_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_int8_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_int8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut i8,
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_int8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint8_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_uint8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut u8,
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_int16_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_int16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut i16,
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_int16_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint16_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_uint16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut u16,
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint16_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_int32_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_int32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut i32,
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_int32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint32_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_uint32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut u32,
@@ -205,7 +205,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_int64_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_int64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut i64,
@@ -226,7 +226,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_int64_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint64_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_uint64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut u64,
@@ -247,7 +247,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_uint64_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_float32_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_float32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut f32,
@@ -268,7 +268,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_float32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_float64_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_float64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut f64,
@@ -290,7 +290,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_float64_value(
 
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_char8_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_char8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut std::os::raw::c_char,
@@ -311,7 +311,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_char8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_string_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_string_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut *mut std::os::raw::c_char,
@@ -336,7 +336,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_string_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_get_complex_value(
+pub unsafe extern "C" fn dds_dynamic_data_get_complex_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *mut *mut DustDdsDynamicData,
@@ -359,7 +359,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_get_complex_value(
 
 // Explicit primitive setters
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_boolean_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_boolean_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: bool,
@@ -374,7 +374,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_boolean_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_int8_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_int8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: i8,
@@ -389,7 +389,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_int8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint8_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_uint8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: u8,
@@ -404,7 +404,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_int16_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_int16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: i16,
@@ -419,7 +419,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_int16_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint16_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_uint16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: u16,
@@ -434,7 +434,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint16_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_int32_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_int32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: i32,
@@ -449,7 +449,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_int32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint32_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_uint32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: u32,
@@ -464,7 +464,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_int64_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_int64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: i64,
@@ -479,7 +479,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_int64_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint64_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_uint64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: u64,
@@ -494,7 +494,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_uint64_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_float32_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_float32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: f32,
@@ -509,7 +509,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_float32_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_float64_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_float64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: f64,
@@ -524,7 +524,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_float64_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_char8_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_char8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: std::os::raw::c_char,
@@ -540,7 +540,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_char8_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_string_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_string_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: *const std::os::raw::c_char,
@@ -563,7 +563,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_string_value(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_data_set_complex_value(
+pub unsafe extern "C" fn dds_dynamic_data_set_complex_value(
     data: Option<NonNull<DustDdsDynamicData>>,
     id: u32,
     value: Option<NonNull<DustDdsDynamicData>>,
@@ -583,7 +583,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_data_set_complex_value(
 
 /// Writes data using the generic DustDdsDataWriter.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datawriter_write(
+pub unsafe extern "C" fn dds_datawriter_write(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     data: Option<NonNull<DustDdsDynamicData>>,
 ) -> ReturnCode {
@@ -602,7 +602,7 @@ pub unsafe extern "C" fn dust_dds_datawriter_write(
 
 /// Reads data using the generic DustDdsDataReader.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datareader_read(
+pub unsafe extern "C" fn dds_datareader_read(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
     data_values: *mut Option<NonNull<DustDdsDynamicData>>,
     max_samples: i32,

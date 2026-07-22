@@ -76,7 +76,7 @@ fn mask_to_status_kinds(mask: DustDdsStatusMask) -> Vec<dust_dds::infrastructure
 
 /// Defines the list of communication statuses that are taken into account to determine the trigger_value of the StatusCondition.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_status_condition_set_enabled_statuses(
+pub unsafe extern "C" fn dds_status_condition_set_enabled_statuses(
     condition: Option<NonNull<DustDdsStatusCondition>>,
     mask: DustDdsStatusMask,
 ) -> ReturnCode {
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn dust_dds_status_condition_set_enabled_statuses(
 
 /// Frees a StatusCondition object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_status_condition_free(
+pub unsafe extern "C" fn dds_status_condition_free(
     condition: Option<NonNull<DustDdsStatusCondition>>,
 ) -> ReturnCode {
     if let Some(condition) = condition {

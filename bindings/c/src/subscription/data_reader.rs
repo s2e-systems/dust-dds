@@ -21,7 +21,7 @@ impl DustDdsDataReader {
 
 /// Creates a new DataReader.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_subscriber_create_datareader(
+pub unsafe extern "C" fn dds_subscriber_create_datareader(
     subscriber: Option<NonNull<DustDdsSubscriber>>,
     topic: Option<NonNull<DustDdsTopic>>,
     qos: Option<NonNull<DustDdsDataReaderQos>>,
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn dust_dds_subscriber_create_datareader(
 
 /// Deletes an existing DataReader.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_subscriber_delete_datareader(
+pub unsafe extern "C" fn dds_subscriber_delete_datareader(
     subscriber: Option<NonNull<DustDdsSubscriber>>,
     datareader: Option<NonNull<DustDdsDataReader>>,
 ) -> ReturnCode {
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn dust_dds_subscriber_delete_datareader(
 
 /// Gets the StatusCondition associated with the DataReader.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datareader_get_statuscondition(
+pub unsafe extern "C" fn dds_datareader_get_statuscondition(
     reader: Option<NonNull<DustDdsDataReader>>,
 ) -> Option<NonNull<DustDdsStatusCondition>> {
     let Some(reader) = reader else {

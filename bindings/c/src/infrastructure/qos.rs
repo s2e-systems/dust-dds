@@ -22,7 +22,7 @@ impl DustDdsDomainParticipantQos {
 /// Creates a default DomainParticipantQos object.
 /// Returns a raw pointer to DustDdsDomainParticipantQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_qos_default()
+pub unsafe extern "C" fn dds_domain_participant_qos_default()
 -> Option<NonNull<DustDdsDomainParticipantQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipantQos(
         dust_dds::infrastructure::qos::DomainParticipantQos::default(),
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_qos_default()
 
 /// Frees a DomainParticipantQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_qos_free(
+pub unsafe extern "C" fn dds_domain_participant_qos_free(
     qos: Option<NonNull<DustDdsDomainParticipantQos>>,
 ) {
     if let Some(qos) = qos {
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_qos_free(
 
 /// Sets the UserDataQosPolicy on a DomainParticipantQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_qos_set_user_data(
+pub unsafe extern "C" fn dds_domain_participant_qos_set_user_data(
     qos: Option<NonNull<DustDdsDomainParticipantQos>>,
     user_data: Option<NonNull<DustDdsUserDataQosPolicy>>,
 ) {
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn dust_dds_domain_participant_qos_set_user_data(
 /// Gets the UserDataQosPolicy from a DomainParticipantQos object.
 /// Returns a new DustDdsUserDataQosPolicy instance on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_domain_participant_qos_get_user_data(
+pub unsafe extern "C" fn dds_domain_participant_qos_get_user_data(
     qos: Option<NonNull<DustDdsDomainParticipantQos>>,
 ) -> Option<NonNull<DustDdsUserDataQosPolicy>> {
     let qos = qos?;
@@ -83,7 +83,7 @@ impl DustDdsPublisherQos {
 /// Creates a default PublisherQos object.
 /// Returns a raw pointer to DustDdsPublisherQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_publisher_qos_default() -> Option<NonNull<DustDdsPublisherQos>> {
+pub unsafe extern "C" fn dds_publisher_qos_default() -> Option<NonNull<DustDdsPublisherQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsPublisherQos(
         dust_dds::infrastructure::qos::PublisherQos::default(),
     ))))
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn dust_dds_publisher_qos_default() -> Option<NonNull<Dust
 
 /// Frees a PublisherQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_publisher_qos_free(qos: Option<NonNull<DustDdsPublisherQos>>) {
+pub unsafe extern "C" fn dds_publisher_qos_free(qos: Option<NonNull<DustDdsPublisherQos>>) {
     if let Some(qos) = qos {
         unsafe {
             drop(Box::from_raw(qos.as_ptr()));
@@ -117,7 +117,7 @@ impl DustDdsSubscriberQos {
 /// Creates a default SubscriberQos object.
 /// Returns a raw pointer to DustDdsSubscriberQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_subscriber_qos_default() -> Option<NonNull<DustDdsSubscriberQos>>
+pub unsafe extern "C" fn dds_subscriber_qos_default() -> Option<NonNull<DustDdsSubscriberQos>>
 {
     NonNull::new(Box::into_raw(Box::new(DustDdsSubscriberQos(
         dust_dds::infrastructure::qos::SubscriberQos::default(),
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn dust_dds_subscriber_qos_default() -> Option<NonNull<Dus
 
 /// Frees a SubscriberQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_subscriber_qos_free(qos: Option<NonNull<DustDdsSubscriberQos>>) {
+pub unsafe extern "C" fn dds_subscriber_qos_free(qos: Option<NonNull<DustDdsSubscriberQos>>) {
     if let Some(qos) = qos {
         unsafe {
             drop(Box::from_raw(qos.as_ptr()));
@@ -152,7 +152,7 @@ impl DustDdsTopicQos {
 /// Creates a default TopicQos object.
 /// Returns a raw pointer to DustDdsTopicQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_topic_qos_default() -> Option<NonNull<DustDdsTopicQos>> {
+pub unsafe extern "C" fn dds_topic_qos_default() -> Option<NonNull<DustDdsTopicQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsTopicQos(
         dust_dds::infrastructure::qos::TopicQos::default(),
     ))))
@@ -160,7 +160,7 @@ pub unsafe extern "C" fn dust_dds_topic_qos_default() -> Option<NonNull<DustDdsT
 
 /// Frees a TopicQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_topic_qos_free(qos: Option<NonNull<DustDdsTopicQos>>) {
+pub unsafe extern "C" fn dds_topic_qos_free(qos: Option<NonNull<DustDdsTopicQos>>) {
     if let Some(qos) = qos {
         unsafe {
             drop(Box::from_raw(qos.as_ptr()));
@@ -186,7 +186,7 @@ impl DustDdsDataWriterQos {
 /// Creates a default DataWriterQos object.
 /// Returns a raw pointer to DustDdsDataWriterQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datawriter_qos_default() -> Option<NonNull<DustDdsDataWriterQos>> {
+pub unsafe extern "C" fn dds_datawriter_qos_default() -> Option<NonNull<DustDdsDataWriterQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsDataWriterQos(
         dust_dds::infrastructure::qos::DataWriterQos::default(),
     ))))
@@ -194,7 +194,7 @@ pub unsafe extern "C" fn dust_dds_datawriter_qos_default() -> Option<NonNull<Dus
 
 /// Frees a DataWriterQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datawriter_qos_free(qos: Option<NonNull<DustDdsDataWriterQos>>) {
+pub unsafe extern "C" fn dds_datawriter_qos_free(qos: Option<NonNull<DustDdsDataWriterQos>>) {
     if let Some(qos) = qos {
         unsafe {
             drop(Box::from_raw(qos.as_ptr()));
@@ -220,7 +220,7 @@ impl DustDdsDataReaderQos {
 /// Creates a default DataReaderQos object.
 /// Returns a raw pointer to DustDdsDataReaderQos on success.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datareader_qos_default() -> Option<NonNull<DustDdsDataReaderQos>> {
+pub unsafe extern "C" fn dds_datareader_qos_default() -> Option<NonNull<DustDdsDataReaderQos>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsDataReaderQos(
         dust_dds::infrastructure::qos::DataReaderQos::default(),
     ))))
@@ -228,7 +228,7 @@ pub unsafe extern "C" fn dust_dds_datareader_qos_default() -> Option<NonNull<Dus
 
 /// Frees a DataReaderQos object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_datareader_qos_free(qos: Option<NonNull<DustDdsDataReaderQos>>) {
+pub unsafe extern "C" fn dds_datareader_qos_free(qos: Option<NonNull<DustDdsDataReaderQos>>) {
     if let Some(qos) = qos {
         unsafe {
             drop(Box::from_raw(qos.as_ptr()));

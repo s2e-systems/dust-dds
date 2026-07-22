@@ -151,7 +151,7 @@ fn extensibility_kind_from_u8(value: u8) -> Option<ExtensibilityKind> {
 /// Creates a new DynamicTypeBuilder using the provided TypeDescriptor.
 /// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_factory_create_type(
+pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
     descriptor: *const DustDdsTypeDescriptor,
 ) -> Option<NonNull<DustDdsDynamicTypeBuilder>> {
     if descriptor.is_null() {
@@ -237,7 +237,7 @@ static CHAR8_TYPE: DustDdsDynamicType = DustDdsDynamicType(char::TYPE);
 /// Returns a DynamicType representing the specified primitive type kind.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_get_primitive_type(
+pub unsafe extern "C" fn dds_dynamic_type_get_primitive_type(
     kind: u8,
 ) -> Option<NonNull<DustDdsDynamicType>> {
     let ptr = match kind {
@@ -262,7 +262,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_get_primitive_type(
 /// Creates a DynamicType for a string with the specified bound.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_create_string_type(
+pub unsafe extern "C" fn dds_dynamic_type_create_string_type(
     bound: u32,
 ) -> Option<NonNull<DustDdsDynamicType>> {
     let builder = DynamicTypeBuilderFactory::create_string_type(bound);
@@ -274,7 +274,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_create_string_type(
 
 /// Frees a DynamicType object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_free(
+pub unsafe extern "C" fn dds_dynamic_type_free(
     dynamic_type: Option<NonNull<DustDdsDynamicType>>,
 ) {
     if let Some(dt) = dynamic_type {
@@ -305,7 +305,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_free(
 /// Creates a new DynamicTypeBuilder for a structure type.
 /// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_create_struct(
+pub unsafe extern "C" fn dds_dynamic_type_builder_create_struct(
     name: *const std::os::raw::c_char,
 ) -> Option<NonNull<DustDdsDynamicTypeBuilder>> {
     if name.is_null() {
@@ -333,11 +333,11 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_create_struct(
 ///
 /// Mirrors the DDS spec `add_member(in MemberDescriptor descriptor)` interface.
 /// The caller retains ownership of `descriptor` and must call
-/// `dust_dds_member_descriptor_free` when done.
+/// `dds_member_descriptor_free` when done.
 ///
 /// Returns RETCODE_OK on success, or a standard DDS return code on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_add_member(
+pub unsafe extern "C" fn dds_dynamic_type_builder_add_member(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
     descriptor: *const DustDdsMemberDescriptor,
 ) -> ReturnCode {
@@ -379,7 +379,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_add_member(
 /// Builds the DynamicType from the builder and consumes the builder.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_build(
+pub unsafe extern "C" fn dds_dynamic_type_builder_build(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
 ) -> Option<NonNull<DustDdsDynamicType>> {
     let Some(builder) = builder else {
@@ -394,7 +394,7 @@ pub unsafe extern "C" fn dust_dds_dynamic_type_builder_build(
 
 /// Frees a DynamicTypeBuilder object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dust_dds_dynamic_type_builder_free(
+pub unsafe extern "C" fn dds_dynamic_type_builder_free(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
 ) {
     if let Some(b) = builder {
