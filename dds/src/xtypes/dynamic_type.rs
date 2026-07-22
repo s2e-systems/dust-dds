@@ -8,7 +8,7 @@ use crate::xtypes::{
 use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
 
 /// Represents a sequence bound.
-pub type BoundSeq = Option<u32>;
+pub type BoundSeq<'a> = &'a [u32];
 /// Represents a sequence of include paths.
 pub type IncludePathSeq = Vec<String>;
 /// Represents the name of an object.
@@ -91,7 +91,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: None,
+                bound: &[],
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -127,7 +127,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: Some(bound),
+                bound: vec![bound].leak(),
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -153,7 +153,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: Some(bound),
+                bound: vec![bound].leak(),
                 element_type: Some(element_type),
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -166,7 +166,7 @@ impl DynamicTypeBuilderFactory {
     /// Creates a [`DynamicTypeBuilder`] for an array type with the specified element type and dimensions/bound.
     pub fn create_array_type(
         element_type: DynamicType<'static>,
-        bound: BoundSeq,
+        bound: BoundSeq<'static>,
     ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
@@ -323,10 +323,8 @@ impl DynamicTypeBuilderFactory {
                     .split(',')
                     .filter_map(|s| s.trim().parse().ok())
                     .collect();
-                for dim in dims.into_iter().rev() {
-                    let builder = Self::create_array_type(type_ptr, Some(dim));
-                    type_ptr = builder.build();
-                }
+                let builder = Self::create_array_type(type_ptr, dims.leak());
+                type_ptr = builder.build();
             }
             Ok(type_ptr)
         };
@@ -358,7 +356,7 @@ impl DynamicTypeBuilderFactory {
             name,
             base_type: None,
             discriminator_type,
-            bound: None,
+            bound: &[],
             element_type: None,
             key_element_type: None,
             extensibility_kind,
@@ -553,7 +551,7 @@ pub struct TypeDescriptor {
     /// The discriminator type if this type is a union.
     pub discriminator_type: Option<DynamicType<'static>>,
     /// The bound(s) of the type if it is a collection or string.
-    pub bound: BoundSeq,
+    pub bound: BoundSeq<'static>,
     /// The element type if this type is a collection.
     pub element_type: Option<DynamicType<'static>>,
     /// The key element type if this type is a map.
@@ -1556,7 +1554,7 @@ impl Type for DynamicData<'static> {
             name: "",
             base_type: None,
             discriminator_type: None,
-            bound: None,
+            bound: &[],
             element_type: None,
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,

@@ -562,3 +562,87 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         &data
     );
 }
+
+#[test]
+fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="int32x10x2"   extensibility="final">
+                    <member name="x1"   type="int32" arrayDimensions="10,2"  />
+                </struct>
+                <struct name="int32x20"   extensibility="final">
+                    <member name="x1"   type="int32" arrayDimensions="20"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10x2", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(&publisher_topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let status_cond = publisher_topic.get_statuscondition();
+    status_cond
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond))
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x20", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}

@@ -208,11 +208,12 @@ impl EncodingVersion for EncodingVersion1 {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .get(0)
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -354,11 +355,12 @@ impl EncodingVersion for EncodingVersion2 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .get(0)
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -870,11 +872,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .get(0)
             .ok_or(XTypesError::InvalidType)?;
         self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }

@@ -2133,7 +2133,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
             TypeKind::STRING8 => {
-                if let Some(b) = value.descriptor.bound {
+                if let Some(&b) = value.descriptor.bound.get(0) {
                     if b <= u8::MAX as u32 {
                         TypeIdentifier::TiString8Small {
                             string_sdefn: StringSTypeDefn { bound: b as u8 },
@@ -2183,7 +2183,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
-                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let bound = *value.descriptor.bound.get(0).unwrap_or(&u32::MAX);
                 let element_identifier = Box::new(
                     value
                         .descriptor
@@ -2215,7 +2215,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 }
             }
             TypeKind::ARRAY => {
-                let bound = value.descriptor.bound.unwrap_or(u32::MAX);
+                let bound = *value.descriptor.bound.get(0).unwrap_or(&u32::MAX);
                 let element_identifier = Box::new(
                     value
                         .descriptor

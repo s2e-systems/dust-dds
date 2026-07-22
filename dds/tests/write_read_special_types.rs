@@ -402,7 +402,7 @@ fn dynamic_data_should_read_and_write() {
         name: "KeyedData",
         base_type: None,
         discriminator_type: None,
-        bound: None,
+        bound: &[],
         element_type: None,
         key_element_type: None,
         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
