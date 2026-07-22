@@ -336,6 +336,20 @@ jobs:
             pid=$!
             cargo run --package dust_dds_interoperability --bin dust_dds_publisher_inheritance
             wait $pid
+      - run:
+          name: Cyclone publisher optional interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_optional &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherOptional
+            wait $pid
+      - run:
+          name: Cyclone subscriber optional interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberOptional &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_optional
+            wait $pid
 
   multi_machine_tests:
     docker:
