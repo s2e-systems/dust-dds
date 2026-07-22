@@ -7,6 +7,8 @@ use crate::xtypes::{
         XTypesError::{self, PidNotFound},
         XTypesResult,
     },
+    type_object::TypeIdentifier,
+    type_support::TypeSupport,
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -712,7 +714,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        match member.descriptor.r#type.get_kind() {
+        let member_type = if member.descriptor.is_external {
+            TypeIdentifier::get_type()
+        } else {
+            member.descriptor.r#type
+        };
+        match member_type.get_kind() {
             TypeKind::NONE => Ok(()),
             TypeKind::BOOLEAN => {
                 dynamic_data.set_boolean_value(member.get_id(), self.deserialize_primitive_type()?)
@@ -763,10 +770,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
-                .set_complex_value(
-                    member.get_id(),
-                    self.deserialize_as_nested(member.descriptor.r#type)?,
-                ),
+                .set_complex_value(member.get_id(), self.deserialize_as_nested(member_type)?),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::BITSET => todo!(),

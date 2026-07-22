@@ -419,7 +419,7 @@ fn int32_10_int32_20_should_be_inconsistent_topic() {
         .unwrap();
 
     let subscriber_dynamic_type =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x10", vec![])
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x20", vec![])
             .unwrap()
             .build();
     let _subscriber_topic = subscriber_participant

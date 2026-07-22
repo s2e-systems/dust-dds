@@ -2512,7 +2512,8 @@ impl CompleteTypeObject {
 #[cfg(test)]
 mod tests {
     use crate::xtypes::{
-        serializer::serialize_without_header_cdr2_le, type_support::BoundedString,
+        deserializer::deserialize_top_level_type, serializer::serialize_without_header_cdr2_le,
+        type_support::BoundedString,
     };
 
     use super::*;
@@ -2544,6 +2545,59 @@ mod tests {
                     0x96
                 ]
             }
+        );
+    }
+
+    #[test]
+    fn serialize_plain_array_s_elem_defn() {
+        let dynamic_data = PlainArraySElemDefn {
+            header: PlainCollectionHeader {
+                equiv_kind: 6,
+                element_flags: MemberFlag(5),
+            },
+            array_bound_seq: vec![20],
+            element_identifier: Box::new(TypeIdentifier::TkInt32Type),
+        }
+        .create_dynamic_sample();
+        let buffer = serialize_without_header_cdr2_le(Vec::new(), &dynamic_data).unwrap();
+
+        let expected = [
+            6, 0, // array_sdefn: header: equiv_kind | padding
+            5, 0, // array_sdefn: header: element_flags
+            1, 0, 0, 0,  // array_sdefn: array_bound_seq: length
+            20, // array_sdefn: array_bound_seq: value
+            4,  // array_sdefn: element_identifier: TkInt32Type
+        ];
+
+        assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn deserialize_plain_array_s_elem_defn() {
+        let expected = PlainArraySElemDefn {
+            header: PlainCollectionHeader {
+                equiv_kind: 6,
+                element_flags: MemberFlag(5),
+            },
+            array_bound_seq: vec![20],
+            element_identifier: Box::new(TypeIdentifier::TkInt32Type),
+        }
+        .create_dynamic_sample();
+
+        assert_eq!(
+            deserialize_top_level_type(
+                PlainArraySElemDefn::get_type(),
+                &[
+                    0x00, 0x07, 0x00, 0x00, // CDR Header
+                    6, 0, // array_sdefn: header: equiv_kind | padding
+                    5, 0, // array_sdefn: header: element_flags
+                    1, 0, 0, 0,  // array_sdefn: array_bound_seq: length
+                    20, // array_sdefn: array_bound_seq: value
+                    4,  // array_sdefn: element_identifier: TkInt32Type
+                ]
+            )
+            .unwrap(),
+            expected
         );
     }
 
