@@ -370,3 +370,68 @@ fn ext_appendable_struct_4() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 }
+
+#[test]
+fn int32_10_int32_20_should_be_inconsistent_topic() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <struct name="int32x10"   extensibility="final">
+                <member name="x1"   type="int32" arrayDimensions="10"  />
+            </struct>
+            <struct name="int32x20"   extensibility="final">
+                <member name="x1"   type="int32" arrayDimensions="20"  />
+            </struct>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x10", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let status_cond = publisher_topic.get_statuscondition();
+    status_cond
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond))
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x10", vec![])
+            .unwrap()
+            .build();
+    let _subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
