@@ -5,7 +5,7 @@ use crate::xtypes::{
     type_object::TypeObject,
     type_support::{Type, TypeSupport},
 };
-use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
 /// Represents a sequence bound.
 pub type BoundSeq<'a> = &'a [u32];
