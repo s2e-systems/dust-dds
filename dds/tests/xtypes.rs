@@ -646,3 +646,142 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
     wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
+
+
+#[test]
+fn xtypes_v2_array_test_suite_string10_10_string20_10() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <struct name="string10x10"   extensibility="final">
+                <member name="x1"   type="string" stringMaxLength="10" arrayDimensions="10"  />
+            </struct>
+            <struct name="string20x10"   extensibility="final">
+                <member name="x1"   type="string" stringMaxLength="20" arrayDimensions="10"  />
+            </struct>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "string10x10", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "string20x10", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        type_consistency: TypeConsistencyEnforcementQosPolicy {
+            kind: AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: true,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>
+                <item>ab</item>
+                <item>cd</item>
+                <item>ef</item>
+                <item>gh</item>
+                <item>ij</item>
+                <item>kl</item>
+                <item>mn</item>
+                <item>op</item>
+                <item>qr</item>
+                <item>st</item>
+            </x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
+
