@@ -4,6 +4,7 @@ use dust_dds_derive::DdsType;
 use crate::xtypes::{
     dynamic_type::{DynamicType, DynamicTypeMember},
     serializer::serialize_without_header_cdr2_le,
+    type_object::TypeIdentifier::EkMinimal,
     type_support::TypeSupport,
 };
 
@@ -2133,7 +2134,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
             TypeKind::STRING8 => {
-                if let Some(&b) = value.descriptor.bound.get(0) {
+                if let Some(&b) = value.descriptor.bound.first() {
                     if b <= u8::MAX as u32 {
                         TypeIdentifier::TiString8Small {
                             string_sdefn: StringSTypeDefn { bound: b as u8 },
@@ -2183,7 +2184,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
-                let bound = *value.descriptor.bound.get(0).unwrap_or(&u32::MAX);
+                let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
                 let element_identifier = Box::new(
                     value
                         .descriptor
@@ -2215,7 +2216,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 }
             }
             TypeKind::ARRAY => {
-                let bound = *value.descriptor.bound.get(0).unwrap_or(&u32::MAX);
+                let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
                 let element_identifier = Box::new(
                     value
                         .descriptor
@@ -2267,7 +2268,7 @@ impl From<&DynamicTypeMember> for CommonStructMember {
         CommonStructMember {
             member_id: value.get_id(),
             member_flags,
-            member_type_id: (&value.descriptor.r#type).into(),
+            member_type_id: TypeIdentifier::from(&value.descriptor.r#type),
         }
     }
 }
@@ -2285,7 +2286,7 @@ impl From<&DynamicTypeMember> for MinimalStructMember {
 
 impl From<&DynamicTypeMember> for CompleteStructMember {
     fn from(value: &DynamicTypeMember) -> Self {
-        let common = value.into();
+        let common = CommonStructMember::from(value);
         let detail = CompleteMemberDetail {
             name: String::from(value.get_name()),
             ann_builtin: None,
@@ -2380,55 +2381,118 @@ impl From<TryConstructKind> for MemberFlag {
     }
 }
 
+impl TypeIdentifier {
+    /// 7.2.4.4 Assignability Rules
+    fn is_assignable_and_constructable_from(&self, other: &TypeIdentifier) -> bool {
+        match self {
+            TypeIdentifier::TkNone => todo!(),
+            TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
+            TypeIdentifier::TkByteType => matches!(other, TypeIdentifier::TkByteType),
+            TypeIdentifier::TkInt8Type => matches!(other, TypeIdentifier::TkInt8Type),
+            TypeIdentifier::TkInt16Type => matches!(other, TypeIdentifier::TkInt16Type),
+            TypeIdentifier::TkInt32Type => matches!(other, TypeIdentifier::TkInt32Type),
+            TypeIdentifier::TkInt64Type => matches!(other, TypeIdentifier::TkInt64Type),
+            TypeIdentifier::TkUint8Type => matches!(other, TypeIdentifier::TkUint8Type),
+            TypeIdentifier::TkUint16Type => matches!(other, TypeIdentifier::TkUint16Type),
+            TypeIdentifier::TkUint32Type => matches!(other, TypeIdentifier::TkUint32Type),
+            TypeIdentifier::TkUint64Type => matches!(other, TypeIdentifier::TkUint64Type),
+            TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
+            TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
+            TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
+            TypeIdentifier::TkChar8Type => matches!(other, TypeIdentifier::TkChar8Type),
+            TypeIdentifier::TkChar16Type => matches!(other, TypeIdentifier::TkChar16Type),
+            TypeIdentifier::TiString8Small {
+                string_sdefn: string_sdefn_t1,
+            }
+            | TypeIdentifier::TiString16Small {
+                string_sdefn: string_sdefn_t1,
+            } => {
+                if let TypeIdentifier::TiString8Small {
+                    string_sdefn: string_sdefn_t2,
+                }
+                | TypeIdentifier::TiString16Small {
+                    string_sdefn: string_sdefn_t2,
+                } = other
+                {
+                    string_sdefn_t2.bound <= string_sdefn_t1.bound
+                } else {
+                    false
+                }
+            }
+            TypeIdentifier::TiString8Large {
+                string_ldefn: string_ldefn_t1,
+            }
+            | TypeIdentifier::TiString16Large {
+                string_ldefn: string_ldefn_t1,
+            } => {
+                if let TypeIdentifier::TiString8Large {
+                    string_ldefn: string_ldefn_t2,
+                }
+                | TypeIdentifier::TiString16Large {
+                    string_ldefn: string_ldefn_t2,
+                } = other
+                {
+                    string_ldefn_t2.bound <= string_ldefn_t1.bound
+                } else {
+                    false
+                }
+            }
+            TypeIdentifier::TiPlainSequenceSmall {
+                seq_sdefn: seq_sdefn_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::TiPlainSequenceSmall {
+                    seq_sdefn: seq_sdefn_t2
+                } if seq_sdefn_t1.bound <= seq_sdefn_t2.bound),
+            TypeIdentifier::TiPlainSequenceLarge {
+                seq_ldefn: seq_ldefn_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::TiPlainSequenceLarge {
+                    seq_ldefn: seq_ldefn_t2
+                } if seq_ldefn_t1.bound <= seq_ldefn_t2.bound),
+            TypeIdentifier::TiPlainArraySmall {
+                array_sdefn: array_sdefn_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::TiPlainArraySmall {
+                    array_sdefn: array_sdefn_t2
+                } if array_sdefn_t1.array_bound_seq == array_sdefn_t2.array_bound_seq),
+            TypeIdentifier::TiPlainArrayLarge {
+                array_ldefn: array_ldefn_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::TiPlainArrayLarge {
+                    array_ldefn: array_ldefn_t2
+                } if array_ldefn_t1.array_bound_seq == array_ldefn_t2.array_bound_seq),
+            TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
+            TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
+            TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
+            TypeIdentifier::EkComplete {
+                equivalence_hash: equivalence_hash_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::EkComplete {
+                    equivalence_hash: equivalence_hash_t2
+                } if equivalence_hash_t2 == equivalence_hash_t1
+            ),
+            EkMinimal {
+                equivalence_hash: equivalence_hash_t1,
+            } => matches!(
+                other,
+                TypeIdentifier::EkMinimal {
+                    equivalence_hash: equivalence_hash_t2
+                } if equivalence_hash_t2 == equivalence_hash_t1
+            ),
+            TypeIdentifier::Default { extended_type: _ } => todo!(),
+        }
+    }
+}
+
 impl CompleteTypeObject {
     /// This methods implements the rules defined in the DDS-XTypes standard chapter 7.2.4
     /// which defines the compatibility between two types.
     pub fn is_assignable_from(&self, t2: &CompleteTypeObject) -> bool {
-        // Members that are marked as non-serialized, see Sub Clause 7.3.1.2.1.14, shall be ignored during
-        // type compatibility checking.
-
-        // ALIAS_TYPEAny non ALIAS_TYPE type kind
-        // T2 if and only if T1.base_type
-        // is-assignable-from T2
-
-        // T1 Type Kind | T2 Type Kinds for which T1 is-assignable-from T2 Is True
-        // Any Primitive type | The same Primitive Type
-        // UINT8_TYPE | BITMASK_TYPE if and only if T2.bound is between 1 and 8, inclusive.
-        // UINT16_TYPE | BITMASK_TYPE if and only if T2.bound is between 9 and 16, inclusive.
-        // UINT32_TYPE | BITMASK_TYPE if and only if T2.bound is between 17 and 32, inclusive
-        // UINT64_TYPE | BITMASK_TYPE if and only if T2.bound is between 33 and 64, inclusive
-        // STRING_TYPE | STRING_TYPE if and only if T1.element_type is-assignable-from T2.element_type
-        // ARRAY_TYPE | ARRAY_TYPE if and only if :• T1.bounds[] == T2.bounds[] • T1.element_type is strongly assignable from T2.element_type
-        // SEQUENCE_TYPE | SEQUENCE_TYPE if and only if T1.element_type is strongly assignable from T2.element_type
-        // MAP_TYPE | MAP_TYPE if and only if: • T1.key_element_type is strongly assignable from T2.key_element_type 1.T1.element_type is strongly assignable from T2.element_type.
-        // BITMASK_TYPE | BITMASK_TYPE if and only if T1.bound == T2.bound
-        // BITMASK_TYPE | UINT_32_TYPE if and only if T1.bound is between 17 and 32, inclusive.
-        // BITMASK_TYPE | UINT_16_TYPE if and only if T1.bound is between 9 and 16, inclusive.
-        // BITMASK_TYPE | UINT_64_TYPE if and only if T1.bound is between 33 and 64, inclusive.
-        // BITMASK_TYPE | UINT_8_TYPE if and only if T1.bound is between 1 and 8, inclusive.
-        // ENUMERATION_TYPE | ENUMERATION_TYPE if an only if: •T1.extensibility == T2.extensibility •Any literals that have the same name in T1 and T2 also have the same value, and any literals that have the same value in T1 and T2 also have the same name. This behavior may be modified with the @ignore_literal_names annotation, see 7.3.1.2.1.11. •If extensibility is final T1 and T2 have the same literals.
-
-        // UNION_TYPE | UNION_TYPE if and only if it is possible to unambiguously select the appropriate T1 member based on the T2 discriminator value and to transform both the discriminator and the selected member correctly. Specifically
-        // T1.extensibility == T2.extensibility. • T1.discriminator.type is- strongly-assignable-from T2.discriminator.type. • Either the discriminators of both T1 and T2 are keys or neither are keys. • Any members in T1 and T2 that have the same name also have the same ID and any members with the same ID also have the same name.
-        // For all non-default labels in T2 that select some member in T1 (including selecting the member in T1’s default label), the type of the selected member in T1 is assignable from the type of the T2 member.
-        // If any non-default labels in T1 that select the default member in T2, the type of the member in T1 is assignable from the type of the T2 default member.
-        // If T1 and T2 both have default labels, the type associated with T1 default member is assignable from the type associated with T2 default member.
-        // If T1 (and therefore T2) extensibility is final then the set of labels is identical. Otherwise, they have at least one common label other than the default label.
-
-        // STRUCTURE_TYPE | STRUCTURE_TYPE if and only if: • T1 and T2 have the same extensibility kind. • Any members in T1 and T2 that have the same name also have the same ID and any members with thesame ID also have the same name. • There is at least one member “m1” of T1 and one corresponding member “m2” of T2 such that m1.id == m2.id.
-        // For any member “m2” in T2, if there is a member "m1" in T1 with the same member ID, then the type KeyErased(m1.type) is-assignable- from the type KeyErased(m2.type).
-        // Members for which both optional is false and must_understand is true in either T1 or T2 appear (i.e., have a corresponding member of the same member ID) in both T1 and T2
-        // Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same member ID) in both T1 and T2.
-        // For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length.
-        // For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that all literals in m2.type appear as literals in m1.type.
-        // For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length.
-        // For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID verifies that KeyHolder(m1.type) is- assignable-from KeyHolder(m2.type).
-        // For any union key member m2 in T2, the m1 member of T1 with the same member ID verifies that: For every discriminator value of m2.type that selects a member m22 in m2.type, the discriminator value
-        // elects a member m11 in m1.type that verifies KeyHolder(m11.type) is-assignable-from KeyHolder(m22.type).
-        // Note: The rules regarding key members ensure that the key of T2 can be transformed faithfully into the key of T1 without aliasing or loss of information.
-        // AND if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the ‘optional’ attribute and the T1 member type is strongly assignable from the T2 member type.
-        // AND if T1 is final, then they meet the same condition as for T1 being appendable and in addition T1 and T2 have the same set of member IDs. For the purposes of the above conditions, members belonging to base types of T1 or T2 shall be considered “expanded” inside T1 or T2 respectively, as if they had been directly defined as part of the sub-type.
-
         if self == t2 {
             return true;
         }
@@ -2468,29 +2532,97 @@ impl CompleteTypeObject {
                 CompleteTypeObject::TkStructure { struct_type: t1 },
                 CompleteTypeObject::TkStructure { struct_type: t2 },
             ) => {
+                // • T1 and T2 have the same extensibility kind.
                 if t1.struct_flags != t2.struct_flags {
                     return false;
                 }
-                let mut has_common_id = false;
+
+                // • Any members in T1 and T2 that have the same name also have the same ID and any
+                //   members with the same ID also have the same name.
                 for m2 in &t2.member_seq {
                     if let Some(m1) = t1
                         .member_seq
                         .iter()
-                        .find(|m| m.common.member_id == m2.common.member_id)
+                        .find(|m1| m1.common.member_id == m2.common.member_id)
                     {
-                        has_common_id = true;
-                        if m1.common.member_type_id != m2.common.member_type_id {
-                            return false;
-                        }
                         if m1.detail.name != m2.detail.name {
                             return false;
                         }
                     }
                 }
-                if !has_common_id && !t1.member_seq.is_empty() && !t2.member_seq.is_empty() {
+                for m2 in &t2.member_seq {
+                    if let Some(m1) = t1
+                        .member_seq
+                        .iter()
+                        .find(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        if m1.common.member_id != m2.common.member_id {
+                            return false;
+                        }
+                    }
+                }
+
+                // • There is at least one member "m1" of T1 and one corresponding member "m2" of T2
+                //   such that m1.id == m2.id.
+                let mut has_common_id = false;
+                for m2 in &t2.member_seq {
+                    if t1
+                        .member_seq
+                        .iter()
+                        .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        has_common_id = true
+                    }
+                }
+                if !has_common_id {
                     return false;
                 }
-                true
+
+                // • For any member "m2" in T2, if there is a member "m1" in T1 with the same member ID, then the type
+                //   KeyErased(m1.type) is-assignable-from the type KeyErased(m2.type).
+                let mut members_are_assignable = true;
+                for m2 in t2.member_seq.iter() {
+                    if let Some(m1) = t1
+                        .member_seq
+                        .iter()
+                        .find(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        members_are_assignable &= m1
+                            .common
+                            .member_type_id
+                            .is_assignable_and_constructable_from(&m2.common.member_type_id);
+                    }
+                }
+
+                // • Members for which both optional is false and must_understand is true in either T1 or T2 appear
+                //   (i.e., have a corresponding member of the same member ID) in both T1 and T2.
+                // TODO
+
+                // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
+                //   member ID) in both T1 and T2.
+                // TODO
+
+                // • For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies
+                //   m1.type.length >= m2.type.length.
+                // TODO
+
+                // • For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that
+                //   all literals in m2.type appear as literals in m1.type.
+                // TODO
+
+                // • For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies
+                //   m1.type.length >= m2.type.length.
+                // TODO
+
+                // • For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID
+                //   verifies that KeyHolder(m1.type) is-assignable-from KeyHolder(m2.type).
+                // TODO
+
+                // • For any union key member m2 in T2, the m1 member of T1 with the same member ID verifies that: For
+                //   every discriminator value of m2.type that selects a member m22 in m2.type, the discriminator value
+                // TODO
+
+                members_are_assignable
             }
             (
                 CompleteTypeObject::TkUnion { union_type: t1 },

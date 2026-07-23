@@ -595,8 +595,6 @@ impl<const N: u32> From<BoundedString<N>> for String {
     }
 }
 
-
-
 impl<const N: u32> Type for BoundedString<N> {
     const TYPE: DynamicType<'static> = DynamicType {
         descriptor: &TypeDescriptor {

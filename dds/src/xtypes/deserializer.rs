@@ -213,7 +213,7 @@ impl EncodingVersion for EncodingVersion1 {
             .r#type
             .descriptor
             .bound
-            .get(0)
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -360,7 +360,7 @@ impl EncodingVersion for EncodingVersion2 {
             .r#type
             .descriptor
             .bound
-            .get(0)
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -877,7 +877,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             .r#type
             .descriptor
             .bound
-            .get(0)
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }

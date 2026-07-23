@@ -2062,10 +2062,13 @@ impl DcpsDomainParticipant {
                                                     },
                                                     TypeObject::EkMinimal { minimal } => &MinimalTypeObject::from(topic.type_support) == minimal,
                                                 };
+
+
+
                                                 if !is_type_assignable {
                                                     topic.inconsistent_topic_status.total_count += 1;
                                                     topic.inconsistent_topic_status.total_count_change += 1;
-                                                    let participant = DomainParticipantAsync::new(self.dcps_sender.clone(), self.domain_participant.domain_id, self.domain_participant.instance_handle);
+                                                    let participant = DomainParticipantAsync::new(self.dcps_sender, self.domain_participant.domain_id, self.domain_participant.instance_handle);
                                                     let the_topic = TopicAsync::new(topic.instance_handle, topic.type_name.clone(), topic.topic_name.clone(), participant);
                                                     if topic.listener_mask.is_enabled(&StatusKind::InconsistentTopic) {
                                                         let status = topic.inconsistent_topic_status.get_inconsistent_topic_status();

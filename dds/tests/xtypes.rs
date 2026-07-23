@@ -602,7 +602,12 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(&publisher_topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .unwrap();
     let status_cond = publisher_topic.get_statuscondition();
     status_cond
@@ -647,9 +652,7 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
-
 #[test]
-#[ignore = "not yet working"]
 fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let publisher_participant = DomainParticipantFactory::get_instance()
@@ -785,4 +788,3 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
         &data
     );
 }
-
