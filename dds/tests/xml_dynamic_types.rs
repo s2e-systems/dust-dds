@@ -543,7 +543,7 @@ fn create_int32x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     assert_eq!(
         m.descriptor
             .r#type
@@ -567,14 +567,9 @@ fn create_int32x10x2_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
-    let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
-    assert_eq!(inner.get_kind(), TypeKind::ARRAY);
-    assert_eq!(inner.get_descriptor().bound, Some(2));
-    assert_eq!(
-        inner.get_descriptor().element_type.unwrap().get_kind(),
-        TypeKind::INT32
-    );
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10, 2]);
+    let element_type = m.descriptor.r#type.get_descriptor().element_type.unwrap();
+    assert_eq!(element_type.get_kind(), TypeKind::INT32);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -589,7 +584,7 @@ fn create_int32x20_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -604,7 +599,7 @@ fn create_uint32x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     assert_eq!(
         m.descriptor
             .r#type
@@ -628,7 +623,7 @@ fn create_uint32x20_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -643,10 +638,10 @@ fn create_string10x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
     assert_eq!(inner.get_kind(), TypeKind::STRING8);
-    assert_eq!(inner.get_descriptor().bound, Some(10));
+    assert_eq!(inner.get_descriptor().bound, &[10]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -661,10 +656,10 @@ fn create_string20x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     let inner = m.descriptor.r#type.get_descriptor().element_type.unwrap();
     assert_eq!(inner.get_kind(), TypeKind::STRING8);
-    assert_eq!(inner.get_descriptor().bound, Some(20));
+    assert_eq!(inner.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -702,7 +697,7 @@ fn create_enum1x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     assert_eq!(
         m.descriptor
             .r#type
@@ -726,7 +721,7 @@ fn create_enum2x10_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     assert_eq!(
         m.descriptor
             .r#type
@@ -750,7 +745,7 @@ fn create_f_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -765,7 +760,7 @@ fn create_f_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -780,7 +775,7 @@ fn create_a_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -795,7 +790,7 @@ fn create_a_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -810,7 +805,7 @@ fn create_m_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -825,7 +820,7 @@ fn create_m_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(20));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[20]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -840,7 +835,7 @@ fn create_f_s_array10_f_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
     // The nested type is a struct with an array
     assert_eq!(
         m.descriptor
@@ -865,7 +860,7 @@ fn create_f_s_array10_f_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -880,7 +875,7 @@ fn create_f_s_array10_a_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -895,7 +890,7 @@ fn create_f_s_array10_a_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -910,7 +905,7 @@ fn create_f_s_array10_m_s_array20_uint32_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -925,5 +920,5 @@ fn create_f_s_array10_m_s_array20_uint32_alt_from_xml() {
     let ty = builder.build();
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
-    assert_eq!(m.descriptor.r#type.get_descriptor().bound, Some(10));
+    assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }

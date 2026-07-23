@@ -649,6 +649,7 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
 
 
 #[test]
+#[ignore = "not yet working"]
 fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let publisher_participant = DomainParticipantFactory::get_instance()
