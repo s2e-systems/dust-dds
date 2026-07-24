@@ -2419,34 +2419,26 @@ impl TypeIdentifier {
                         | TypeIdentifier::TiString16Large { string_ldefn: _ }
                 )
             }
-            TypeIdentifier::TiPlainSequenceSmall {
-                seq_sdefn: seq_sdefn_t1,
-            } => matches!(
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => matches!(
                 other,
                 TypeIdentifier::TiPlainSequenceSmall {
-                    seq_sdefn: seq_sdefn_t2
-                } if seq_sdefn_t1.element_identifier.is_strongly_assignable_from(&seq_sdefn_t2.element_identifier)),
-            TypeIdentifier::TiPlainSequenceLarge {
-                seq_ldefn: seq_ldefn_t1,
-            } => matches!(
+                    seq_sdefn: t2
+                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t1 } => matches!(
                 other,
                 TypeIdentifier::TiPlainSequenceLarge {
-                    seq_ldefn: seq_ldefn_t2
-                } if seq_ldefn_t1.element_identifier.is_strongly_assignable_from(&seq_ldefn_t2.element_identifier)),
-            TypeIdentifier::TiPlainArraySmall {
-                array_sdefn: array_sdefn_t1,
-            } => matches!(
+                    seq_ldefn: t2
+                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => matches!(
                 other,
                 TypeIdentifier::TiPlainArraySmall {
-                    array_sdefn: array_sdefn_t2
-                } if array_sdefn_t1.array_bound_seq == array_sdefn_t2.array_bound_seq && array_sdefn_t1.element_identifier.is_strongly_assignable_from(&array_sdefn_t2.element_identifier)),
-            TypeIdentifier::TiPlainArrayLarge {
-                array_ldefn: array_ldefn_t1,
-            } => matches!(
+                    array_sdefn: t2
+                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn: t1 } => matches!(
                 other,
                 TypeIdentifier::TiPlainArrayLarge {
-                    array_ldefn: array_ldefn_t2
-                } if array_ldefn_t1.array_bound_seq == array_ldefn_t2.array_bound_seq && array_ldefn_t1.element_identifier.is_strongly_assignable_from(&array_ldefn_t2.element_identifier)),
+                    array_ldefn: t2
+                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
