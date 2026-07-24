@@ -1,14 +1,12 @@
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
-use dust_dds_derive::DdsType;
-
+use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
 use crate::xtypes::{
     dynamic_type::{DynamicType, DynamicTypeMember},
     serializer::serialize_without_header_cdr2_le,
     type_object::TypeIdentifier::EkMinimal,
     type_support::TypeSupport,
 };
-
-use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use dust_dds_derive::DdsType;
 
 /* Manually created from dds-xtypes_typeobject.idl */
 
@@ -2382,8 +2380,12 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
+    fn is_strongly_assignable_from(&self, other: &TypeIdentifier) -> bool {
+        // Todo: add strong rules
+        self.is_assignable_from(other)
+    }
     /// 7.2.4.4 Assignability Rules
-    fn is_assignable_and_constructable_from(&self, other: &TypeIdentifier) -> bool {
+    fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
@@ -2401,41 +2403,21 @@ impl TypeIdentifier {
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
             TypeIdentifier::TkChar8Type => matches!(other, TypeIdentifier::TkChar8Type),
             TypeIdentifier::TkChar16Type => matches!(other, TypeIdentifier::TkChar16Type),
-            TypeIdentifier::TiString8Small {
-                string_sdefn: string_sdefn_t1,
-            }
-            | TypeIdentifier::TiString16Small {
-                string_sdefn: string_sdefn_t1,
-            } => {
-                if let TypeIdentifier::TiString8Small {
-                    string_sdefn: string_sdefn_t2,
-                }
-                | TypeIdentifier::TiString16Small {
-                    string_sdefn: string_sdefn_t2,
-                } = other
-                {
-                    string_sdefn_t2.bound <= string_sdefn_t1.bound
-                } else {
-                    false
-                }
-            }
-            TypeIdentifier::TiString8Large {
-                string_ldefn: string_ldefn_t1,
-            }
-            | TypeIdentifier::TiString16Large {
-                string_ldefn: string_ldefn_t1,
-            } => {
-                if let TypeIdentifier::TiString8Large {
-                    string_ldefn: string_ldefn_t2,
-                }
-                | TypeIdentifier::TiString16Large {
-                    string_ldefn: string_ldefn_t2,
-                } = other
-                {
-                    string_ldefn_t2.bound <= string_ldefn_t1.bound
-                } else {
-                    false
-                }
+            // Note: bounds and string length is not a requirement for assignability
+            // The object length (not the bound) ir q requirment for object constructability
+            TypeIdentifier::TiString8Small { string_sdefn: _ }
+            | TypeIdentifier::TiString8Large { string_ldefn: _ } => matches!(
+                other,
+                TypeIdentifier::TiString8Small { string_sdefn: _ }
+                    | TypeIdentifier::TiString8Large { string_ldefn: _ }
+            ),
+            TypeIdentifier::TiString16Small { string_sdefn: _ }
+            | TypeIdentifier::TiString16Large { string_ldefn: _ } => {
+                matches!(
+                    other,
+                    TypeIdentifier::TiString16Small { string_sdefn: _ }
+                        | TypeIdentifier::TiString16Large { string_ldefn: _ }
+                )
             }
             TypeIdentifier::TiPlainSequenceSmall {
                 seq_sdefn: seq_sdefn_t1,
@@ -2443,28 +2425,28 @@ impl TypeIdentifier {
                 other,
                 TypeIdentifier::TiPlainSequenceSmall {
                     seq_sdefn: seq_sdefn_t2
-                } if seq_sdefn_t1.bound <= seq_sdefn_t2.bound),
+                } if seq_sdefn_t1.element_identifier.is_strongly_assignable_from(&seq_sdefn_t2.element_identifier)),
             TypeIdentifier::TiPlainSequenceLarge {
                 seq_ldefn: seq_ldefn_t1,
             } => matches!(
                 other,
                 TypeIdentifier::TiPlainSequenceLarge {
                     seq_ldefn: seq_ldefn_t2
-                } if seq_ldefn_t1.bound <= seq_ldefn_t2.bound),
+                } if seq_ldefn_t1.element_identifier.is_strongly_assignable_from(&seq_ldefn_t2.element_identifier)),
             TypeIdentifier::TiPlainArraySmall {
                 array_sdefn: array_sdefn_t1,
             } => matches!(
                 other,
                 TypeIdentifier::TiPlainArraySmall {
                     array_sdefn: array_sdefn_t2
-                } if array_sdefn_t1.array_bound_seq == array_sdefn_t2.array_bound_seq),
+                } if array_sdefn_t1.array_bound_seq == array_sdefn_t2.array_bound_seq && array_sdefn_t1.element_identifier.is_strongly_assignable_from(&array_sdefn_t2.element_identifier)),
             TypeIdentifier::TiPlainArrayLarge {
                 array_ldefn: array_ldefn_t1,
             } => matches!(
                 other,
                 TypeIdentifier::TiPlainArrayLarge {
                     array_ldefn: array_ldefn_t2
-                } if array_ldefn_t1.array_bound_seq == array_ldefn_t2.array_bound_seq),
+                } if array_ldefn_t1.array_bound_seq == array_ldefn_t2.array_bound_seq && array_ldefn_t1.element_identifier.is_strongly_assignable_from(&array_ldefn_t2.element_identifier)),
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
@@ -2496,7 +2478,6 @@ impl CompleteTypeObject {
         if self == t2 {
             return true;
         }
-
         match (self, t2) {
             (
                 CompleteTypeObject::TkArray { array_type: t1 },
@@ -2590,7 +2571,7 @@ impl CompleteTypeObject {
                         members_are_assignable &= m1
                             .common
                             .member_type_id
-                            .is_assignable_and_constructable_from(&m2.common.member_type_id);
+                            .is_assignable_from(&m2.common.member_type_id);
                     }
                 }
 
