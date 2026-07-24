@@ -2442,22 +2442,8 @@ impl TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
-            TypeIdentifier::EkComplete {
-                equivalence_hash: equivalence_hash_t1,
-            } => matches!(
-                other,
-                TypeIdentifier::EkComplete {
-                    equivalence_hash: equivalence_hash_t2
-                } if equivalence_hash_t2 == equivalence_hash_t1
-            ),
-            EkMinimal {
-                equivalence_hash: equivalence_hash_t1,
-            } => matches!(
-                other,
-                TypeIdentifier::EkMinimal {
-                    equivalence_hash: equivalence_hash_t2
-                } if equivalence_hash_t2 == equivalence_hash_t1
-            ),
+            TypeIdentifier::EkComplete { .. } => matches!(other, TypeIdentifier::EkComplete { .. }),
+            EkMinimal { .. } => matches!(other, TypeIdentifier::EkMinimal { .. }),
             TypeIdentifier::Default { extended_type: _ } => todo!(),
         }
     }
@@ -2471,36 +2457,6 @@ impl CompleteTypeObject {
             return true;
         }
         match (self, t2) {
-            (
-                CompleteTypeObject::TkArray { array_type: t1 },
-                CompleteTypeObject::TkArray { array_type: t2 },
-            ) => {
-                t1.header.common.bound_seq == t2.header.common.bound_seq
-                    && t1.element.common._type == t2.element.common._type
-            }
-            (
-                CompleteTypeObject::TkSequence { sequence_type: t1 },
-                CompleteTypeObject::TkSequence { sequence_type: t2 },
-            ) => t1.element.common._type == t2.element.common._type,
-            (
-                CompleteTypeObject::TkMap { map_type: t1 },
-                CompleteTypeObject::TkMap { map_type: t2 },
-            ) => {
-                t1.key.common._type == t2.key.common._type
-                    && t1.element.common._type == t2.element.common._type
-            }
-            (
-                CompleteTypeObject::TkBitmask { bitmask_type: t1 },
-                CompleteTypeObject::TkBitmask { bitmask_type: t2 },
-            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
-            (
-                CompleteTypeObject::TkEnum {
-                    enumerated_type: t1,
-                },
-                CompleteTypeObject::TkEnum {
-                    enumerated_type: t2,
-                },
-            ) => t1.enum_flags == t2.enum_flags && t1.literal_seq == t2.literal_seq,
             (
                 CompleteTypeObject::TkStructure { struct_type: t1 },
                 CompleteTypeObject::TkStructure { struct_type: t2 },
