@@ -343,6 +343,9 @@ impl DynamicTypeBuilderFactory {
                 }
             }
         }
+        if is_enum {
+            discriminator_type = Some(Self::get_primitive_type(TypeKind::INT32));
+        }
 
         let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
         let descriptor = TypeDescriptor {
@@ -1688,6 +1691,17 @@ impl<'a> DynamicData<'a> {
             TypeKind::STRING8 => {
                 let val = node.text().unwrap_or("");
                 Ok(DataStorage::String(String::from(val)))
+            }
+            TypeKind::ENUM => {
+                let enumerator = r#type.get_member_by_name(text)?;
+                let label = enumerator
+                    .descriptor
+                    .label
+                    .first()
+                    .ok_or(XTypesError::InvalidData)?;
+                let mut inner_data = DynamicDataFactory::create_data(r#type);
+                inner_data.set_int32_value(0, *label as i32)?;
+                Ok(DataStorage::ComplexValue(inner_data))
             }
             TypeKind::STRUCTURE | TypeKind::UNION => {
                 let mut inner_data = DynamicDataFactory::create_data(r#type);
