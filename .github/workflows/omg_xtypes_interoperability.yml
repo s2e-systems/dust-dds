@@ -120,6 +120,7 @@ jobs:
     - name: Download junit reports
       uses: actions/download-artifact@v8
       with:
+        pattern: '*.xml'
         merge-multiple: true
 
     - name: List reports directory
@@ -129,27 +130,20 @@ jobs:
       with:
         repository: s2e-systems/dds-xtypes
         ref: ${{ env.dds_xtypes_rep_ref }}
+        path: dds-xtypes
     - uses: actions/setup-python@v7
       with:
         python-version: '3.12.13'
     - name: Install omg-dds dds-xtypes Python requirements
-      run: pip install --requirement requirements.txt
+      run: pip install --requirement dds-xtypes/requirements.txt
     - name: merge reports
-      run: junitparser merge reports/*.xml junit_interoperability_report.xml
-    - name: List directory
-      run: ls -l
+      run: junitparser merge *.xml junit_interoperability_report.xml
     - name: Generate xlsx report
-      run: python3 ./generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
-    - name: XUnit
-      uses: AutoModality/action-xunit-viewer@v1
-      with:
-        results: ./junit_interoperability_report.xml
-        fail: false
+      run: python3 ./dds-xtypes/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
     - name: Upload report
       uses: actions/upload-artifact@v7
       with:
         name: interoperability_report_complete
         path: |
-          ./index.html
           ./junit_interoperability_report.xml
           ./interoperability_report.xlsx
