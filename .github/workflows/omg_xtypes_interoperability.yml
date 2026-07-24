@@ -69,7 +69,7 @@ jobs:
         ref: ${{ env.dds_xtypes_rep_ref }}
     - uses: actions/setup-python@v7
       with:
-        python-version: '3.12.13'
+        python-version: '3.11.4'
     - name: Downloads test_main executables from OMG
       uses: robinraju/release-downloader@v1.13
       with:
@@ -101,7 +101,7 @@ jobs:
     # - name: Run Interoperability script
     #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 2
     - name: Run Interoperability script
-      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2
+      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2 --verbose
     # - name: Run Interoperability script
     #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 1
     # - name: Run Interoperability script
@@ -133,7 +133,7 @@ jobs:
         path: dds-xtypes
     - uses: actions/setup-python@v7
       with:
-        python-version: '3.12.13'
+        python-version: '3.11.4'
     - name: Install omg-dds dds-xtypes Python requirements
       run: pip install --requirement dds-xtypes/requirements.txt
     - name: merge reports
