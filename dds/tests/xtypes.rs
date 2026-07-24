@@ -98,7 +98,6 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
-
 #[test]
 #[ignore = "not yet working"]
 fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {

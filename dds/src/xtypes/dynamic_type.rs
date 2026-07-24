@@ -1700,7 +1700,7 @@ impl<'a> DynamicData<'a> {
                     .first()
                     .ok_or(XTypesError::InvalidData)?;
                 let mut inner_data = DynamicDataFactory::create_data(r#type);
-                inner_data.set_int32_value(0, *label as i32)?;
+                inner_data.set_int32_value(0, *label)?;
                 Ok(DataStorage::ComplexValue(inner_data))
             }
             TypeKind::STRUCTURE | TypeKind::UNION => {
@@ -1802,7 +1802,7 @@ impl<'a> DynamicData<'a> {
                                 .label
                                 .first()
                                 .ok_or(XTypesError::InvalidData)?;
-                            inner_data.set_int32_value(0, *label as i32)?;
+                            inner_data.set_int32_value(0, *label)?;
                             vec.push(inner_data);
                         }
                         Ok(DataStorage::SequenceComplexValue(vec))

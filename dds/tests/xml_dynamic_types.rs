@@ -578,18 +578,18 @@ fn data_from_xml_array_enum_10() {
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn data_from_xml_enum_single_from_test_enum1() {
-    let builder = DynamicTypeBuilderFactory::create_type_w_document(
-        TYPES_XML_ARRAYS,
-        "Test::enum1",
-        vec![],
-    )
-    .unwrap();
+    let builder =
+        DynamicTypeBuilderFactory::create_type_w_document(TYPES_XML_ARRAYS, "Test::enum1", vec![])
+            .unwrap();
     let ty = builder.build();
 
     let mut d = DynamicDataFactory::create_data(ty);
     d.from_xml(DATA_XML_ENUM_SINGLE).unwrap();
 
-    assert_eq!(d.get_complex_value(0).unwrap().get_int32_value(0).unwrap(), &1);
+    assert_eq!(
+        d.get_complex_value(0).unwrap().get_int32_value(0).unwrap(),
+        &1
+    );
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -983,5 +983,3 @@ fn create_f_s_array10_m_s_array20_uint32_alt_from_xml() {
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
     assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
-
-
