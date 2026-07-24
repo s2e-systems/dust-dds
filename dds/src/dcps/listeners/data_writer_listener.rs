@@ -66,6 +66,12 @@ impl DcpsDataWriterListener {
                     } => {
                         panic!("Not valid for writer")
                     }
+                    ListenerMail::InconsistentTopic {
+                        the_topic: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for writer")
+                    }
                 }
             }
         });
