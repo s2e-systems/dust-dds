@@ -279,6 +279,23 @@ const DATA_XML_ARRAY_NUM_10: &str = r#"<struct>
 </struct>
 "#;
 
+const DATA_XML_ARRAY_ENUM_10: &str = r#"
+<struct>
+  <x1>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+    <item>VAL1</item>
+  </x1>
+</struct>
+"#;
+
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn create_struct_primitive_int8_from_xml() {
@@ -529,6 +546,27 @@ fn data_from_xml_array_num_10() {
 
     let expected_values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     assert_eq!(d.get_int32_values(0).unwrap(), expected_values.as_slice());
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn data_from_xml_array_enum_10() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_ARRAYS,
+        "Test::enum1x10",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty);
+    d.from_xml(DATA_XML_ARRAY_ENUM_10).unwrap();
+
+    let values = d.get_complex_values(0).unwrap();
+    assert_eq!(values.len(), 10);
+    for value in values {
+        assert_eq!(value.get_int32_value(0).unwrap(), &1);
+    }
 }
 
 #[cfg(feature = "xtypes-xml")]
@@ -922,3 +960,5 @@ fn create_f_s_array10_m_s_array20_uint32_alt_from_xml() {
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
     assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
 }
+
+

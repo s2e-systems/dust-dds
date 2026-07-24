@@ -1777,6 +1777,22 @@ impl<'a> DynamicData<'a> {
                         }
                         Ok(DataStorage::SequenceString(vec))
                     }
+                    TypeKind::ENUM => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            let mut inner_data = DynamicDataFactory::create_data(element_type);
+                            let enumerator = element_type.get_member_by_name(item_text)?;
+                            let label = enumerator
+                                .descriptor
+                                .label
+                                .first()
+                                .ok_or(XTypesError::InvalidData)?;
+                            inner_data.set_int32_value(0, *label as i32)?;
+                            vec.push(inner_data);
+                        }
+                        Ok(DataStorage::SequenceComplexValue(vec))
+                    }
                     TypeKind::STRUCTURE | TypeKind::UNION => {
                         let mut vec = Vec::new();
                         for item in node.children().filter(|c| c.is_element()) {
