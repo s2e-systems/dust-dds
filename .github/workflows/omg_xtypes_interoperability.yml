@@ -135,7 +135,7 @@ jobs:
     - name: Install omg-dds dds-xtypes Python requirements
       run: pip install --requirement requirements.txt
     - name: merge reports
-      run: junitparser merge *.xml junit_interoperability_report.xml
+      run: junitparser merge reports/*.xml junit_interoperability_report.xml
     - name: List directory
       run: ls -l
     - name: Generate xlsx report
