@@ -120,7 +120,7 @@ jobs:
     - name: Download junit reports
       uses: actions/download-artifact@v8
       with:
-        pattern: '*.xml'
+        pattern: junit_report*
         merge-multiple: true
 
     - name: List reports directory
