@@ -23,7 +23,6 @@ use crate::{
             BUILT_IN_TOPIC_NAME_LIST, BuiltInKeyHolder, DataReaderEntity, DataWriterEntity,
             DcpsDomainParticipant, DiscoveredParticipantInfo, DiscoveredTypeRepresentationState,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            TopicEntity,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -2237,10 +2236,9 @@ impl DcpsDomainParticipant {
             {
                 if let Some(discovered_type_information) = &discovered_topic.type_information {
                     if discovered_type_information.minimal != topic.type_information.minimal
-                        && !topic
-                            .discovered_type_representation
-                            .iter()
-                            .any(|(type_information, _)| type_information == discovered_type_information)
+                        && !topic.discovered_type_representation.iter().any(
+                            |(type_information, _)| type_information == discovered_type_information,
+                        )
                     {
                         let should_request = {
                             let Some(type_request_writer) = self
@@ -2260,7 +2258,7 @@ impl DcpsDomainParticipant {
                                         sequence_number: (type_request_writer
                                             .last_change_sequence_number
                                             + 1)
-                                            .into(),
+                                        .into(),
                                     },
                                     instance_name: format!(
                                         "dds.builtin.TOS.{:x}",
