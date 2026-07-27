@@ -3,6 +3,8 @@ use crate::xtypes::{
     data_storage::DataStorage,
     dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
     error::{XTypesError, XTypesResult},
+    type_object::TypeIdentifier,
+    type_support::TypeSupport,
 };
 use alloc::{string::ToString, vec::Vec};
 
@@ -189,7 +191,12 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     /// Serialization Rule: { M.value : M.value.type }
     fn serialize_value(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
-        match member_descriptor.r#type.get_kind() {
+        let member_type = if member_descriptor.is_external {
+            TypeIdentifier::get_type()
+        } else {
+            member_descriptor.r#type
+        };
+        match member_type.get_kind() {
             TypeKind::NONE => (),
             TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
             TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),

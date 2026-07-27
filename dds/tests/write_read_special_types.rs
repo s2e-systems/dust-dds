@@ -402,7 +402,7 @@ fn dynamic_data_should_read_and_write() {
         name: "KeyedData",
         base_type: None,
         discriminator_type: None,
-        bound: None,
+        bound: &[],
         element_type: None,
         key_element_type: None,
         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
@@ -1133,5 +1133,119 @@ fn inherited_type_should_dispose_correct_sample() {
     assert_eq!(
         samples[1].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed
+    );
+}
+
+#[test]
+fn enum_array_from_dynamic_type_should_write_read() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <struct name="enum1x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "enum1x10", vec![]).unwrap();
+    let a1_dynamic_type = type_builder.build();
+    let topic1 = participant1
+        .create_dynamic_topic(
+            "A",
+            "A",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            a1_dynamic_type,
+        )
+        .unwrap();
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant1
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &topic1,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+                <item>VAL1</item>
+            </x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
     );
 }

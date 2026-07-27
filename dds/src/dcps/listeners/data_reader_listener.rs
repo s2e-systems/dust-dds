@@ -74,6 +74,12 @@ impl DcpsDataReaderListener {
                     } => {
                         panic!("Not valid for reader")
                     }
+                    ListenerMail::InconsistentTopic {
+                        the_topic: _,
+                        status: _,
+                    } => {
+                        panic!("Not valid for reader")
+                    }
                 }
             }
         });
