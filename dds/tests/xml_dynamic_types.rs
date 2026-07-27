@@ -246,6 +246,58 @@ const TYPES_XML_ARRAYS: &str = r#"<dds>
 </dds>
 "#;
 
+const TYPES_XML_EXTENSIBILITY: &str = r#"<dds>
+    <types>
+        <module name="Test">
+            <struct name="struct_f1"   extensibility="final">
+                <member name="x1" type="int32" />
+            </struct>
+            <struct name="struct_f2"   extensibility="final">
+                <member name="x1" type="int32" />
+                <member name="x2" type="int32" />
+            </struct>
+
+            <struct name="struct_a1"   extensibility="appendable">
+                <member name="x1" type="int32" />
+            </struct>
+            <struct name="struct_a2"   extensibility="appendable">
+                <member name="x1" type="int32" />
+                <member name="x2" type="int32" />
+            </struct>
+            <struct name="struct_a3"   extensibility="appendable">
+                <member name="x1" type="int32" />
+                <member name="x3" type="int32" />
+                <member name="x2" type="int32" />
+            </struct>
+
+            <struct name="struct_m1"   extensibility="mutable">
+                <member name="x1" type="int32" id="1" />
+            </struct>
+            <struct name="struct_m2"   extensibility="mutable">
+                <member name="x1" type="int32" id="1" />
+                <member name="x2" type="int32" id="2" />
+            </struct>
+            <struct name="struct_m3"   extensibility="mutable">
+                <member name="x1" type="int32" id="1" />
+                <member name="x3" type="int32" id="3" />
+                <member name="x2" type="int32" id="2" />
+            </struct>
+            <struct name="struct_m4"   extensibility="mutable">
+                <member name="x1" type="int32" />
+                <member name="x3" type="int32" />
+                <member name="x2" type="int32" />
+            </struct>
+
+            <struct name="struct_hashid_1" extensibility="final" autoid="hash">
+                <member name="x1" type="int32"/>
+            </struct>
+            <struct name="struct_hashid_2" extensibility="final" autoid="hash">
+                <member name="x2" type="int32" hashid="x1"/>
+            </struct>
+        </module>
+    </types>
+</dds>"#;
+
 const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x1>0x01</x1>
   <x2>2</x2>
@@ -982,4 +1034,21 @@ fn create_f_s_array10_m_s_array20_uint32_alt_from_xml() {
     let m = ty.get_member_by_name("altx1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::ARRAY);
     assert_eq!(m.descriptor.r#type.get_descriptor().bound, &[10]);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_struct_m1_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_m1",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    assert_eq!(ty.get_kind(), TypeKind::STRUCTURE);
+    assert_eq!(ty.descriptor.extensibility_kind, ExtensibilityKind::Mutable);
+    let m = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::INT32);
+    assert_eq!(m.descriptor.id, 1);
 }

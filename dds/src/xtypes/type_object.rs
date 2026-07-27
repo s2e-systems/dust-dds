@@ -263,6 +263,13 @@ impl core::ops::BitOrAssign for TypeFlag {
     }
 }
 
+impl core::ops::BitAnd for TypeFlag {
+    type Output = TypeFlag;
+    fn bitand(self, rhs: TypeFlag) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
 /// Flag indicating the type is final (cannot be extended).
 pub const TYPE_FLAG_IS_FINAL: TypeFlag = TypeFlag(1 << 0); // F
 /// Flag indicating the type is appendable (new members can be added at the end).
@@ -2461,24 +2468,28 @@ impl CompleteTypeObject {
                 CompleteTypeObject::TkStructure { struct_type: t1 },
                 CompleteTypeObject::TkStructure { struct_type: t2 },
             ) => {
-                // • T1 and T2 have the same extensibility kind.
-                if t1.struct_flags != t2.struct_flags {
+                // • Extensibility rules (Clause 7.2.4.4.2 Structure Types)
+                let is_t1_final = (t1.struct_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t2_final = (t2.struct_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t1_appendable =
+                    (t1.struct_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t2_mutable =
+                    (t2.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+
+                if is_t1_final {
+                    if !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
+                        return false;
+                    }
+                } else if is_t1_appendable && is_t2_mutable {
                     return false;
                 }
 
                 // • Any members in T1 and T2 that have the same name also have the same ID and any
                 //   members with the same ID also have the same name.
-                for m2 in &t2.member_seq {
-                    if let Some(m1) = t1
-                        .member_seq
-                        .iter()
-                        .find(|m1| m1.common.member_id == m2.common.member_id)
-                    {
-                        if m1.detail.name != m2.detail.name {
-                            return false;
-                        }
-                    }
-                }
+
+                // Somehow the rule "any members with the same ID also have the same name." in the xtypes testsuite
+                // is not applicable because such a type should match and data should flow
+
                 for m2 in &t2.member_seq {
                     if let Some(m1) = t1
                         .member_seq

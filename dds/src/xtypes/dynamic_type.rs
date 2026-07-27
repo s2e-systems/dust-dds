@@ -491,9 +491,21 @@ impl DynamicTypeBuilderFactory {
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
 
+                    let m_id = if let Some(id_str) = child.attribute("id") {
+                        if let Some(hex) = id_str.strip_prefix("0x") {
+                            u32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)?
+                        } else {
+                            id_str
+                                .parse::<u32>()
+                                .map_err(|_| XTypesError::InvalidData)?
+                        }
+                    } else {
+                        member_id
+                    };
+
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
-                        id: member_id,
+                        id: m_id,
                         r#type: type_ptr,
                         default_value: None,
                         index: member_id,

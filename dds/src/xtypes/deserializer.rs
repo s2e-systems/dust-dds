@@ -415,7 +415,9 @@ impl EncodingVersion for EncodingVersion2 {
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_value(member, dynamic_data)
-        } else if !member.descriptor.is_optional {
+        } else if !member.descriptor.is_optional
+            && member.descriptor.try_construct_kind != TryConstructKind::UseDefault
+        {
             Err(XTypesError::PidNotFound(pid))
         } else {
             Ok(())

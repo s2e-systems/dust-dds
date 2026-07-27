@@ -1697,6 +1697,27 @@ mod tests {
     }
 
     #[test]
+    fn serialize_mutable_struct_simple() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 0x01)]
+            x1: u32,
+        }
+        let data = MutableType { x1: 1 }.create_dynamic_sample();
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // CDR Header
+                8, 0, 0, 0, // DHEADER (length)
+                0x01, 0, 0, 0b010_0000, // EMHEADER1 incl. LC 0b010 (4 bytes)
+                1, 0, 0, 0, // u32
+            ]
+        );
+    }
+
+    #[test]
     fn serialize_mutable_struct() {
         #[derive(TypeSupport, Clone, Default, PartialEq)]
         #[dust_dds(extensibility = "mutable")]
