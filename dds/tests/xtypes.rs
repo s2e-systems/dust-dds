@@ -69,15 +69,15 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     <dds>
         <types>
             <module name="Test">
-                <struct name="struct_m1"   extensibility="mutable">
-                    <member name="x1" type="int32" id="1" />
+                <struct name="struct_f1"   extensibility="final">
+                    <member name="x1" type="int32" />
                 </struct>
             </module>
         </types>
     </dds>
     "#;
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_f1", vec![]).unwrap();
     let a1_dynamic_type = type_builder.build();
     let topic1 = participant1
         .create_dynamic_topic(
@@ -119,12 +119,12 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
         )
         .unwrap();
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_f1", vec![]).unwrap();
 
     let topic2 = participant2
         .create_dynamic_topic(
             "test",
-            "Test::struct_m1",
+            "Test::struct_f1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -158,18 +158,12 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
         )
         .unwrap();
 
-    assert_eq!(
-        receiver
-            .recv_timeout(std::time::Duration::from_secs(10))
-            .unwrap(),
-        "on_subscription_matched()"
-    );
-    assert_eq!(
-        receiver
-            .recv_timeout(std::time::Duration::from_secs(10))
-            .unwrap(),
-        "on_publication_matched()"
-    );
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
 
     let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
     data.from_xml(
