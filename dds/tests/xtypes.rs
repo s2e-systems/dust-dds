@@ -1,11 +1,17 @@
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use dust_dds::{
-    domain::domain_participant_factory::DomainParticipantFactory,
+    domain::{
+        domain_participant_factory::DomainParticipantFactory,
+        domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::{
         listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
-            TypeConsistencyKind::AllowTypeCoercion,
+            DataRepresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            TypeConsistencyEnforcementQosPolicy, TypeConsistencyKind::AllowTypeCoercion,
+            XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
@@ -16,9 +22,173 @@ use dust_dds::{
         DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, TryConstructKind,
     },
 };
+use std::sync::mpsc::{self, channel};
 
-mod utils;
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+struct Listener {
+    sender: mpsc::Sender<String>,
+}
+impl DomainParticipantListener for Listener {
+    fn on_publication_matched(
+        &mut self,
+        _the_writer: dust_dds::dds_async::data_writer::DataWriterAsync<()>,
+        _status: dust_dds::infrastructure::status::PublicationMatchedStatus,
+    ) -> impl Future<Output = ()> + Send {
+        self.sender
+            .send("on_publication_matched()".to_string())
+            .unwrap();
+        core::future::ready(())
+    }
+    fn on_subscription_matched(
+        &mut self,
+        _the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<()>,
+        _status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
+    ) -> impl Future<Output = ()> + Send {
+        self.sender
+            .send("on_subscription_matched()".to_string())
+            .unwrap();
+        core::future::ready(())
+    }
+}
+
+#[test]
+fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let (sender, receiver) = channel();
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::PublicationMatched],
+        )
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_m1"   extensibility="mutable">
+                    <member name="x1" type="int32" id="1" />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![]).unwrap();
+    let a1_dynamic_type = type_builder.build();
+    let topic1 = participant1
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_m1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            a1_dynamic_type,
+        )
+        .unwrap();
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::SubscriptionMatched],
+        )
+        .unwrap();
+    let type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![]).unwrap();
+
+    let topic2 = participant2
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_m1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            type_builder.build(),
+        )
+        .unwrap();
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        type_consistency: TypeConsistencyEnforcementQosPolicy {
+            kind: AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: false,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    assert_eq!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap(),
+        "on_subscription_matched()"
+    );
+    assert_eq!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap(),
+        "on_publication_matched()"
+    );
+
+    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>1</x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
 
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
@@ -245,11 +415,8 @@ fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
     let participant2 = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let mut type_builder =
+    let type_builder =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "enum2x10", vec![]).unwrap();
-    for (_id, member) in type_builder.get_all_members().unwrap() {
-        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
-    }
     let topic2 = participant2
         .create_dynamic_topic(
             "A",
@@ -376,6 +543,7 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2_with_dynamic_data(
         .unwrap();
     let mut type_builder =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a2", vec![]).unwrap();
+    // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
     for (_id, member) in type_builder.get_all_members().unwrap() {
         member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
     }
@@ -738,8 +906,17 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let (sender, receiver) = channel();
     let publisher_participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::PublicationMatched],
+        )
         .unwrap();
 
     let type_xml = r#"
@@ -774,6 +951,9 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR2_DATA_REPRESENTATION],
+        },
         ..Default::default()
     };
     let publisher = publisher_participant
@@ -789,13 +969,23 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         .unwrap();
 
     let subscriber_participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::SubscriptionMatched],
+        )
         .unwrap();
 
-    let subscriber_dynamic_type =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m2", vec![])
-            .unwrap()
-            .build();
+    let mut type_builder =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m2", vec![]).unwrap();
+    // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
+    for (_id, member) in type_builder.get_all_members().unwrap() {
+        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
+    }
+    let subscriber_dynamic_type = type_builder.build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "A",
@@ -813,6 +1003,9 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR2_DATA_REPRESENTATION],
         },
         type_consistency: TypeConsistencyEnforcementQosPolicy {
             kind: AllowTypeCoercion,
@@ -833,15 +1026,13 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -856,10 +1047,10 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert_eq!(
-        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
-        &data
-    );
+    let sample = reader.read_next_sample().unwrap();
+    println!("received: {:?}", sample.data.as_ref().unwrap());
+    println!("expexted: {:?}", data);
+    assert_eq!(sample.data.as_ref().unwrap(), &data);
 }
 
 #[test]

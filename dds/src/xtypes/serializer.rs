@@ -1260,14 +1260,11 @@ mod tests {
     use crate::{
         dcps::data_representation_builtin_endpoints::type_lookup::{
             RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn, TypeLookupRequest,
-        },
-        transport::types::{EntityId, Guid},
-        xtypes::{
-            type_object::{
+        }, transport::types::{EntityId, Guid}, xtypes::{
+            dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory}, type_object::{
                 TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
                 TypeInformation,
-            },
-            type_support::{Type, TypeSupport},
+            }, type_support::{Type, TypeSupport},
         },
     };
     extern crate std;
@@ -1692,6 +1689,48 @@ mod tests {
                 0x00, 0x09, 0x00, 0x02, // CDR Header (incl padding length)
                 2, 0, 0, 0, // DHEADER
                 7, 0, 0, 0 // value | padding (2 bytes)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_mutable_struct_simple() {
+        // #[derive(Debug, PartialEq, TypeSupport)]
+        // #[dust_dds(extensibility = "mutable")]
+        // struct MutableType {
+        //     #[dust_dds(id = 0x01)]
+        //     x1: u32,
+        // }
+        // let data = MutableType { x1: 1 }.create_dynamic_sample();
+
+        let type_xml = r#"
+            <dds>
+                <types>
+                    <struct name="struct_m1"   extensibility="mutable">
+                        <member name="x1" type="int32" id="1" />
+                    </struct>
+                </types>
+            </dds>
+            "#;
+        let dynamic_type =
+            DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![])
+                .unwrap()
+                .build();
+        let mut data = DynamicDataFactory::create_data(dynamic_type);
+        data.from_xml(
+            "<struct>
+            <x1>1</x1>
+        </struct>",
+        )
+        .unwrap();
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // CDR Header
+                8, 0, 0, 0, // DHEADER (length)
+                0x01, 0, 0, 0b010_0000, // EMHEADER1 incl. LC 0b010 (4 bytes)
+                1, 0, 0, 0, // u32
             ]
         );
     }
