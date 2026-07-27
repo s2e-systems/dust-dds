@@ -293,7 +293,8 @@ impl DynamicTypeBuilderFactory {
         let resolve_member_type = |m_type: &str,
                                    non_basic_type_name: Option<&str>,
                                    string_max_length: Option<&str>,
-                                   array_dimensions: Option<&str>|
+                                   array_dimensions: Option<&str>,
+                                   sequence_max_length: Option<&str>|
          -> XTypesResult<DynamicType> {
             let mut type_ptr: DynamicType = if m_type == "nonBasic" {
                 let non_basic_name = non_basic_type_name.ok_or(XTypesError::InvalidData)?;
@@ -318,6 +319,13 @@ impl DynamicTypeBuilderFactory {
                 Self::get_primitive_type(type_kind)
             };
 
+            if let Some(seq_len_str) = sequence_max_length {
+                let bound: i32 = seq_len_str.parse().map_err(|_| XTypesError::InvalidData)?;
+                let bound_u32 = if bound < 0 { 0 } else { bound as u32 };
+                let builder = Self::create_sequence_type(type_ptr, bound_u32);
+                type_ptr = builder.build();
+            }
+
             if let Some(dimensions) = array_dimensions {
                 let dims: Vec<u32> = dimensions
                     .split(',')
@@ -336,8 +344,14 @@ impl DynamicTypeBuilderFactory {
                     let d_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
                     let non_basic_type_name = child.attribute("nonBasicTypeName");
                     let string_max_length = child.attribute("stringMaxLength");
-                    let type_ptr =
-                        resolve_member_type(d_type, non_basic_type_name, string_max_length, None)?;
+                    let sequence_max_length = child.attribute("sequenceMaxLength");
+                    let type_ptr = resolve_member_type(
+                        d_type,
+                        non_basic_type_name,
+                        string_max_length,
+                        None,
+                        sequence_max_length,
+                    )?;
                     discriminator_type = Some(type_ptr);
                     break;
                 }
@@ -377,6 +391,7 @@ impl DynamicTypeBuilderFactory {
                     let mut non_basic_type_name = None;
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
+                    let mut sequence_max_length = None;
                     let mut label = Vec::new();
                     let mut is_default_label = false;
 
@@ -409,6 +424,7 @@ impl DynamicTypeBuilderFactory {
                             non_basic_type_name = case_child.attribute("nonBasicTypeName");
                             string_max_length = case_child.attribute("stringMaxLength");
                             array_dimensions = case_child.attribute("arrayDimensions");
+                            sequence_max_length = case_child.attribute("sequenceMaxLength");
                         }
                     }
 
@@ -420,6 +436,7 @@ impl DynamicTypeBuilderFactory {
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
+                        sequence_max_length,
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
                     let label = Vec::leak(label);
@@ -482,12 +499,14 @@ impl DynamicTypeBuilderFactory {
                     let non_basic_type_name = child.attribute("nonBasicTypeName");
                     let string_max_length = child.attribute("stringMaxLength");
                     let array_dimensions = child.attribute("arrayDimensions");
+                    let sequence_max_length = child.attribute("sequenceMaxLength");
 
                     let type_ptr = resolve_member_type(
                         m_type,
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
+                        sequence_max_length,
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
 
