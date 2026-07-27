@@ -495,7 +495,9 @@ impl DynamicTypeBuilderFactory {
                         if let Some(hex) = id_str.strip_prefix("0x") {
                             u32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)?
                         } else {
-                            id_str.parse::<u32>().map_err(|_| XTypesError::InvalidData)?
+                            id_str
+                                .parse::<u32>()
+                                .map_err(|_| XTypesError::InvalidData)?
                         }
                     } else {
                         member_id
