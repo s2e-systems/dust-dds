@@ -2480,11 +2480,10 @@ impl CompleteTypeObject {
                     if !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
                         return false;
                     }
-                } else if is_t1_appendable {
-                    if is_t2_mutable {
+                } else if is_t1_appendable
+                    && is_t2_mutable {
                         return false;
                     }
-                }
 
                 // • Any members in T1 and T2 that have the same name also have the same ID and any
                 //   members with the same ID also have the same name.
