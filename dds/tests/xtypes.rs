@@ -212,8 +212,8 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_f1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -241,8 +241,8 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
 
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_f2",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
