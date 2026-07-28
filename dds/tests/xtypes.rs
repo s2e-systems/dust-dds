@@ -220,14 +220,9 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let status_cond = publisher_topic.get_statuscondition();
-    status_cond
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set_publisher = WaitSet::new();
-    wait_set_publisher
-        .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
     let subscriber_participant = DomainParticipantFactory::get_instance()
@@ -255,13 +250,15 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
 
-    let mut wait_set_subscriber = WaitSet::new();
-    wait_set_subscriber
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    wait_set
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
 
-    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
-    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -299,14 +296,9 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let status_cond = publisher_topic.get_statuscondition();
-    status_cond
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set_publisher = WaitSet::new();
-    wait_set_publisher
-        .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
     let subscriber_participant = DomainParticipantFactory::get_instance()
@@ -333,13 +325,15 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
 
-    let mut wait_set_subscriber = WaitSet::new();
-    wait_set_subscriber
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    wait_set
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
 
-    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
-    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1093,14 +1087,9 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
             NO_STATUS,
         )
         .unwrap();
-    let status_cond = publisher_topic.get_statuscondition();
-    status_cond
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set_publisher = WaitSet::new();
-    wait_set_publisher
-        .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
     let subscriber_participant = DomainParticipantFactory::get_instance()
@@ -1127,13 +1116,15 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
 
-    let mut wait_set_subscriber = WaitSet::new();
-    wait_set_subscriber
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    wait_set
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
 
-    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
-    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
@@ -1738,22 +1729,17 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
-    let mut wait_set_publisher = WaitSet::new();
-    wait_set_publisher
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
-    let mut wait_set_subscriber = WaitSet::new();
-    wait_set_subscriber
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    wait_set
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
 
-    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
-    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
