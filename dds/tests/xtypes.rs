@@ -1743,3 +1743,162 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 }
+
+/// 'seq(int32,20)_seq(int32,10)' : {
+///     'common_args' : ['--type-folder types --type-file sequences'],
+///     'apps' : ['pub-exe -P -t test -y Test::int32x20 --data-folder data --data-file array_num_20',
+///               'sub-exe -S -t test -y Test::int32x10 --data-folder data --data-file array_num_10'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.DATA_NOT_RECEIVED],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Type assignability between int32x20 and int32x10 but sample rejected',
+///     'description' : 'Verifies sequence with larger bound sending data exceeding subscriber bound:\n\n'
+///                     ' * Publisher uses `int32x20` from `sequences`.\n'
+///                     ' * Subscriber uses `int32x10` from `sequences`.\n'
+///                     ' * Publisher uses `sequence<int32, 20>` with 20 elements.\n'
+///                     ' * Subscriber uses `sequence<int32, 10>`.\n'
+///                     ' * The actual data size (20) exceeds subscriber bound (10).\n'
+///                     '**Test passes if:** Discovery succeeds but the sample is not delivered.\n'
+#[test]
+fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="int32x10"   extensibility="final">
+                    <member name="x1"   type="int32" sequenceMaxLength="10"  />
+                </struct>
+                <struct name="int32x20"   extensibility="final">
+                    <member name="x1"   type="int32" sequenceMaxLength="20"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x20", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::int32x20",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::int32x10",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+                <item>11</item>
+                <item>12</item>
+                <item>13</item>
+                <item>14</item>
+                <item>15</item>
+                <item>16</item>
+                <item>17</item>
+                <item>18</item>
+                <item>19</item>
+                <item>20</item>
+            </x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert!(reader.read_next_sample().unwrap().data.is_none());
+}

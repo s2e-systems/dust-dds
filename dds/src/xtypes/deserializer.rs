@@ -577,6 +577,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
+        if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
+            if bound > 0 && length > bound as usize {
+                return Err(XTypesError::InvalidData);
+            }
+        }
         fn deserialize_primitive_sequence_elements<
             'a,
             O: AsBytes + Align,
