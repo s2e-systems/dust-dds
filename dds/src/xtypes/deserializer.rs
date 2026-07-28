@@ -3,10 +3,7 @@ use crate::xtypes::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TryConstructKind, TypeKind,
     },
-    error::{
-        XTypesError::{self, PidNotFound},
-        XTypesResult,
-    },
+    error::{XTypesError, XTypesResult},
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -187,8 +184,6 @@ impl EncodingVersion for EncodingVersion1 {
             let length: u16 = deserializer.deserialize_primitive_type()?;
             if current_pid == pid {
                 return Ok(length);
-            } else if current_pid == PID_SENTINEL {
-                return Err(PidNotFound(pid));
             } else {
                 deserializer.reader.seek(length as usize)?;
                 Self::align(deserializer, 4)?;
