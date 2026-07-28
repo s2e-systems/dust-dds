@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	if ((rc > 0) && (infos[0].valid_data))
 	{
 		msg = (interoperability_test_Nested *)samples[0];
-		printf("Received: %s { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", interoperability_test_Nested_desc.m_typename, msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other, msg->last);
+		printf("Received: %s { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", interoperability_test_Nested_desc.m_typename, msg->inner.a, msg->inner.b, msg->inner.a, (long long)msg->level, msg->other, msg->last);
 		assert(msg->inner.a == 1);
 		assert(msg->inner.b == 2);
 		assert(msg->inner.c == 3);

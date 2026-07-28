@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 
 	if ((rc > 0) && (infos[0].instance_state != DDS_IST_NOT_ALIVE_DISPOSED))
 	{
-		DDS_FATAL("instance not disposed %s\n", infos[0].instance_state);
+		DDS_FATAL("instance not disposed %u\n", infos[0].instance_state);
 	}
 
 	printf("Received disposed instance state\n");
