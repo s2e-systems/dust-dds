@@ -2390,10 +2390,6 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
-    fn is_strongly_assignable_from(&self, other: &TypeIdentifier) -> bool {
-        // Todo: add strong rules
-        self.is_assignable_from(other)
-    }
     /// 7.2.4.4 Assignability Rules
     pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
         self.is_assignable_from_w_type_consistency(
@@ -2482,18 +2478,20 @@ impl TypeIdentifier {
                         || t1.bound == 0
                         || (t2.bound != 0 && t1.bound >= t2.bound);
                     bounds_ok
-                        && t1
-                            .element_identifier
-                            .is_strongly_assignable_from(&t2.element_identifier)
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
                     let bounds_ok = type_consistency.ignore_sequence_bounds
                         || t1.bound == 0
                         || (t2.bound != 0 && t1.bound as u32 >= t2.bound);
                     bounds_ok
-                        && t1
-                            .element_identifier
-                            .is_strongly_assignable_from(&t2.element_identifier)
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
                 }
                 _ => false,
             },
@@ -2503,31 +2501,43 @@ impl TypeIdentifier {
                         || t1.bound == 0
                         || (t2.bound != 0 && t1.bound >= t2.bound as u32);
                     bounds_ok
-                        && t1
-                            .element_identifier
-                            .is_strongly_assignable_from(&t2.element_identifier)
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
                     let bounds_ok = type_consistency.ignore_sequence_bounds
                         || t1.bound == 0
                         || (t2.bound != 0 && t1.bound >= t2.bound);
                     bounds_ok
-                        && t1
-                            .element_identifier
-                            .is_strongly_assignable_from(&t2.element_identifier)
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
                 }
                 _ => false,
             },
-            TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainArraySmall {
-                    array_sdefn: t2
-                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
-            TypeIdentifier::TiPlainArrayLarge { array_ldefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainArrayLarge {
-                    array_ldefn: t2
-                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => match other {
+                TypeIdentifier::TiPlainArraySmall { array_sdefn: t2 } => {
+                    t1.array_bound_seq == t2.array_bound_seq
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn: t1 } => match other {
+                TypeIdentifier::TiPlainArrayLarge { array_ldefn: t2 } => {
+                    t1.array_bound_seq == t2.array_bound_seq
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
@@ -2624,7 +2634,10 @@ impl CompleteTypeObject {
                         members_are_assignable &= m1
                             .common
                             .member_type_id
-                            .is_assignable_from_w_type_consistency(&m2.common.member_type_id, type_consistency);
+                            .is_assignable_from_w_type_consistency(
+                                &m2.common.member_type_id,
+                                type_consistency,
+                            );
                     }
                 }
 

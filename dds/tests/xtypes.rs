@@ -2179,3 +2179,135 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
 
     wait_set.wait(Duration::new(10, 0)).unwrap();
 }
+
+/// 'seq(str20,10)_seq(str10,10)_check' : {
+///     'common_args' : ['--type-folder types --type-file sequences'],
+///     'apps' : ['pub-exe -P -t test -y Test::string20x10 --data-folder data --data-file array_string_10',
+///               'sub-exe -S -t test -y Test::string10x10 --data-folder data --data-file array_string_10 --ignore-str-bounds f'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between string20x10 and string10x10 (subscriber with ignore_str_bounds false)',
+///     'description' : 'Verifies sequences of strings where publisher string bound exceeds subscriber string bound:\n\n'
+///                     ' * Publisher uses `string20x10` from `sequences`.\n'
+///                     ' * Subscriber uses `string10x10` from `sequences`.\n'
+///                     ' * Both are `sequence<string, 10>`.\n'
+///                     ' * Publisher string bound is 20, subscriber is 10.\n'
+///                     ' * Subscriber sets `--ignore-str-bounds` to `false`.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="string20x10"   extensibility="final">
+                    <member name="x1"   type="string" stringMaxLength="20" sequenceMaxLength="10"  />
+                </struct>
+                <struct name="string10x10"   extensibility="final">
+                    <member name="x1"   type="string" stringMaxLength="10" sequenceMaxLength="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string20x10", vec![])
+            .unwrap()
+            .build();
+
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::string20x10",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string10x10", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::string10x10",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        type_consistency: TypeConsistencyEnforcementQosPolicy {
+            ignore_string_bounds: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
