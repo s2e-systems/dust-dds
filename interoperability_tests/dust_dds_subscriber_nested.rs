@@ -80,7 +80,7 @@ fn main() {
     assert_eq!(data.level, 10);
     assert_eq!(data.other, 20);
     assert_eq!(data.value_list, vec![30, 40, 50]);
-    assert_eq!(data.last, 60);
+    assert_eq!(data.last, 70);
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

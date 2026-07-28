@@ -83,7 +83,10 @@ fn main() {
     assert_eq!(optional_data.maybe_uint8, None);
     assert_eq!(optional_data.maybe_double, Some(12345.6789));
     assert_eq!(optional_data.maybe_array, None);
-    assert_eq!(optional_data.maybe_sequence, Some(vec![f32::MIN, 0.0, f32::MAX]));
+    assert_eq!(
+        optional_data.maybe_sequence,
+        Some(vec![f32::MIN, 0.0, f32::MAX])
+    );
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(5));

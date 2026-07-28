@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 		assert(msg->value_list._buffer[0] == 30);
 		assert(msg->value_list._buffer[1] == 40);
 		assert(msg->value_list._buffer[2] == 50);
-		assert(msg->last == 60);
+		assert(msg->last == 70);
 	}
 
 	// Sleep to allow sending acknowledgements
