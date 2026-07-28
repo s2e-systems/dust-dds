@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <string.h>
 #include "ddsc/dds.h"
 #include "DisposeData.h"
 
@@ -78,6 +80,12 @@ int main(int argc, char *argv[])
 	if (rc < 0)
 	{
 		DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
+	}
+	if ((rc > 0) && (infos[0].valid_data))
+	{
+		const interoperability_test_DisposeDataType *msg = (interoperability_test_DisposeDataType *)samples[0];
+		assert(strcmp(msg->name, "No Padding Str") == 0);
+		assert(msg->value == 1);
 	}
 
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));

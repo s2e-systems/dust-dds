@@ -85,6 +85,8 @@ fn main() {
 
     let hello_world = samples[0].data.as_ref().unwrap();
     println!("Received: id: {}, msg: {}", hello_world.id, hello_world.msg);
+    assert_eq!(hello_world.id, 8);
+    assert_eq!(hello_world.msg, "Hello world");
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

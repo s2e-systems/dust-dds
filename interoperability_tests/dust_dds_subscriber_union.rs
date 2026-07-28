@@ -74,6 +74,7 @@ fn main() {
 
     let data = samples[0].data.as_ref().unwrap();
     println!("Received: {data:?}");
+    assert!(matches!(data, VariantUnion::Case1 { x: 10 }));
 
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));

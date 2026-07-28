@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "ddsc/dds.h"
 #include "NestedType.h"
 
@@ -85,6 +86,16 @@ int main(int argc, char *argv[])
 	{
 		msg = (interoperability_test_Nested *)samples[0];
 		printf("Received: %s { inner: { a: \"%d\", b: \"%d\", c: \"%d\" }, level: \"%lld\", other: \"%d\", last: \"%d\"  }\n", interoperability_test_Nested_desc.m_typename, msg->inner.a, msg->inner.b, msg->inner.a, msg->level, msg->other, msg->last);
+		assert(msg->inner.a == 1);
+		assert(msg->inner.b == 2);
+		assert(msg->inner.c == 3);
+		assert(msg->level == 10);
+		assert(msg->other == 20);
+		assert(msg->value_list._length == 3);
+		assert(msg->value_list._buffer[0] == 30);
+		assert(msg->value_list._buffer[1] == 40);
+		assert(msg->value_list._buffer[2] == 50);
+		assert(msg->last == 60);
 	}
 
 	// Sleep to allow sending acknowledgements
