@@ -2424,22 +2424,58 @@ impl TypeIdentifier {
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
             TypeIdentifier::TkChar8Type => matches!(other, TypeIdentifier::TkChar8Type),
             TypeIdentifier::TkChar16Type => matches!(other, TypeIdentifier::TkChar16Type),
-            // Note: bounds and string length is not a requirement for assignability
-            // The object length (not the bound) ir q requirment for object constructability
-            TypeIdentifier::TiString8Small { string_sdefn: _ }
-            | TypeIdentifier::TiString8Large { string_ldefn: _ } => matches!(
-                other,
-                TypeIdentifier::TiString8Small { string_sdefn: _ }
-                    | TypeIdentifier::TiString8Large { string_ldefn: _ }
-            ),
-            TypeIdentifier::TiString16Small { string_sdefn: _ }
-            | TypeIdentifier::TiString16Large { string_ldefn: _ } => {
-                matches!(
-                    other,
-                    TypeIdentifier::TiString16Small { string_sdefn: _ }
-                        | TypeIdentifier::TiString16Large { string_ldefn: _ }
-                )
-            }
+            TypeIdentifier::TiString8Small { string_sdefn: t1 } => match other {
+                TypeIdentifier::TiString8Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                TypeIdentifier::TiString8Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString8Large { string_ldefn: t1 } => match other {
+                TypeIdentifier::TiString8Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32)
+                }
+                TypeIdentifier::TiString8Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString16Small { string_sdefn: t1 } => match other {
+                TypeIdentifier::TiString16Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                TypeIdentifier::TiString16Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString16Large { string_ldefn: t1 } => match other {
+                TypeIdentifier::TiString16Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32)
+                }
+                TypeIdentifier::TiString16Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                _ => false,
+            },
             TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => match other {
                 TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t2 } => {
                     let bounds_ok = type_consistency.ignore_sequence_bounds
