@@ -7,8 +7,9 @@ use dust_dds::{
         listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind,
+            DataRepresentationQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
@@ -40,6 +41,9 @@ fn main() {
         },
         durability: DurabilityQosPolicy {
             kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION],
         },
         ..Default::default()
     };
