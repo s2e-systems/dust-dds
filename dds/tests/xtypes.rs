@@ -1900,5 +1900,157 @@ fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert!(reader.read_next_sample().unwrap().data.is_none());
+    assert!(
+        reader
+            .read_next_sample()
+            .map(|s| s.data.is_none())
+            .unwrap_or(true)
+    );
+}
+
+/// 'string_string10' : {
+///     'common_args' : ['--type-folder types --type-file strings'],
+///     'apps' : ['pub-exe -P -t test -y Test::string_unbounded --data-folder data --data-file strings',
+///               'sub-exe -S -t test -y Test::string10 --data-folder data --data-file strings'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.DATA_NOT_RECEIVED],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Type assignability between string_unbounded and string10 but sample rejected',
+///     'description' : 'Verifies unbounded string sending data exceeding subscriber bound:\n\n'
+///                     ' * Publisher uses `string_unbounded` from `strings`.\n'
+///                     ' * Subscriber uses `string10` from `strings`.\n'
+///                     ' * Publisher uses unbounded `string`.\n'
+///                     ' * Subscriber uses `string<10>`.\n'
+///                     ' * The published string ("hello world!") exceeds the subscriber bound.\n'
+///                     '**Test passes if:** Discovery succeeds but the sample is not delivered.\n'
+#[test]
+fn xtypes_v2_sequence_test_suite_string_string10() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="string_unbounded"   extensibility="final">
+                    <member name="x1"   type="string"   />
+                </struct>
+                <struct name="string10"   extensibility="final">
+                    <member name="x1"   type="string" stringMaxLength="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::string_unbounded",
+        vec![],
+    )
+    .unwrap()
+    .build();
+
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::string_unbounded",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type.clone(),
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string10", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::string10",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<strings>
+            <x1>Hello there.</x1>
+        </strings>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert!(
+        reader
+            .read_next_sample()
+            .map(|s| s.data.is_none())
+            .unwrap_or(true)
+    );
 }

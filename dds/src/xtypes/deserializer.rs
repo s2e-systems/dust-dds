@@ -660,9 +660,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
+                let bound = element_type.descriptor.bound.first().copied().unwrap_or(0);
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
-                    values.push(self.deserialize_string_type()?);
+                    values.push(self.deserialize_string_type(bound)?);
                 }
                 dynamic_data.set_string_values(member.get_id(), values)
             }
@@ -774,7 +775,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                dynamic_data.set_string_value(member.get_id(), self.deserialize_string_type()?)
+                let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
+                dynamic_data.set_string_value(member.get_id(), self.deserialize_string_type(bound)?)
             }
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
@@ -826,9 +828,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ///               XCDR
     ///                << { O.ssize : UInt32 } // includes NUL
     ///                << { O[i] : Byte }* // includes NUL
-    fn deserialize_string_type(&mut self) -> XTypesResult<String> {
+    fn deserialize_string_type(&mut self, bound: u32) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
-        let values = self.reader.read_bytes(length as usize - 1)?.to_vec();
+        if bound > 0 && length.saturating_sub(1) > bound {
+            return Err(XTypesError::InvalidData);
+        }
+        let values = self.reader.read_bytes(length.saturating_sub(1) as usize)?.to_vec();
         self.reader.read_byte()?; // 0-termination
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
