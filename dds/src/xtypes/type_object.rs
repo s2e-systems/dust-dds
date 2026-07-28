@@ -1,9 +1,12 @@
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
-use crate::xtypes::{
-    dynamic_type::{DynamicType, DynamicTypeMember},
-    serializer::serialize_without_header_cdr2_le,
-    type_object::TypeIdentifier::EkMinimal,
-    type_support::TypeSupport,
+use crate::{
+    dcps::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+    xtypes::{
+        dynamic_type::{DynamicType, DynamicTypeMember},
+        serializer::serialize_without_header_cdr2_le,
+        type_object::TypeIdentifier::EkMinimal,
+        type_support::TypeSupport,
+    },
 };
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use dust_dds_derive::DdsType;
@@ -2392,7 +2395,18 @@ impl TypeIdentifier {
         self.is_assignable_from(other)
     }
     /// 7.2.4.4 Assignability Rules
-    fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
+    pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
+        self.is_assignable_from_w_type_consistency(
+            other,
+            &TypeConsistencyEnforcementQosPolicy::const_default(),
+        )
+    }
+    /// Assignability rules taking into account TypeConsistencyEnforcementQosPolicy
+    pub fn is_assignable_from_w_type_consistency(
+        &self,
+        other: &TypeIdentifier,
+        type_consistency: &TypeConsistencyEnforcementQosPolicy,
+    ) -> bool {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
@@ -2426,16 +2440,48 @@ impl TypeIdentifier {
                         | TypeIdentifier::TiString16Large { string_ldefn: _ }
                 )
             }
-            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainSequenceSmall {
-                    seq_sdefn: t2
-                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
-            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainSequenceLarge {
-                    seq_ldefn: t2
-                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => match other {
+                TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound);
+                    bounds_ok
+                        && t1
+                            .element_identifier
+                            .is_strongly_assignable_from(&t2.element_identifier)
+                }
+                TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound);
+                    bounds_ok
+                        && t1
+                            .element_identifier
+                            .is_strongly_assignable_from(&t2.element_identifier)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t1 } => match other {
+                TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32);
+                    bounds_ok
+                        && t1
+                            .element_identifier
+                            .is_strongly_assignable_from(&t2.element_identifier)
+                }
+                TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound);
+                    bounds_ok
+                        && t1
+                            .element_identifier
+                            .is_strongly_assignable_from(&t2.element_identifier)
+                }
+                _ => false,
+            },
             TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => matches!(
                 other,
                 TypeIdentifier::TiPlainArraySmall {
@@ -2460,6 +2506,18 @@ impl CompleteTypeObject {
     /// This methods implements the rules defined in the DDS-XTypes standard chapter 7.2.4
     /// which defines the compatibility between two types.
     pub fn is_assignable_from(&self, t2: &CompleteTypeObject) -> bool {
+        self.is_assignable_from_w_type_consistency(
+            t2,
+            &TypeConsistencyEnforcementQosPolicy::const_default(),
+        )
+    }
+
+    /// Checks compatibility between two types taking into account TypeConsistencyEnforcementQosPolicy
+    pub fn is_assignable_from_w_type_consistency(
+        &self,
+        t2: &CompleteTypeObject,
+        type_consistency: &TypeConsistencyEnforcementQosPolicy,
+    ) -> bool {
         if self == t2 {
             return true;
         }
@@ -2530,7 +2588,7 @@ impl CompleteTypeObject {
                         members_are_assignable &= m1
                             .common
                             .member_type_id
-                            .is_assignable_from(&m2.common.member_type_id);
+                            .is_assignable_from_w_type_consistency(&m2.common.member_type_id, type_consistency);
                     }
                 }
 

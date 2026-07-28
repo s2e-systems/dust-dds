@@ -927,10 +927,14 @@ impl DcpsDomainParticipant {
                                             type_object,
                                         ) => match &type_object {
                                             TypeObject::EkComplete { complete } => {
-                                                CompleteTypeObject::from(
-                                                    writer_associated_topic.type_support,
+                                                complete.is_assignable_from_w_type_consistency(
+                                                    &CompleteTypeObject::from(
+                                                        writer_associated_topic.type_support,
+                                                    ),
+                                                    &discovered_reader_data
+                                                        .dds_subscription_data
+                                                        .type_consistency,
                                                 )
-                                                .is_assignable_from(complete)
                                             }
                                             TypeObject::EkMinimal { minimal } => {
                                                 &MinimalTypeObject::from(
@@ -1019,14 +1023,8 @@ impl DcpsDomainParticipant {
                         );
                         let the_publisher =
                             PublisherAsync::new(publisher.instance_handle, the_participant.clone());
-                        let topic = self
-                            .domain_participant
-                            .locally_created_topic_list
-                            .iter()
-                            .find(|x| x.topic_name == data_writer.topic_name)
-                            .expect("Writer is guaranteed to have matching topic");
                         let the_topic = TopicAsync::new(
-                            topic.instance_handle,
+                            writer_associated_topic.instance_handle,
                             data_writer.type_name.clone(),
                             data_writer.topic_name.clone(),
                             the_participant,
@@ -1037,178 +1035,228 @@ impl DcpsDomainParticipant {
                             the_topic,
                         );
 
-                        if is_matched_topic_name && is_matched_type {
-                            let incompatible_qos_policy_list =
-                                get_discovered_reader_incompatible_qos_policy_list(
-                                    &data_writer.qos,
-                                    &discovered_reader_data.dds_subscription_data,
-                                    &publisher_qos,
-                                );
-                            if incompatible_qos_policy_list.is_empty() {
-                                match data_writer.matched_subscription_list.iter_mut().find(|x| {
-                                    x.key() == discovered_reader_data.dds_subscription_data.key()
-                                }) {
-                                    Some(x) => {
-                                        *x = discovered_reader_data.dds_subscription_data.clone()
-                                    }
-                                    None => data_writer
-                                        .matched_subscription_list
-                                        .push(discovered_reader_data.dds_subscription_data.clone()),
-                                };
-                                data_writer.publication_matched_status.current_count =
-                                    data_writer.matched_subscription_list.len() as i32;
-                                data_writer.publication_matched_status.current_count_change += 1;
-                                data_writer.publication_matched_status.total_count += 1;
-                                data_writer.publication_matched_status.total_count_change += 1;
+                        if is_matched_topic_name {
+                            if is_matched_type {
+                                let incompatible_qos_policy_list =
+                                    get_discovered_reader_incompatible_qos_policy_list(
+                                        &data_writer.qos,
+                                        &discovered_reader_data.dds_subscription_data,
+                                        &publisher_qos,
+                                    );
+                                if incompatible_qos_policy_list.is_empty() {
+                                    match data_writer.matched_subscription_list.iter_mut().find(|x| {
+                                        x.key() == discovered_reader_data.dds_subscription_data.key()
+                                    }) {
+                                        Some(x) => {
+                                            *x = discovered_reader_data.dds_subscription_data.clone()
+                                        }
+                                        None => data_writer
+                                            .matched_subscription_list
+                                            .push(discovered_reader_data.dds_subscription_data.clone()),
+                                    };
+                                    data_writer.publication_matched_status.current_count =
+                                        data_writer.matched_subscription_list.len() as i32;
+                                    data_writer.publication_matched_status.current_count_change += 1;
+                                    data_writer.publication_matched_status.total_count += 1;
+                                    data_writer.publication_matched_status.total_count_change += 1;
 
-                                let unicast_locator_list = if discovered_reader_data
-                                    .reader_proxy
-                                    .unicast_locator_list
-                                    .is_empty()
-                                {
-                                    default_unicast_locator_list
-                                } else {
-                                    discovered_reader_data
+                                    let unicast_locator_list = if discovered_reader_data
                                         .reader_proxy
                                         .unicast_locator_list
-                                        .clone()
-                                };
-                                let multicast_locator_list = if discovered_reader_data
-                                    .reader_proxy
-                                    .multicast_locator_list
-                                    .is_empty()
-                                {
-                                    default_multicast_locator_list
-                                } else {
-                                    discovered_reader_data
+                                        .is_empty()
+                                    {
+                                        default_unicast_locator_list
+                                    } else {
+                                        discovered_reader_data
+                                            .reader_proxy
+                                            .unicast_locator_list
+                                            .clone()
+                                    };
+                                    let multicast_locator_list = if discovered_reader_data
                                         .reader_proxy
                                         .multicast_locator_list
-                                        .clone()
-                                };
-                                let reliability_kind = match discovered_reader_data
-                                    .dds_subscription_data
-                                    .reliability
-                                    .kind
-                                {
-                                    ReliabilityQosPolicyKind::BestEffort => {
-                                        ReliabilityKind::BestEffort
-                                    }
-                                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                                };
-                                let durability_kind = match discovered_reader_data
-                                    .dds_subscription_data
-                                    .durability
-                                    .kind
-                                {
-                                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                                    DurabilityQosPolicyKind::TransientLocal => {
-                                        DurabilityKind::TransientLocal
-                                    }
-                                    DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-                                    DurabilityQosPolicyKind::Persistent => {
-                                        DurabilityKind::Persistent
-                                    }
-                                };
+                                        .is_empty()
+                                    {
+                                        default_multicast_locator_list
+                                    } else {
+                                        discovered_reader_data
+                                            .reader_proxy
+                                            .multicast_locator_list
+                                            .clone()
+                                    };
+                                    let reliability_kind = match discovered_reader_data
+                                        .dds_subscription_data
+                                        .reliability
+                                        .kind
+                                    {
+                                        ReliabilityQosPolicyKind::BestEffort => {
+                                            ReliabilityKind::BestEffort
+                                        }
+                                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                                    };
+                                    let durability_kind = match discovered_reader_data
+                                        .dds_subscription_data
+                                        .durability
+                                        .kind
+                                    {
+                                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                                        DurabilityQosPolicyKind::TransientLocal => {
+                                            DurabilityKind::TransientLocal
+                                        }
+                                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                                        DurabilityQosPolicyKind::Persistent => {
+                                            DurabilityKind::Persistent
+                                        }
+                                    };
 
-                                let reader_proxy = transport::types::ReaderProxy {
-                                    remote_reader_guid: discovered_reader_data
-                                        .reader_proxy
-                                        .remote_reader_guid,
-                                    remote_group_entity_id: discovered_reader_data
-                                        .reader_proxy
-                                        .remote_group_entity_id,
-                                    reliability_kind,
-                                    durability_kind,
-                                    unicast_locator_list,
-                                    multicast_locator_list,
-                                    expects_inline_qos: false,
-                                };
-                                if let RtpsWriterKind::Stateful(w) =
-                                    &mut data_writer.transport_writer
-                                {
-                                    w.add_matched_reader(reader_proxy);
+                                    let reader_proxy = transport::types::ReaderProxy {
+                                        remote_reader_guid: discovered_reader_data
+                                            .reader_proxy
+                                            .remote_reader_guid,
+                                        remote_group_entity_id: discovered_reader_data
+                                            .reader_proxy
+                                            .remote_group_entity_id,
+                                        reliability_kind,
+                                        durability_kind,
+                                        unicast_locator_list,
+                                        multicast_locator_list,
+                                        expects_inline_qos: false,
+                                    };
+                                    if let RtpsWriterKind::Stateful(w) =
+                                        &mut data_writer.transport_writer
+                                    {
+                                        w.add_matched_reader(reader_proxy);
+                                    }
+
+                                    if data_writer
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::PublicationMatched)
+                                    {
+                                        let status = data_writer.publication_matched_status.get();
+                                        if let Some(l) = &data_writer.listener_sender {
+                                            l.send(ListenerMail::PublicationMatched {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if publisher
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::PublicationMatched)
+                                    {
+                                        let status = data_writer.publication_matched_status.get();
+                                        if let Some(l) = &publisher.listener_sender {
+                                            l.send(ListenerMail::PublicationMatched {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if self
+                                        .domain_participant
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::PublicationMatched)
+                                    {
+                                        let status = data_writer.publication_matched_status.get();
+                                        if let Some(l) = &self.domain_participant.listener_sender {
+                                            l.send(ListenerMail::PublicationMatched {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    }
+
+                                    data_writer
+                                        .status_condition
+                                        .add_communication_state(StatusKind::PublicationMatched);
+                                } else {
+                                    data_writer
+                                        .incompatible_subscriptions
+                                        .add_incompatible_subscription(
+                                            InstanceHandle::new(
+                                                discovered_reader_data
+                                                    .dds_subscription_data
+                                                    .key()
+                                                    .value,
+                                            ),
+                                            incompatible_qos_policy_list,
+                                        );
+
+                                    if data_writer
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
+                                    {
+                                        let status = data_writer
+                                            .incompatible_subscriptions
+                                            .get_offered_incompatible_qos_status();
+
+                                        if let Some(l) = &data_writer.listener_sender {
+                                            l.send(ListenerMail::OfferedIncompatibleQos {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if publisher
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
+                                    {
+                                        let status = data_writer
+                                            .incompatible_subscriptions
+                                            .get_offered_incompatible_qos_status();
+                                        if let Some(l) = &publisher.listener_sender {
+                                            l.send(ListenerMail::OfferedIncompatibleQos {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if self
+                                        .domain_participant
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::OfferedIncompatibleQos)
+                                    {
+                                        let status = data_writer
+                                            .incompatible_subscriptions
+                                            .get_offered_incompatible_qos_status();
+                                        if let Some(l) = &self.domain_participant.listener_sender {
+                                            l.send(ListenerMail::OfferedIncompatibleQos {
+                                                the_writer,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    }
+
+                                    data_writer
+                                        .status_condition
+                                        .add_communication_state(StatusKind::OfferedIncompatibleQos);
                                 }
-
-                                if data_writer
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::PublicationMatched)
-                                {
-                                    let status = data_writer.publication_matched_status.get();
-                                    if let Some(l) = &data_writer.listener_sender {
-                                        l.send(ListenerMail::PublicationMatched {
-                                            the_writer,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                } else if publisher
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::PublicationMatched)
-                                {
-                                    let status = data_writer.publication_matched_status.get();
-                                    if let Some(l) = &publisher.listener_sender {
-                                        l.send(ListenerMail::PublicationMatched {
-                                            the_writer,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                } else if self
-                                    .domain_participant
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::PublicationMatched)
-                                {
-                                    let status = data_writer.publication_matched_status.get();
-                                    if let Some(l) = &self.domain_participant.listener_sender {
-                                        l.send(ListenerMail::PublicationMatched {
-                                            the_writer,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                }
-
-                                data_writer
-                                    .status_condition
-                                    .add_communication_state(StatusKind::PublicationMatched);
                             } else {
-                                data_writer
-                                    .incompatible_subscriptions
-                                    .add_incompatible_subscription(
-                                        InstanceHandle::new(
-                                            discovered_reader_data
-                                                .dds_subscription_data
-                                                .key()
-                                                .value,
-                                        ),
-                                        incompatible_qos_policy_list,
-                                    );
-
-                                if data_writer
+                                writer_associated_topic.inconsistent_topic_status.total_count += 1;
+                                writer_associated_topic.inconsistent_topic_status.total_count_change += 1;
+                                let participant = DomainParticipantAsync::new(
+                                    self.dcps_sender,
+                                    self.domain_participant.domain_id,
+                                    self.domain_participant.instance_handle,
+                                );
+                                let the_topic = TopicAsync::new(
+                                    writer_associated_topic.instance_handle,
+                                    writer_associated_topic.type_name.clone(),
+                                    writer_associated_topic.topic_name.clone(),
+                                    participant,
+                                );
+                                if writer_associated_topic
                                     .listener_mask
-                                    .is_enabled(&StatusKind::OfferedIncompatibleQos)
+                                    .is_enabled(&StatusKind::InconsistentTopic)
                                 {
-                                    let status = data_writer
-                                        .incompatible_subscriptions
-                                        .get_offered_incompatible_qos_status();
-
-                                    if let Some(l) = &data_writer.listener_sender {
-                                        l.send(ListenerMail::OfferedIncompatibleQos {
-                                            the_writer,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                } else if publisher
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::OfferedIncompatibleQos)
-                                {
-                                    let status = data_writer
-                                        .incompatible_subscriptions
-                                        .get_offered_incompatible_qos_status();
-                                    if let Some(l) = &publisher.listener_sender {
-                                        l.send(ListenerMail::OfferedIncompatibleQos {
-                                            the_writer,
+                                    let status = writer_associated_topic
+                                        .inconsistent_topic_status
+                                        .get_inconsistent_topic_status();
+                                    if let Some(l) = &writer_associated_topic.listener_sender {
+                                        l.send(ListenerMail::InconsistentTopic {
+                                            the_topic,
                                             status,
                                         })
                                         .ok();
@@ -1216,23 +1264,22 @@ impl DcpsDomainParticipant {
                                 } else if self
                                     .domain_participant
                                     .listener_mask
-                                    .is_enabled(&StatusKind::OfferedIncompatibleQos)
+                                    .is_enabled(&StatusKind::InconsistentTopic)
                                 {
-                                    let status = data_writer
-                                        .incompatible_subscriptions
-                                        .get_offered_incompatible_qos_status();
+                                    let status = writer_associated_topic
+                                        .inconsistent_topic_status
+                                        .get_inconsistent_topic_status();
                                     if let Some(l) = &self.domain_participant.listener_sender {
-                                        l.send(ListenerMail::OfferedIncompatibleQos {
-                                            the_writer,
+                                        l.send(ListenerMail::InconsistentTopic {
+                                            the_topic,
                                             status,
                                         })
                                         .ok();
                                     }
                                 }
-
-                                data_writer
+                                writer_associated_topic
                                     .status_condition
-                                    .add_communication_state(StatusKind::OfferedIncompatibleQos);
+                                    .add_communication_state(StatusKind::InconsistentTopic);
                             }
                         }
                     }
@@ -1452,7 +1499,10 @@ impl DcpsDomainParticipant {
                                                 CompleteTypeObject::from(
                                                     reader_associated_topic.type_support,
                                                 )
-                                                .is_assignable_from(complete)
+                                                .is_assignable_from_w_type_consistency(
+                                                    complete,
+                                                    &data_reader.qos.type_consistency,
+                                                )
                                             }
                                             TypeObject::EkMinimal { minimal } => {
                                                 &MinimalTypeObject::from(
@@ -1550,147 +1600,196 @@ impl DcpsDomainParticipant {
                             reader_associated_topic.type_name.clone(),
                         );
 
-                        if is_matched_topic_name && is_matched_type {
-                            let incompatible_qos_policy_list =
-                                get_discovered_writer_incompatible_qos_policy_list(
-                                    data_reader,
-                                    &discovered_writer_data.dds_publication_data,
-                                    &subscriber_qos,
-                                );
-                            if incompatible_qos_policy_list.is_empty() {
-                                data_reader.add_matched_publication(
-                                    discovered_writer_data.dds_publication_data.clone(),
-                                );
-                                let unicast_locator_list = if discovered_writer_data
-                                    .writer_proxy
-                                    .unicast_locator_list
-                                    .is_empty()
-                                {
-                                    default_unicast_locator_list
-                                } else {
-                                    discovered_writer_data
+                        if is_matched_topic_name {
+                            if is_matched_type {
+                                let incompatible_qos_policy_list =
+                                    get_discovered_writer_incompatible_qos_policy_list(
+                                        data_reader,
+                                        &discovered_writer_data.dds_publication_data,
+                                        &subscriber_qos,
+                                    );
+                                if incompatible_qos_policy_list.is_empty() {
+                                    data_reader.add_matched_publication(
+                                        discovered_writer_data.dds_publication_data.clone(),
+                                    );
+                                    let unicast_locator_list = if discovered_writer_data
                                         .writer_proxy
                                         .unicast_locator_list
-                                        .clone()
-                                };
-                                let multicast_locator_list = if discovered_writer_data
-                                    .writer_proxy
-                                    .multicast_locator_list
-                                    .is_empty()
-                                {
-                                    default_multicast_locator_list
-                                } else {
-                                    discovered_writer_data
+                                        .is_empty()
+                                    {
+                                        default_unicast_locator_list
+                                    } else {
+                                        discovered_writer_data
+                                            .writer_proxy
+                                            .unicast_locator_list
+                                            .clone()
+                                    };
+                                    let multicast_locator_list = if discovered_writer_data
                                         .writer_proxy
                                         .multicast_locator_list
-                                        .clone()
-                                };
-                                let reliability_kind = match data_reader.qos.reliability.kind {
-                                    ReliabilityQosPolicyKind::BestEffort => {
-                                        ReliabilityKind::BestEffort
+                                        .is_empty()
+                                    {
+                                        default_multicast_locator_list
+                                    } else {
+                                        discovered_writer_data
+                                            .writer_proxy
+                                            .multicast_locator_list
+                                            .clone()
+                                    };
+                                    let reliability_kind = match data_reader.qos.reliability.kind {
+                                        ReliabilityQosPolicyKind::BestEffort => {
+                                            ReliabilityKind::BestEffort
+                                        }
+                                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                                    };
+                                    let durability_kind = match data_reader.qos.durability.kind {
+                                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                                        DurabilityQosPolicyKind::TransientLocal => {
+                                            DurabilityKind::TransientLocal
+                                        }
+                                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                                        DurabilityQosPolicyKind::Persistent => {
+                                            DurabilityKind::Persistent
+                                        }
+                                    };
+                                    let writer_proxy = transport::types::WriterProxy {
+                                        remote_writer_guid: discovered_writer_data
+                                            .writer_proxy
+                                            .remote_writer_guid,
+                                        remote_group_entity_id: discovered_writer_data
+                                            .writer_proxy
+                                            .remote_group_entity_id,
+                                        unicast_locator_list,
+                                        multicast_locator_list,
+                                        reliability_kind,
+                                        durability_kind,
+                                    };
+                                    if let RtpsReaderKind::Stateful(r) =
+                                        &mut data_reader.transport_reader
+                                    {
+                                        r.add_matched_writer(&writer_proxy);
                                     }
-                                    ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-                                };
-                                let durability_kind = match data_reader.qos.durability.kind {
-                                    DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
-                                    DurabilityQosPolicyKind::TransientLocal => {
-                                        DurabilityKind::TransientLocal
-                                    }
-                                    DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
-                                    DurabilityQosPolicyKind::Persistent => {
-                                        DurabilityKind::Persistent
-                                    }
-                                };
-                                let writer_proxy = transport::types::WriterProxy {
-                                    remote_writer_guid: discovered_writer_data
-                                        .writer_proxy
-                                        .remote_writer_guid,
-                                    remote_group_entity_id: discovered_writer_data
-                                        .writer_proxy
-                                        .remote_group_entity_id,
-                                    unicast_locator_list,
-                                    multicast_locator_list,
-                                    reliability_kind,
-                                    durability_kind,
-                                };
-                                if let RtpsReaderKind::Stateful(r) =
-                                    &mut data_reader.transport_reader
-                                {
-                                    r.add_matched_writer(&writer_proxy);
-                                }
 
-                                if data_reader
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::SubscriptionMatched)
-                                {
-                                    let status = data_reader.get_subscription_matched_status();
-                                    if let Some(l) = &data_reader.listener_sender {
-                                        l.send(ListenerMail::SubscriptionMatched {
-                                            the_reader,
-                                            status,
-                                        })
-                                        .ok();
+                                    if data_reader
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::SubscriptionMatched)
+                                    {
+                                        let status = data_reader.get_subscription_matched_status();
+                                        if let Some(l) = &data_reader.listener_sender {
+                                            l.send(ListenerMail::SubscriptionMatched {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if subscriber
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::SubscriptionMatched)
+                                    {
+                                        let status = data_reader.get_subscription_matched_status();
+                                        if let Some(l) = &subscriber.listener_sender {
+                                            l.send(ListenerMail::SubscriptionMatched {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if self
+                                        .domain_participant
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::SubscriptionMatched)
+                                    {
+                                        let status = data_reader.get_subscription_matched_status();
+                                        if let Some(l) = &self.domain_participant.listener_sender {
+                                            l.send(ListenerMail::SubscriptionMatched {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
                                     }
-                                } else if subscriber
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::SubscriptionMatched)
-                                {
-                                    let status = data_reader.get_subscription_matched_status();
-                                    if let Some(l) = &subscriber.listener_sender {
-                                        l.send(ListenerMail::SubscriptionMatched {
-                                            the_reader,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                } else if self
-                                    .domain_participant
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::SubscriptionMatched)
-                                {
-                                    let status = data_reader.get_subscription_matched_status();
-                                    if let Some(l) = &self.domain_participant.listener_sender {
-                                        l.send(ListenerMail::SubscriptionMatched {
-                                            the_reader,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                }
 
-                                data_reader
-                                    .status_condition
-                                    .add_communication_state(StatusKind::SubscriptionMatched);
+                                    data_reader
+                                        .status_condition
+                                        .add_communication_state(StatusKind::SubscriptionMatched);
+                                } else {
+                                    data_reader.add_requested_incompatible_qos(
+                                        InstanceHandle::new(
+                                            discovered_writer_data.dds_publication_data.key().value,
+                                        ),
+                                        incompatible_qos_policy_list,
+                                    );
+
+                                    if data_reader
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
+                                    {
+                                        let status =
+                                            data_reader.get_requested_incompatible_qos_status();
+                                        if let Some(l) = &data_reader.listener_sender {
+                                            l.send(ListenerMail::RequestedIncompatibleQos {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if subscriber
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
+                                    {
+                                        let status =
+                                            data_reader.get_requested_incompatible_qos_status();
+                                        if let Some(l) = &subscriber.listener_sender {
+                                            l.send(ListenerMail::RequestedIncompatibleQos {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    } else if self
+                                        .domain_participant
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::RequestedIncompatibleQos)
+                                    {
+                                        let status =
+                                            data_reader.get_requested_incompatible_qos_status();
+                                        if let Some(l) = &self.domain_participant.listener_sender {
+                                            l.send(ListenerMail::RequestedIncompatibleQos {
+                                                the_reader,
+                                                status,
+                                            })
+                                            .ok();
+                                        }
+                                    }
+
+                                    data_reader
+                                        .status_condition
+                                        .add_communication_state(StatusKind::RequestedIncompatibleQos);
+                                }
                             } else {
-                                data_reader.add_requested_incompatible_qos(
-                                    InstanceHandle::new(
-                                        discovered_writer_data.dds_publication_data.key().value,
-                                    ),
-                                    incompatible_qos_policy_list,
+                                reader_associated_topic.inconsistent_topic_status.total_count += 1;
+                                reader_associated_topic.inconsistent_topic_status.total_count_change += 1;
+                                let participant = DomainParticipantAsync::new(
+                                    self.dcps_sender,
+                                    self.domain_participant.domain_id,
+                                    self.domain_participant.instance_handle,
                                 );
-
-                                if data_reader
+                                let the_topic = TopicAsync::new(
+                                    reader_associated_topic.instance_handle,
+                                    reader_associated_topic.type_name.clone(),
+                                    reader_associated_topic.topic_name.clone(),
+                                    participant,
+                                );
+                                if reader_associated_topic
                                     .listener_mask
-                                    .is_enabled(&StatusKind::RequestedIncompatibleQos)
+                                    .is_enabled(&StatusKind::InconsistentTopic)
                                 {
-                                    let status =
-                                        data_reader.get_requested_incompatible_qos_status();
-                                    if let Some(l) = &data_reader.listener_sender {
-                                        l.send(ListenerMail::RequestedIncompatibleQos {
-                                            the_reader,
-                                            status,
-                                        })
-                                        .ok();
-                                    }
-                                } else if subscriber
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::RequestedIncompatibleQos)
-                                {
-                                    let status =
-                                        data_reader.get_requested_incompatible_qos_status();
-                                    if let Some(l) = &subscriber.listener_sender {
-                                        l.send(ListenerMail::RequestedIncompatibleQos {
-                                            the_reader,
+                                    let status = reader_associated_topic
+                                        .inconsistent_topic_status
+                                        .get_inconsistent_topic_status();
+                                    if let Some(l) = &reader_associated_topic.listener_sender {
+                                        l.send(ListenerMail::InconsistentTopic {
+                                            the_topic,
                                             status,
                                         })
                                         .ok();
@@ -1698,22 +1797,22 @@ impl DcpsDomainParticipant {
                                 } else if self
                                     .domain_participant
                                     .listener_mask
-                                    .is_enabled(&StatusKind::RequestedIncompatibleQos)
+                                    .is_enabled(&StatusKind::InconsistentTopic)
                                 {
-                                    let status =
-                                        data_reader.get_requested_incompatible_qos_status();
+                                    let status = reader_associated_topic
+                                        .inconsistent_topic_status
+                                        .get_inconsistent_topic_status();
                                     if let Some(l) = &self.domain_participant.listener_sender {
-                                        l.send(ListenerMail::RequestedIncompatibleQos {
-                                            the_reader,
+                                        l.send(ListenerMail::InconsistentTopic {
+                                            the_topic,
                                             status,
                                         })
                                         .ok();
                                     }
                                 }
-
-                                data_reader
+                                reader_associated_topic
                                     .status_condition
-                                    .add_communication_state(StatusKind::RequestedIncompatibleQos);
+                                    .add_communication_state(StatusKind::InconsistentTopic);
                             }
                         }
                     }
