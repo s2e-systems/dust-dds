@@ -59,8 +59,12 @@ int main(int argc, char *argv[])
 	{
 		throw std::runtime_error{"data not valid"};
 	}
+	if (sample.id() != 8 || sample.msg() != 'a')
+	{
+		throw std::runtime_error{"Incorrect data received"};
+	}
 
-	printf("Received: %s { id: %d, msg: \"%c\" }\n", hello_world_type.get_type_name(), sample.id(), sample.msg());
+	printf("Received: %s { id: %d, msg: \"%c\" }\n", hello_world_type.get_type_name().c_str(), sample.id(), sample.msg());
 
 	// Sleep to allow sending acknowledgements
 	std::this_thread::sleep_for(std::chrono::seconds(2));
