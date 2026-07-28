@@ -4,6 +4,8 @@ use crate::xtypes::{
         TryConstructKind, TypeKind,
     },
     error::{XTypesError, XTypesResult},
+    type_object::TypeIdentifier,
+    type_support::TypeSupport,
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -201,11 +203,12 @@ impl EncodingVersion for EncodingVersion1 {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -347,11 +350,12 @@ impl EncodingVersion for EncodingVersion2 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         deserializer.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }
@@ -406,7 +410,9 @@ impl EncodingVersion for EncodingVersion2 {
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_value(member, dynamic_data)
-        } else if !member.descriptor.is_optional {
+        } else if !member.descriptor.is_optional
+            && member.descriptor.try_construct_kind != TryConstructKind::UseDefault
+        {
             Err(XTypesError::PidNotFound(pid))
         } else {
             Ok(())
@@ -707,7 +713,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        match member.descriptor.r#type.get_kind() {
+        let member_type = if member.descriptor.is_external {
+            TypeIdentifier::get_type()
+        } else {
+            member.descriptor.r#type
+        };
+        match member_type.get_kind() {
             TypeKind::NONE => Ok(()),
             TypeKind::BOOLEAN => {
                 dynamic_data.set_boolean_value(member.get_id(), self.deserialize_primitive_type()?)
@@ -758,10 +769,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::STRING16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
-                .set_complex_value(
-                    member.get_id(),
-                    self.deserialize_as_nested(member.descriptor.r#type)?,
-                ),
+                .set_complex_value(member.get_id(), self.deserialize_as_nested(member_type)?),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::BITSET => todo!(),
@@ -861,11 +869,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         member: &DynamicTypeMember,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let bound = member
+        let bound = *member
             .descriptor
             .r#type
             .descriptor
             .bound
+            .first()
             .ok_or(XTypesError::InvalidType)?;
         self.deserialize_sequence_elements(member, dynamic_data, bound as usize)
     }

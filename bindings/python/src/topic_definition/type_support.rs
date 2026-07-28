@@ -35,7 +35,7 @@ pub fn convert_python_type_to_dynamic_type(
             name,
             base_type: None,
             discriminator_type: None,
-            bound: None,
+            bound: &[],
             element_type: None,
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,

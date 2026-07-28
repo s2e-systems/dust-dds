@@ -7,11 +7,12 @@ use crate::{
     dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant_listener::DomainParticipantListener, subscriber::SubscriberAsync,
+        topic::TopicAsync,
     },
     infrastructure::status::{
-        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
-        SubscriptionMatchedStatus,
+        InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+        PublicationMatchedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     runtime::Spawner,
 };
@@ -58,6 +59,9 @@ impl DcpsDomainParticipantListener {
                         listener
                             .on_offered_deadline_missed(the_writer, status)
                             .await;
+                    }
+                    ListenerMail::InconsistentTopic { the_topic, status } => {
+                        listener.on_inconsistent_topic(the_topic, status).await;
                     }
                     ListenerMail::DataOnReaders { the_subscriber: _ } => {
                         panic!("Not valid for domain participant")
@@ -108,5 +112,9 @@ pub enum ListenerMail {
     OfferedDeadlineMissed {
         the_writer: DataWriterAsync<()>,
         status: OfferedDeadlineMissedStatus,
+    },
+    InconsistentTopic {
+        the_topic: TopicAsync,
+        status: InconsistentTopicStatus,
     },
 }

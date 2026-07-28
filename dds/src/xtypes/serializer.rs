@@ -3,6 +3,8 @@ use crate::xtypes::{
     data_storage::DataStorage,
     dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
     error::{XTypesError, XTypesResult},
+    type_object::TypeIdentifier,
+    type_support::TypeSupport,
 };
 use alloc::{string::ToString, vec::Vec};
 
@@ -189,7 +191,12 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     /// Serialization Rule: { M.value : M.value.type }
     fn serialize_value(&mut self, v: &DynamicData, member_id: u32) -> Result<(), XTypesError> {
         let member_descriptor = v.get_descriptor(member_id)?;
-        match member_descriptor.r#type.get_kind() {
+        let member_type = if member_descriptor.is_external {
+            TypeIdentifier::get_type()
+        } else {
+            member_descriptor.r#type
+        };
+        match member_type.get_kind() {
             TypeKind::NONE => (),
             TypeKind::BOOLEAN => self.serialize_primitive_type(v.get_boolean_value(member_id)?),
             TypeKind::BYTE => self.serialize_primitive_type(v.get_byte_value(member_id)?),
@@ -1685,6 +1692,27 @@ mod tests {
                 0x00, 0x09, 0x00, 0x02, // CDR Header (incl padding length)
                 2, 0, 0, 0, // DHEADER
                 7, 0, 0, 0 // value | padding (2 bytes)
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_mutable_struct_simple() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 0x01)]
+            x1: u32,
+        }
+        let data = MutableType { x1: 1 }.create_dynamic_sample();
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x0b, 0x00, 0x00, // CDR Header
+                8, 0, 0, 0, // DHEADER (length)
+                0x01, 0, 0, 0b010_0000, // EMHEADER1 incl. LC 0b010 (4 bytes)
+                1, 0, 0, 0, // u32
             ]
         );
     }
