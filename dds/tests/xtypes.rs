@@ -1092,8 +1092,6 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         .unwrap();
 
     let sample = reader.read_next_sample().unwrap();
-    println!("received: {:?}", sample.data.as_ref().unwrap());
-    println!("expexted: {:?}", data);
     assert_eq!(sample.data.as_ref().unwrap(), &data);
 }
 
@@ -1320,7 +1318,7 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     wait_set_publication
         .attach_condition(Condition::StatusCondition(cond_publication))
         .unwrap();
-    let cond_subscription = writer.get_statuscondition();
+    let cond_subscription = reader.get_statuscondition();
     cond_subscription
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
