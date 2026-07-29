@@ -1285,6 +1285,21 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
         reader.read_next_sample().unwrap().data.as_ref().unwrap(),
         &data
     );
+
+    assert_eq!(
+        publisher_topic
+            .get_inconsistent_topic_status()
+            .unwrap()
+            .total_count,
+        0
+    );
+    assert_eq!(
+        subscriber_topic
+            .get_inconsistent_topic_status()
+            .unwrap()
+            .total_count,
+        0
+    );
 }
 
 /// 'SFinal[10]_S[20]_SFinalAlt[10]_S[20]' : {
@@ -1719,7 +1734,7 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let mut reader_qos = reader_qos();
-    reader_qos.type_consistency.ignore_sequence_bounds = true;
+    reader_qos.type_consistency.ignore_sequence_bounds = false;
 
     let _reader = subscriber
         .create_datareader::<DynamicData<'static>>(

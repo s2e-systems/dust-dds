@@ -2324,10 +2324,48 @@ impl DcpsDomainParticipant {
                                                          .type_consistency
                                                          .ignore_member_names
                                              });
+                                         let ignore_sequence_bounds = self
+                                             .domain_participant
+                                             .user_defined_subscriber_list
+                                             .iter()
+                                             .flat_map(|s| s.data_reader_list.iter())
+                                             .all(|dr| {
+                                                 dr.topic_name != topic.topic_name
+                                                     || dr.qos.type_consistency.ignore_sequence_bounds
+                                             }) && self
+                                             .domain_participant
+                                             .discovered_reader_list
+                                             .iter()
+                                             .all(|dr| {
+                                                 dr.dds_subscription_data.topic_name() != topic.topic_name
+                                                     || dr
+                                                         .dds_subscription_data
+                                                         .type_consistency
+                                                         .ignore_sequence_bounds
+                                             });
+                                         let ignore_string_bounds = self
+                                             .domain_participant
+                                             .user_defined_subscriber_list
+                                             .iter()
+                                             .flat_map(|s| s.data_reader_list.iter())
+                                             .all(|dr| {
+                                                 dr.topic_name != topic.topic_name
+                                                     || dr.qos.type_consistency.ignore_string_bounds
+                                             }) && self
+                                             .domain_participant
+                                             .discovered_reader_list
+                                             .iter()
+                                             .all(|dr| {
+                                                 dr.dds_subscription_data.topic_name() != topic.topic_name
+                                                     || dr
+                                                         .dds_subscription_data
+                                                         .type_consistency
+                                                         .ignore_string_bounds
+                                             });
                                          let topic_type_consistency = TypeConsistencyEnforcementQosPolicy {
                                              ignore_member_names,
-                                             ignore_sequence_bounds: false,
-                                             ignore_string_bounds: false,
+                                             ignore_sequence_bounds,
+                                             ignore_string_bounds,
                                              ..TypeConsistencyEnforcementQosPolicy::const_default()
                                          };
                                          let is_type_assignable = match &type_identifier_pair

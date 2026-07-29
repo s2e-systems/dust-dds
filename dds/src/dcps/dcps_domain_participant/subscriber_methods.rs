@@ -144,6 +144,19 @@ impl DcpsDomainParticipant {
 
         subscriber.data_reader_list.push(data_reader);
 
+        let last_dr = subscriber.data_reader_list.last().unwrap();
+        if last_dr.qos.type_consistency.ignore_member_names {
+            if let Some(topic) = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter_mut()
+                .find(|t| t.topic_name == last_dr.topic_name)
+            {
+                topic.inconsistent_topic_status.total_count = 0;
+                topic.inconsistent_topic_status.total_count_change = 0;
+            }
+        }
+
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
             self.enable_data_reader(subscriber_handle, &data_reader_handle, runtime)?;
         }
