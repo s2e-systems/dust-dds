@@ -2647,6 +2647,11 @@ impl CompleteTypeObject {
                         .iter()
                         .find(|m1| m1.common.member_id == m2.common.member_id)
                     {
+                        if !type_consistency.ignore_member_names
+                            && m1.detail.name != m2.detail.name
+                        {
+                            return false;
+                        }
                         members_are_assignable &= m1
                             .common
                             .member_type_id
@@ -2654,6 +2659,13 @@ impl CompleteTypeObject {
                                 &m2.common.member_type_id,
                                 type_consistency,
                             );
+                    } else if !type_consistency.ignore_member_names
+                        && t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
                     }
                 }
 

@@ -2824,3 +2824,119 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
     let sample = reader.read_next_sample().unwrap().data.unwrap();
     assert_eq!(sample, subscriber_data);
 }
+
+/// 'ext_mutable_struct_6' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_m2 --data-folder data --data-file struct_num_x1_x2',
+///               'sub-exe -S -t test -y Test::struct_m4 --data-folder data --data-file struct_num_x1_x2 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_m2 and struct_m4 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies mutable structs without explicit IDs are not assignable to those with explicit IDs:\n\n'
+///                     ' * Publisher uses `struct_m2` (mutable) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_m4` (mutable) from `extensibility`.\n'
+///                     ' * `struct_m2` uses explicit member IDs (`x1` id=1, `x2` id=2).\n'
+///                     ' * `struct_m4` has no explicit IDs, so auto-assigned IDs differ, causing mismatch.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_6() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_m2"   extensibility="mutable">
+                    <member name="x1" type="int32" id="1" />
+                    <member name="x2" type="int32" id="2" />
+                </struct>
+                <struct name="struct_m4"   extensibility="mutable">
+                    <member name="x1" type="int32" />
+                    <member name="x3" type="int32" />
+                    <member name="x2" type="int32" />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_m2", vec![])
+            .unwrap()
+            .build();
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_m4", vec![])
+            .unwrap()
+            .build();
+
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_m2",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_m4",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
