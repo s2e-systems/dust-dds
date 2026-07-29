@@ -80,6 +80,16 @@ impl DomainParticipantListener for Listener {
             .unwrap();
         core::future::ready(())
     }
+    fn on_inconsistent_topic(
+        &mut self,
+        _the_topic: dust_dds::dds_async::topic::TopicAsync,
+        _status: dust_dds::infrastructure::status::InconsistentTopicStatus,
+    ) -> impl Future<Output = ()> + Send {
+        self.sender
+            .send("on_inconsistent_topic()".to_string())
+            .unwrap();
+        core::future::ready(())
+    }
 }
 /// 'ext_final_struct_1' : {
 ///     'common_args' : ['--type-folder types --type-file extensibility'],
@@ -809,6 +819,19 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_4() {
     let subscriber_topic = subscriber_participant
         .create_topic::<A3>("test", "A3", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
+    let _reader = subscriber
+        .create_datareader::<A3>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
 
     let status_cond_publisher = publisher_topic.get_statuscondition();
     status_cond_publisher
@@ -1319,8 +1342,16 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
 #[test]
 fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let (sender, receiver) = mpsc::channel();
     let publisher_participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::InconsistentTopic],
+        )
         .unwrap();
     let type_xml = r#"
     <dds>
@@ -1371,7 +1402,14 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
         )
         .unwrap();
     let subscriber_participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::InconsistentTopic],
+        )
         .unwrap();
     let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
@@ -1506,6 +1544,10 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
             .unwrap()
             .total_count,
         0
+    );
+    assert!(
+        receiver.try_recv().is_err(),
+        "on_inconsistent_topic listener callback was unexpectedly triggered"
     );
 }
 

@@ -2304,26 +2304,6 @@ impl DcpsDomainParticipant {
                                             );
                                         type_lookup_reply_received = true;
 
-                                         let ignore_member_names = self
-                                             .domain_participant
-                                             .user_defined_subscriber_list
-                                             .iter()
-                                             .flat_map(|s| s.data_reader_list.iter())
-                                             .any(|dr| {
-                                                 dr.topic_name == topic.topic_name
-                                                     && dr.qos.type_consistency.ignore_member_names
-                                             }) || self
-                                             .domain_participant
-                                             .discovered_reader_list
-                                             .iter()
-                                             .any(|dr| {
-                                                 dr.dds_subscription_data.topic_name()
-                                                     == topic.topic_name
-                                                     && dr
-                                                         .dds_subscription_data
-                                                         .type_consistency
-                                                         .ignore_member_names
-                                             });
                                          let ignore_sequence_bounds = self
                                              .domain_participant
                                              .user_defined_subscriber_list
@@ -2362,6 +2342,42 @@ impl DcpsDomainParticipant {
                                                          .type_consistency
                                                          .ignore_string_bounds
                                              });
+                                         let ignore_member_names = {
+                                             let local_has_readers = self
+                                                 .domain_participant
+                                                 .user_defined_subscriber_list
+                                                 .iter()
+                                                 .flat_map(|s| s.data_reader_list.iter())
+                                                 .any(|dr| dr.topic_name == topic.topic_name);
+                                             let discovered_has_readers = self
+                                                 .domain_participant
+                                                 .discovered_reader_list
+                                                 .iter()
+                                                 .any(|dr| dr.dds_subscription_data.topic_name() == topic.topic_name);
+
+                                             if !local_has_readers && !discovered_has_readers {
+                                                 true
+                                             } else {
+                                                 self.domain_participant
+                                                     .user_defined_subscriber_list
+                                                     .iter()
+                                                     .flat_map(|s| s.data_reader_list.iter())
+                                                     .all(|dr| {
+                                                         dr.topic_name != topic.topic_name
+                                                             || dr.qos.type_consistency.ignore_member_names
+                                                     }) && self
+                                                     .domain_participant
+                                                     .discovered_reader_list
+                                                     .iter()
+                                                     .all(|dr| {
+                                                         dr.dds_subscription_data.topic_name() != topic.topic_name
+                                                             || dr
+                                                                 .dds_subscription_data
+                                                                 .type_consistency
+                                                                 .ignore_member_names
+                                                     })
+                                             }
+                                         };
                                          let topic_type_consistency = TypeConsistencyEnforcementQosPolicy {
                                              ignore_member_names,
                                              ignore_sequence_bounds,
