@@ -2452,3 +2452,161 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     let sample = reader.read_next_sample().unwrap().data.unwrap();
     assert_eq!(sample.get_string_value(0).unwrap(), "Hello world");
 }
+
+/// 'struct_final_appendable': {
+///     'common_args': ['--type-folder types --type-file primitives'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_primitives_final --data-folder data --data-file struct_primitives',
+///              'sub-exe -S -t test -y Test::struct_primitives_appendable --data-folder data --data-file struct_primitives'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_primitives_final and struct_primitives_appendable',
+///     'description' : 'Verifies structs with mismatched extensibility are not assignable:\n\n'
+///                     ' * Publisher uses `struct_primitives_final` (final) from `primitives`.\n'
+///                     ' * Subscriber uses `struct_primitives_appendable` (appendable) from `primitives`.\n'
+///                     ' * Publisher is `final`.\n'
+///                     ' * Subscriber is `appendable`.\n'
+///                     ' * Extensibility must match for assignability.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_struct_test_suite_struct_final_appendable() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_primitives_final"   extensibility="final">
+                    <member name="x1"   type="uint8"   />
+                    <member name="x2"   type="uint16"  />
+                    <member name="x3"   type="uint32"  />
+                    <member name="x4"   type="uint64"  />
+                    <member name="x5"   type="int8"    />
+                    <member name="x6"   type="int16"   />
+                    <member name="x7"   type="int32"   />
+                    <member name="x8"   type="int64"   />
+                    <member name="x9"   type="boolean" />
+                    <member name="x10"  type="float32" />
+                    <member name="x11"  type="float64" />
+                    <member name="x12"  type="float128"/>
+                    <member name="x13"  type="byte"    />
+                    <member name="x14"  type="char8"   />
+                </struct>
+                <struct name="struct_primitives_appendable"   extensibility="appendable">
+                    <member name="x1"   type="uint8"   />
+                    <member name="x2"   type="uint16"  />
+                    <member name="x3"   type="uint32"  />
+                    <member name="x4"   type="uint64"  />
+                    <member name="x5"   type="int8"   />
+                    <member name="x6"   type="int16"   />
+                    <member name="x7"   type="int32"   />
+                    <member name="x8"   type="int64"   />
+                    <member name="x9"   type="boolean" />
+                    <member name="x10"  type="float32" />
+                    <member name="x11"  type="float64" />
+                    <member name="x12"  type="float128"/>
+                    <member name="x13"  type="byte"    />
+                    <member name="x14"  type="char8"   />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_final",
+        vec![],
+    )
+    .unwrap()
+    .build();
+
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_final",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_appendable",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_appendable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
