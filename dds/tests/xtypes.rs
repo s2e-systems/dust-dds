@@ -1310,18 +1310,20 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     let type_xml = r#"
     <dds>
         <types>
-            <struct name="F_S__array20_uint32"   extensibility="final">
-                <member name="x1"   type="uint32" arrayDimensions="20"  />
-            </struct>
-            <struct name="F_S__array20_uint32_alt"   extensibility="final">
-                <member name="altx1"   type="uint32" arrayDimensions="20"  />
-            </struct>
-            <struct name="F_S__array10_F_S__array20_uint32"   extensibility="final">
-                <member name="x1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32" arrayDimensions="10"  />
-            </struct>
-            <struct name="F_S__array10_F_S__array20_uint32_alt"   extensibility="final">
-                <member name="altx1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32_alt" arrayDimensions="10"  />
-            </struct>
+            <module name="Test">
+                <struct name="F_S__array20_uint32"   extensibility="final">
+                    <member name="x1"   type="uint32" arrayDimensions="20"  />
+                </struct>
+                <struct name="F_S__array20_uint32_alt"   extensibility="final">
+                    <member name="altx1"   type="uint32" arrayDimensions="20"  />
+                </struct>
+                <struct name="F_S__array10_F_S__array20_uint32"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32" arrayDimensions="10"  />
+                </struct>
+                <struct name="F_S__array10_F_S__array20_uint32_alt"   extensibility="final">
+                    <member name="altx1"   type="nonBasic" nonBasicTypeName="F_S__array20_uint32_alt" arrayDimensions="10"  />
+                </struct>
+            </module>
         </types>
     </dds>
     "#;
@@ -2057,6 +2059,17 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
             publisher_dynamic_type,
         )
         .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
@@ -2072,6 +2085,19 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_string_bounds = false;
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
         )
         .unwrap();
 
@@ -2144,10 +2170,20 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
             publisher_dynamic_type,
         )
         .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string10x10", vec![])
             .unwrap()
@@ -2160,6 +2196,19 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_string_bounds = false;
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
         )
         .unwrap();
 
