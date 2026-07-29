@@ -2281,11 +2281,15 @@ impl DcpsDomainParticipant {
                                                 // If two types T1 and T2 are equivalent according to the MINIMAL relation (see Clause 7.3.4.7),
                                                 // then they are mutually assignable, that is, T1 is-assignable-from T2 and T2 is-assignable-from
                                                 // T1.
-                                                let is_type_assignable = match &type_identifier_pair.type_object{
+                                                let is_type_assignable = match &type_identifier_pair.type_object {
                                                     TypeObject::EkComplete { complete } => {
-                                                        CompleteTypeObject::from(topic.type_support).is_assignable_from(complete)
-                                                    },
-                                                    TypeObject::EkMinimal { minimal } => &MinimalTypeObject::from(topic.type_support) == minimal,
+                                                        let local_type = CompleteTypeObject::from(topic.type_support);
+                                                        local_type.is_assignable_from(complete)
+                                                            && complete.is_assignable_from(&local_type)
+                                                    }
+                                                    TypeObject::EkMinimal { minimal } => {
+                                                        &MinimalTypeObject::from(topic.type_support) == minimal
+                                                    }
                                                 };
 
 

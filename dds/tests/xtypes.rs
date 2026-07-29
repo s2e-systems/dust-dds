@@ -2596,17 +2596,19 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
