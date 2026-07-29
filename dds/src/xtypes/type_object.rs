@@ -2158,7 +2158,23 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                     }
                 }
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                if let Some(&b) = value.descriptor.bound.first() {
+                    if b <= u8::MAX as u32 {
+                        TypeIdentifier::TiString16Small {
+                            string_sdefn: StringSTypeDefn { bound: b as u8 },
+                        }
+                    } else {
+                        TypeIdentifier::TiString16Large {
+                            string_ldefn: StringLTypeDefn { bound: b },
+                        }
+                    }
+                } else {
+                    TypeIdentifier::TiString16Large {
+                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                    }
+                }
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),

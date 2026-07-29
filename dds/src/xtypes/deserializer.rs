@@ -667,7 +667,14 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 }
                 dynamic_data.set_string_values(member.get_id(), values)
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                let bound = element_type.descriptor.bound.first().copied().unwrap_or(0);
+                let mut values = Vec::with_capacity(length);
+                for _ in 0..length {
+                    values.push(self.deserialize_wstring_type(bound)?);
+                }
+                dynamic_data.set_string_values(member.get_id(), values)
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
@@ -778,7 +785,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
                 dynamic_data.set_string_value(member.get_id(), self.deserialize_string_type(bound)?)
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
+                dynamic_data.set_string_value(member.get_id(), self.deserialize_wstring_type(bound)?)
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
                 .set_complex_value(member.get_id(), self.deserialize_as_nested(member_type)?),
@@ -836,6 +846,27 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         let values = self.reader.read_bytes(length.saturating_sub(1) as usize)?.to_vec();
         self.reader.read_byte()?; // 0-termination
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
+    }
+
+    fn deserialize_wstring_type(&mut self, bound: u32) -> XTypesResult<String> {
+        let length = self.deserialize_primitive_type::<u32>()?;
+        if length == 0 {
+            return Ok(String::new());
+        }
+        if bound > 0 && length.saturating_sub(1) > bound {
+            return Err(XTypesError::InvalidData);
+        }
+        let num_units = length.saturating_sub(1) as usize;
+        let mut units = Vec::with_capacity(num_units);
+        for _ in 0..num_units {
+            let unit = self.deserialize_primitive_type::<u16>()?;
+            units.push(unit);
+        }
+        let nul_unit = self.deserialize_primitive_type::<u16>()?;
+        if nul_unit != 0 {
+            return Err(XTypesError::InvalidData);
+        }
+        String::from_utf16(&units).map_err(|_| XTypesError::InvalidData)
     }
 
     /// (5) XCDR << {O : ENUM_TYPE} =

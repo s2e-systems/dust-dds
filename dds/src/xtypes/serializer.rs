@@ -214,7 +214,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
             TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string_type(v.get_string_value(member_id)?),
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => self.serialize_wstring_type(v.get_string_value(member_id)?),
             TypeKind::ALIAS => (),
             TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
@@ -275,7 +275,11 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
                     self.serialize_string_type(v);
                 }
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                for v in v.get_string_values(member_id)? {
+                    self.serialize_wstring_type(v);
+                }
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
@@ -377,6 +381,15 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.serialize_primitive_type(&(v.len() as u32 + 1));
         self.writer.write_slice(v.as_bytes());
         self.writer.write_byte(0);
+    }
+
+    fn serialize_wstring_type(&mut self, v: &str) {
+        let utf16_units: Vec<u16> = v.encode_utf16().collect();
+        self.serialize_primitive_type(&(utf16_units.len() as u32 + 1));
+        for unit in utf16_units {
+            self.serialize_primitive_type(&unit);
+        }
+        self.serialize_primitive_type(&0u16);
     }
 
     /// Serialization Rule (5)

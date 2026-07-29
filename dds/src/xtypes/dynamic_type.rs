@@ -138,8 +138,21 @@ impl DynamicTypeBuilderFactory {
     }
 
     /// Creates a [`DynamicTypeBuilder`] for a wide string type with the specified bound.
-    pub fn create_wstring_type(_bound: u32) -> DynamicTypeBuilder {
-        unimplemented!("wstring not supported in Rust")
+    pub fn create_wstring_type(bound: u32) -> DynamicTypeBuilder {
+        DynamicTypeBuilder {
+            descriptor: TypeDescriptor {
+                kind: TypeKind::STRING16,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: vec![bound].leak(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            member_list: Vec::new(),
+        }
     }
 
     /// Creates a [`DynamicTypeBuilder`] for a sequence type with the specified element type and bound.
@@ -1719,7 +1732,7 @@ impl<'a> DynamicData<'a> {
                     .unwrap_or_else(|| text.chars().next().unwrap_or('\0'));
                 Ok(DataStorage::Char8(val))
             }
-            TypeKind::STRING8 => {
+            TypeKind::STRING8 | TypeKind::STRING16 => {
                 let val = node.text().unwrap_or("");
                 Ok(DataStorage::String(String::from(val)))
             }
