@@ -11,7 +11,7 @@ use dust_dds::{
         qos_policy::{
             DataRepresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             TypeConsistencyEnforcementQosPolicy, TypeConsistencyKind::AllowTypeCoercion,
-            XCDR2_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
@@ -23,6 +23,35 @@ use dust_dds::{
     },
 };
 use std::sync::mpsc::{self, channel};
+
+// In the OMG XTypes tests the ignore_member_names of the TypeConsistencyEnforcementQosPolicy
+// is set to true by default. The standards default is false though
+fn reader_qos() -> DataReaderQos {
+    DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        type_consistency: TypeConsistencyEnforcementQosPolicy {
+            kind: AllowTypeCoercion,
+            ignore_sequence_bounds: true,
+            ignore_string_bounds: true,
+            ignore_member_names: true,
+            prevent_type_widening: false,
+            force_type_validation: false,
+        },
+        ..Default::default()
+    }
+}
+// These are tests for XCDR2
+fn writer_qos() -> DataWriterQos {
+    DataWriterQos {
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR_DATA_REPRESENTATION],
+        },
+        ..DataWriterQos::const_default()
+    }
+}
 
 struct Listener {
     sender: mpsc::Sender<String>,
@@ -65,7 +94,7 @@ impl DomainParticipantListener for Listener {
 fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let (sender, receiver) = channel();
-    let participant1 = DomainParticipantFactory::get_instance()
+    let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -88,38 +117,31 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     </dds>
     "#;
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_f1", vec![]).unwrap();
-    let a1_dynamic_type = type_builder.build();
-    let topic1 = participant1
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_f1", vec![])
+            .unwrap();
+    let publisher_dynamic_type = type_builder.build();
+    let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
             "Test::struct_f1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            a1_dynamic_type,
+            publisher_dynamic_type,
         )
         .unwrap();
-    let publisher = participant1
+    let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let writer = publisher
         .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
+    let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(
             domain_id,
             QosKind::Default,
@@ -130,9 +152,9 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
         )
         .unwrap();
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_f1", vec![]).unwrap();
-
-    let topic2 = participant2
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_f1", vec![])
+            .unwrap();
+    let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
             "Test::struct_f1",
@@ -142,7 +164,7 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
             type_builder.build(),
         )
         .unwrap();
-    let subscriber = participant2
+    let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -162,7 +184,7 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
-            &topic2,
+            &subscriber_topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
             NO_STATUS,
@@ -176,7 +198,7 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
         .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
 
-    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
         "<struct>
             <x1>1</x1>
@@ -216,7 +238,6 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -305,7 +326,6 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -326,27 +346,25 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::int32x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
             publisher_dynamic_type,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::uint32x10", vec![])
             .unwrap()
             .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::uint32x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -392,10 +410,9 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
 #[test]
 fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant1 = DomainParticipantFactory::get_instance()
+    let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -421,83 +438,79 @@ fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
         </types>
     </dds>
     "#;
-    let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "enum1x10", vec![]).unwrap();
-    let a1_dynamic_type = type_builder.build();
-    let topic1 = participant1
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::enum1x10", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::enum1x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            a1_dynamic_type,
+            publisher_dynamic_type,
         )
         .unwrap();
-    let publisher = participant1
+    let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let writer = publisher
         .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
+    let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "enum2x10", vec![]).unwrap();
-    let topic2 = participant2
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::enum2x10", vec![])
+            .unwrap()
+            .build();
+    let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::enum2x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            type_builder.build(),
+            subscriber_dynamic_type,
         )
         .unwrap();
-    let subscriber = participant2
+    let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
-            &topic2,
-            QosKind::Specific(reader_qos),
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
         "<struct>
             <x1>
@@ -545,10 +558,9 @@ fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant1 = DomainParticipantFactory::get_instance()
+    let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -565,47 +577,41 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     </dds>
     "#;
     let type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a1", vec![]).unwrap();
-    let a1_dynamic_type = type_builder.build();
-    let topic1 = participant1
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_a1", vec![])
+            .unwrap();
+    let publisher_dynamic_type = type_builder.build();
+    let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
             "Test::struct_a1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            a1_dynamic_type,
+            publisher_dynamic_type,
         )
         .unwrap();
-    let publisher = participant1
+    let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let writer = publisher
         .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
+    let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let mut type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_a2", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_a2", vec![])
+            .unwrap();
     // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
     for (_id, member) in type_builder.get_all_members().unwrap() {
         member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
     }
-    let topic2 = participant2
+    let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
             "Test::struct_a2",
@@ -615,7 +621,7 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
             type_builder.build(),
         )
         .unwrap();
-    let subscriber = participant2
+    let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -635,24 +641,33 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
-            &topic2,
+            &subscriber_topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
-    let mut data = DynamicDataFactory::create_data(a1_dynamic_type);
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
         "<struct>
             <x1>1</x1>
@@ -715,38 +730,30 @@ struct A3 {
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant1 = DomainParticipantFactory::get_instance()
+    let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let topic1 = participant1
-        .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+    let publisher_topic = publisher_participant
+        .create_topic::<A2>("test", "A2", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let publisher = participant1
+    let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let writer = publisher
         .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
+    let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let topic2 = participant2
-        .create_topic::<A1>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+    let subscriber_topic = subscriber_participant
+        .create_topic::<A1>("test", "A1", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let subscriber = participant2
+    let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -766,22 +773,31 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
     };
     let reader = subscriber
         .create_datareader::<A1>(
-            &topic2,
+            &subscriber_topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data = A2 { x1: 1, x2: 2 };
 
@@ -814,21 +830,20 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_4() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_publisher = DomainParticipantFactory::get_instance()
+    let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let topic_publisher = participant_publisher
-        .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+    let publisher_topic = publisher_participant
+        .create_topic::<A2>("test", "A2", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
-    let participant_subscriber = DomainParticipantFactory::get_instance()
+    let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let topic_subscriber = participant_subscriber
-        .create_topic::<A3>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
+    let subscriber_topic = subscriber_participant
+        .create_topic::<A3>("test", "A3", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    let status_cond_publisher = topic_publisher.get_statuscondition();
+    let status_cond_publisher = publisher_topic.get_statuscondition();
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
@@ -836,7 +851,7 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_4() {
     wait_set_publisher
         .attach_condition(Condition::StatusCondition(status_cond_publisher))
         .unwrap();
-    let status_cond_subscriber = topic_subscriber.get_statuscondition();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
@@ -869,27 +884,28 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
-            <struct name="int32x10"   extensibility="final">
-                <member name="x1"   type="int32" arrayDimensions="10"  />
-            </struct>
-            <struct name="int32x20"   extensibility="final">
-                <member name="x1"   type="int32" arrayDimensions="20"  />
-            </struct>
+            <module name="Test">
+                <struct name="int32x10"   extensibility="final">
+                    <member name="x1"   type="int32" arrayDimensions="10"  />
+                </struct>
+                <struct name="int32x20"   extensibility="final">
+                    <member name="x1"   type="int32" arrayDimensions="20"  />
+                </struct>
+            </module>
         </types>
     </dds>
     "#;
     let publisher_dynamic_type =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x10", vec![])
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10", vec![])
             .unwrap()
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::int32x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -900,13 +916,13 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let subscriber_dynamic_type =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x20", vec![])
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x20", vec![])
             .unwrap()
             .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::int32x20",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -952,7 +968,6 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-
     let (sender, receiver) = channel();
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(
@@ -964,51 +979,42 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
             &[StatusKind::PublicationMatched],
         )
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
-            <struct name="struct_m1"   extensibility="mutable">
-                <member name="x1" type="int32" id="1" />
-            </struct>
-            <struct name="struct_m2"   extensibility="mutable">
-                <member name="x1" type="int32" id="1" />
-                <member name="x2" type="int32" id="2" />
-            </struct>
+            <module name="Test">
+                <struct name="struct_m1"   extensibility="mutable">
+                    <member name="x1" type="int32" id="1" />
+                </struct>
+                <struct name="struct_m2"   extensibility="mutable">
+                    <member name="x1" type="int32" id="1" />
+                    <member name="x2" type="int32" id="2" />
+                </struct>
+            </module>
         </types>
     </dds>
     "#;
     let publisher_dynamic_type =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m1", vec![])
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_m1", vec![])
             .unwrap()
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_m1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        representation: DataRepresentationQosPolicy {
-            value: vec![XCDR2_DATA_REPRESENTATION],
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1026,7 +1032,8 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         .unwrap();
 
     let mut type_builder =
-        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "struct_m2", vec![]).unwrap();
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_m2", vec![])
+            .unwrap();
     // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
     for (_id, member) in type_builder.get_all_members().unwrap() {
         member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
@@ -1034,8 +1041,8 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     let subscriber_dynamic_type = type_builder.build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_m1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1147,17 +1154,6 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let publisher = publisher_participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
-            &publisher_topic,
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
     let status_cond_publisher = publisher_topic.get_statuscondition();
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
@@ -1248,20 +1244,13 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1288,25 +1277,10 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: true,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1382,7 +1356,6 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -1403,7 +1376,7 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     "#;
     let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
-        "F_S__array10_F_S__array20_uint32",
+        "Test::F_S__array10_F_S__array20_uint32",
         vec![],
     )
     .unwrap()
@@ -1418,32 +1391,23 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
-        "F_S__array10_F_S__array20_uint32_alt",
+        "Test::F_S__array10_F_S__array20_uint32_alt",
         vec![],
     )
     .unwrap()
@@ -1461,25 +1425,10 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: true,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1547,14 +1496,24 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     )
     .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(data.clone(), None).unwrap();
     writer
@@ -1587,7 +1546,6 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -1619,29 +1577,20 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
         .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10", vec![])
             .unwrap()
@@ -1659,17 +1608,10 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1679,18 +1621,21 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_condition))
-        .unwrap();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -1743,7 +1688,6 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -1775,29 +1719,9 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let publisher = publisher_participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
-            &publisher_topic,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10", vec![])
             .unwrap()
@@ -1810,28 +1734,6 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
-        )
-        .unwrap();
-    let subscriber = subscriber_participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            ignore_sequence_bounds: false,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let _reader = subscriber
-        .create_datareader::<DynamicData<'static>>(
-            &subscriber_topic,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
         )
         .unwrap();
 
@@ -1875,7 +1777,6 @@ fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -1904,29 +1805,20 @@ fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
+        .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x10", vec![])
             .unwrap()
@@ -1944,17 +1836,10 @@ fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -1964,18 +1849,20 @@ fn xtypes_v2_sequence_test_suite_seq_int32_20_seq_int32_10() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_condition))
-        .unwrap();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -2035,7 +1922,6 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2057,7 +1943,6 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
     )
     .unwrap()
     .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2068,29 +1953,20 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
             publisher_dynamic_type.clone(),
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
+        .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string10", vec![])
             .unwrap()
@@ -2108,17 +1984,10 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -2128,18 +1997,20 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_condition))
-        .unwrap();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -2179,7 +2050,6 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2201,7 +2071,6 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
     )
     .unwrap()
     .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2212,29 +2081,9 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let publisher = publisher_participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
-            &publisher_topic,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string10", vec![])
             .unwrap()
@@ -2247,28 +2096,6 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
-        )
-        .unwrap();
-    let subscriber = subscriber_participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            ignore_string_bounds: false,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let _reader = subscriber
-        .create_datareader::<DynamicData<'static>>(
-            &subscriber_topic,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
         )
         .unwrap();
 
@@ -2313,7 +2140,6 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2332,7 +2158,6 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::string20x10", vec![])
             .unwrap()
             .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2343,25 +2168,6 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let publisher = publisher_participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
-            &publisher_topic,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
@@ -2378,28 +2184,6 @@ fn xtypes_v2_sequence_test_suite_seq_str20_10_seq_str10_10_check() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
-        )
-        .unwrap();
-    let subscriber = subscriber_participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            ignore_string_bounds: false,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let _reader = subscriber
-        .create_datareader::<DynamicData<'static>>(
-            &subscriber_topic,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
         )
         .unwrap();
 
@@ -2442,7 +2226,6 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2461,7 +2244,6 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     )
     .unwrap()
     .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2472,29 +2254,20 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
             publisher_dynamic_type.clone(),
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
+        .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
         "Test::wstring_unbounded",
@@ -2515,17 +2288,10 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -2535,18 +2301,20 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_condition))
-        .unwrap();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -2586,7 +2354,6 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2634,7 +2401,6 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
     )
     .unwrap()
     .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2645,29 +2411,9 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let publisher = publisher_participant
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let _writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
-            &publisher_topic,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
         "Test::struct_primitives_appendable",
@@ -2683,24 +2429,6 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
-        )
-        .unwrap();
-    let subscriber = subscriber_participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let _reader = subscriber
-        .create_datareader::<DynamicData<'static>>(
-            &subscriber_topic,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
         )
         .unwrap();
 
@@ -2746,7 +2474,6 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2776,7 +2503,6 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_enum_1", vec![])
             .unwrap()
             .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2787,29 +2513,20 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
             publisher_dynamic_type.clone(),
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
+        .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
         type_xml,
         "Test::struct_enum_2_discard",
@@ -2817,7 +2534,6 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
     )
     .unwrap()
     .build();
-
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -2831,17 +2547,10 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -2851,20 +2560,20 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
         .attach_condition(Condition::StatusCondition(writer_condition))
         .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -2901,7 +2610,6 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
     let publisher_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let type_xml = r#"
     <dds>
         <types>
@@ -2927,7 +2635,6 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_2", vec![])
             .unwrap()
             .build();
-
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2938,29 +2645,20 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
             publisher_dynamic_type.clone(),
         )
         .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let publisher = publisher_participant
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer = publisher
-        .create_datawriter::<DynamicData<'static>>(
+        .create_datawriter(
             &publisher_topic,
-            QosKind::Specific(writer_qos),
+            QosKind::Specific(writer_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -2974,17 +2672,10 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(reader_qos()),
             NO_LISTENER,
             NO_STATUS,
         )
@@ -2994,18 +2685,20 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
     let reader_condition = reader.get_statuscondition();
     reader_condition
         .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(writer_condition))
-        .unwrap();
-    wait_set
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let mut publisher_data = DynamicDataFactory::create_data(publisher_dynamic_type);
     publisher_data
