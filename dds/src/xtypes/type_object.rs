@@ -2699,6 +2699,14 @@ impl CompleteTypeObject {
                 }
                 true
             }
+            (
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t1,
+                },
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t2,
+                },
+            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             _ => false,
         }
     }

@@ -920,9 +920,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => {
-                                            return;
-                                        }
+                                        DiscoveredTypeRepresentationState::Requested => false,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -1044,19 +1042,26 @@ impl DcpsDomainParticipant {
                                         &publisher_qos,
                                     );
                                 if incompatible_qos_policy_list.is_empty() {
-                                    match data_writer.matched_subscription_list.iter_mut().find(|x| {
-                                        x.key() == discovered_reader_data.dds_subscription_data.key()
-                                    }) {
+                                    match data_writer.matched_subscription_list.iter_mut().find(
+                                        |x| {
+                                            x.key()
+                                                == discovered_reader_data
+                                                    .dds_subscription_data
+                                                    .key()
+                                        },
+                                    ) {
                                         Some(x) => {
-                                            *x = discovered_reader_data.dds_subscription_data.clone()
+                                            *x =
+                                                discovered_reader_data.dds_subscription_data.clone()
                                         }
-                                        None => data_writer
-                                            .matched_subscription_list
-                                            .push(discovered_reader_data.dds_subscription_data.clone()),
+                                        None => data_writer.matched_subscription_list.push(
+                                            discovered_reader_data.dds_subscription_data.clone(),
+                                        ),
                                     };
                                     data_writer.publication_matched_status.current_count =
                                         data_writer.matched_subscription_list.len() as i32;
-                                    data_writer.publication_matched_status.current_count_change += 1;
+                                    data_writer.publication_matched_status.current_count_change +=
+                                        1;
                                     data_writer.publication_matched_status.total_count += 1;
                                     data_writer.publication_matched_status.total_count_change += 1;
 
@@ -1092,18 +1097,24 @@ impl DcpsDomainParticipant {
                                         ReliabilityQosPolicyKind::BestEffort => {
                                             ReliabilityKind::BestEffort
                                         }
-                                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                                        ReliabilityQosPolicyKind::Reliable => {
+                                            ReliabilityKind::Reliable
+                                        }
                                     };
                                     let durability_kind = match discovered_reader_data
                                         .dds_subscription_data
                                         .durability
                                         .kind
                                     {
-                                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                                        DurabilityQosPolicyKind::Volatile => {
+                                            DurabilityKind::Volatile
+                                        }
                                         DurabilityQosPolicyKind::TransientLocal => {
                                             DurabilityKind::TransientLocal
                                         }
-                                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                                        DurabilityQosPolicyKind::Transient => {
+                                            DurabilityKind::Transient
+                                        }
                                         DurabilityQosPolicyKind::Persistent => {
                                             DurabilityKind::Persistent
                                         }
@@ -1229,13 +1240,17 @@ impl DcpsDomainParticipant {
                                         }
                                     }
 
-                                    data_writer
-                                        .status_condition
-                                        .add_communication_state(StatusKind::OfferedIncompatibleQos);
+                                    data_writer.status_condition.add_communication_state(
+                                        StatusKind::OfferedIncompatibleQos,
+                                    );
                                 }
                             } else {
-                                writer_associated_topic.inconsistent_topic_status.total_count += 1;
-                                writer_associated_topic.inconsistent_topic_status.total_count_change += 1;
+                                writer_associated_topic
+                                    .inconsistent_topic_status
+                                    .total_count += 1;
+                                writer_associated_topic
+                                    .inconsistent_topic_status
+                                    .total_count_change += 1;
                                 let participant = DomainParticipantAsync::new(
                                     self.dcps_sender,
                                     self.domain_participant.domain_id,
@@ -1489,9 +1504,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => {
-                                            return;
-                                        }
+                                        DiscoveredTypeRepresentationState::Requested => false,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -1640,14 +1653,20 @@ impl DcpsDomainParticipant {
                                         ReliabilityQosPolicyKind::BestEffort => {
                                             ReliabilityKind::BestEffort
                                         }
-                                        ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+                                        ReliabilityQosPolicyKind::Reliable => {
+                                            ReliabilityKind::Reliable
+                                        }
                                     };
                                     let durability_kind = match data_reader.qos.durability.kind {
-                                        DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                                        DurabilityQosPolicyKind::Volatile => {
+                                            DurabilityKind::Volatile
+                                        }
                                         DurabilityQosPolicyKind::TransientLocal => {
                                             DurabilityKind::TransientLocal
                                         }
-                                        DurabilityQosPolicyKind::Transient => DurabilityKind::Transient,
+                                        DurabilityQosPolicyKind::Transient => {
+                                            DurabilityKind::Transient
+                                        }
                                         DurabilityQosPolicyKind::Persistent => {
                                             DurabilityKind::Persistent
                                         }
@@ -1762,13 +1781,17 @@ impl DcpsDomainParticipant {
                                         }
                                     }
 
-                                    data_reader
-                                        .status_condition
-                                        .add_communication_state(StatusKind::RequestedIncompatibleQos);
+                                    data_reader.status_condition.add_communication_state(
+                                        StatusKind::RequestedIncompatibleQos,
+                                    );
                                 }
                             } else {
-                                reader_associated_topic.inconsistent_topic_status.total_count += 1;
-                                reader_associated_topic.inconsistent_topic_status.total_count_change += 1;
+                                reader_associated_topic
+                                    .inconsistent_topic_status
+                                    .total_count += 1;
+                                reader_associated_topic
+                                    .inconsistent_topic_status
+                                    .total_count_change += 1;
                                 let participant = DomainParticipantAsync::new(
                                     self.dcps_sender,
                                     self.domain_participant.domain_id,
@@ -2191,7 +2214,7 @@ impl DcpsDomainParticipant {
                                                             result: TypeLookupGetTypesOut {
                                                                 types: vec![
                                                                     TypeIdentifierTypeObjectPair {
-                                                                        type_identifier: type_id,
+                                                                        type_identifier: type_id.clone(),
                                                                         type_object:
                                                                             TypeObject::EkComplete {
                                                                                 complete: CompleteTypeObject::from(topic.type_support),
@@ -2232,7 +2255,8 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_type_lookup_reply_cache_change(&mut self) {
+    pub fn process_builtin_type_lookup_reply_cache_change(&mut self, runtime: &impl DdsRuntime) {
+        let mut type_lookup_reply_received = false;
         if let Some(type_lookup_reply_reader) = self
             .domain_participant
             .builtin_subscriber
@@ -2252,80 +2276,110 @@ impl DcpsDomainParticipant {
                         deserialize_top_level_type(TypeLookupReply::TYPE, &sample_data)
                     {
                         let type_lookup_reply = TypeLookupReply::create_sample(&mut d);
-                        if type_lookup_reply.header.remote_ex != RemoteExceptionCode::Ok {
-                            tracing::warn!(return_code=?type_lookup_reply.header.remote_ex, "Received exception on type lookup reply");
-                            continue;
-                        }
-                        match type_lookup_reply.r#return {
-                            TypeLookupReturn::TypeLookupGetTypesHash { get_type } => match get_type
-                            {
-                                TypeLookupGetTypesResult::Ok { result } => {
-                                    for type_identifier_pair in result.types {
-                                        for topic in
-                                            &mut self.domain_participant.locally_created_topic_list
+                        if let TypeLookupReturn::TypeLookupGetTypesHash { get_type } =
+                            &type_lookup_reply.r#return
+                        {
+                            let TypeLookupGetTypesResult::Ok { result } = get_type;
+                            for type_identifier_pair in &result.types {
+                                for topic in &mut self.domain_participant.locally_created_topic_list
+                                {
+                                    if let Some((_, discovered_type_state)) = topic
+                                        .discovered_type_representation
+                                        .iter_mut()
+                                        .filter(|(_, x)| {
+                                            matches!(
+                                                x,
+                                                DiscoveredTypeRepresentationState::Requested
+                                            )
+                                        })
+                                        .find(|(type_information, _)| {
+                                            type_information.complete.typeid_with_size.type_id
+                                                == type_identifier_pair.type_identifier
+                                        })
+                                    {
+                                        *discovered_type_state =
+                                            DiscoveredTypeRepresentationState::Discovered(
+                                                type_identifier_pair.type_object.clone(),
+                                            );
+                                        type_lookup_reply_received = true;
+
+                                        let is_type_assignable = match &type_identifier_pair
+                                            .type_object
                                         {
-                                            if let Some((_,discovered_type_state)) = topic
-                                                .discovered_type_representation
-                                                .iter_mut()
-                                                .filter(|(_,x)| matches!(x,DiscoveredTypeRepresentationState::Requested))
-                                                .find(|(type_information, _)| {
-                                                    type_information
-                                                        .complete
-                                                        .typeid_with_size
-                                                        .type_id
-                                                        == type_identifier_pair.type_identifier
-                                                })
+                                            TypeObject::EkComplete { complete } => {
+                                                let local_type =
+                                                    CompleteTypeObject::from(topic.type_support);
+                                                local_type.is_assignable_from(complete)
+                                                    && complete.is_assignable_from(&local_type)
+                                            }
+                                            TypeObject::EkMinimal { minimal } => {
+                                                &MinimalTypeObject::from(topic.type_support)
+                                                    == minimal
+                                            }
+                                        };
+
+                                        if !is_type_assignable {
+                                            topic.inconsistent_topic_status.total_count += 1;
+                                            topic.inconsistent_topic_status.total_count_change += 1;
+                                            let participant = DomainParticipantAsync::new(
+                                                self.dcps_sender,
+                                                self.domain_participant.domain_id,
+                                                self.domain_participant.instance_handle,
+                                            );
+                                            let the_topic = TopicAsync::new(
+                                                topic.instance_handle,
+                                                topic.type_name.clone(),
+                                                topic.topic_name.clone(),
+                                                participant,
+                                            );
+                                            if topic
+                                                .listener_mask
+                                                .is_enabled(&StatusKind::InconsistentTopic)
                                             {
-                                                *discovered_type_state = DiscoveredTypeRepresentationState::Discovered(type_identifier_pair.type_object.clone());
-
-                                                // If two types T1 and T2 are equivalent according to the MINIMAL relation (see Clause 7.3.4.7),
-                                                // then they are mutually assignable, that is, T1 is-assignable-from T2 and T2 is-assignable-from
-                                                // T1.
-                                                let is_type_assignable = match &type_identifier_pair.type_object {
-                                                    TypeObject::EkComplete { complete } => {
-                                                        let local_type = CompleteTypeObject::from(topic.type_support);
-                                                        local_type.is_assignable_from(complete)
-                                                            && complete.is_assignable_from(&local_type)
-                                                    }
-                                                    TypeObject::EkMinimal { minimal } => {
-                                                        &MinimalTypeObject::from(topic.type_support) == minimal
-                                                    }
-                                                };
-
-
-
-                                                if !is_type_assignable {
-                                                    topic.inconsistent_topic_status.total_count += 1;
-                                                    topic.inconsistent_topic_status.total_count_change += 1;
-                                                    let participant = DomainParticipantAsync::new(self.dcps_sender, self.domain_participant.domain_id, self.domain_participant.instance_handle);
-                                                    let the_topic = TopicAsync::new(topic.instance_handle, topic.type_name.clone(), topic.topic_name.clone(), participant);
-                                                    if topic.listener_mask.is_enabled(&StatusKind::InconsistentTopic) {
-                                                        let status = topic.inconsistent_topic_status.get_inconsistent_topic_status();
-                                                        if let Some(l) = &topic.listener_sender {
-                                                            l.send(ListenerMail::InconsistentTopic { the_topic, status }).ok();
-                                                        }
-                                                    } else if self.domain_participant.listener_mask.is_enabled(&StatusKind::InconsistentTopic){
-                                                        let status = topic.inconsistent_topic_status.get_inconsistent_topic_status();
-                                                        if let Some(l) = &self.domain_participant.listener_sender {
-                                                            l.send(ListenerMail::InconsistentTopic { the_topic, status }).ok();
-                                                        }
-                                                    }
-                                                    topic
-                                                        .status_condition
-                                                        .add_communication_state(StatusKind::InconsistentTopic);
+                                                let status = topic
+                                                    .inconsistent_topic_status
+                                                    .get_inconsistent_topic_status();
+                                                if let Some(l) = &topic.listener_sender {
+                                                    l.send(ListenerMail::InconsistentTopic {
+                                                        the_topic,
+                                                        status,
+                                                    })
+                                                    .ok();
+                                                }
+                                            } else if self
+                                                .domain_participant
+                                                .listener_mask
+                                                .is_enabled(&StatusKind::InconsistentTopic)
+                                            {
+                                                let status = topic
+                                                    .inconsistent_topic_status
+                                                    .get_inconsistent_topic_status();
+                                                if let Some(l) =
+                                                    &self.domain_participant.listener_sender
+                                                {
+                                                    l.send(ListenerMail::InconsistentTopic {
+                                                        the_topic,
+                                                        status,
+                                                    })
+                                                    .ok();
                                                 }
                                             }
+                                            topic.status_condition.add_communication_state(
+                                                StatusKind::InconsistentTopic,
+                                            );
                                         }
                                     }
                                 }
-                            },
-                            TypeLookupReturn::TypeLookupGetDependenciesHash {
-                                get_type_dependencies: _,
-                            } => todo!(),
+                            }
                         }
                     }
                 }
             }
+        }
+
+        if type_lookup_reply_received {
+            self.process_discovered_readers(runtime);
+            self.process_discovered_writers(runtime);
         }
     }
 
@@ -2968,7 +3022,7 @@ impl DcpsDomainParticipant {
         if discovered_participant_data
             .participant_proxy
             .available_builtin_endpoints
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER)
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_DATA_READER)
         {
             let remote_reader_guid = Guid::new(
                 discovered_participant_data.participant_proxy.guid_prefix,

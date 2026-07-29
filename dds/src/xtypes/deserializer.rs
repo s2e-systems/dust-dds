@@ -787,7 +787,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
             TypeKind::STRING16 => {
                 let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
-                dynamic_data.set_string_value(member.get_id(), self.deserialize_wstring_type(bound)?)
+                dynamic_data
+                    .set_string_value(member.get_id(), self.deserialize_wstring_type(bound)?)
             }
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
@@ -843,7 +844,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         if bound > 0 && length.saturating_sub(1) > bound {
             return Err(XTypesError::InvalidData);
         }
-        let values = self.reader.read_bytes(length.saturating_sub(1) as usize)?.to_vec();
+        let values = self
+            .reader
+            .read_bytes(length.saturating_sub(1) as usize)?
+            .to_vec();
         self.reader.read_byte()?; // 0-termination
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
@@ -878,21 +882,47 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             .descriptor
             .discriminator_type
             .ok_or(XTypesError::InvalidType)?;
-        match discriminator_type.get_kind() {
+        let val = match discriminator_type.get_kind() {
             TypeKind::INT8 => {
                 let value = self.deserialize_primitive_type::<i8>()?;
-                dynamic_data.set_int8_value(0, value)
+                dynamic_data.set_int8_value(0, value)?;
+                value as i32
             }
             TypeKind::INT16 => {
                 let value = self.deserialize_primitive_type::<i16>()?;
-                dynamic_data.set_int16_value(0, value)
+                dynamic_data.set_int16_value(0, value)?;
+                value as i32
             }
             TypeKind::INT32 => {
                 let value = self.deserialize_primitive_type::<i32>()?;
-                dynamic_data.set_int32_value(0, value)
+                dynamic_data.set_int32_value(0, value)?;
+                value
             }
             d => panic!("Invalid discriminator {d:?}"),
+        };
+
+        let enum_type = dynamic_data.r#type();
+        let is_valid = if enum_type.get_member_count() == 0 {
+            true
+        } else {
+            (0..enum_type.get_member_count()).any(|i| {
+                if let Ok(member) = enum_type.get_member_by_index(i) {
+                    if let Some(&label_val) = member.descriptor.label.first() {
+                        return label_val == val;
+                    } else {
+                        return member.descriptor.index == val as u32
+                            || member.descriptor.id == val as u32;
+                    }
+                }
+                false
+            })
+        };
+
+        if !is_valid {
+            return Err(XTypesError::InvalidData);
         }
+
+        Ok(())
     }
 
     /// Serialization Rule (6)
@@ -1005,13 +1035,21 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             _ => return Err(XTypesError::InvalidType),
         };
 
+        let mut default_member = None;
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             // Deserialize the member based on its discriminator
             if member.descriptor.label.contains(&disc_id) {
                 return self.deserialize_fmember(member, dynamic_data);
             }
+            if member.descriptor.is_default_label {
+                default_member = Some(member);
+            }
         }
+        if let Some(member) = default_member {
+            return self.deserialize_fmember(member, dynamic_data);
+        }
+
         Err(XTypesError::InvalidData)
     }
 }

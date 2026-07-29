@@ -535,6 +535,13 @@ impl DynamicTypeBuilderFactory {
                         member_id
                     };
 
+                    let try_construct_kind = match child.attribute("tryConstruct") {
+                        Some("discard") => TryConstructKind::Discard,
+                        Some("use_default") | Some("useDefault") => TryConstructKind::UseDefault,
+                        Some("trim") => TryConstructKind::Trim,
+                        _ => TryConstructKind::UseDefault,
+                    };
+
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
                         id: m_id,
@@ -542,7 +549,7 @@ impl DynamicTypeBuilderFactory {
                         default_value: None,
                         index: member_id,
                         label: &[],
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: child.attribute("key") == Some("true"),
                         is_optional: child.attribute("optional") == Some("true"),
                         is_must_understand: false,
