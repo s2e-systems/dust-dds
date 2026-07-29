@@ -2604,23 +2604,23 @@ impl CompleteTypeObject {
                     return false;
                 }
 
-                // • Any members in T1 and T2 that have the same name also have the same ID and any
-                //   members with the same ID also have the same name.
+                let is_t1_mutable =
+                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
-                // Somehow the rule "any members with the same ID also have the same name." in the xtypes testsuite
-                // is not applicable because such a type should match and data should flow
-
-                for m2 in &t2.member_seq {
-                    if let Some(m1) = t1
-                        .member_seq
-                        .iter()
-                        .find(|m1| m1.detail.name == m2.detail.name)
-                    {
+                if !is_t1_mutable && !is_t2_mutable {
+                    for (m1, m2) in t1.member_seq.iter().zip(t2.member_seq.iter()) {
                         if m1.common.member_id != m2.common.member_id {
+                            return false;
+                        }
+                        if !type_consistency.ignore_member_names
+                            && m1.detail.name != m2.detail.name
+                        {
                             return false;
                         }
                     }
                 }
+
+
 
                 // • There is at least one member "m1" of T1 and one corresponding member "m2" of T2
                 //   such that m1.id == m2.id.

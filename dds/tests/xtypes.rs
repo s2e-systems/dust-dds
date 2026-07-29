@@ -552,13 +552,15 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let type_xml = r#"
     <dds>
         <types>
-            <struct name="struct_a1" extensibility="appendable">
-                <member name="x1" type="int32" />
-            </struct>
-            <struct name="struct_a2" extensibility="appendable">
-                <member name="x1" type="int32" />
-                <member name="x2" type="int32" />
-            </struct>
+            <module name="Test">
+                <struct name="struct_a1" extensibility="appendable">
+                    <member name="x1" type="int32" />
+                </struct>
+                <struct name="struct_a2" extensibility="appendable">
+                    <member name="x1" type="int32" />
+                    <member name="x2" type="int32" />
+                </struct>
+            </module>
         </types>
     </dds>
     "#;
@@ -567,8 +569,8 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let a1_dynamic_type = type_builder.build();
     let topic1 = participant1
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_a1",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -605,8 +607,8 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     }
     let topic2 = participant2
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::struct_a2",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -2878,4 +2880,157 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
         .unwrap();
 
     assert!(reader.read_next_sample().unwrap().data.is_none());
+}
+
+/// 'struct_different_ids_ok': {
+///     'common_args': ['--type-folder types --type-file struct_names'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_1 --data-folder data --data-file struct_num_x1_x5',
+///              'sub-exe -S -t test -y Test::struct_2 --data-folder data --data-file struct_num_x5'],
+///     'expected_codes': [ReturnCode.OK, ReturnCode.OK],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between struct_1 and struct_2',
+///     'description' : 'Verifies mutable structs where member names match but IDs differ are assignable by default:\n\n'
+///                     ' * Publisher uses `struct_1` from `struct_names`.\n'
+///                     ' * Subscriber uses `struct_2` from `struct_names`.\n'
+///                     ' * Both have member `x1` but with different IDs (id=1 in publisher, id=2 in subscriber). Both share member `x5` (id=5). By default, `ignore_member_names` is true so ID matching is used.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <!-- names match, ids don't -->
+                <struct name="struct_1"   extensibility="mutable">
+                    <member name="x1" type="int32" id="1"  />
+                    <member name="x5" type="int32" id="5"  />  <!-- so we have a member in common -->
+                </struct>
+                <struct name="struct_2"   extensibility="mutable">
+                    <member name="x1" type="int32" id="2"  />
+                    <member name="x5" type="int32" id="5"  /> 
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_1", vec![])
+            .unwrap()
+            .build();
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_2", vec![])
+            .unwrap()
+            .build();
+
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type.clone(),
+        )
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_2",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut publisher_data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    publisher_data
+        .from_xml(
+            "<struct>
+            <x1>1</x1>
+            <x5>5</x5>
+        </struct>",
+        )
+        .unwrap();
+
+    let mut subscriber_data = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    subscriber_data
+        .from_xml(
+            "<struct>
+            <x5>5</x5>
+        </struct>",
+        )
+        .unwrap();
+
+    writer.write(publisher_data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let sample = reader.read_next_sample().unwrap().data.unwrap();
+    assert_eq!(sample, subscriber_data);
 }

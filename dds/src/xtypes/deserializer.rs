@@ -187,10 +187,14 @@ impl EncodingVersion for EncodingVersion1 {
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let length: u16 = deserializer.deserialize_primitive_type()?;
-            if current_pid == pid {
+            if current_pid == PID_SENTINEL && length == 0 {
+                if pid == PID_SENTINEL {
+                    return Ok(0);
+                } else {
+                    return Err(PidNotFound(pid));
+                }
+            } else if current_pid == pid {
                 return Ok(length);
-            } else if current_pid == PID_SENTINEL {
-                return Err(PidNotFound(pid));
             } else {
                 deserializer.reader.seek(length as usize)?;
                 Self::align(deserializer, 4)?;
