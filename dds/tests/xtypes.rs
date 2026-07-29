@@ -49,7 +49,18 @@ impl DomainParticipantListener for Listener {
         core::future::ready(())
     }
 }
-
+/// 'ext_final_struct_1' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_f1 --data-folder data --data-file struct_num_x1',
+///               'sub-exe -S -t test -y Test::struct_f1 --data-folder data --data-file struct_num_x1 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between identical struct_f1 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies identical final structs can communicate:\n\n'
+///                     ' * Publisher and Subscriber use `struct_f1` (final) from `extensibility`.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -184,6 +195,21 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     );
 }
 
+/// 'ext_final_struct_2' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_f1 --data-folder data --data-file struct_num_x1',
+///               'sub-exe -S -t test -y Test::struct_f2 --data-folder data --data-file struct_num_x1 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_f1 and struct_f2 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies final structs with different member counts are not assignable:\n\n'
+///                     ' * Publisher uses `struct_f1` (final) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_f2` (final) from `extensibility`.\n'
+///                     ' * `struct_f2` has an extra member `x2` (`int32`) at the end.\n'
+///                     ' * Final extensibility forbids appending members.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -220,20 +246,13 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let status_cond_publisher = publisher_topic.get_statuscondition();
-    status_cond_publisher
-        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_f2", vec![])
             .unwrap()
             .build();
-
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -245,22 +264,41 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
         )
         .unwrap();
 
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'int32[10]_uint32[10]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::int32x10 --data-folder data --data-file array_num_10',
+///               'sub-exe -S -t test -y Test::uint32x10 --data-folder data --data-file array_num_10'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between int32x10 and uint32x10',
+///     'description' : 'Verifies arrays with different element types are not assignable:\n\n'
+///                     ' * Publisher uses `int32x10` from `arrays`.\n'
+///                     ' * Subscriber uses `uint32x10` from `arrays`.\n'
+///                     ' * Publisher element type is `int32`.\n'
+///                     ' * Subscriber element type is `uint32`.\n'
+///                     ' * Array elements must be strongly assignable.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -296,10 +334,6 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let status_cond_publisher = publisher_topic.get_statuscondition();
-    status_cond_publisher
-        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
 
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -320,22 +354,41 @@ fn xtypes_v2_array_test_suite_int32_10_uint32_10() {
         )
         .unwrap();
 
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'enum1[10]_enum2[10]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::enum1x10 --data-folder data --data-file array_enum_10',
+///               'sub-exe -S -t test -y Test::enum2x10 --data-folder data --data-file array_enum_10'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between enum1x10 and enum2x10',
+///     'description' : 'Verifies arrays of appendable enums with subset literals are assignable:\n\n'
+///                     ' * Publisher uses `enum1x10` from `arrays`.\n'
+///                     ' * Subscriber uses `enum2x10` from `arrays`.\n'
+///                     ' * Both are enum arrays of size 10.\n'
+///                     ' * Publisher uses `E1` (3 literals: VAL0-VAL2), subscriber uses `E2` (4 literals: VAL0-VAL3).\n'
+///                     ' * `E2` is a superset of `E1`, so elements are strongly assignable.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -474,8 +527,23 @@ fn xtypes_v2_array_test_suite_enum1_10_enum2_10() {
     );
 }
 
+/// 'ext_appendable_struct_2' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_a1 --data-folder data --data-file struct_num_x1',
+///               'sub-exe -S -t test -y Test::struct_a2 --data-folder data --data-file struct_num_x1 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between struct_a1 and struct_a2 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies appendable structs allow an appended trailing member:\n\n'
+///                     ' * Publisher uses `struct_a1` (appendable) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_a2` (appendable) from `extensibility`.\n'
+///                     ' * `struct_a2` has an extra member `x2` (`int32`) appended at the end.\n'
+///                     ' * Appendable extensibility permits this.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
-fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2_with_dynamic_data() {
+fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant1 = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -628,90 +696,20 @@ struct A3 {
     x2: i32,
 }
 
-#[test]
-fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant1 = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let topic1 = participant1
-        .create_topic::<A1>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let publisher = participant1
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        ..Default::default()
-    };
-    let writer = publisher
-        .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let topic2 = participant2
-        .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let subscriber = participant2
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: false,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
-    let reader = subscriber
-        .create_datareader::<A2>(
-            &topic2,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    let data = A1 { x1: 1 };
-
-    writer.write(data.clone(), None).unwrap();
-    writer
-        .wait_for_acknowledgments(Duration::new(10, 0))
-        .unwrap();
-
-    assert_eq!(
-        reader.read_next_sample().unwrap().data.as_ref().unwrap().x1,
-        data.x1
-    );
-}
-
+/// 'ext_appendable_struct_3' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_a2 --data-folder data --data-file struct_num_x1_x2',
+///               'sub-exe -S -t test -y Test::struct_a1 --data-folder data --data-file struct_num_x1 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between struct_a2 and struct_a1 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies appendable structs allow the publisher to have additional trailing members:\n\n'
+///                     ' * Publisher uses `struct_a2` (appendable) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_a1` (appendable) from `extensibility`.\n'
+///                     ' * Publisher\'s `struct_a2` has an extra trailing member `x2` (`int32`) that the subscriber\'s `struct_a1` ignores.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -796,36 +794,73 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
     );
 }
 
+/// 'ext_appendable_struct_4' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_a2 --data-folder data --data-file struct_num_x1_x2',
+///               'sub-exe -S -t test -y Test::struct_a3 --data-folder data --data-file struct_num_x1_x2 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_a2 and struct_a3 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies appendable structs with a member inserted in the middle are not assignable:\n\n'
+///                     ' * Publisher uses `struct_a2` (appendable) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_a3` (appendable) from `extensibility`.\n'
+///                     ' * `struct_a3` inserts member `x3` between `x1` and `x2`, changing the serialization order.\n'
+///                     ' * Appendable types require positional matching.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_4() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant1 = DomainParticipantFactory::get_instance()
+    let participant_publisher = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let topic1 = participant1
+    let topic_publisher = participant_publisher
         .create_topic::<A2>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    let status_cond = topic1.get_statuscondition();
-    status_cond
-        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond))
-        .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
+    let participant_subscriber = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let _topic2 = participant2
+    let topic_subscriber = participant_subscriber
         .create_topic::<A3>("A", "A", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let status_cond_publisher = topic_publisher.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = topic_subscriber.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'int32[10]_int32[20]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::int32x10 --data-folder data --data-file array_num_10',
+///               'sub-exe -S -t test -y Test::int32x20 --data-folder data --data-file array_num_20'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between int32x10 and int32x20',
+///     'description' : 'Verifies sequence with smaller bound is assignable to sequence with larger bound:\n\n'
+///                     ' * Publisher uses `int32x10` from `arrays`.\n'
+///                     ' * Subscriber uses `int32x20` from `arrays`.\n'
+///                     ' * Publisher uses `sequence<int32, 10>`.\n'
+///                     ' * Subscriber uses `sequence<int32, 20>`.\n'
+///                     ' * Subscriber bound >= publisher bound, and data fits.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_int32_10_int32_20() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -859,25 +894,14 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
             publisher_dynamic_type,
         )
         .unwrap();
-    let status_cond = publisher_topic.get_statuscondition();
-    status_cond
-        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond))
-        .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "int32x20", vec![])
             .unwrap()
             .build();
-    let _subscriber_topic = subscriber_participant
+    let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "A",
             "A",
@@ -888,9 +912,41 @@ fn xtypes_v2_array_test_suite_int32_10_int32_20() {
         )
         .unwrap();
 
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'ext_mutable_struct_2' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_m1 --data-folder data --data-file struct_num_x1',
+///               'sub-exe -S -t test -y Test::struct_m2 --data-folder data --data-file struct_num_x1 --ignore-member-names f'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between struct_m1 and struct_m2 (subscriber with ignore_member_names false)',
+///     'description' : 'Verifies mutable structs allow an extra member with explicit ID:\n\n'
+///                     ' * Publisher uses `struct_m1` (mutable) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_m2` (mutable) from `extensibility`.\n'
+///                     ' * `struct_m2` has an extra member `x2` with explicit `id=2`.\n'
+///                     ' * Mutable types match by member ID, so extra members are allowed.\n'
+///                     ' * Subscriber sets `--ignore-member-names` to `false`.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -1041,6 +1097,21 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     assert_eq!(sample.data.as_ref().unwrap(), &data);
 }
 
+/// 'int32[10][2]_int32[20]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::int32x10x2 --data-folder data --data-file array_num_20',
+///               'sub-exe -S -t test -y Test::int32x20 --data-folder data --data-file array_num_20'],
+///     'expected_codes' : [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'No type assignability between int32x10x2 and int32x20',
+///     'description' : 'Verifies multi-dimensional and single-dimensional arrays of same total size are not assignable:\n\n'
+///                     ' * Publisher uses `int32x10x2` from `arrays`.\n'
+///                     ' * Subscriber uses `int32x20` from `arrays`.\n'
+///                     ' * Publisher is `int32[10][2]` (2D, 20 elements total).\n'
+///                     ' * Subscriber is `int32[20]` (1D).\n'
+///                     ' * Dimensions must match structurally, not just in total count.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -1068,8 +1139,8 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::int32x10x2",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1091,19 +1162,17 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-
     let subscriber_dynamic_type =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::int32x20", vec![])
             .unwrap()
             .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::int32x20",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1111,22 +1180,41 @@ fn xtypes_v2_array_test_suite_int32_10_2_int32_20() {
         )
         .unwrap();
 
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'string10[10]_string20[10]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::string10x10 --data-folder data --data-file array_string_10',
+///               'sub-exe -S -t test -y Test::string20x10 --data-folder data --data-file array_string_10'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between string10x10 and string20x10',
+///     'description' : 'Verifies sequences of strings with different string bounds are assignable:\n\n'
+///                     ' * Publisher uses `string10x10` from `arrays`.\n'
+///                     ' * Subscriber uses `string20x10` from `arrays`.\n'
+///                     ' * Both are `sequence<string, 10>`.\n'
+///                     ' * Publisher string bound is 10, subscriber is 20.\n'
+///                     ' * String elements are strongly assignable since subscriber bound >= publisher bound.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -1152,8 +1240,8 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
             .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::string10x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1189,8 +1277,8 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
             .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::string20x10",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1224,15 +1312,25 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
         )
         .unwrap();
 
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let cond_publication = writer.get_statuscondition();
+    cond_publication
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set_publication = WaitSet::new();
+    wait_set_publication
+        .attach_condition(Condition::StatusCondition(cond_publication))
+        .unwrap();
+    let cond_subscription = writer.get_statuscondition();
+    cond_subscription
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set_subscription = WaitSet::new();
+    wait_set_subscription
+        .attach_condition(Condition::StatusCondition(cond_subscription))
         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscription.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publication.wait(Duration::new(10, 0)).unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
@@ -1264,6 +1362,20 @@ fn xtypes_v2_array_test_suite_string10_10_string20_10() {
     );
 }
 
+/// 'SFinal[10]_S[20]_SFinalAlt[10]_S[20]' : {
+///     'common_args' : ['--type-folder types --type-file arrays'],
+///     'apps' : ['pub-exe -P -t test -y Test::F_S__array10_F_S__array20_uint32 --data-folder data --data-file array_array_num_10_20',
+///               'sub-exe -S -t test -y Test::F_S__array10_F_S__array20_uint32_alt --data-folder data --data-file array_array_num_10_20_alt'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between F_S__array10_F_S__array20_uint32 and F_S__array10_F_S__array20_uint32_alt',
+///     'description' : 'Verifies arrays of final structs are assignable when inner struct elements are strongly assignable:\n\n'
+///                     ' * Publisher uses `F_S__array10_F_S__array20_uint32` from `arrays`.\n'
+///                     ' * Subscriber uses `F_S__array10_F_S__array20_uint32_alt` from `arrays`.\n'
+///                     ' * Both are arrays of 10 final structs containing `uint32[20]`.\n'
+///                     ' * Member names differ (`x1` vs `altx1`) but the types are structurally equivalent.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
 #[test]
 fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -1298,8 +1410,8 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::F_S__array10_F_S__array20_uint32",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1338,8 +1450,8 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
-            "A",
-            "A",
+            "test",
+            "Test::F_S__array10_F_S__array20_uint32_alt",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -1372,11 +1484,6 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
             NO_STATUS,
         )
         .unwrap();
-
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
         "<struct>
@@ -1440,6 +1547,9 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
     )
     .unwrap();
 
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
@@ -1729,19 +1839,20 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
 /// 'seq(int32,20)_seq(int32,10)' : {
@@ -2165,19 +2276,20 @@ fn xtypes_v2_sequence_test_suite_string_string10_check() {
     status_cond_publisher
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
     let status_cond_subscriber = subscriber_topic.get_statuscondition();
     status_cond_subscriber
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond_publisher))
-        .unwrap();
-    wait_set
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
         .attach_condition(Condition::StatusCondition(status_cond_subscriber))
         .unwrap();
-
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
 /// 'seq(str20,10)_seq(str10,10)_check' : {
@@ -2739,14 +2851,16 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
     writer_condition
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-    let reader_condition = reader.get_statuscondition();
-    reader_condition
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(writer_condition))
         .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(reader_condition))
         .unwrap();
