@@ -48,7 +48,8 @@ use crate::{
             HistoryQosPolicy, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
             LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, QosPolicyId,
             RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
-            TransportPriorityQosPolicy, XCDR_DATA_REPRESENTATION,
+            TransportPriorityQosPolicy, TypeConsistencyEnforcementQosPolicy,
+            XCDR_DATA_REPRESENTATION,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::{
@@ -920,7 +921,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => false,
+                                        DiscoveredTypeRepresentationState::Requested => return,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -1504,7 +1505,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => false,
+                                        DiscoveredTypeRepresentationState::Requested => return,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -2303,20 +2304,51 @@ impl DcpsDomainParticipant {
                                             );
                                         type_lookup_reply_received = true;
 
-                                        let is_type_assignable = match &type_identifier_pair
-                                            .type_object
-                                        {
-                                            TypeObject::EkComplete { complete } => {
-                                                let local_type =
-                                                    CompleteTypeObject::from(topic.type_support);
-                                                local_type.is_assignable_from(complete)
-                                                    && complete.is_assignable_from(&local_type)
-                                            }
-                                            TypeObject::EkMinimal { minimal } => {
-                                                &MinimalTypeObject::from(topic.type_support)
-                                                    == minimal
-                                            }
-                                        };
+                                         let ignore_member_names = self
+                                             .domain_participant
+                                             .user_defined_subscriber_list
+                                             .iter()
+                                             .flat_map(|s| s.data_reader_list.iter())
+                                             .any(|dr| {
+                                                 dr.topic_name == topic.topic_name
+                                                     && dr.qos.type_consistency.ignore_member_names
+                                             }) || self
+                                             .domain_participant
+                                             .discovered_reader_list
+                                             .iter()
+                                             .any(|dr| {
+                                                 dr.dds_subscription_data.topic_name()
+                                                     == topic.topic_name
+                                                     && dr
+                                                         .dds_subscription_data
+                                                         .type_consistency
+                                                         .ignore_member_names
+                                             });
+                                         let topic_type_consistency = TypeConsistencyEnforcementQosPolicy {
+                                             ignore_member_names,
+                                             ignore_sequence_bounds: false,
+                                             ignore_string_bounds: false,
+                                             ..TypeConsistencyEnforcementQosPolicy::const_default()
+                                         };
+                                         let is_type_assignable = match &type_identifier_pair
+                                             .type_object
+                                         {
+                                             TypeObject::EkComplete { complete } => {
+                                                 let local_type =
+                                                     CompleteTypeObject::from(topic.type_support);
+                                                 local_type.is_assignable_from_w_type_consistency(
+                                                     complete,
+                                                     &topic_type_consistency,
+                                                 ) && complete.is_assignable_from_w_type_consistency(
+                                                     &local_type,
+                                                     &topic_type_consistency,
+                                                 )
+                                             }
+                                             TypeObject::EkMinimal { minimal } => {
+                                                 &MinimalTypeObject::from(topic.type_support)
+                                                     == minimal
+                                             }
+                                         };
 
                                         if !is_type_assignable {
                                             topic.inconsistent_topic_status.total_count += 1;

@@ -1477,6 +1477,21 @@ fn xtypes_v2_array_test_suite_s_final_10_s_20_s_final_alt_10_s_20() {
         reader.read_next_sample().unwrap().data.as_ref().unwrap(),
         &data
     );
+
+    assert_eq!(
+        publisher_topic
+            .get_inconsistent_topic_status()
+            .unwrap()
+            .total_count,
+        0
+    );
+    assert_eq!(
+        subscriber_topic
+            .get_inconsistent_topic_status()
+            .unwrap()
+            .total_count,
+        0
+    );
 }
 
 /// 'seq(int32)_seq(int32,10)' : {
