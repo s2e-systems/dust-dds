@@ -11,7 +11,7 @@ use dust_dds::{
         qos_policy::{
             DataRepresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             TypeConsistencyEnforcementQosPolicy, TypeConsistencyKind::AllowTypeCoercion,
-            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
@@ -28,6 +28,9 @@ use std::sync::mpsc::{self, channel};
 // is set to true by default. The standards default is false though
 fn reader_qos() -> DataReaderQos {
     DataReaderQos {
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR2_DATA_REPRESENTATION],
+        },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
@@ -47,7 +50,7 @@ fn reader_qos() -> DataReaderQos {
 fn writer_qos() -> DataWriterQos {
     DataWriterQos {
         representation: DataRepresentationQosPolicy {
-            value: vec![XCDR_DATA_REPRESENTATION],
+            value: vec![XCDR2_DATA_REPRESENTATION],
         },
         ..DataWriterQos::const_default()
     }
@@ -167,21 +170,8 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: false,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
@@ -191,6 +181,9 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
         )
         .unwrap();
 
+    // Note: In the OMG XTYpes tests the DomainParticipantListener is used to check
+    // if the publication or subscriptions are matched. To mimic that test even closer here
+    // the (actually better fitting) status condition is not used
     receiver
         .recv_timeout(std::time::Duration::from_secs(10))
         .unwrap();
@@ -624,21 +617,8 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: false,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
@@ -756,21 +736,8 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_3() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: false,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
     let reader = subscriber
         .create_datareader::<A1>(
             &subscriber_topic,
@@ -1052,24 +1019,8 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
     let subscriber = subscriber_participant
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        representation: DataRepresentationQosPolicy {
-            value: vec![XCDR2_DATA_REPRESENTATION],
-        },
-        type_consistency: TypeConsistencyEnforcementQosPolicy {
-            kind: AllowTypeCoercion,
-            ignore_sequence_bounds: true,
-            ignore_string_bounds: true,
-            ignore_member_names: false,
-            prevent_type_widening: false,
-            force_type_validation: false,
-        },
-        ..Default::default()
-    };
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
     let reader = subscriber
         .create_datareader::<DynamicData<'static>>(
             &subscriber_topic,
@@ -1719,6 +1670,17 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
             publisher_dynamic_type,
         )
         .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
@@ -1734,6 +1696,20 @@ fn xtypes_v2_sequence_test_suite_seq_int32_seq_int32_10_check_bounds() {
             NO_LISTENER,
             NO_STATUS,
             subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_sequence_bounds = true;
+
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
         )
         .unwrap();
 
