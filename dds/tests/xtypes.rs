@@ -2000,7 +2000,7 @@ fn xtypes_v2_sequence_test_suite_string_string10() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -2348,7 +2348,7 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -2607,7 +2607,7 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_1() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -2743,7 +2743,7 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -3000,7 +3000,7 @@ fn xtypes_v2_string_test_suite_string10_string20_check() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -3145,7 +3145,7 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_seq_1() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -3298,7 +3298,7 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_union_seq_1() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant

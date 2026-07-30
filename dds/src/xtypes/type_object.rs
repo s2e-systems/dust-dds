@@ -2612,15 +2612,12 @@ impl CompleteTypeObject {
                         if m1.common.member_id != m2.common.member_id {
                             return false;
                         }
-                        if !type_consistency.ignore_member_names
-                            && m1.detail.name != m2.detail.name
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
                         {
                             return false;
                         }
                     }
                 }
-
-
 
                 // • There is at least one member "m1" of T1 and one corresponding member "m2" of T2
                 //   such that m1.id == m2.id.
@@ -2647,8 +2644,7 @@ impl CompleteTypeObject {
                         .iter()
                         .find(|m1| m1.common.member_id == m2.common.member_id)
                     {
-                        if !type_consistency.ignore_member_names
-                            && m1.detail.name != m2.detail.name
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
                         {
                             return false;
                         }
@@ -2725,15 +2721,12 @@ impl CompleteTypeObject {
                         .iter()
                         .find(|m1| m1.common.member_id == m2.common.member_id)
                     {
-                        if !type_consistency.ignore_member_names
-                            && m1.detail.name != m2.detail.name
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
                         {
                             return false;
                         }
-                        members_are_assignable &= m1
-                            .common
-                            .type_id
-                            .is_assignable_from_w_type_consistency(
+                        members_are_assignable &=
+                            m1.common.type_id.is_assignable_from_w_type_consistency(
                                 &m2.common.type_id,
                                 type_consistency,
                             );
