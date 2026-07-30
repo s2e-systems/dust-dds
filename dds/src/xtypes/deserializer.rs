@@ -581,11 +581,20 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
-        if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
-            if bound > 0 && length > bound as usize {
-                return Err(XTypesError::InvalidData);
-            }
-        }
+        let length =
+            if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
+                if bound > 0 && length > bound as usize {
+                    if member.descriptor.try_construct_kind == TryConstructKind::Trim {
+                        bound as usize
+                    } else {
+                        return Err(XTypesError::InvalidData);
+                    }
+                } else {
+                    length
+                }
+            } else {
+                length
+            };
         fn deserialize_primitive_sequence_elements<
             'a,
             O: AsBytes + Align,
@@ -719,7 +728,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                     let _dheader = self.deserialize_primitive_type::<u32>()?;
                     self.deserialize_funion_type(&mut dynamic_data)?
                 }
-                ExtensibilityKind::Mutable => todo!(),
+                ExtensibilityKind::Mutable => V::deserialize_mstruct_type(self, &mut dynamic_data)?,
             },
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");

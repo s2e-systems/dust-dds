@@ -3115,7 +3115,6 @@ fn xtypes_v2_string_test_suite_string10_string20_check() {
 //                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
 // }
 #[test]
-#[ignore = "not yet working"]
 fn xtypes_v2_tryconstruct_test_suite_tryc_union_seq_1() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let publisher_participant = DomainParticipantFactory::get_instance()

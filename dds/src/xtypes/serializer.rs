@@ -1020,10 +1020,17 @@ impl EncodingVersion for EncodingVersion2 {
     ///               << { O.disc : MMEMBER }
     ///               << { O.selected_member : MMEMBER }?
     fn serialize_munion_type<'a, E: EndiannessWrite>(
-        _serializer: &mut XTypesSerializer<'a, E, Self>,
-        _v: &DynamicData,
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
     ) -> Result<(), XTypesError> {
-        todo!()
+        let dheader = Dheader::new(serializer);
+        for field_index in 0..v.get_item_count() {
+            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
+                Self::serialize_mmember(dheader.serializer, v, member_id)?;
+            }
+        }
+        dheader.write_header();
+        Ok(())
     }
 
     /// Extensibility APPENDABLE (Collection or Aggregated types), version 2 encoding

@@ -2706,10 +2706,48 @@ impl CompleteTypeObject {
                 if t1.union_flags != t2.union_flags {
                     return false;
                 }
-                if t1.discriminator.common.type_id != t2.discriminator.common.type_id {
+                if !t1
+                    .discriminator
+                    .common
+                    .type_id
+                    .is_assignable_from_w_type_consistency(
+                        &t2.discriminator.common.type_id,
+                        type_consistency,
+                    )
+                {
                     return false;
                 }
-                true
+
+                let mut members_are_assignable = true;
+                for m2 in t2.member_seq.iter() {
+                    if let Some(m1) = t1
+                        .member_seq
+                        .iter()
+                        .find(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        if !type_consistency.ignore_member_names
+                            && m1.detail.name != m2.detail.name
+                        {
+                            return false;
+                        }
+                        members_are_assignable &= m1
+                            .common
+                            .type_id
+                            .is_assignable_from_w_type_consistency(
+                                &m2.common.type_id,
+                                type_consistency,
+                            );
+                    } else if !type_consistency.ignore_member_names
+                        && t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
+                    }
+                }
+
+                members_are_assignable
             }
             (
                 CompleteTypeObject::TkEnum {
