@@ -298,6 +298,29 @@ const TYPES_XML_EXTENSIBILITY: &str = r#"<dds>
     </types>
 </dds>"#;
 
+const TYPES_XML_TRY_CONSTRUCT: &str = r#"
+<dds>
+     <types>
+        <module name="Test">
+            <struct name="seq_int32x20"  extensibility="final">
+                <member name="x1"   type="int32" sequenceMaxLength="20"  />
+            </struct>
+            <struct name="seq_int32x10_trim"   extensibility="final">
+                <member name="x1"   type="int32" sequenceMaxLength="10" tryConstruct="trim"/>
+            </struct>
+            <struct name="seq_int32x10_discard" extensibility="final">
+                <member name="x1"   type="int32" sequenceMaxLength="10" tryConstruct="discard"/>
+            </struct>
+            <struct name="seq_int32x10_default"   extensibility="final">
+                <member name="x1"   type="int32" sequenceMaxLength="10" tryConstruct="use_default"/>
+            </struct>
+            <union name="union_seq_int32x10_trim"> <discriminator type="uint32" />
+                <case><caseDiscriminator value="1" /><member name="x1"   type="int32" sequenceMaxLength="10" tryConstruct="trim"/></case>
+            </union>
+        </module>
+    </types>
+</dds>"#;
+
 const DATA_XML_STRUCT_PRIMITIVES: &str = r#"<struct_primitives>
   <x1>0x01</x1>
   <x2>2</x2>
@@ -1051,4 +1074,116 @@ fn create_struct_m1_from_xml() {
     let m = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m.descriptor.r#type.get_kind(), TypeKind::INT32);
     assert_eq!(m.descriptor.id, 1);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_struct_m3_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_m3",
+        vec![],
+    )
+    .unwrap();
+    let ty = builder.build();
+    assert_eq!(ty.get_kind(), TypeKind::STRUCTURE);
+    assert_eq!(ty.descriptor.extensibility_kind, ExtensibilityKind::Mutable);
+    let memember_x1 = ty.get_member_by_name("x1").unwrap();
+    assert_eq!(memember_x1.descriptor.r#type.get_kind(), TypeKind::INT32);
+    assert_eq!(memember_x1.descriptor.id, 1);
+    let memember_x2 = ty.get_member_by_name("x2").unwrap();
+    assert_eq!(memember_x2.descriptor.r#type.get_kind(), TypeKind::INT32);
+    assert_eq!(memember_x2.descriptor.id, 2);
+    let memember_x3 = ty.get_member_by_name("x3").unwrap();
+    assert_eq!(memember_x3.descriptor.r#type.get_kind(), TypeKind::INT32);
+    assert_eq!(memember_x3.descriptor.id, 3);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_seq_int32x10_from_xml() {
+    use dust_dds::xtypes::dynamic_type::TryConstructKind;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_TRY_CONSTRUCT,
+        "Test::seq_int32x20",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    assert_eq!(
+        member.descriptor.try_construct_kind,
+        TryConstructKind::Discard
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_seq_int32x10_trim_from_xml() {
+    use dust_dds::xtypes::dynamic_type::TryConstructKind;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_TRY_CONSTRUCT,
+        "Test::seq_int32x10_trim",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    assert_eq!(member.descriptor.try_construct_kind, TryConstructKind::Trim);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_seq_int32x10_discard_from_xml() {
+    use dust_dds::xtypes::dynamic_type::TryConstructKind;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_TRY_CONSTRUCT,
+        "Test::seq_int32x10_discard",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    assert_eq!(
+        member.descriptor.try_construct_kind,
+        TryConstructKind::Discard
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_seq_int32x10_default_from_xml() {
+    use dust_dds::xtypes::dynamic_type::TryConstructKind;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_TRY_CONSTRUCT,
+        "Test::seq_int32x10_default",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    assert_eq!(
+        member.descriptor.try_construct_kind,
+        TryConstructKind::UseDefault
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_union_seq_int32x10_trim_from_xml() {
+    use dust_dds::xtypes::dynamic_type::TryConstructKind;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_TRY_CONSTRUCT,
+        "Test::union_seq_int32x10_trim",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    assert_eq!(member.descriptor.try_construct_kind, TryConstructKind::Trim);
 }

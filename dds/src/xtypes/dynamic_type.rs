@@ -394,6 +394,18 @@ impl DynamicTypeBuilderFactory {
         };
 
         let mut builder = Self::create_type(descriptor);
+        let mut try_construct_kind = TryConstructKind::Discard;
+        fn parse_try_construct_kind(
+            node: &roxmltree::Node,
+            try_construct_kind: &mut TryConstructKind,
+        ) {
+            *try_construct_kind = match node.attribute("tryConstruct") {
+                Some("discard") => TryConstructKind::Discard,
+                Some("use_default") => TryConstructKind::UseDefault,
+                Some("trim") => TryConstructKind::Trim,
+                _ => *try_construct_kind,
+            };
+        }
 
         let mut member_id = 0;
         if is_union {
@@ -438,6 +450,7 @@ impl DynamicTypeBuilderFactory {
                             string_max_length = case_child.attribute("stringMaxLength");
                             array_dimensions = case_child.attribute("arrayDimensions");
                             sequence_max_length = case_child.attribute("sequenceMaxLength");
+                            parse_try_construct_kind(&case_child, &mut try_construct_kind);
                         }
                     }
 
@@ -460,7 +473,7 @@ impl DynamicTypeBuilderFactory {
                         default_value: None,
                         index: member_id,
                         label,
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: false,
                         is_optional: false,
                         is_must_understand: false,
@@ -478,6 +491,7 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
                     let label =
                         Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
 
@@ -491,7 +505,7 @@ impl DynamicTypeBuilderFactory {
                         default_value: None,
                         index: member_id,
                         label,
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: false,
                         is_optional: false,
                         is_must_understand: false,
@@ -534,13 +548,7 @@ impl DynamicTypeBuilderFactory {
                     } else {
                         member_id
                     };
-
-                    let try_construct_kind = match child.attribute("tryConstruct") {
-                        Some("discard") => TryConstructKind::Discard,
-                        Some("use_default") | Some("useDefault") => TryConstructKind::UseDefault,
-                        Some("trim") => TryConstructKind::Trim,
-                        _ => TryConstructKind::UseDefault,
-                    };
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
 
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
@@ -1646,7 +1654,28 @@ impl<'a> DynamicData<'a> {
 
             if let Ok(member) = self.r#type.get_member_by_name(tag_name) {
                 let member_id = member.get_id();
-                let member_type = member.get_descriptor()?.r#type;
+                let member_descriptor = member.get_descriptor()?;
+                let member_type = member_descriptor.r#type;
+
+                if self.r#type.get_kind() == TypeKind::UNION {
+                    if let Some(&label) = member_descriptor.label.first() {
+                        let disc_type = self
+                            .r#type
+                            .get_descriptor()
+                            .discriminator_type
+                            .unwrap_or_else(|| {
+                                DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+                            });
+                        let disc_storage = match disc_type.get_kind() {
+                            TypeKind::UINT32
+                            | TypeKind::UINT16
+                            | TypeKind::UINT8
+                            | TypeKind::BYTE => DataStorage::UInt32(label as u32),
+                            _ => DataStorage::Int32(label),
+                        };
+                        self.set_value(0, disc_storage);
+                    }
+                }
 
                 let data = Self::parse_xml_node_to_data(child, member_type)?;
                 self.set_value(member_id, data);
