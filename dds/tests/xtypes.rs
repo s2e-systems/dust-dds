@@ -3099,6 +3099,155 @@ fn xtypes_v2_string_test_suite_string10_string20_check() {
     );
 }
 
+/// 'tryc_seq_1' : {
+///     'common_args' : ['--type-folder types --type-file try_construct'],
+///     'apps' : ['pub-exe -P -t test -y Test::seq_int32x20 --data-folder data --data-file array_num_20',
+///               'sub-exe -S -t test -y Test::seq_int32x10_trim --data-folder data --data-file array_num_10'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between seq_int32x20 and seq_int32x10_trim',
+///     'description' : 'Verifies sequence with `@try_construct(trim)` truncates oversized data:\n\n'
+///                     ' * Publisher uses `seq_int32x20` from `try_construct`.\n'
+///                     ' * Subscriber uses `seq_int32x10_trim` from `try_construct`.\n'
+///                     ' * Publisher sequence bound is 20.\n'
+///                     ' * Subscriber bound is 10 with `@try_construct(trim)`.\n'
+///                     ' * Data exceeding 10 elements is trimmed to fit.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xtypes_v2_tryconstruct_test_suite_tryc_seq_1() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="seq_int32x20"  extensibility="final">
+                    <member name="x1"   type="int32" sequenceMaxLength="20"  />
+                </struct>
+                <struct name="seq_int32x10_trim"   extensibility="final">
+                    <member name="x1"   type="int32" sequenceMaxLength="10" tryConstruct="trim"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::seq_int32x20", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::seq_int32x20",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type.clone(),
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::seq_int32x10_trim",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::seq_int32x10_trim",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+                <item>11</item>
+                <item>12</item>
+                <item>13</item>
+                <item>14</item>
+                <item>15</item>
+                <item>16</item>
+                <item>17</item>
+                <item>18</item>
+                <item>19</item>
+                <item>20</item>
+            </x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert!(reader.read_next_sample().unwrap().data.is_some());
+}
+
 // 'tryc_union_seq_1' : {
 //     'common_args' : ['--type-folder types --type-file try_construct'],
 //     'apps' : ['pub-exe -P -t test -y Test::union_seq_int32x20 --data-folder data --data-file array_num_20',

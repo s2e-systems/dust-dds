@@ -161,17 +161,27 @@ trait EncodingVersion: Sized {
 
     /// Serialization Rule (27) & (28)
     fn deserialize_munion_type<'a, E: EndiannessRead>(
-        _deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        _dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        todo!()
-    }
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()>;
 
     /// Serialization Rule (29) & (30)
     fn deserialize_appendable_type<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()>;
+}
+
+fn get_discriminator_id_as_i32(v: &DynamicData) -> XTypesResult<i32> {
+    Ok(match v.get_value(0)? {
+        crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
+        crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
+        _ => return Err(XTypesError::InvalidType),
+    })
 }
 
 struct EncodingVersion1;
@@ -189,14 +199,15 @@ impl EncodingVersion for EncodingVersion1 {
     ) -> XTypesResult<u16> {
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
+            let current_pid_without_flags = current_pid & 0b00111111_11111111;
             let length: u16 = deserializer.deserialize_primitive_type()?;
-            if current_pid == PID_SENTINEL && length == 0 {
+            if current_pid_without_flags == PID_SENTINEL && length == 0 {
                 if pid == PID_SENTINEL {
                     return Ok(0);
                 } else {
                     return Err(PidNotFound(pid));
                 }
-            } else if current_pid == pid {
+            } else if current_pid_without_flags == pid {
                 return Ok(length);
             } else {
                 deserializer.reader.seek(length as usize)?;
@@ -286,11 +297,11 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         Self::align(deserializer, 4)?;
-        let pid: u16 = member.get_id() as u16 & 0b00111111_11111111;
+        let pid = member.get_id() as u16;
         let orig_pos = deserializer.reader.pos;
         let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
             if length > 0 {
-                deserializer.deserialize_nopt_fmember(member, dynamic_data)
+                deserializer.deserialize_value(member, dynamic_data)
             } else {
                 Ok(())
             }
@@ -301,6 +312,47 @@ impl EncodingVersion for EncodingVersion1 {
         result
 
         // TODO (25) using long PL encoding
+    }
+
+    /// Unions with extensibility MUTABLE, version 1 encoding
+    /// see (25)-(26) for serialization of MMEMBER using version 1 encoding
+    ///
+    /// Serialization Rule (28)
+    ///
+    /// XCDR[1] << {O : MUNION_TYPE} =
+    ///             XCDR
+    ///               << { O.disc : MMEMBER }
+    ///               << { O.selected_member : MMEMBER }?
+    ///               << { PID_SENTINEL : UInt16 }
+    ///               << { length = 0 : UInt16 }
+    fn deserialize_munion_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let dynamic_type = dynamic_data.r#type();
+        // Deserialize the discriminator
+        let disc_member = dynamic_type.get_member_by_index(0)?;
+        Self::deserialize_mmember(deserializer, disc_member, dynamic_data)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = get_discriminator_id_as_i32(dynamic_data)?;
+
+        let mut default_member = None;
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            // Deserialize the member based on its discriminator
+            if member.descriptor.label.contains(&disc_id) {
+                return Self::deserialize_mmember(deserializer, member, dynamic_data);
+            }
+            if member.descriptor.is_default_label {
+                default_member = Some(member);
+            }
+        }
+        if let Some(member) = default_member {
+            return Self::deserialize_mmember(deserializer, member, dynamic_data);
+        }
+
+        Err(XTypesError::InvalidData)
     }
 
     /// Extensibility APPENDABLE (Collection or Aggregated types), version 1
@@ -318,6 +370,15 @@ impl EncodingVersion for EncodingVersion1 {
 
 struct EncodingVersion2;
 impl EncodingVersion for EncodingVersion2 {
+    fn align<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        alignment: usize,
+    ) -> XTypesResult<()> {
+        deserializer
+            .reader
+            .seek_padding(core::cmp::min(alignment, 4))
+    }
+
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         pid: u16,
@@ -389,6 +450,25 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer.deserialize_sequence_elements(member, dynamic_data, length as usize)
     }
 
+    /// Optional member of final aggregated type (structure, union), version 2
+    ///
+    /// (20) XCDR[2] << {M : OPT_FMEMBER} =
+    ///                   XCDR
+    ///                   << { <is_present> : BOOLEAN }
+    ///                   << IF (<is_present>) { M.value : M.value.type }
+    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        member: &DynamicTypeMember,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let is_present = deserializer.deserialize_primitive_type::<bool>()?;
+        if is_present {
+            deserializer.deserialize_value(member, dynamic_data)
+        } else {
+            Ok(())
+        }
+    }
+
     /// (21) XCDR[2] << {O : MSTRUCT_TYPE} =
     ///                  XCDR
     ///                    << { DHEADER(O) : UInt32 }
@@ -433,6 +513,48 @@ impl EncodingVersion for EncodingVersion2 {
         result
     }
 
+    /// Unions with extensibility MUTABLE, version 2 encoding
+    /// see (22) for serialization of MMEMBER using version 2 encoding
+    ///
+    /// Serialization Rule (27)
+    ///
+    /// XCDR[2] << {O : MUNION_TYPE} =
+    ///             XCDR
+    ///               << { DHEADER(O) : UInt32 }
+    ///               << { O.disc : MMEMBER }
+    ///               << { O.selected_member : MMEMBER }?
+    fn deserialize_munion_type<'a, E: EndiannessRead>(
+        deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        let _dheader = deserializer.deserialize_primitive_type::<u32>();
+
+        let dynamic_type = dynamic_data.r#type();
+        // Deserialize the discriminator
+        let disc_member = dynamic_type.get_member_by_index(0)?;
+        Self::deserialize_mmember(deserializer, disc_member, dynamic_data)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = get_discriminator_id_as_i32(dynamic_data)?;
+
+        let mut default_member = None;
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            // Deserialize the member based on its discriminator
+            if member.descriptor.label.contains(&disc_id) {
+                return Self::deserialize_mmember(deserializer, member, dynamic_data);
+            }
+            if member.descriptor.is_default_label {
+                default_member = Some(member);
+            }
+        }
+        if let Some(member) = default_member {
+            return Self::deserialize_mmember(deserializer, member, dynamic_data);
+        }
+
+        Err(XTypesError::InvalidData)
+    }
+
     /// Extensibility APPENDABLE (Collection or Aggregated types), version 2
     /// encoding
     /// (30) XCDR[2] << {O : APPENDABLE_TYPE} =
@@ -445,34 +567,6 @@ impl EncodingVersion for EncodingVersion2 {
     ) -> XTypesResult<()> {
         let _dheader = deserializer.deserialize_primitive_type::<u32>();
         deserializer.deserialize_fstruct_type(dynamic_data)
-    }
-
-    fn align<'a, E: EndiannessRead>(
-        deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        alignment: usize,
-    ) -> XTypesResult<()> {
-        deserializer
-            .reader
-            .seek_padding(core::cmp::min(alignment, 4))
-    }
-
-    /// Optional member of final aggregated type (structure, union), version 2
-    ///
-    /// (20) XCDR[2] << {M : OPT_FMEMBER} =
-    ///                   XCDR
-    ///                   << { <is_present> : BOOLEAN }
-    ///                   << IF (<is_present>) { M.value : M.value.type }
-    fn deserialize_opt_fmember<'a, E: EndiannessRead>(
-        deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        member: &DynamicTypeMember,
-        dynamic_data: &mut DynamicData,
-    ) -> XTypesResult<()> {
-        let is_present = deserializer.deserialize_primitive_type::<bool>()?;
-        if is_present {
-            deserializer.deserialize_value(member, dynamic_data)
-        } else {
-            Ok(())
-        }
     }
 }
 
@@ -1040,15 +1134,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         self.deserialize_nopt_fmember(disc_member, dynamic_data)?;
 
         // The discriminator value represents the id of a member
-        let disc_id = match dynamic_data.get_value(0)? {
-            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
-            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
-            _ => return Err(XTypesError::InvalidType),
-        };
+        let disc_id = get_discriminator_id_as_i32(dynamic_data)?;
 
         let mut default_member = None;
         for member_index in 0..dynamic_type.get_member_count() {
@@ -1866,6 +1952,81 @@ mod tests {
                 ],
             )
             .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_mutable_union_type() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct MyInnerType(u32);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable", switch(u16))]
+        enum MyDynamicType {
+            #[dust_dds(case = 5)]
+            VariantA(MyInnerType),
+            #[dust_dds(case = 6)]
+            VariantB { a: u32 },
+        }
+
+        let expected = MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample();
+        #[rustfmt::skip]
+        let data = [
+            0, 0x02, 0, 0, // PL_CDR_BE
+            0b0100_0000, 0, 0, 2, // SMHEADER1 M_FLAG + ID 0 (discriminator always) | length
+            0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b0000_0000, 1, 0, 4, // SMHEADER1 ID 1 (auto asigned) | length
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+            0, 1, 0, 0, // SENTINEL
+        ];
+        assert_eq!(
+            deserialize_top_level_type(MyDynamicType::TYPE, &data).unwrap(),
+            expected
+        );
+
+        let expected = MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample();
+        #[rustfmt::skip]
+        let data = [
+            0, 0x0a, 0, 0, // PL_CDR2_BE
+            0, 0, 0, 16, // DHEADER
+            0b1001_0000, 0, 0, 0, // EMHEADER1 M_FLAG | LC 0b001 | ID 0 (discriminator always)
+            0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b010_0000, 0, 0, 1, // EMHEADER1 LC 0b010 | ID 1 (auto asigned)
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+        ];
+        assert_eq!(
+            deserialize_top_level_type(MyDynamicType::TYPE, &data).unwrap(),
+            expected
+        );
+
+        let expected = MyDynamicType::VariantB { a: 10 }.create_dynamic_sample();
+        #[rustfmt::skip]
+        let data = [
+            0, 0x02, 0, 0, // PL_CDR_BE
+            0b0100_0000, 0, 0, 2, // SMHEADER1 M_FLAG + ID 0 (discriminator always) | length
+            0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b0000_0000, 2, 0, 4, // SMHEADER1 ID 2 (auto asigned) | length
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+            0, 1, 0, 0, // SENTINEL
+        ];
+        assert_eq!(
+            deserialize_top_level_type(MyDynamicType::TYPE, &data).unwrap(),
+            expected
+        );
+
+        let expected = MyDynamicType::VariantB { a: 10 }.create_dynamic_sample();
+        #[rustfmt::skip]
+        let data = [
+            0x00, 0x0a, 0x00, 0x00, // PL_CDR2_BE
+            0x00, 0x00, 0x00, 16, // DHEADER
+            0b1001_0000, 0, 0, 0, // EMHEADER1 M_FLAG | LC 0b001 | ID 0 (dicriminator always)
+            0x00, 6, 0x00, 0x00, // discriminant (u16) | padding (2 bytes)
+            0b010_0000, 0, 0, 2, // EMHEADER1 LC 0b010 | ID 2 (auto asigned)
+            0x00, 0x00, 0, 10, // selected_member u32 (VariantB)
+        ];
+        assert_eq!(
+            deserialize_top_level_type(MyDynamicType::TYPE, &data).unwrap(),
             expected
         );
     }
