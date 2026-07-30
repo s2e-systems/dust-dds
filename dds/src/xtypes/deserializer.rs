@@ -160,7 +160,10 @@ trait EncodingVersion: Sized {
     ) -> XTypesResult<()>;
 
     /// Serialization Rule (27) & (28)
-    fn _deserialize_munion_type(&mut self) -> XTypesResult<()> {
+    fn deserialize_munion_type<'a, E: EndiannessRead>(
+        _deserializer: &mut XTypesDeserializer<'a, E, Self>,
+        _dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
         todo!()
     }
 
@@ -727,7 +730,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                     let _dheader = self.deserialize_primitive_type::<u32>()?;
                     self.deserialize_funion_type(&mut dynamic_data)?
                 }
-                ExtensibilityKind::Mutable => V::deserialize_mstruct_type(self, &mut dynamic_data)?,
+                ExtensibilityKind::Mutable => V::deserialize_munion_type(self, &mut dynamic_data)?,
             },
             kind => {
                 debug!("Expected structure, enum or union. Got kind {kind:?} ");
