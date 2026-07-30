@@ -82,6 +82,12 @@ fn main() {
     let big_data = samples[0].data.as_ref().unwrap();
     println!("Received total msg length: {:?}", big_data.msg.len());
 
+    let mut expected_msg = vec![0u8; 15001];
+    for (i, item) in expected_msg.iter_mut().enumerate() {
+        *item = (i % 256) as u8;
+    }
+    assert_eq!(big_data.msg, expected_msg);
+
     // Sleep to allow sending acknowledgements
     std::thread::sleep(std::time::Duration::from_secs(2));
 }

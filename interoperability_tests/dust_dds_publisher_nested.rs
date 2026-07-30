@@ -73,7 +73,7 @@ fn main() {
         level: 10,
         other: 20,
         value_list: vec![30, 40, 50],
-        last: 60,
+        last: 70,
     };
     writer.write(data, None).unwrap();
 

@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <string.h>
 #include "ddsc/dds.h"
 #include "DisposeData.h"
 
@@ -79,6 +81,12 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
 	}
+	if ((rc > 0) && (infos[0].valid_data))
+	{
+		const interoperability_test_DisposeDataType *msg = (interoperability_test_DisposeDataType *)samples[0];
+		assert(strcmp(msg->name, "No Padding Str") == 0);
+		assert(msg->value == 1);
+	}
 
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));
 	if (rc == 0)
@@ -98,7 +106,7 @@ int main(int argc, char *argv[])
 
 	if ((rc > 0) && (infos[0].instance_state != DDS_IST_NOT_ALIVE_DISPOSED))
 	{
-		DDS_FATAL("instance not disposed %s\n", infos[0].instance_state);
+		DDS_FATAL("instance not disposed %u\n", infos[0].instance_state);
 	}
 
 	printf("Received disposed instance state\n");

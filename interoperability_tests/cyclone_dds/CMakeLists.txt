@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14.0)
 project(CycloneInteroperability LANGUAGES C)
 
+add_compile_options(-Werror -Wall)
+
 find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
