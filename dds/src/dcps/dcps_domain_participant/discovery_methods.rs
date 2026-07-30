@@ -1908,8 +1908,6 @@ impl DcpsDomainParticipant {
                         self.remove_discovered_participant(&sample_info.instance_handle);
                     }
                 }
-            } else {
-                tracing::warn!("Failed to read samples from SPDP discovered participant detector");
             }
         }
     }
