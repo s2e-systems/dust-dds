@@ -2596,8 +2596,8 @@ impl CompleteTypeObject {
                 let is_t2_mutable =
                     (t2.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
-                if is_t1_final {
-                    if !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
+                if is_t1_final || is_t2_final {
+                    if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
                         return false;
                     }
                 } else if is_t1_appendable && is_t2_mutable {
