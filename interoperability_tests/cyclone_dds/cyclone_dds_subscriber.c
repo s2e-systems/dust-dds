@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "ddsc/dds.h"
 #include "HelloWorld.h"
 
@@ -85,6 +86,8 @@ int main(int argc, char *argv[])
 	{
 		msg = (interoperability_test_HelloWorldType *)samples[0];
 		printf("Received: %s { id: %d, msg: \"%c\" }\n", interoperability_test_HelloWorldType_desc.m_typename, msg->id, msg->msg);
+		assert(msg->id == 8);
+		assert(msg->msg == 'a');
 	}
 
 	// Sleep to allow sending acknowledgements

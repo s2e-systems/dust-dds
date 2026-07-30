@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "ddsc/dds.h"
 #include "BigData.h"
 
@@ -85,6 +86,11 @@ int main(int argc, char *argv[])
 	{
 		data = (interoperability_test_BigDataType *)samples[0];
 		printf("Received: %s { msg.length: %d, msg[0]: \"%c\" }\n", interoperability_test_BigDataType_desc.m_typename, data->msg._length, data->msg._buffer[0]);
+		assert(data->msg._length == 15001);
+		for (uint32_t i = 0; i < 15001; i++)
+		{
+			assert(data->msg._buffer[i] == (i % 256));
+		}
 	}
 	// Sleep to allow sending acknowledgements
 	dds_sleepfor(DDS_SECS(2));

@@ -4,6 +4,7 @@ project(FastDdsInteroperability)
 find_package(fastcdr REQUIRED)
 find_package(fastrtps REQUIRED)
 set (CMAKE_CXX_STANDARD 11)
+add_compile_options(-Werror -Wall)
 
 set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorld.cxx PROPERTIES GENERATED TRUE)
 set_source_files_properties(${CMAKE_BINARY_DIR}/idl/HelloWorldPubSubTypes.cxx PROPERTIES GENERATED TRUE)

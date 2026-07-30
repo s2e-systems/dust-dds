@@ -1,7 +1,10 @@
 #include "Optional.h"
 #include "ddsc/dds.h"
+#include <assert.h>
+#include <float.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #define MAX_SAMPLES 1
 
@@ -130,6 +133,17 @@ int main(int argc, char *argv[]) {
     }
 
     printf(" }");
+    assert(msg->maybe_string != NULL);
+    assert(strcmp(msg->maybe_string, "Hello World!") == 0);
+    assert(msg->maybe_uint8 == NULL);
+    assert(msg->maybe_double != NULL);
+    assert(*msg->maybe_double == 12345.6789);
+    assert(msg->maybe_array == NULL);
+    assert(msg->maybe_sequence != NULL);
+    assert(msg->maybe_sequence->_length == 3);
+    assert(msg->maybe_sequence->_buffer[0] == -FLT_MAX);
+    assert(msg->maybe_sequence->_buffer[1] == 0.0f);
+    assert(msg->maybe_sequence->_buffer[2] == FLT_MAX);
   }
 
   // Sleep to allow sending acknowledgements
