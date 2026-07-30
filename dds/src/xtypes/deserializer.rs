@@ -3,7 +3,10 @@ use crate::xtypes::{
         DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
         TryConstructKind, TypeKind,
     },
-    error::{XTypesError, XTypesResult},
+    error::{
+        XTypesError::{self, PidNotFound},
+        XTypesResult,
+    },
     type_object::TypeIdentifier,
     type_support::TypeSupport,
 };
