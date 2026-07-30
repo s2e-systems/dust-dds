@@ -283,7 +283,7 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         Self::align(deserializer, 4)?;
-        let pid: u16 = member.get_id() as u16;
+        let pid: u16 = member.get_id() as u16 & 0b00111111_11111111;
         let orig_pos = deserializer.reader.pos;
         let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
             if length > 0 {
@@ -581,20 +581,19 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
-        let length =
-            if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
-                if bound > 0 && length > bound as usize {
-                    if member.descriptor.try_construct_kind == TryConstructKind::Trim {
-                        bound as usize
-                    } else {
-                        return Err(XTypesError::InvalidData);
-                    }
+        let length = if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
+            if bound > 0 && length > bound as usize {
+                if member.descriptor.try_construct_kind == TryConstructKind::Trim {
+                    bound as usize
                 } else {
-                    length
+                    return Err(XTypesError::InvalidData);
                 }
             } else {
                 length
-            };
+            }
+        } else {
+            length
+        };
         fn deserialize_primitive_sequence_elements<
             'a,
             O: AsBytes + Align,
