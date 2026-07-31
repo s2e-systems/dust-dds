@@ -257,7 +257,8 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data) {
+        let mut member_list = Vec::new();
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -318,7 +319,8 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data) {
+        let mut member_list = Vec::new();
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));

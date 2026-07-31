@@ -1327,7 +1327,8 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+        let mut member_list = Vec::new();
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
         if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -1372,7 +1373,8 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+        let mut member_list = Vec::new();
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
         if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -1410,7 +1412,8 @@ impl DataWriterEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
+        let mut member_list = Vec::new();
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
         if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
