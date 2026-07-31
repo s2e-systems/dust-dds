@@ -48,13 +48,25 @@ impl<'a> KeyHolderType<'a> {
     pub fn as_dynamic_type(&self) -> &DynamicType<'a> {
         &self.0
     }
+}
 
-    pub fn get_topic_kind(&self) -> TopicKind {
-        if self.0.member_list.is_empty() {
-            TopicKind::NoKey
-        } else {
-            TopicKind::WithKey
+impl From<&DynamicType<'_>> for TopicKind {
+    fn from(value: &DynamicType<'_>) -> Self {
+        if value.get_kind() == TypeKind::STRUCTURE {
+            for member in value.member_list {
+                if member.descriptor.is_key {
+                    return TopicKind::WithKey;
+                } else if member.descriptor.r#type.descriptor.kind == TypeKind::STRUCTURE
+                    && !member.descriptor.is_optional
+                {
+                    let member_topic_kind = TopicKind::from(&member.descriptor.r#type);
+                    if member_topic_kind == TopicKind::WithKey {
+                        return TopicKind::WithKey;
+                    }
+                }
+            }
         }
+        TopicKind::NoKey
     }
 }
 
@@ -95,10 +107,6 @@ impl<'a> KeyHolderData<'a> {
 
     pub fn as_dynamic_data(&self) -> &DynamicData<'a> {
         &self.0
-    }
-
-    pub fn get_topic_kind(&self) -> TopicKind {
-        KeyHolderType(self.0.r#type()).get_topic_kind()
     }
 }
 

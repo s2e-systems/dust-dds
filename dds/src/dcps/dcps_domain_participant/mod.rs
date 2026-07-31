@@ -1329,7 +1329,7 @@ impl DataWriterEntity {
 
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
 
-        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
+        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -1374,7 +1374,7 @@ impl DataWriterEntity {
 
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
 
-        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
+        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -1412,7 +1412,7 @@ impl DataWriterEntity {
 
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data)?;
 
-        if key_holder_data.get_topic_kind() == TopicKind::NoKey {
+        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
