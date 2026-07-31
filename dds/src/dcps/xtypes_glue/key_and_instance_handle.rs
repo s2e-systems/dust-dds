@@ -2,10 +2,7 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     transport::types::TopicKind,
     xtypes::{
-        dynamic_type::{
-            DynamicData, DynamicDataFactory, DynamicType, DynamicTypeBuilder,
-            DynamicTypeBuilderFactory, TypeKind,
-        },
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeKind},
         error::{XTypesError, XTypesResult},
         serializer::serialize_final_without_header,
     },
@@ -15,53 +12,67 @@ use alloc::vec::Vec;
 pub struct KeyHolderType<'a>(DynamicType<'a>);
 
 impl<'a> KeyHolderType<'a> {
-    pub fn from_dynamic_type(value: &DynamicType<'a>) -> XTypesResult<Self> {
+    pub fn from_dynamic_type(
+        value: &DynamicType<'a>,
+        member_list: &'a mut Vec<DynamicTypeMember>,
+    ) -> XTypesResult<Self> {
         fn fill_struct_key_holder_type<'a>(
             value: &DynamicType<'a>,
-            builder: &mut DynamicTypeBuilder,
+            member_list: &'a mut Vec<DynamicTypeMember>,
         ) -> XTypesResult<()> {
             if value.get_kind() == TypeKind::STRUCTURE {
-                for member_index in 0..value.get_member_count() {
-                    let dynamic_type_member = value.get_member_by_index(member_index)?;
-                    if dynamic_type_member.get_descriptor()?.is_key {
-                        builder.add_member(dynamic_type_member.get_descriptor()?.clone())?;
-                    } else if dynamic_type_member.descriptor.r#type.descriptor.kind
-                        == TypeKind::STRUCTURE
-                        && !dynamic_type_member.descriptor.is_optional
+                for member in value.member_list {
+                    if member.descriptor.is_key {
+                        member_list.push(member.clone());
+                    } else if member.descriptor.r#type.descriptor.kind == TypeKind::STRUCTURE
+                        && !member.descriptor.is_optional
                     {
-                        fill_struct_key_holder_type(
-                            &dynamic_type_member.descriptor.r#type,
-                            builder,
-                        )?;
+                        fill_struct_key_holder_type(&member.descriptor.r#type, member_list)?;
                     }
                 }
             }
             Ok(())
         }
 
-        let mut key_holder_type_builder =
-            DynamicTypeBuilderFactory::create_type(value.descriptor.clone());
-        fill_struct_key_holder_type(value, &mut key_holder_type_builder)?;
-        Ok(Self(key_holder_type_builder.build()))
+        fill_struct_key_holder_type(value, member_list)?;
+        Ok(Self(DynamicType {
+            descriptor: value.descriptor,
+            member_list: member_list.as_slice(),
+        }))
     }
 
     pub fn as_dynamic_type(&self) -> &DynamicType<'a> {
         &self.0
     }
+}
 
-    pub fn get_topic_kind(&self) -> TopicKind {
-        if self.0.member_list.is_empty() {
-            TopicKind::NoKey
-        } else {
-            TopicKind::WithKey
+impl From<&DynamicType<'_>> for TopicKind {
+    fn from(value: &DynamicType<'_>) -> Self {
+        if value.get_kind() == TypeKind::STRUCTURE {
+            for member in value.member_list {
+                if member.descriptor.is_key {
+                    return TopicKind::WithKey;
+                } else if member.descriptor.r#type.descriptor.kind == TypeKind::STRUCTURE
+                    && !member.descriptor.is_optional
+                {
+                    let member_topic_kind = TopicKind::from(&member.descriptor.r#type);
+                    if member_topic_kind == TopicKind::WithKey {
+                        return TopicKind::WithKey;
+                    }
+                }
+            }
         }
+        TopicKind::NoKey
     }
 }
 
 pub struct KeyHolderData<'a>(DynamicData<'a>);
 
 impl<'a> KeyHolderData<'a> {
-    pub fn from_dynamic_data(value: &DynamicData<'a>) -> XTypesResult<KeyHolderData<'a>> {
+    pub fn from_dynamic_data(
+        value: &DynamicData<'a>,
+        member_list: &'a mut Vec<DynamicTypeMember>,
+    ) -> XTypesResult<KeyHolderData<'a>> {
         fn fill_struct_key_holder_data<'a>(
             value: &DynamicData<'a>,
             key_holder_data: &mut DynamicData,
@@ -87,7 +98,7 @@ impl<'a> KeyHolderData<'a> {
             }
             Ok(())
         }
-        let key_holder_type = KeyHolderType::from_dynamic_type(&value.r#type())?.0;
+        let key_holder_type = KeyHolderType::from_dynamic_type(&value.r#type(), member_list)?.0;
         let mut key_holder_data = DynamicDataFactory::create_data(key_holder_type);
         fill_struct_key_holder_data(value, &mut key_holder_data)?;
         Ok(Self(key_holder_data))
@@ -95,10 +106,6 @@ impl<'a> KeyHolderData<'a> {
 
     pub fn as_dynamic_data(&self) -> &DynamicData<'a> {
         &self.0
-    }
-
-    pub fn get_topic_kind(&self) -> TopicKind {
-        KeyHolderType(self.0.r#type()).get_topic_kind()
     }
 }
 
@@ -120,7 +127,8 @@ pub fn get_instance_handle_from_key_holder_data<'a>(
 pub fn get_instance_handle_from_dynamic_data<'a>(
     value: &DynamicData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    let key_holder_data = KeyHolderData::from_dynamic_data(value)?;
+    let mut member_list = Vec::new();
+    let key_holder_data = KeyHolderData::from_dynamic_data(value, &mut member_list)?;
     get_instance_handle_from_key_holder_data(&key_holder_data)
 }
 
