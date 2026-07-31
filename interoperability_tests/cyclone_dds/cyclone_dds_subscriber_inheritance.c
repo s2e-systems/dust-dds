@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <string.h>
 #include "ddsc/dds.h"
 #include "Inheritance.h"
 
@@ -85,6 +87,10 @@ int main(int argc, char *argv[])
 	{
 		msg = (interoperability_test_Cat *)samples[0];
 		printf("Received: %s { id: %d, name: \"%s\", age: %d, lives: %d }\n", interoperability_test_Cat_desc.m_typename, msg->parent.id, msg->parent.name, msg->parent.age, msg->lives);
+		assert(msg->parent.id == 1);
+		assert(strcmp(msg->parent.name, "Zoe") == 0);
+		assert(msg->parent.age == 1);
+		assert(msg->lives == 7);
 	}
 
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));

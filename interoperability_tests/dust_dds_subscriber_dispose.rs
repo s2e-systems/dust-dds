@@ -73,6 +73,10 @@ fn main() {
         .unwrap();
 
     if samples[0].sample_info.instance_state != InstanceStateKind::NotAliveDisposed {
+        let data = samples[0].data.as_ref().unwrap();
+        assert_eq!(data.name, "No Padding Str");
+        assert_eq!(data.value, 1);
+
         wait_set.wait(Duration::new(30, 0)).unwrap();
         samples = reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

@@ -77,6 +77,12 @@ fn main() {
         let instance_handle = samples[0].sample_info.instance_handle;
         assert!(samples[0].data.is_some());
 
+        let cat = samples[0].data.as_ref().unwrap();
+        assert_eq!(cat.parent.id, 1);
+        assert_eq!(cat.parent.name, "Zoe");
+        assert_eq!(cat.parent.age, 1);
+        assert_eq!(cat.lives, 7);
+
         wait_set.wait(Duration::new(30, 0)).unwrap();
 
         samples = reader

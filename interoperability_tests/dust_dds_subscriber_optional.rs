@@ -1,14 +1,15 @@
-include!("target/idl/hello_world.rs");
+include!("target/idl/optional.rs");
 
-use self::interoperability::test::HelloWorldType;
+use self::interoperability::test::Optional;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind,
+            DataRepresentationQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
@@ -26,7 +27,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<HelloWorldType>("HelloWorld", Duration::new(120, 0))
+        .find_topic::<Optional>("Optional", Duration::new(120, 0))
         .unwrap();
 
     let subscriber = participant
@@ -41,10 +42,13 @@ fn main() {
         durability: DurabilityQosPolicy {
             kind: DurabilityQosPolicyKind::TransientLocal,
         },
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION],
+        },
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader::<HelloWorldType>(
+        .create_datareader::<Optional>(
             &topic,
             QosKind::Specific(reader_qos),
             NO_LISTENER,
@@ -69,14 +73,21 @@ fn main() {
     wait_set.wait(Duration::new(30, 0)).unwrap();
 
     let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
+    assert_eq!(samples.len(), 1);
+    println!("read: {samples:?}");
 
-    let hello_world = samples[0].data.as_ref().unwrap();
-    println!("Received: {hello_world:?}",);
-    assert_eq!(hello_world.id, 8);
-    assert_eq!(hello_world.msg, 'a');
+    let optional_data = samples[0].data.as_ref().unwrap();
+    assert_eq!(optional_data.maybe_string, Some("Hello World!".to_string()));
+    assert_eq!(optional_data.maybe_uint8, None);
+    assert_eq!(optional_data.maybe_double, Some(12345.6789));
+    assert_eq!(optional_data.maybe_array, None);
+    assert_eq!(
+        optional_data.maybe_sequence,
+        Some(vec![f32::MIN, 0.0, f32::MAX])
+    );
 
     // Sleep to allow sending acknowledgements
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }

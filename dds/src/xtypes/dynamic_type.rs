@@ -5,10 +5,10 @@ use crate::xtypes::{
     type_object::TypeObject,
     type_support::{Type, TypeSupport},
 };
-use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec, vec::Vec};
 
 /// Represents a sequence bound.
-pub type BoundSeq = Option<u32>;
+pub type BoundSeq<'a> = &'a [u32];
 /// Represents a sequence of include paths.
 pub type IncludePathSeq = Vec<String>;
 /// Represents the name of an object.
@@ -91,7 +91,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: None,
+                bound: &[],
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -127,7 +127,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: Some(bound),
+                bound: vec![bound].leak(),
                 element_type: None,
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -138,8 +138,21 @@ impl DynamicTypeBuilderFactory {
     }
 
     /// Creates a [`DynamicTypeBuilder`] for a wide string type with the specified bound.
-    pub fn create_wstring_type(_bound: u32) -> DynamicTypeBuilder {
-        unimplemented!("wstring not supported in Rust")
+    pub fn create_wstring_type(bound: u32) -> DynamicTypeBuilder {
+        DynamicTypeBuilder {
+            descriptor: TypeDescriptor {
+                kind: TypeKind::STRING16,
+                name: "",
+                base_type: None,
+                discriminator_type: None,
+                bound: vec![bound].leak(),
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: ExtensibilityKind::Final,
+                is_nested: false,
+            },
+            member_list: Vec::new(),
+        }
     }
 
     /// Creates a [`DynamicTypeBuilder`] for a sequence type with the specified element type and bound.
@@ -153,7 +166,7 @@ impl DynamicTypeBuilderFactory {
                 name: "",
                 base_type: None,
                 discriminator_type: None,
-                bound: Some(bound),
+                bound: vec![bound].leak(),
                 element_type: Some(element_type),
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
@@ -166,7 +179,7 @@ impl DynamicTypeBuilderFactory {
     /// Creates a [`DynamicTypeBuilder`] for an array type with the specified element type and dimensions/bound.
     pub fn create_array_type(
         element_type: DynamicType<'static>,
-        bound: BoundSeq,
+        bound: BoundSeq<'static>,
     ) -> DynamicTypeBuilder {
         DynamicTypeBuilder {
             descriptor: TypeDescriptor {
@@ -293,7 +306,8 @@ impl DynamicTypeBuilderFactory {
         let resolve_member_type = |m_type: &str,
                                    non_basic_type_name: Option<&str>,
                                    string_max_length: Option<&str>,
-                                   array_dimensions: Option<&str>|
+                                   array_dimensions: Option<&str>,
+                                   sequence_max_length: Option<&str>|
          -> XTypesResult<DynamicType> {
             let mut type_ptr: DynamicType = if m_type == "nonBasic" {
                 let non_basic_name = non_basic_type_name.ok_or(XTypesError::InvalidData)?;
@@ -318,15 +332,20 @@ impl DynamicTypeBuilderFactory {
                 Self::get_primitive_type(type_kind)
             };
 
+            if let Some(seq_len_str) = sequence_max_length {
+                let bound: i32 = seq_len_str.parse().map_err(|_| XTypesError::InvalidData)?;
+                let bound_u32 = if bound < 0 { 0 } else { bound as u32 };
+                let builder = Self::create_sequence_type(type_ptr, bound_u32);
+                type_ptr = builder.build();
+            }
+
             if let Some(dimensions) = array_dimensions {
                 let dims: Vec<u32> = dimensions
                     .split(',')
                     .filter_map(|s| s.trim().parse().ok())
                     .collect();
-                for dim in dims.into_iter().rev() {
-                    let builder = Self::create_array_type(type_ptr, Some(dim));
-                    type_ptr = builder.build();
-                }
+                let builder = Self::create_array_type(type_ptr, dims.leak());
+                type_ptr = builder.build();
             }
             Ok(type_ptr)
         };
@@ -338,12 +357,21 @@ impl DynamicTypeBuilderFactory {
                     let d_type = child.attribute("type").ok_or(XTypesError::InvalidData)?;
                     let non_basic_type_name = child.attribute("nonBasicTypeName");
                     let string_max_length = child.attribute("stringMaxLength");
-                    let type_ptr =
-                        resolve_member_type(d_type, non_basic_type_name, string_max_length, None)?;
+                    let sequence_max_length = child.attribute("sequenceMaxLength");
+                    let type_ptr = resolve_member_type(
+                        d_type,
+                        non_basic_type_name,
+                        string_max_length,
+                        None,
+                        sequence_max_length,
+                    )?;
                     discriminator_type = Some(type_ptr);
                     break;
                 }
             }
+        }
+        if is_enum {
+            discriminator_type = Some(Self::get_primitive_type(TypeKind::INT32));
         }
 
         let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
@@ -358,7 +386,7 @@ impl DynamicTypeBuilderFactory {
             name,
             base_type: None,
             discriminator_type,
-            bound: None,
+            bound: &[],
             element_type: None,
             key_element_type: None,
             extensibility_kind,
@@ -366,6 +394,18 @@ impl DynamicTypeBuilderFactory {
         };
 
         let mut builder = Self::create_type(descriptor);
+        let mut try_construct_kind = TryConstructKind::Discard;
+        fn parse_try_construct_kind(
+            node: &roxmltree::Node,
+            try_construct_kind: &mut TryConstructKind,
+        ) {
+            *try_construct_kind = match node.attribute("tryConstruct") {
+                Some("discard") => TryConstructKind::Discard,
+                Some("use_default") => TryConstructKind::UseDefault,
+                Some("trim") => TryConstructKind::Trim,
+                _ => *try_construct_kind,
+            };
+        }
 
         let mut member_id = 0;
         if is_union {
@@ -376,6 +416,7 @@ impl DynamicTypeBuilderFactory {
                     let mut non_basic_type_name = None;
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
+                    let mut sequence_max_length = None;
                     let mut label = Vec::new();
                     let mut is_default_label = false;
 
@@ -408,6 +449,8 @@ impl DynamicTypeBuilderFactory {
                             non_basic_type_name = case_child.attribute("nonBasicTypeName");
                             string_max_length = case_child.attribute("stringMaxLength");
                             array_dimensions = case_child.attribute("arrayDimensions");
+                            sequence_max_length = case_child.attribute("sequenceMaxLength");
+                            parse_try_construct_kind(&case_child, &mut try_construct_kind);
                         }
                     }
 
@@ -419,6 +462,7 @@ impl DynamicTypeBuilderFactory {
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
+                        sequence_max_length,
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
                     let label = Vec::leak(label);
@@ -429,7 +473,7 @@ impl DynamicTypeBuilderFactory {
                         default_value: None,
                         index: member_id,
                         label,
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: false,
                         is_optional: false,
                         is_must_understand: false,
@@ -447,6 +491,7 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
                     let label =
                         Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
 
@@ -460,7 +505,7 @@ impl DynamicTypeBuilderFactory {
                         default_value: None,
                         index: member_id,
                         label,
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: false,
                         is_optional: false,
                         is_must_understand: false,
@@ -481,23 +526,38 @@ impl DynamicTypeBuilderFactory {
                     let non_basic_type_name = child.attribute("nonBasicTypeName");
                     let string_max_length = child.attribute("stringMaxLength");
                     let array_dimensions = child.attribute("arrayDimensions");
+                    let sequence_max_length = child.attribute("sequenceMaxLength");
 
                     let type_ptr = resolve_member_type(
                         m_type,
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
+                        sequence_max_length,
                     )?;
                     let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
 
+                    let m_id = if let Some(id_str) = child.attribute("id") {
+                        if let Some(hex) = id_str.strip_prefix("0x") {
+                            u32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)?
+                        } else {
+                            id_str
+                                .parse::<u32>()
+                                .map_err(|_| XTypesError::InvalidData)?
+                        }
+                    } else {
+                        member_id
+                    };
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
+
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
-                        id: member_id,
+                        id: m_id,
                         r#type: type_ptr,
                         default_value: None,
                         index: member_id,
                         label: &[],
-                        try_construct_kind: TryConstructKind::Discard,
+                        try_construct_kind,
                         is_key: child.attribute("key") == Some("true"),
                         is_optional: child.attribute("optional") == Some("true"),
                         is_must_understand: false,
@@ -553,7 +613,7 @@ pub struct TypeDescriptor {
     /// The discriminator type if this type is a union.
     pub discriminator_type: Option<DynamicType<'static>>,
     /// The bound(s) of the type if it is a collection or string.
-    pub bound: BoundSeq,
+    pub bound: BoundSeq<'static>,
     /// The element type if this type is a collection.
     pub element_type: Option<DynamicType<'static>>,
     /// The key element type if this type is a map.
@@ -673,8 +733,14 @@ impl DynamicTypeBuilder {
     }
 
     /// Returns all members indexed by their ID.
-    pub fn get_all_members(&self) -> Result<Vec<(MemberId, DynamicTypeMember)>, XTypesError> {
-        todo!()
+    pub fn get_all_members(
+        &mut self,
+    ) -> Result<Vec<(MemberId, &mut DynamicTypeMember)>, XTypesError> {
+        Ok(self
+            .member_list
+            .iter_mut()
+            .map(|m| (m.descriptor.id, m))
+            .collect())
     }
 
     /// Returns the number of annotations on this type.
@@ -1550,7 +1616,7 @@ impl Type for DynamicData<'static> {
             name: "",
             base_type: None,
             discriminator_type: None,
-            bound: None,
+            bound: &[],
             element_type: None,
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
@@ -1588,7 +1654,28 @@ impl<'a> DynamicData<'a> {
 
             if let Ok(member) = self.r#type.get_member_by_name(tag_name) {
                 let member_id = member.get_id();
-                let member_type = member.get_descriptor()?.r#type;
+                let member_descriptor = member.get_descriptor()?;
+                let member_type = member_descriptor.r#type;
+
+                if self.r#type.get_kind() == TypeKind::UNION {
+                    if let Some(&label) = member_descriptor.label.first() {
+                        let disc_type = self
+                            .r#type
+                            .get_descriptor()
+                            .discriminator_type
+                            .unwrap_or_else(|| {
+                                DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
+                            });
+                        let disc_storage = match disc_type.get_kind() {
+                            TypeKind::UINT32
+                            | TypeKind::UINT16
+                            | TypeKind::UINT8
+                            | TypeKind::BYTE => DataStorage::UInt32(label as u32),
+                            _ => DataStorage::Int32(label),
+                        };
+                        self.set_value(0, disc_storage);
+                    }
+                }
 
                 let data = Self::parse_xml_node_to_data(child, member_type)?;
                 self.set_value(member_id, data);
@@ -1681,9 +1768,20 @@ impl<'a> DynamicData<'a> {
                     .unwrap_or_else(|| text.chars().next().unwrap_or('\0'));
                 Ok(DataStorage::Char8(val))
             }
-            TypeKind::STRING8 => {
+            TypeKind::STRING8 | TypeKind::STRING16 => {
                 let val = node.text().unwrap_or("");
                 Ok(DataStorage::String(String::from(val)))
+            }
+            TypeKind::ENUM => {
+                let enumerator = r#type.get_member_by_name(text)?;
+                let label = enumerator
+                    .descriptor
+                    .label
+                    .first()
+                    .ok_or(XTypesError::InvalidData)?;
+                let mut inner_data = DynamicDataFactory::create_data(r#type);
+                inner_data.set_int32_value(0, *label)?;
+                Ok(DataStorage::ComplexValue(inner_data))
             }
             TypeKind::STRUCTURE | TypeKind::UNION => {
                 let mut inner_data = DynamicDataFactory::create_data(r#type);
@@ -1772,6 +1870,22 @@ impl<'a> DynamicData<'a> {
                             vec.push(String::from(item_text));
                         }
                         Ok(DataStorage::SequenceString(vec))
+                    }
+                    TypeKind::ENUM => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            let mut inner_data = DynamicDataFactory::create_data(element_type);
+                            let enumerator = element_type.get_member_by_name(item_text)?;
+                            let label = enumerator
+                                .descriptor
+                                .label
+                                .first()
+                                .ok_or(XTypesError::InvalidData)?;
+                            inner_data.set_int32_value(0, *label)?;
+                            vec.push(inner_data);
+                        }
+                        Ok(DataStorage::SequenceComplexValue(vec))
                     }
                     TypeKind::STRUCTURE | TypeKind::UNION => {
                         let mut vec = Vec::new();

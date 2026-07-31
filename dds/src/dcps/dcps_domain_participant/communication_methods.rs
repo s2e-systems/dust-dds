@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 use tracing::info;
 
 use crate::{
@@ -52,6 +52,14 @@ impl DcpsDomainParticipant {
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
+                    if let Some(matched_participant) = self
+                        .domain_participant
+                        .discovered_participant_list
+                        .iter_mut()
+                        .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                    {
+                        matched_participant.last_communication_timestamp = runtime.clock().now();
+                    }
                     let (topic_name, type_name) = if let Some(content_filtered_topic) = self
                         .domain_participant
                         .content_filtered_topic_list
@@ -152,7 +160,8 @@ impl DcpsDomainParticipant {
                                     crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::STRING8 => {
+                                    crate::xtypes::dynamic_type::TypeKind::STRING8
+                                    | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
                                         let member_value =
                                             data.get_string_value(member_id).unwrap();
                                         if !comparison_function.compare_string(
@@ -162,7 +171,6 @@ impl DcpsDomainParticipant {
                                             return;
                                         }
                                     }
-                                    crate::xtypes::dynamic_type::TypeKind::STRING16 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
@@ -226,9 +234,11 @@ impl DcpsDomainParticipant {
                             ChangeKind::NotAliveDisposed
                             | ChangeKind::NotAliveUnregistered
                             | ChangeKind::NotAliveDisposedUnregistered => {
-                                let Ok(key_holder) =
-                                    KeyHolderType::from_dynamic_type(&data_reader.type_support)
-                                else {
+                                let mut dynamic_members = Vec::new();
+                                let Ok(key_holder) = KeyHolderType::from_dynamic_type(
+                                    &data_reader.type_support,
+                                    &mut dynamic_members,
+                                ) else {
                                     tracing::warn!("Failed to create key holder");
                                     return;
                                 };
@@ -357,29 +367,6 @@ impl DcpsDomainParticipant {
                         Err(_) => (),
                     }
                 }
-            }
-        }
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn remove_writer_change(
-        &mut self,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        sequence_number: i64,
-    ) {
-        if let Some(p) = self
-            .domain_participant
-            .user_defined_publisher_list
-            .iter_mut()
-            .find(|x| x.instance_handle == publisher_handle)
-        {
-            if let Some(dw) = p
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.instance_handle == data_writer_handle)
-            {
-                dw.transport_writer.remove_change(sequence_number);
             }
         }
     }

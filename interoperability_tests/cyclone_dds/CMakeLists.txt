@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14.0)
 project(CycloneInteroperability LANGUAGES C)
 
+add_compile_options(-Werror -Wall)
+
 find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
@@ -8,6 +10,7 @@ idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
 idlc_generate(TARGET NestedTypeGeneratedIdl FILES ../NestedType.idl)
 idlc_generate(TARGET UnionGeneratedIdl FILES ../Union.idl)
 idlc_generate(TARGET InheritanceGeneratedIdl FILES ../Inheritance.idl)
+idlc_generate(TARGET OptionalGeneratedIdl FILES ../Optional.idl)
 
 add_executable(CycloneDdsSubscriber
   cyclone_dds_subscriber.c
@@ -105,4 +108,20 @@ add_executable(CycloneDdsPublisherInheritance
 target_link_libraries(CycloneDdsPublisherInheritance PRIVATE
   CycloneDDS::ddsc
   InheritanceGeneratedIdl
+)
+
+add_executable(CycloneDdsSubscriberOptional
+  cyclone_dds_subscriber_optional.c
+)
+target_link_libraries(CycloneDdsSubscriberOptional PRIVATE
+  CycloneDDS::ddsc
+  OptionalGeneratedIdl
+)
+
+add_executable(CycloneDdsPublisherOptional
+  cyclone_dds_publisher_optional.c
+)
+target_link_libraries(CycloneDdsPublisherOptional PRIVATE
+  CycloneDDS::ddsc
+  OptionalGeneratedIdl
 )

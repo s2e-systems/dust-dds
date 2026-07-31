@@ -7,7 +7,6 @@ use crate::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -42,7 +41,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = KeyHolderType::from_dynamic_type(&topic.type_support)?.get_topic_kind();
+        let topic_kind = TopicKind::from(&topic.type_support);
         let type_support = topic.type_support;
         let type_name = topic.type_name.clone();
 

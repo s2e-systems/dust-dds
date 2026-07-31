@@ -291,10 +291,13 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     domain_participant_factory.time_until_missed_writer_deadline();
                 let time_until_stale_participant =
                     domain_participant_factory.time_until_stale_participant();
+                let time_until_stale_writer_sample =
+                    domain_participant_factory.time_until_stale_writer_sample();
                 let next_task_time = poke_time
                     .min(time_until_missed_reader_deadline.unwrap_or(poke_time))
                     .min(time_until_missed_writer_deadline.unwrap_or(poke_time))
-                    .min(time_until_stale_participant.unwrap_or(poke_time));
+                    .min(time_until_stale_participant.unwrap_or(poke_time))
+                    .min(time_until_stale_writer_sample.unwrap_or(poke_time));
 
                 match select_future(
                     dcps_receiver.receive(),
@@ -319,15 +322,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_builtin_type_lookup_request_cache_change(
                         &domain_participant_factory.runtime,
                     );
-                    dp.process_builtin_type_lookup_reply_cache_change();
+                    dp.process_builtin_type_lookup_reply_cache_change(
+                        &domain_participant_factory.runtime,
+                    );
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
-                    dp.process_discovered_readers();
-                    dp.process_discovered_writers();
+                    dp.process_discovered_readers(&domain_participant_factory.runtime);
+                    dp.process_discovered_writers(&domain_participant_factory.runtime);
                     dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
                     dp.check_missed_reader_deadline(
                         domain_participant_factory.runtime.clock().now(),
                     );
                     dp.check_missed_writer_deadline(
+                        domain_participant_factory.runtime.clock().now(),
+                    );
+                    dp.remove_stale_writer_samples(
                         domain_participant_factory.runtime.clock().now(),
                     );
                     dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());

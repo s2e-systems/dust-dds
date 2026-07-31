@@ -81,7 +81,7 @@ where
 {
     /// Async version of [`register_instance`](crate::publication::data_writer::DataWriter::register_instance).
     #[tracing::instrument(skip(self, instance))]
-    pub async fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub async fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = self
             .get_publisher()
             .get_participant()
@@ -92,13 +92,25 @@ where
     }
 
     /// Async version of [`register_instance_w_timestamp`](crate::publication::data_writer::DataWriter::register_instance_w_timestamp).
-    #[tracing::instrument(skip(self, _instance))]
+    #[tracing::instrument(skip(self, instance))]
     pub async fn register_instance_w_timestamp(
         &self,
-        _instance: &Foo,
+        instance: Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+        let (reply_sender, reply_receiver) = oneshot();
+        let dynamic_data = instance.create_dynamic_sample();
+        self.dcps_sender()
+            .send(DcpsMail::Writer(WriterServiceMail::RegisterInstance {
+                participant_handle: self.publisher.get_participant().get_instance_handle(),
+                publisher_handle: self.publisher.get_instance_handle(),
+                data_writer_handle: self.handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }))
+            .await;
+        reply_receiver.await?
     }
 
     /// Async version of [`unregister_instance`](crate::publication::data_writer::DataWriter::unregister_instance).

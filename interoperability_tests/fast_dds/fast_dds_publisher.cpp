@@ -40,8 +40,8 @@ int main(int argc, char *argv[])
 	}
 
 	interoperability::test::HelloWorldType hello;
-	hello.id(3);
-	hello.msg('h');
+	hello.id(8);
+	hello.msg('a');
 	writer->write(&hello);
 
 	auto ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});

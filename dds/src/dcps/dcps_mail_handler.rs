@@ -580,6 +580,27 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .send(p.get_publication_matched_status(&publisher_handle, &data_writer_handle)),
                 Err(e) => reply_sender.send(Err(e)),
             },
+            DcpsMail::Writer(WriterServiceMail::RegisterInstance {
+                participant_handle,
+                publisher_handle,
+                data_writer_handle,
+                dynamic_data,
+                timestamp,
+                reply_sender,
+            }) => match self
+                .domain_participant_list
+                .iter_mut()
+                .find(|x| x.get_instance_handle() == &participant_handle)
+                .ok_or(DdsError::AlreadyDeleted)
+            {
+                Ok(p) => reply_sender.send(p.register_instance(
+                    &publisher_handle,
+                    &data_writer_handle,
+                    &dynamic_data,
+                    timestamp,
+                )),
+                Err(e) => reply_sender.send(Err(e)),
+            },
             DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
                 participant_handle,
                 publisher_handle,
@@ -1022,16 +1043,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         )
                     }),
             ),
-            DcpsMail::Message(MessageServiceMail::RemoveWriterChange {
-                participant_handle,
-                publisher_handle,
-                data_writer_handle,
-                sequence_number,
-            }) => {
-                if let Ok(p) = self.find_participant(&participant_handle) {
-                    p.remove_writer_change(publisher_handle, data_writer_handle, sequence_number)
-                }
-            }
             DcpsMail::StatusCondition(StatusConditionMail::GetStatusConditionEnabledStatuses {
                 entity,
                 reply_sender,

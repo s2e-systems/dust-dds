@@ -1,20 +1,20 @@
-include!("target/idl/union.rs");
+include!("target/idl/optional.rs");
 
-use crate::interoperability::test::VariantUnion;
+use self::interoperability::test::Optional;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listener::NO_LISTENER,
-        qos::{DataReaderQos, QosKind},
+        qos::{DataWriterQos, QosKind},
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind,
         },
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
     wait_set::{Condition, WaitSet},
+    xtypes::type_support::Type,
 };
 
 fn main() {
@@ -26,14 +26,20 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .find_topic::<VariantUnion>("Union", Duration::new(120, 0))
+        .create_topic::<Optional>(
+            "Optional",
+            Optional::TYPE.get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .unwrap();
 
-    let subscriber = participant
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
-    let reader_qos = DataReaderQos {
+    let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
@@ -43,39 +49,36 @@ fn main() {
         },
         ..Default::default()
     };
-    let reader = subscriber
-        .create_datareader::<VariantUnion>(
+    let writer = publisher
+        .create_datawriter(
             &topic,
-            QosKind::Specific(reader_qos),
+            QosKind::Specific(writer_qos),
             NO_LISTENER,
             NO_STATUS,
         )
         .unwrap();
-
-    let reader_cond = reader.get_statuscondition();
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond.clone()))
+        .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
+    let data = Optional {
+        maybe_string: Some("Hello World!".to_string()),
+        maybe_uint8: None,
+        maybe_double: Some(12345.6789),
+        maybe_array: None,
+        maybe_sequence: Some(vec![f32::MIN, 0.0, f32::MAX]),
+    };
+    println!("write: {data:?}");
+    writer.write(data, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(30, 0))
         .unwrap();
-    wait_set.wait(Duration::new(30, 0)).unwrap();
-
-    let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
-    let data = samples[0].data.as_ref().unwrap();
-    println!("Received: {data:?}");
-    assert!(matches!(data, VariantUnion::Case1 { x: 10 }));
-
-    // Sleep to allow sending acknowledgements
-    std::thread::sleep(std::time::Duration::from_secs(2));
 }
