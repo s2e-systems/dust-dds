@@ -2,10 +2,7 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     transport::types::TopicKind,
     xtypes::{
-        dynamic_type::{
-            DynamicData, DynamicDataFactory, DynamicType,
-            DynamicTypeMember, TypeKind,
-        },
+        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeKind},
         error::{XTypesError, XTypesResult},
         serializer::serialize_final_without_header,
     },

@@ -258,7 +258,8 @@ impl DcpsDomainParticipant {
         }
 
         let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
+        {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -320,7 +321,8 @@ impl DcpsDomainParticipant {
         };
 
         let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list) {
+        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
+        {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
