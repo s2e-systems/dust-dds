@@ -160,7 +160,8 @@ impl DcpsDomainParticipant {
                                     crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::STRING8 => {
+                                    crate::xtypes::dynamic_type::TypeKind::STRING8
+                                    | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
                                         let member_value =
                                             data.get_string_value(member_id).unwrap();
                                         if !comparison_function.compare_string(
@@ -170,7 +171,6 @@ impl DcpsDomainParticipant {
                                             return;
                                         }
                                     }
-                                    crate::xtypes::dynamic_type::TypeKind::STRING16 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),

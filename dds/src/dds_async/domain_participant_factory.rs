@@ -311,7 +311,9 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.process_builtin_type_lookup_request_cache_change(
                         &domain_participant_factory.runtime,
                     );
-                    dp.process_builtin_type_lookup_reply_cache_change();
+                    dp.process_builtin_type_lookup_reply_cache_change(
+                        &domain_participant_factory.runtime,
+                    );
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
                     dp.process_discovered_readers(&domain_participant_factory.runtime);
                     dp.process_discovered_writers(&domain_participant_factory.runtime);

@@ -126,6 +126,18 @@ fn serialize_primitive_slice<'a, E: EndiannessWrite, V: EncodingVersion>(
     }
 }
 
+fn get_discriminator_id_as_i32(v: &DynamicData) -> XTypesResult<i32> {
+    Ok(match v.get_value(0)? {
+        crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
+        crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
+        _ => return Err(XTypesError::InvalidType),
+    })
+}
+
 // Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
 // defined in the DDS-XTypes, version 1.3 - 7.4.3.5.1 Notation used for the match criteria
@@ -214,7 +226,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
             TypeKind::CHAR8 => self.serialize_primitive_type(v.get_char8_value(member_id)?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => self.serialize_string_type(v.get_string_value(member_id)?),
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => self.serialize_wstring_type(v.get_string_value(member_id)?),
             TypeKind::ALIAS => (),
             TypeKind::ENUM => self.serialize_enum_type(v.get_complex_value(member_id)?)?,
             TypeKind::BITMASK => todo!(),
@@ -275,7 +287,11 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
                     self.serialize_string_type(v);
                 }
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                for v in v.get_string_values(member_id)? {
+                    self.serialize_wstring_type(v);
+                }
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
@@ -377,6 +393,15 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.serialize_primitive_type(&(v.len() as u32 + 1));
         self.writer.write_slice(v.as_bytes());
         self.writer.write_byte(0);
+    }
+
+    fn serialize_wstring_type(&mut self, v: &str) {
+        let utf16_units: Vec<u16> = v.encode_utf16().collect();
+        self.serialize_primitive_type(&(utf16_units.len() as u32 + 1));
+        for unit in utf16_units {
+            self.serialize_primitive_type(&unit);
+        }
+        self.serialize_primitive_type(&0u16);
     }
 
     /// Serialization Rule (5)
@@ -484,15 +509,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.serialize_nopt_fmember(v, 0)?;
 
         // The discriminator value represents the id of a member
-        let disc_id = match v.get_value(0)? {
-            crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
-            crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
-            crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
-            _ => return Err(XTypesError::InvalidType),
-        };
+        let disc_id = get_discriminator_id_as_i32(v)?;
         let dynamic_type = v.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
@@ -815,7 +832,10 @@ impl EncodingVersion for EncodingVersion1 {
         member_id: u32,
     ) -> Result<(), XTypesError> {
         Self::align(serializer, 4);
-        serializer.serialize_primitive_type(&(member_id as u16));
+        let member_descriptor = v.get_descriptor(member_id)?;
+        let m_flag = member_descriptor.is_must_understand as u16;
+        let pid = member_id as u16 + (m_flag << 14);
+        serializer.serialize_primitive_type(&pid);
         let ssize = Ssize::new(serializer);
         ssize.serializer.push_origin_0();
         if v.get_value(member_id).is_ok() {
@@ -837,10 +857,28 @@ impl EncodingVersion for EncodingVersion1 {
     ///               << { PID_SENTINEL : UInt16 }
     ///               << { length = 0 : UInt16 }
     fn serialize_munion_type<'a, E: EndiannessWrite>(
-        _serializer: &mut XTypesSerializer<'a, E, Self>,
-        _v: &DynamicData,
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
     ) -> Result<(), XTypesError> {
-        todo!()
+        // disc:
+        Self::serialize_mmember(serializer, v, 0)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = get_discriminator_id_as_i32(v)?;
+        let dynamic_type = v.r#type();
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            if member.descriptor.label.contains(&disc_id) {
+                let member_id = member.get_id();
+                Self::serialize_mmember(serializer, v, member_id)?;
+                break;
+            }
+        }
+        // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
+        Self::align(serializer, 4);
+        serializer.serialize_primitive_type(&PID_SENTINEL);
+        serializer.serialize_primitive_type(&0u16);
+        Ok(())
     }
 
     /// Extensibility APPENDABLE (Collection or Aggregated types), version 1 encoding
@@ -1007,10 +1045,26 @@ impl EncodingVersion for EncodingVersion2 {
     ///               << { O.disc : MMEMBER }
     ///               << { O.selected_member : MMEMBER }?
     fn serialize_munion_type<'a, E: EndiannessWrite>(
-        _serializer: &mut XTypesSerializer<'a, E, Self>,
-        _v: &DynamicData,
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
     ) -> Result<(), XTypesError> {
-        todo!()
+        let dheader = Dheader::new(serializer);
+        // disc:
+        Self::serialize_mmember(dheader.serializer, v, 0)?;
+
+        // The discriminator value represents the id of a member
+        let disc_id = get_discriminator_id_as_i32(v)?;
+        let dynamic_type = v.r#type();
+        for member_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(member_index)?;
+            if member.descriptor.label.contains(&disc_id) {
+                let member_id = member.get_id();
+                Self::serialize_mmember(dheader.serializer, v, member_id)?;
+            }
+        }
+
+        dheader.write_header();
+        Ok(())
     }
 
     /// Extensibility APPENDABLE (Collection or Aggregated types), version 2 encoding
@@ -1722,9 +1776,9 @@ mod tests {
         #[derive(TypeSupport, Clone, Default, PartialEq)]
         #[dust_dds(extensibility = "mutable")]
         struct MutableType {
-            #[dust_dds(id = 0x9091, key)]
+            #[dust_dds(id = 0x3091, key)]
             one_byte: u8,
-            #[dust_dds(id = 0x8081)]
+            #[dust_dds(id = 0x2081)]
             two_bytes: u16,
         }
 
@@ -1737,9 +1791,9 @@ mod tests {
             serialize_cdr1_be(&v).unwrap(),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
-                0x80, 0x81, 0, 2, // PID | length
+                0x20, 0x81, 0, 2, // PID | length
                 0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
-                0x90, 0x91, 0, 1, // PID | length
+                0x70, 0x91, 0, 1, // PID + M_FLAG | length
                 7, 0, 0, 0, // one_byte | padding
                 0, 1, 0, 0, // Sentinel
             ]
@@ -1748,9 +1802,9 @@ mod tests {
             serialize_cdr1_le(&v).unwrap(),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
-                0x81, 0x80, 2, 0, // PID | length
+                0x81, 0x20, 2, 0, // PID | length
                 0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
-                0x91, 0x90, 1, 0, // PID | length
+                0x91, 0x70, 1, 0, // PID + M_FLAG | length
                 7, 0, 0, 0, // one_byte | padding
                 1, 0, 0, 0, // Sentinel
             ]
@@ -1760,9 +1814,9 @@ mod tests {
             vec![
                 0x00, 0x0a, 0x00, 0x03, // CDR Header
                 0, 0, 0, 13, // DHEADER (length)
-                0b001_0000, 0, 0x80, 0x81, // EMHEADER1 incl. LC 0b001 (2 bytes)
+                0b001_0000, 0, 0x20, 0x81, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
-                128, 0, 0x90, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                128, 0, 0x30, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
@@ -1771,9 +1825,9 @@ mod tests {
             vec![
                 0x00, 0x0b, 0x00, 0x03, // CDR Header
                 13, 0, 0, 0, // DHEADER (length)
-                0x81, 0x80, 0, 0b001_0000, // EMHEADER1 incl. LC 0b001 (2 bytes)
+                0x81, 0x20, 0, 0b001_0000, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
-                0x91, 0x90, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                0x91, 0x30, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
                 7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
@@ -1819,12 +1873,12 @@ mod tests {
             serialize_cdr1_be(&v).unwrap(),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
-                0x00, 96, 0, 1, // PID | length
+                0x40, 96, 0, 1, // PID (+ M_FLAG) | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x00, 97, 0, 20, // PID | length
                 0x00, 80, 0, 2, // field_mutable: PID | length
                 0, 8, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
-                0x00, 90, 0, 1, // field_mutable: PID | length
+                0x40, 90, 0, 1, // field_mutable: PID (+ M_FLAG) | length
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
                 0, 1, 0, 0, // field_mutable: Sentinel
                 0x00, 98, 0, 2, // field_mutable: PID | length
@@ -1836,15 +1890,15 @@ mod tests {
             serialize_cdr1_le(&v).unwrap(),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
-                96, 0x00, 1, 0, // PID | length
+                96, 0x40, 1, 0, // PID (+ M_FLAG) | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 97, 0x00, 20, 0, // PID | length
                 0x050, 0x00, 2, 0, // field_mutable: PID | length
                 8, 0, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
-                0x05A, 0x00, 1, 0, // field_mutable: PID | length
+                90, 0x40, 1, 0, // field_mutable: PID (+ M_FLAG) | length
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
                 1, 0, 0, 0, // field_mutable: Sentinel
-                0x062, 0x00, 2, 0, // field_mutable: PID | length
+                98, 0x00, 2, 0, // field_mutable: PID | length
                 9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
                 1, 0, 0, 0, // Sentinel
             ]
@@ -1996,6 +2050,65 @@ mod tests {
                 0, 0, 0, 10, // u32 (VariantA)
             ]
         );
+    }
+
+    #[test]
+    fn serialize_mutable_union_type() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct MyInnerType(u32);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable", switch(u16))]
+        enum MyDynamicType {
+            #[dust_dds(case = 5)]
+            VariantA(MyInnerType),
+            #[dust_dds(case = 6)]
+            VariantB { a: u32 },
+        }
+
+        let variant_a = MyDynamicType::VariantA(MyInnerType(10)).create_dynamic_sample();
+        #[rustfmt::skip]
+        let expected = vec![
+            0, 0x02, 0, 0, // PL_CDR_BE
+            0b0100_0000, 0, 0, 2, // SMHEADER1 M_FLAG + ID 0 (discriminator always) | length
+            0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b0000_0000, 1, 0, 4, // SMHEADER1 ID 1 (auto asigned) | length
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+            0, 1, 0, 0, // SENTINEL
+        ];
+        assert_eq!(serialize_cdr1_be(&variant_a).unwrap(), expected);
+        #[rustfmt::skip]
+        let expected = vec![
+            0, 0x0a, 0, 0, // PL_CDR2_BE
+            0, 0, 0, 16, // DHEADER
+            0b1001_0000, 0, 0, 0, // EMHEADER1 M_FLAG | LC 0b001 | ID 0 (discriminator always)
+            0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b010_0000, 0, 0, 1, // EMHEADER1 LC 0b010 | ID 1 (auto asigned)
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+        ];
+        assert_eq!(serialize_cdr2_be(&variant_a).unwrap(), expected);
+
+        let variant_b = MyDynamicType::VariantB { a: 10 }.create_dynamic_sample();
+        #[rustfmt::skip]
+        let expected = vec![
+            0, 0x02, 0, 0, // PL_CDR_BE
+            0b0100_0000, 0, 0, 2, // SMHEADER1 M_FLAG + ID 0 (discriminator always) | length
+            0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
+            0b0000_0000, 2, 0, 4, // SMHEADER1 ID 2 (auto asigned) | length
+            0, 0, 0, 10, // selected_member u32 (VariantA)
+            0, 1, 0, 0, // SENTINEL
+        ];
+        assert_eq!(serialize_cdr1_be(&variant_b).unwrap(), expected);
+        #[rustfmt::skip]
+        let expected = vec![
+            0x00, 0x0a, 0x00, 0x00, // PL_CDR2_BE
+            0x00, 0x00, 0x00, 16, // DHEADER
+            0b1001_0000, 0, 0, 0, // EMHEADER1 M_FLAG | LC 0b001 | ID 0 (dicriminator always)
+            0x00, 6, 0x00, 0x00, // discriminant (u16) | padding (2 bytes)
+            0b010_0000, 0, 0, 2, // EMHEADER1 LC 0b010 | ID 2 (auto asigned)
+            0x00, 0x00, 0, 10, // selected_member u32 (VariantB)
+        ];
+        assert_eq!(serialize_cdr2_be(&variant_b).unwrap(), expected);
     }
 
     #[test]

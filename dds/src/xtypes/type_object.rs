@@ -1,9 +1,12 @@
 use super::dynamic_type::{ExtensibilityKind, TryConstructKind, TypeKind};
-use crate::xtypes::{
-    dynamic_type::{DynamicType, DynamicTypeMember},
-    serializer::serialize_without_header_cdr2_le,
-    type_object::TypeIdentifier::EkMinimal,
-    type_support::TypeSupport,
+use crate::{
+    dcps::infrastructure::qos_policy::TypeConsistencyEnforcementQosPolicy,
+    xtypes::{
+        dynamic_type::{DynamicType, DynamicTypeMember},
+        serializer::serialize_without_header_cdr2_le,
+        type_object::TypeIdentifier::EkMinimal,
+        type_support::TypeSupport,
+    },
 };
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use dust_dds_derive::DdsType;
@@ -2155,7 +2158,23 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                     }
                 }
             }
-            TypeKind::STRING16 => todo!(),
+            TypeKind::STRING16 => {
+                if let Some(&b) = value.descriptor.bound.first() {
+                    if b <= u8::MAX as u32 {
+                        TypeIdentifier::TiString16Small {
+                            string_sdefn: StringSTypeDefn { bound: b as u8 },
+                        }
+                    } else {
+                        TypeIdentifier::TiString16Large {
+                            string_ldefn: StringLTypeDefn { bound: b },
+                        }
+                    }
+                } else {
+                    TypeIdentifier::TiString16Large {
+                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                    }
+                }
+            }
             TypeKind::ALIAS => todo!(),
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
@@ -2387,12 +2406,19 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
-    fn is_strongly_assignable_from(&self, other: &TypeIdentifier) -> bool {
-        // Todo: add strong rules
-        self.is_assignable_from(other)
-    }
     /// 7.2.4.4 Assignability Rules
-    fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
+    pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
+        self.is_assignable_from_w_type_consistency(
+            other,
+            &TypeConsistencyEnforcementQosPolicy::const_default(),
+        )
+    }
+    /// Assignability rules taking into account TypeConsistencyEnforcementQosPolicy
+    pub fn is_assignable_from_w_type_consistency(
+        &self,
+        other: &TypeIdentifier,
+        type_consistency: &TypeConsistencyEnforcementQosPolicy,
+    ) -> bool {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
@@ -2410,42 +2436,124 @@ impl TypeIdentifier {
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
             TypeIdentifier::TkChar8Type => matches!(other, TypeIdentifier::TkChar8Type),
             TypeIdentifier::TkChar16Type => matches!(other, TypeIdentifier::TkChar16Type),
-            // Note: bounds and string length is not a requirement for assignability
-            // The object length (not the bound) ir q requirment for object constructability
-            TypeIdentifier::TiString8Small { string_sdefn: _ }
-            | TypeIdentifier::TiString8Large { string_ldefn: _ } => matches!(
-                other,
-                TypeIdentifier::TiString8Small { string_sdefn: _ }
-                    | TypeIdentifier::TiString8Large { string_ldefn: _ }
-            ),
-            TypeIdentifier::TiString16Small { string_sdefn: _ }
-            | TypeIdentifier::TiString16Large { string_ldefn: _ } => {
-                matches!(
-                    other,
-                    TypeIdentifier::TiString16Small { string_sdefn: _ }
-                        | TypeIdentifier::TiString16Large { string_ldefn: _ }
-                )
-            }
-            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainSequenceSmall {
-                    seq_sdefn: t2
-                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
-            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainSequenceLarge {
-                    seq_ldefn: t2
-                } if t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
-            TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainArraySmall {
-                    array_sdefn: t2
-                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
-            TypeIdentifier::TiPlainArrayLarge { array_ldefn: t1 } => matches!(
-                other,
-                TypeIdentifier::TiPlainArrayLarge {
-                    array_ldefn: t2
-                } if t1.array_bound_seq == t2.array_bound_seq && t1.element_identifier.is_strongly_assignable_from(&t2.element_identifier)),
+            TypeIdentifier::TiString8Small { string_sdefn: t1 } => match other {
+                TypeIdentifier::TiString8Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                TypeIdentifier::TiString8Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString8Large { string_ldefn: t1 } => match other {
+                TypeIdentifier::TiString8Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32)
+                }
+                TypeIdentifier::TiString8Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString16Small { string_sdefn: t1 } => match other {
+                TypeIdentifier::TiString16Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                TypeIdentifier::TiString16Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiString16Large { string_ldefn: t1 } => match other {
+                TypeIdentifier::TiString16Small { string_sdefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32)
+                }
+                TypeIdentifier::TiString16Large { string_ldefn: t2 } => {
+                    type_consistency.ignore_string_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound)
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t1 } => match other {
+                TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound);
+                    bounds_ok
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound as u32 >= t2.bound);
+                    bounds_ok
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t1 } => match other {
+                TypeIdentifier::TiPlainSequenceSmall { seq_sdefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound as u32);
+                    bounds_ok
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
+                    let bounds_ok = type_consistency.ignore_sequence_bounds
+                        || t1.bound == 0
+                        || (t2.bound != 0 && t1.bound >= t2.bound);
+                    bounds_ok
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainArraySmall { array_sdefn: t1 } => match other {
+                TypeIdentifier::TiPlainArraySmall { array_sdefn: t2 } => {
+                    t1.array_bound_seq == t2.array_bound_seq
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn: t1 } => match other {
+                TypeIdentifier::TiPlainArrayLarge { array_ldefn: t2 } => {
+                    t1.array_bound_seq == t2.array_bound_seq
+                        && t1.element_identifier.is_assignable_from_w_type_consistency(
+                            &t2.element_identifier,
+                            type_consistency,
+                        )
+                }
+                _ => false,
+            },
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
@@ -2460,6 +2568,18 @@ impl CompleteTypeObject {
     /// This methods implements the rules defined in the DDS-XTypes standard chapter 7.2.4
     /// which defines the compatibility between two types.
     pub fn is_assignable_from(&self, t2: &CompleteTypeObject) -> bool {
+        self.is_assignable_from_w_type_consistency(
+            t2,
+            &TypeConsistencyEnforcementQosPolicy::const_default(),
+        )
+    }
+
+    /// Checks compatibility between two types taking into account TypeConsistencyEnforcementQosPolicy
+    pub fn is_assignable_from_w_type_consistency(
+        &self,
+        t2: &CompleteTypeObject,
+        type_consistency: &TypeConsistencyEnforcementQosPolicy,
+    ) -> bool {
         if self == t2 {
             return true;
         }
@@ -2476,27 +2596,24 @@ impl CompleteTypeObject {
                 let is_t2_mutable =
                     (t2.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
-                if is_t1_final {
-                    if !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
+                if is_t1_final || is_t2_final {
+                    if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
                         return false;
                     }
                 } else if is_t1_appendable && is_t2_mutable {
                     return false;
                 }
 
-                // • Any members in T1 and T2 that have the same name also have the same ID and any
-                //   members with the same ID also have the same name.
+                let is_t1_mutable =
+                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
-                // Somehow the rule "any members with the same ID also have the same name." in the xtypes testsuite
-                // is not applicable because such a type should match and data should flow
-
-                for m2 in &t2.member_seq {
-                    if let Some(m1) = t1
-                        .member_seq
-                        .iter()
-                        .find(|m1| m1.detail.name == m2.detail.name)
-                    {
+                if !is_t1_mutable && !is_t2_mutable {
+                    for (m1, m2) in t1.member_seq.iter().zip(t2.member_seq.iter()) {
                         if m1.common.member_id != m2.common.member_id {
+                            return false;
+                        }
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
+                        {
                             return false;
                         }
                     }
@@ -2527,10 +2644,24 @@ impl CompleteTypeObject {
                         .iter()
                         .find(|m1| m1.common.member_id == m2.common.member_id)
                     {
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
+                        {
+                            return false;
+                        }
                         members_are_assignable &= m1
                             .common
                             .member_type_id
-                            .is_assignable_from(&m2.common.member_type_id);
+                            .is_assignable_from_w_type_consistency(
+                                &m2.common.member_type_id,
+                                type_consistency,
+                            );
+                    } else if !type_consistency.ignore_member_names
+                        && t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
                     }
                 }
 
@@ -2571,11 +2702,54 @@ impl CompleteTypeObject {
                 if t1.union_flags != t2.union_flags {
                     return false;
                 }
-                if t1.discriminator.common.type_id != t2.discriminator.common.type_id {
+                if !t1
+                    .discriminator
+                    .common
+                    .type_id
+                    .is_assignable_from_w_type_consistency(
+                        &t2.discriminator.common.type_id,
+                        type_consistency,
+                    )
+                {
                     return false;
                 }
-                true
+
+                let mut members_are_assignable = true;
+                for m2 in t2.member_seq.iter() {
+                    if let Some(m1) = t1
+                        .member_seq
+                        .iter()
+                        .find(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
+                        {
+                            return false;
+                        }
+                        members_are_assignable &=
+                            m1.common.type_id.is_assignable_from_w_type_consistency(
+                                &m2.common.type_id,
+                                type_consistency,
+                            );
+                    } else if !type_consistency.ignore_member_names
+                        && t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
+                    }
+                }
+
+                members_are_assignable
             }
+            (
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t1,
+                },
+                CompleteTypeObject::TkEnum {
+                    enumerated_type: t2,
+                },
+            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             _ => false,
         }
     }
