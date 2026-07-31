@@ -80,7 +80,7 @@ impl Sleep {
                     // Fallback to a day sleep if duration is extremely large
                     Instant::now()
                         .checked_add(Duration::from_secs(24 * 60 * 60))
-                        .unwrap_or_else(|| Instant::now())
+                        .unwrap_or_else(Instant::now)
                 }),
         );
     }
