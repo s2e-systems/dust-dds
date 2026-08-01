@@ -2718,7 +2718,7 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
                 </struct>
                 <struct name="struct_2"   extensibility="mutable">
                     <member name="x1" type="int32" id="2"  />
-                    <member name="x5" type="int32" id="5"  /> 
+                    <member name="x5" type="int32" id="5"  />
                 </struct>
             </module>
         </types>
@@ -3245,7 +3245,28 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_seq_1() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert!(reader.read_next_sample().unwrap().data.is_some());
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<struct>
+            <x1>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </x1>
+        </struct>",
+        )
+        .unwrap();
+    let sample = reader.read_next_sample().unwrap();
+    assert!(sample.sample_info.valid_data);
+    assert_eq!(sample.data.unwrap(), expected_received);
 }
 
 // 'tryc_union_seq_1' : {
