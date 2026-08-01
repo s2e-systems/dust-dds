@@ -1,6 +1,6 @@
-use std::ptr::NonNull;
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
 use crate::domain::domain_participant::DustDdsDomainParticipant;
+use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
+use std::ptr::NonNull;
 
 /// cbindgen:opaque
 pub struct DustDdsTopicDescription(
@@ -11,16 +11,12 @@ pub type TopicDescription = DustDdsTopicDescription;
 
 impl DustDdsTopicDescription {
     pub fn new(
-        topic_description: Box<
-            dyn dust_dds::topic_definition::topic_description::TopicDescription,
-        >,
+        topic_description: Box<dyn dust_dds::topic_definition::topic_description::TopicDescription>,
     ) -> Self {
         Self(topic_description)
     }
 
-    pub fn inner(
-        &self,
-    ) -> &dyn dust_dds::topic_definition::topic_description::TopicDescription {
+    pub fn inner(&self) -> &dyn dust_dds::topic_definition::topic_description::TopicDescription {
         self.0.as_ref()
     }
 }
@@ -34,7 +30,9 @@ pub unsafe extern "C" fn dds_topic_description_get_participant(
         return None;
     };
     let participant = unsafe { topic_desc.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(participant))))
+    NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
+        participant,
+    ))))
 }
 
 /// Gets the type name.

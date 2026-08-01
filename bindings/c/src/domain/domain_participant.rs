@@ -2,9 +2,7 @@
 
 use std::ptr::NonNull;
 
-use crate::infrastructure::error::{
-    RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode,
-};
+use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
 use crate::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
 use crate::publication::publisher::DustDdsPublisher;
 use crate::subscription::subscriber::DustDdsSubscriber;
@@ -20,8 +18,8 @@ use crate::infrastructure::listeners::{
 };
 use crate::infrastructure::qos_policy::{Duration_t, StringSeq, Time_t};
 use crate::infrastructure::status::{
-    BuiltInTopicKey, InstanceHandleSeq, InstanceHandle_t,
-    ParticipantBuiltinTopicData, TopicBuiltinTopicData,
+    BuiltInTopicKey, InstanceHandle_t, InstanceHandleSeq, ParticipantBuiltinTopicData,
+    TopicBuiltinTopicData,
 };
 use crate::topic_definition::content_filtered_topic::DustDdsContentFilteredTopic;
 use crate::topic_definition::topic_description::DustDdsTopicDescription;
@@ -73,11 +71,9 @@ pub unsafe extern "C" fn dds_domain_participant_create_publisher(
         let wrapper = CPublisherListenerWrapper {
             listener: unsafe { *listener },
         };
-        unsafe { participant.as_ref() }.inner().create_publisher(
-            qos,
-            Some(wrapper),
-            &status_kinds,
-        )
+        unsafe { participant.as_ref() }
+            .inner()
+            .create_publisher(qos, Some(wrapper), &status_kinds)
     };
 
     match result {
@@ -150,11 +146,9 @@ pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
         let wrapper = CSubscriberListenerWrapper {
             listener: unsafe { *listener },
         };
-        unsafe { participant.as_ref() }.inner().create_subscriber(
-            qos,
-            Some(wrapper),
-            &status_kinds,
-        )
+        unsafe { participant.as_ref() }
+            .inner()
+            .create_subscriber(qos, Some(wrapper), &status_kinds)
     };
 
     match result {
@@ -400,7 +394,9 @@ pub unsafe extern "C" fn dds_domain_participant_create_contentfilteredtopic(
         filter_expression_str.to_string(),
         expression_parameters_vec,
     ) {
-        Ok(cft) => NonNull::new(Box::into_raw(Box::new(DustDdsContentFilteredTopic::new(cft)))),
+        Ok(cft) => NonNull::new(Box::into_raw(Box::new(DustDdsContentFilteredTopic::new(
+            cft,
+        )))),
         Err(_) => None,
     }
 }
@@ -505,10 +501,9 @@ pub unsafe extern "C" fn dds_domain_participant_set_listener(
     };
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
     let result = if listener.is_null() {
-        unsafe { participant.as_ref() }.inner().set_listener(
-            None::<CDomainParticipantListenerWrapper>,
-            &status_kinds,
-        )
+        unsafe { participant.as_ref() }
+            .inner()
+            .set_listener(None::<CDomainParticipantListenerWrapper>, &status_kinds)
     } else {
         let wrapper = CDomainParticipantListenerWrapper {
             listener: unsafe { *listener },
@@ -855,7 +850,8 @@ pub unsafe extern "C" fn dds_domain_participant_get_discovered_participant_data(
     if participant_data.is_null() || participant_handle.is_null() {
         return RETCODE_BAD_PARAMETER;
     }
-    let handle = dust_dds::infrastructure::instance::InstanceHandle::new(unsafe { *participant_handle });
+    let handle =
+        dust_dds::infrastructure::instance::InstanceHandle::new(unsafe { *participant_handle });
     match unsafe { participant.as_ref() }
         .inner()
         .get_discovered_participant_data(handle)
@@ -1098,9 +1094,9 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            dds_dynamic_type_builder_add_member, dds_dynamic_type_builder_build,
-            dds_dynamic_type_builder_create_struct, dds_dynamic_type_free,
-            dds_dynamic_type_get_primitive_type, DustDdsMemberDescriptor, TYPE_KIND_INT32,
+            DustDdsMemberDescriptor, TYPE_KIND_INT32, dds_dynamic_type_builder_add_member,
+            dds_dynamic_type_builder_build, dds_dynamic_type_builder_create_struct,
+            dds_dynamic_type_free, dds_dynamic_type_get_primitive_type,
         };
 
         let factory = unsafe { dds_domain_participant_factory_get_instance() };

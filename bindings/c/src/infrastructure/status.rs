@@ -382,7 +382,9 @@ pub struct ParticipantBuiltinTopicData {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_participant_builtin_topic_data_free(data: ParticipantBuiltinTopicData) {
+pub unsafe extern "C" fn dds_participant_builtin_topic_data_free(
+    data: ParticipantBuiltinTopicData,
+) {
     unsafe {
         crate::infrastructure::qos_policy::dds_octet_seq_free(data.user_data.value);
     }
@@ -421,4 +423,3 @@ pub unsafe extern "C" fn dds_topic_builtin_topic_data_free(data: TopicBuiltinTop
         }
     }
 }
-
