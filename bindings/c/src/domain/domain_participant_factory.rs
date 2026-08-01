@@ -3,11 +3,10 @@ use std::ptr::NonNull;
 use crate::domain::domain_participant::DustDdsDomainParticipant;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use crate::infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos};
-use dust_dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::infrastructure::condition::DustDdsStatusMask;
+use crate::infrastructure::listeners::CDomainParticipantListenerWrapper;
+use crate::infrastructure::listeners::DustDdsDomainParticipantListener;
 use dust_dds::infrastructure::qos::QosKind;
-
-struct NoListener;
-impl DomainParticipantListener for NoListener {}
 
 /// cbindgen:opaque
 pub struct DustDdsDomainParticipantFactory(
@@ -35,6 +34,8 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     domain_id: i32,
     qos: *const DomainParticipantQos,
+    listener: *const DustDdsDomainParticipantListener,
+    mask: DustDdsStatusMask,
 ) -> Option<NonNull<DustDdsDomainParticipant>> {
     let Some(factory) = factory else {
         return None;
@@ -46,10 +47,28 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
         QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
-    match unsafe { factory.as_ref() }
-        .0
-        .create_participant(domain_id, qos, None::<NoListener>, &[])
-    {
+    let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
+
+    let result = if listener.is_null() {
+        unsafe { factory.as_ref() }.0.create_participant(
+            domain_id,
+            qos,
+            None::<CDomainParticipantListenerWrapper>,
+            &status_kinds,
+        )
+    } else {
+        let wrapper = CDomainParticipantListenerWrapper {
+            listener: unsafe { *listener },
+        };
+        unsafe { factory.as_ref() }.0.create_participant(
+            domain_id,
+            qos,
+            Some(wrapper),
+            &status_kinds,
+        )
+    };
+
+    match result {
         Ok(participant) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
             participant,
         )))),
@@ -211,7 +230,7 @@ mod tests {
     #[test]
     fn create_participant_null_factory() {
         let participant =
-            unsafe { dds_domain_participant_factory_create_participant(None, 0, std::ptr::null()) };
+            unsafe { dds_domain_participant_factory_create_participant(None, 0, std::ptr::null(), std::ptr::null(), 0) };
         assert!(participant.is_none());
     }
 
@@ -223,6 +242,8 @@ mod tests {
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
+                std::ptr::null(),
+                0,
             )
         };
         assert!(participant.is_some());
@@ -244,6 +265,8 @@ mod tests {
                 NonNull::new(factory as *mut _),
                 0,
                 &qos,
+                std::ptr::null(),
+                0,
             )
         };
         assert!(participant.is_some());
@@ -264,6 +287,8 @@ mod tests {
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
+                std::ptr::null(),
+                0,
             )
         };
         assert!(participant.is_some());

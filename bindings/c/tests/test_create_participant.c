@@ -6,22 +6,23 @@
 void setUp(void) {}
 void tearDown(void) {}
 
-void test_participant_lifecycle(void) {
-    DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dds_domain_participant_factory_get_instance();
+void test_participant_lifecycle(void)
+{
+    DustDdsDomainParticipantFactory *factory = (DustDdsDomainParticipantFactory *)dds_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
     // Test creating participant with NULL QoS (default QoS)
-    DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
+    DustDdsDomainParticipant *participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        NULL
-    );
+        NULL,
+        NULL,
+        0);
     TEST_ASSERT_NOT_NULL(participant);
 
     ReturnCode result = dds_domain_participant_factory_delete_participant(
         factory,
-        participant
-    );
+        participant);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Test creating participant with specific DomainParticipantQos object and custom UserDataQosPolicy
@@ -39,8 +40,9 @@ void test_participant_lifecycle(void) {
     participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        &qos
-    );
+        &qos,
+        NULL,
+        0);
     TEST_ASSERT_NOT_NULL(participant);
 
     // Clean up our allocated buffer (the Rust function will make a copy internal to DDS)
@@ -49,43 +51,43 @@ void test_participant_lifecycle(void) {
     qos.user_data.value.length = 0;
 
     // Test creating publisher and subscriber on participant with default QoS and NULL
-    DustDdsPublisher* publisher = dds_domain_participant_create_publisher(participant, NULL);
+    DustDdsPublisher *publisher = dds_domain_participant_create_publisher(participant, NULL, NULL, 0);
     TEST_ASSERT_NOT_NULL(publisher);
     result = dds_domain_participant_delete_publisher(participant, publisher);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     PublisherQos pub_qos = dds_publisher_qos_default();
-    publisher = dds_domain_participant_create_publisher(participant, &pub_qos);
+    publisher = dds_domain_participant_create_publisher(participant, &pub_qos, NULL, 0);
     TEST_ASSERT_NOT_NULL(publisher);
     result = dds_domain_participant_delete_publisher(participant, publisher);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
-    DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(participant, NULL);
+    DustDdsSubscriber *subscriber = dds_domain_participant_create_subscriber(participant, NULL, NULL, 0);
     TEST_ASSERT_NOT_NULL(subscriber);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     SubscriberQos sub_qos = dds_subscriber_qos_default();
-    subscriber = dds_domain_participant_create_subscriber(participant, &sub_qos);
+    subscriber = dds_domain_participant_create_subscriber(participant, &sub_qos, NULL, 0);
     TEST_ASSERT_NOT_NULL(subscriber);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_factory_delete_participant(
         factory,
-        participant
-    );
+        participant);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Test lookup_participant
     participant = dds_domain_participant_factory_create_participant(
         factory,
         1, // domain_id = 1
-        NULL
-    );
+        NULL,
+        NULL,
+        0);
     TEST_ASSERT_NOT_NULL(participant);
 
-    DustDdsDomainParticipant* looked_up = dds_domain_participant_factory_lookup_participant(factory, 1);
+    DustDdsDomainParticipant *looked_up = dds_domain_participant_factory_lookup_participant(factory, 1);
     TEST_ASSERT_NOT_NULL(looked_up);
 
     result = dds_domain_participant_factory_delete_participant(factory, looked_up);
@@ -144,7 +146,8 @@ void test_participant_lifecycle(void) {
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 }
 
-int main(void) {
+int main(void)
+{
     UNITY_BEGIN();
     RUN_TEST(test_participant_lifecycle);
     return UNITY_END();

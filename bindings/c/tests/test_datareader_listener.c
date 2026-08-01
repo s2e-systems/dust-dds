@@ -24,7 +24,9 @@ void test_datareader_listener_callback(void) {
     DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        DUST_DDS_PARTICIPANT_QOS_DEFAULT
+        DUST_DDS_PARTICIPANT_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(participant);
 
@@ -34,6 +36,8 @@ void test_datareader_listener_callback(void) {
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
+        NULL,
+        0,
         (DustDdsDynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic);
@@ -41,7 +45,9 @@ void test_datareader_listener_callback(void) {
     // Create subscriber
     DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(
         participant,
-        DUST_DDS_SUBSCRIBER_QOS_DEFAULT
+        DUST_DDS_SUBSCRIBER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(subscriber);
 
@@ -71,7 +77,9 @@ void test_datareader_listener_callback(void) {
     // Create publisher
     DustDdsPublisher* publisher = dds_domain_participant_create_publisher(
         participant,
-        DUST_DDS_PUBLISHER_QOS_DEFAULT
+        DUST_DDS_PUBLISHER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(publisher);
 

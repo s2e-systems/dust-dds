@@ -315,3 +315,110 @@ impl From<dust_dds::infrastructure::status::SubscriptionMatchedStatus>
         }
     }
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InstanceHandleSeq {
+    pub length: i32,
+    pub buffer: *mut InstanceHandle_t,
+}
+
+impl Default for InstanceHandleSeq {
+    fn default() -> Self {
+        Self {
+            length: 0,
+            buffer: std::ptr::null_mut(),
+        }
+    }
+}
+
+impl InstanceHandleSeq {
+    pub unsafe fn to_vec(&self) -> Vec<dust_dds::infrastructure::instance::InstanceHandle> {
+        if self.buffer.is_null() || self.length <= 0 {
+            Vec::new()
+        } else {
+            let slice = unsafe { std::slice::from_raw_parts(self.buffer, self.length as usize) };
+            slice
+                .iter()
+                .map(|&bytes| dust_dds::infrastructure::instance::InstanceHandle::new(bytes))
+                .collect()
+        }
+    }
+
+    pub fn from_vec(v: &[dust_dds::infrastructure::instance::InstanceHandle]) -> Self {
+        if v.is_empty() {
+            Self::default()
+        } else {
+            let mut ptrs: Vec<InstanceHandle_t> = v.iter().map(|&h| <[u8; 16]>::from(h)).collect();
+            ptrs.shrink_to_fit();
+            let length = ptrs.len() as i32;
+            let buffer = ptrs.as_mut_ptr();
+            std::mem::forget(ptrs);
+            Self { length, buffer }
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_instance_handle_seq_free(seq: InstanceHandleSeq) {
+    if !seq.buffer.is_null() && seq.length > 0 {
+        unsafe {
+            let _ = Vec::from_raw_parts(seq.buffer, seq.length as usize, seq.length as usize);
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BuiltInTopicKey {
+    pub value: [u8; 16],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ParticipantBuiltinTopicData {
+    pub key: BuiltInTopicKey,
+    pub user_data: crate::infrastructure::qos_policy::UserDataQosPolicy,
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_participant_builtin_topic_data_free(data: ParticipantBuiltinTopicData) {
+    unsafe {
+        crate::infrastructure::qos_policy::dds_octet_seq_free(data.user_data.value);
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TopicBuiltinTopicData {
+    pub key: BuiltInTopicKey,
+    pub name: *mut std::os::raw::c_char,
+    pub type_name: *mut std::os::raw::c_char,
+    pub durability: crate::infrastructure::qos_policy::DurabilityQosPolicy,
+    pub deadline: crate::infrastructure::qos_policy::DeadlineQosPolicy,
+    pub latency_budget: crate::infrastructure::qos_policy::LatencyBudgetQosPolicy,
+    pub liveliness: crate::infrastructure::qos_policy::LivelinessQosPolicy,
+    pub reliability: crate::infrastructure::qos_policy::ReliabilityQosPolicy,
+    pub transport_priority: crate::infrastructure::qos_policy::TransportPriorityQosPolicy,
+    pub lifespan: crate::infrastructure::qos_policy::LifespanQosPolicy,
+    pub destination_order: crate::infrastructure::qos_policy::DestinationOrderQosPolicy,
+    pub history: crate::infrastructure::qos_policy::HistoryQosPolicy,
+    pub resource_limits: crate::infrastructure::qos_policy::ResourceLimitsQosPolicy,
+    pub ownership: crate::infrastructure::qos_policy::OwnershipQosPolicy,
+    pub topic_data: crate::infrastructure::qos_policy::TopicDataQosPolicy,
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
+    if !data.name.is_null() {
+        unsafe {
+            let _ = std::ffi::CString::from_raw(data.name);
+        }
+    }
+    if !data.type_name.is_null() {
+        unsafe {
+            let _ = std::ffi::CString::from_raw(data.type_name);
+        }
+    }
+}
+

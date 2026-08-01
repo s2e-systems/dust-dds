@@ -15,7 +15,9 @@ void test_hello_world_write_read(void) {
     DustDdsDomainParticipant* participant_pub = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        DUST_DDS_PARTICIPANT_QOS_DEFAULT
+        DUST_DDS_PARTICIPANT_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(participant_pub);
 
@@ -23,7 +25,9 @@ void test_hello_world_write_read(void) {
     DustDdsDomainParticipant* participant_sub = dds_domain_participant_factory_create_participant(
         factory,
         0,
-        DUST_DDS_PARTICIPANT_QOS_DEFAULT
+        DUST_DDS_PARTICIPANT_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(participant_sub);
 
@@ -33,6 +37,8 @@ void test_hello_world_write_read(void) {
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
+        NULL,
+        0,
         (DustDdsDynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic_pub);
@@ -43,6 +49,8 @@ void test_hello_world_write_read(void) {
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
+        NULL,
+        0,
         (DustDdsDynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic_sub);
@@ -50,7 +58,9 @@ void test_hello_world_write_read(void) {
     // Create Publisher and Writer
     DustDdsPublisher* publisher = dds_domain_participant_create_publisher(
         participant_pub,
-        DUST_DDS_PUBLISHER_QOS_DEFAULT
+        DUST_DDS_PUBLISHER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(publisher);
 
@@ -64,7 +74,9 @@ void test_hello_world_write_read(void) {
     // Create Subscriber and Reader
     DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(
         participant_sub,
-        DUST_DDS_SUBSCRIBER_QOS_DEFAULT
+        DUST_DDS_SUBSCRIBER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(subscriber);
 
