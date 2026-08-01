@@ -584,8 +584,11 @@ fn create_union_primitives_final_from_xml() {
     assert_eq!(ty.get_member_count(), 15);
 
     let m_discriminator = ty.get_member_by_name("discriminator").unwrap();
-    assert_eq!(m_discriminator.descriptor.r#type.get_kind(), TypeKind::UINT8);
-    assert_eq!(m_discriminator.descriptor.is_must_understand, true);
+    assert_eq!(
+        m_discriminator.descriptor.r#type.get_kind(),
+        TypeKind::UINT8
+    );
+    assert!(m_discriminator.descriptor.is_must_understand);
 
     let m1 = ty.get_member_by_name("x1").unwrap();
     assert_eq!(m1.descriptor.r#type.get_kind(), TypeKind::UINT8);
@@ -668,7 +671,6 @@ fn union_primitives_final_data_from_xml() {
     assert_eq!(d.get_uint8_value(0).unwrap(), &0x05);
     assert_eq!(d.get_int8_value(5).unwrap(), &5);
 }
-
 
 #[cfg(feature = "xtypes-xml")]
 #[test]

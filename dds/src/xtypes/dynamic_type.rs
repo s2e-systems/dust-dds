@@ -1658,14 +1658,6 @@ impl TypeSupport for DynamicData<'static> {
     }
 }
 
-fn parse_i32(s: &str) -> XTypesResult<i32> {
-    if let Some(hex) = s.strip_prefix("0x") {
-        i32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)
-    } else {
-        s.parse::<i32>().map_err(|_| XTypesError::InvalidData)
-    }
-}
-
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
     /// Deserializes data from an XML string into this `DynamicData` instance.
@@ -1676,6 +1668,14 @@ impl<'a> DynamicData<'a> {
     }
 
     fn set_discrimant(&mut self, node: roxmltree::Node) -> XTypesResult<()> {
+        fn parse_i32(s: &str) -> XTypesResult<i32> {
+            if let Some(hex) = s.strip_prefix("0x") {
+                i32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)
+            } else {
+                s.parse::<i32>().map_err(|_| XTypesError::InvalidData)
+            }
+        }
+
         let tag_name = node.tag_name().name();
         let discriminator_label = if tag_name == "discriminator" {
             parse_i32(node.text().ok_or(XTypesError::InvalidData)?)?
@@ -1703,7 +1703,7 @@ impl<'a> DynamicData<'a> {
             TypeKind::CHAR16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
-            _ => return Err(XTypesError::InvalidType),
+            _ => Err(XTypesError::InvalidType),
         }
     }
 

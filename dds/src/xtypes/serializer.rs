@@ -351,7 +351,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     }
 
     /// Serialization Rule { O.selected_member : MMEMBER }?
-    fn serialize_selected_member_mmember(&mut self, v: &DynamicData)-> XTypesResult<()> {
+    fn serialize_selected_member_mmember(&mut self, v: &DynamicData) -> XTypesResult<()> {
         // In the case a a Variant without value only the discriminant is serialized
         if let Ok(member_id) = v.get_member_id_at_index(1) {
             V::serialize_mmember(self, v, member_id)
