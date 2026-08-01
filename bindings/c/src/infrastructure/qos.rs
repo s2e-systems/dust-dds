@@ -1,11 +1,11 @@
 use crate::infrastructure::qos_policy::{
-    Duration_t, DurabilityQosPolicy, DurabilityServiceQosPolicy, DeadlineQosPolicy,
-    LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy, DestinationOrderQosPolicy,
-    HistoryQosPolicy, ResourceLimitsQosPolicy, TransportPriorityQosPolicy, LifespanQosPolicy,
-    OwnershipQosPolicy, UserDataQosPolicy, OwnershipStrengthQosPolicy, WriterDataLifecycleQosPolicy,
-    PresentationQosPolicy, PartitionQosPolicy, GroupDataQosPolicy, EntityFactoryQosPolicy,
-    TopicDataQosPolicy, TimeBasedFilterQosPolicy, ReaderDataLifecycleQosPolicy,
-    OctetSeq, StringSeq, dds_octet_seq_free, dds_string_seq_free,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
+    Duration_t, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
+    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OctetSeq, OwnershipQosPolicy,
+    OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+    ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, StringSeq,
+    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    WriterDataLifecycleQosPolicy, dds_octet_seq_free, dds_string_seq_free,
 };
 
 #[repr(C)]
@@ -14,21 +14,24 @@ pub struct DomainParticipantFactoryQos {
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
-impl From<DomainParticipantFactoryQos> for dust_dds::infrastructure::qos::DomainParticipantFactoryQos {
+impl From<DomainParticipantFactoryQos>
+    for dust_dds::infrastructure::qos::DomainParticipantFactoryQos
+{
     fn from(val: DomainParticipantFactoryQos) -> Self {
         Self {
             entity_factory: val.entity_factory.into(),
         }
     }
 }
-impl From<dust_dds::infrastructure::qos::DomainParticipantFactoryQos> for DomainParticipantFactoryQos {
+impl From<dust_dds::infrastructure::qos::DomainParticipantFactoryQos>
+    for DomainParticipantFactoryQos
+{
     fn from(val: dust_dds::infrastructure::qos::DomainParticipantFactoryQos) -> Self {
         Self {
             entity_factory: val.entity_factory.into(),
         }
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -53,7 +56,6 @@ impl From<dust_dds::infrastructure::qos::DomainParticipantQos> for DomainPartici
         }
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -111,7 +113,6 @@ impl From<dust_dds::infrastructure::qos::TopicQos> for TopicQos {
         }
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -176,7 +177,6 @@ impl From<dust_dds::infrastructure::qos::DataWriterQos> for DataWriterQos {
     }
 }
 
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PublisherQos {
@@ -206,7 +206,6 @@ impl From<dust_dds::infrastructure::qos::PublisherQos> for PublisherQos {
         }
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -264,7 +263,6 @@ impl From<dust_dds::infrastructure::qos::DataReaderQos> for DataReaderQos {
     }
 }
 
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SubscriberQos {
@@ -295,9 +293,9 @@ impl From<dust_dds::infrastructure::qos::SubscriberQos> for SubscriberQos {
     }
 }
 
-
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_qos_default() -> DomainParticipantFactoryQos {
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_default() -> DomainParticipantFactoryQos
+{
     DomainParticipantFactoryQos::default()
 }
 
@@ -331,9 +329,11 @@ pub unsafe extern "C" fn dds_datareader_qos_default() -> DataReaderQos {
     DataReaderQos::default()
 }
 
-
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_qos_cleanup(_qos: *mut DomainParticipantFactoryQos) {}
+pub unsafe extern "C" fn dds_domain_participant_factory_qos_cleanup(
+    _qos: *mut DomainParticipantFactoryQos,
+) {
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_qos_cleanup(qos: *mut DomainParticipantQos) {

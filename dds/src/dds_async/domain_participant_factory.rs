@@ -144,9 +144,9 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                 },
             ))
             .await;
-        Ok(reply_receiver.await?.map(|handle| {
-            DomainParticipantAsync::new(self.dcps_sender, domain_id, handle)
-        }))
+        Ok(reply_receiver
+            .await?
+            .map(|handle| DomainParticipantAsync::new(self.dcps_sender, domain_id, handle)))
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

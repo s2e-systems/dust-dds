@@ -1,16 +1,20 @@
-use std::ptr::NonNull;
 use crate::DustDdsStatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use crate::infrastructure::qos::DataWriterQos;
 use crate::publication::publisher::DustDdsPublisher;
 use crate::topic_definition::topic::DustDdsTopic;
 use dust_dds::xtypes::dynamic_type::DynamicData;
+use std::ptr::NonNull;
 
 /// cbindgen:opaque
-pub struct DustDdsDataWriter(pub(crate) dust_dds::publication::data_writer::DataWriter<DynamicData<'static>>);
+pub struct DustDdsDataWriter(
+    pub(crate) dust_dds::publication::data_writer::DataWriter<DynamicData<'static>>,
+);
 
 impl DustDdsDataWriter {
-    pub fn new(data_writer: dust_dds::publication::data_writer::DataWriter<DynamicData<'static>>) -> Self {
+    pub fn new(
+        data_writer: dust_dds::publication::data_writer::DataWriter<DynamicData<'static>>,
+    ) -> Self {
         Self(data_writer)
     }
 
@@ -41,17 +45,21 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
 
     struct NoDataWriterListener;
     impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData<'static>>
-        for NoDataWriterListener {}
+        for NoDataWriterListener
+    {
+    }
 
     let publisher_ref = unsafe { publisher.as_ref() };
     let topic_ref = unsafe { topic.as_ref() };
 
-    match publisher_ref.inner().create_datawriter::<DynamicData<'static>>(
-        topic_ref.inner(),
-        qos,
-        None::<NoDataWriterListener>,
-        &[],
-    ) {
+    match publisher_ref
+        .inner()
+        .create_datawriter::<DynamicData<'static>>(
+            topic_ref.inner(),
+            qos,
+            None::<NoDataWriterListener>,
+            &[],
+        ) {
         Ok(dw) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
         Err(_) => None,
     }
@@ -98,7 +106,9 @@ pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
 
     let writer_ref = unsafe { writer.as_ref() };
     let condition = writer_ref.inner().get_statuscondition();
-    NonNull::new(Box::into_raw(Box::new(DustDdsStatusCondition::new(condition))))
+    NonNull::new(Box::into_raw(Box::new(DustDdsStatusCondition::new(
+        condition,
+    ))))
 }
 
 /// Waits for all acknowledged samples.

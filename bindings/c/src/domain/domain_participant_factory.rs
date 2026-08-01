@@ -97,9 +97,9 @@ pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
     };
 
     match unsafe { factory.as_ref() }.0.lookup_participant(domain_id) {
-        Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
-            participant,
-        )))),
+        Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(
+            DustDdsDomainParticipant::new(participant),
+        ))),
         _ => None,
     }
 }
@@ -122,7 +122,10 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_
         QosKind::Specific(unsafe { &*qos }.clone().into())
     };
 
-    match unsafe { factory.as_ref() }.0.set_default_participant_qos(qos) {
+    match unsafe { factory.as_ref() }
+        .0
+        .set_default_participant_qos(qos)
+    {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
@@ -266,10 +269,7 @@ mod tests {
         assert!(participant.is_some());
 
         let looked_up = unsafe {
-            dds_domain_participant_factory_lookup_participant(
-                NonNull::new(factory as *mut _),
-                0,
-            )
+            dds_domain_participant_factory_lookup_participant(NonNull::new(factory as *mut _), 0)
         };
         assert!(looked_up.is_some());
 
@@ -310,18 +310,12 @@ mod tests {
         let factory = unsafe { dds_domain_participant_factory_get_instance() };
         let mut qos = DomainParticipantFactoryQos::default();
         let result = unsafe {
-            dds_domain_participant_factory_get_qos(
-                NonNull::new(factory as *mut _),
-                &mut qos,
-            )
+            dds_domain_participant_factory_get_qos(NonNull::new(factory as *mut _), &mut qos)
         };
         assert_eq!(result, RETCODE_OK);
 
         let result = unsafe {
-            dds_domain_participant_factory_set_qos(
-                NonNull::new(factory as *mut _),
-                &qos,
-            )
+            dds_domain_participant_factory_set_qos(NonNull::new(factory as *mut _), &qos)
         };
         assert_eq!(result, RETCODE_OK);
 

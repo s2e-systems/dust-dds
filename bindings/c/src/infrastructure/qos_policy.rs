@@ -111,7 +111,10 @@ impl StringSeq {
 pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
-            let _ = Box::from_raw(std::slice::from_raw_parts_mut(seq.buffer, seq.length as usize));
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(
+                seq.buffer,
+                seq.length as usize,
+            ));
         }
     }
 }
@@ -136,10 +139,7 @@ impl From<Duration_t> for dust_dds::infrastructure::time::DurationKind {
             dust_dds::infrastructure::time::DurationKind::Infinite
         } else {
             dust_dds::infrastructure::time::DurationKind::Finite(
-                dust_dds::infrastructure::time::Duration::new(
-                    value.sec,
-                    value.nanosec,
-                ),
+                dust_dds::infrastructure::time::Duration::new(value.sec, value.nanosec),
             )
         }
     }
@@ -162,10 +162,7 @@ impl From<dust_dds::infrastructure::time::DurationKind> for Duration_t {
 
 impl From<Duration_t> for dust_dds::infrastructure::time::Duration {
     fn from(value: Duration_t) -> Self {
-        dust_dds::infrastructure::time::Duration::new(
-            value.sec,
-            value.nanosec,
-        )
+        dust_dds::infrastructure::time::Duration::new(value.sec, value.nanosec)
     }
 }
 
@@ -180,10 +177,7 @@ impl From<dust_dds::infrastructure::time::Duration> for Duration_t {
 
 impl From<Time_t> for dust_dds::infrastructure::time::Time {
     fn from(value: Time_t) -> Self {
-        dust_dds::infrastructure::time::Time::new(
-            value.sec,
-            value.nanosec,
-        )
+        dust_dds::infrastructure::time::Time::new(value.sec, value.nanosec)
     }
 }
 
@@ -291,18 +285,18 @@ pub struct TransportPriorityQosPolicy {
     pub value: i32,
 }
 
-impl From<TransportPriorityQosPolicy> for dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy {
+impl From<TransportPriorityQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy
+{
     fn from(val: TransportPriorityQosPolicy) -> Self {
-        Self {
-            value: val.value,
-        }
+        Self { value: val.value }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy> for TransportPriorityQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy>
+    for TransportPriorityQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::TransportPriorityQosPolicy) -> Self {
-        Self {
-            value: val.value,
-        }
+        Self { value: val.value }
     }
 }
 
@@ -354,7 +348,9 @@ impl Default for DurabilityQosPolicyKind {
     }
 }
 
-impl From<DurabilityQosPolicyKind> for dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind {
+impl From<DurabilityQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind
+{
     fn from(kind: DurabilityQosPolicyKind) -> Self {
         match kind {
             DurabilityQosPolicyKind::VOLATILE_DURABILITY_QOS => Self::Volatile,
@@ -365,13 +361,23 @@ impl From<DurabilityQosPolicyKind> for dust_dds::infrastructure::qos_policy::Dur
     }
 }
 
-impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind> for DurabilityQosPolicyKind {
+impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind>
+    for DurabilityQosPolicyKind
+{
     fn from(kind: dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind) -> Self {
         match kind {
-            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Volatile => Self::VOLATILE_DURABILITY_QOS,
-            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal => Self::TRANSIENT_LOCAL_DURABILITY_QOS,
-            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Transient => Self::TRANSIENT_DURABILITY_QOS,
-            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Persistent => Self::PERSISTENT_DURABILITY_QOS,
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Volatile => {
+                Self::VOLATILE_DURABILITY_QOS
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::TransientLocal => {
+                Self::TRANSIENT_LOCAL_DURABILITY_QOS
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Transient => {
+                Self::TRANSIENT_DURABILITY_QOS
+            }
+            dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind::Persistent => {
+                Self::PERSISTENT_DURABILITY_QOS
+            }
         }
     }
 }
@@ -412,7 +418,9 @@ impl Default for PresentationQosPolicyAccessScopeKind {
     }
 }
 
-impl From<PresentationQosPolicyAccessScopeKind> for dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind {
+impl From<PresentationQosPolicyAccessScopeKind>
+    for dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind
+{
     fn from(kind: PresentationQosPolicyAccessScopeKind) -> Self {
         match kind {
             PresentationQosPolicyAccessScopeKind::INSTANCE_PRESENTATION_QOS => Self::Instance,
@@ -422,8 +430,12 @@ impl From<PresentationQosPolicyAccessScopeKind> for dust_dds::infrastructure::qo
     }
 }
 
-impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind> for PresentationQosPolicyAccessScopeKind {
-    fn from(kind: dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind) -> Self {
+impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind>
+    for PresentationQosPolicyAccessScopeKind
+{
+    fn from(
+        kind: dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind,
+    ) -> Self {
         match kind {
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance => Self::INSTANCE_PRESENTATION_QOS,
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic => Self::TOPIC_PRESENTATION_QOS,
@@ -545,8 +557,12 @@ impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::Owne
 impl From<dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind> for OwnershipQosPolicyKind {
     fn from(kind: dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind) -> Self {
         match kind {
-            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared => Self::SHARED_OWNERSHIP_QOS,
-            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Exclusive => Self::EXCLUSIVE_OWNERSHIP_QOS,
+            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Shared => {
+                Self::SHARED_OWNERSHIP_QOS
+            }
+            dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind::Exclusive => {
+                Self::EXCLUSIVE_OWNERSHIP_QOS
+            }
         }
     }
 }
@@ -578,18 +594,18 @@ pub struct OwnershipStrengthQosPolicy {
     pub value: i32,
 }
 
-impl From<OwnershipStrengthQosPolicy> for dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy {
+impl From<OwnershipStrengthQosPolicy>
+    for dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy
+{
     fn from(val: OwnershipStrengthQosPolicy) -> Self {
-        Self {
-            value: val.value,
-        }
+        Self { value: val.value }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy> for OwnershipStrengthQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy>
+    for OwnershipStrengthQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy) -> Self {
-        Self {
-            value: val.value,
-        }
+        Self { value: val.value }
     }
 }
 
@@ -608,22 +624,34 @@ impl Default for LivelinessQosPolicyKind {
     }
 }
 
-impl From<LivelinessQosPolicyKind> for dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind {
+impl From<LivelinessQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind
+{
     fn from(kind: LivelinessQosPolicyKind) -> Self {
         match kind {
             LivelinessQosPolicyKind::AUTOMATIC_LIVELINESS_QOS => Self::Automatic,
-            LivelinessQosPolicyKind::MANUAL_BY_PARTICIPANT_LIVELINESS_QOS => Self::ManualByParticipant,
+            LivelinessQosPolicyKind::MANUAL_BY_PARTICIPANT_LIVELINESS_QOS => {
+                Self::ManualByParticipant
+            }
             LivelinessQosPolicyKind::MANUAL_BY_TOPIC_LIVELINESS_QOS => Self::ManualByTopic,
         }
     }
 }
 
-impl From<dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind> for LivelinessQosPolicyKind {
+impl From<dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind>
+    for LivelinessQosPolicyKind
+{
     fn from(kind: dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind) -> Self {
         match kind {
-            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::Automatic => Self::AUTOMATIC_LIVELINESS_QOS,
-            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByParticipant => Self::MANUAL_BY_PARTICIPANT_LIVELINESS_QOS,
-            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByTopic => Self::MANUAL_BY_TOPIC_LIVELINESS_QOS,
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::Automatic => {
+                Self::AUTOMATIC_LIVELINESS_QOS
+            }
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByParticipant => {
+                Self::MANUAL_BY_PARTICIPANT_LIVELINESS_QOS
+            }
+            dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind::ManualByTopic => {
+                Self::MANUAL_BY_TOPIC_LIVELINESS_QOS
+            }
         }
     }
 }
@@ -670,14 +698,18 @@ pub struct TimeBasedFilterQosPolicy {
     pub minimum_separation: Duration_t,
 }
 
-impl From<TimeBasedFilterQosPolicy> for dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy {
+impl From<TimeBasedFilterQosPolicy>
+    for dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy
+{
     fn from(val: TimeBasedFilterQosPolicy) -> Self {
         Self {
             minimum_separation: val.minimum_separation.into(),
         }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy> for TimeBasedFilterQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy>
+    for TimeBasedFilterQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::TimeBasedFilterQosPolicy) -> Self {
         Self {
             minimum_separation: val.minimum_separation.into(),
@@ -720,7 +752,9 @@ impl Default for ReliabilityQosPolicyKind {
     }
 }
 
-impl From<ReliabilityQosPolicyKind> for dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind {
+impl From<ReliabilityQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind
+{
     fn from(kind: ReliabilityQosPolicyKind) -> Self {
         match kind {
             ReliabilityQosPolicyKind::BEST_EFFORT_RELIABILITY_QOS => Self::BestEffort,
@@ -729,11 +763,17 @@ impl From<ReliabilityQosPolicyKind> for dust_dds::infrastructure::qos_policy::Re
     }
 }
 
-impl From<dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind> for ReliabilityQosPolicyKind {
+impl From<dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind>
+    for ReliabilityQosPolicyKind
+{
     fn from(kind: dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind) -> Self {
         match kind {
-            dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffort => Self::BEST_EFFORT_RELIABILITY_QOS,
-            dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::Reliable => Self::RELIABLE_RELIABILITY_QOS,
+            dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffort => {
+                Self::BEST_EFFORT_RELIABILITY_QOS
+            }
+            dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::Reliable => {
+                Self::RELIABLE_RELIABILITY_QOS
+            }
         }
     }
 }
@@ -749,7 +789,10 @@ impl Default for ReliabilityQosPolicy {
     fn default() -> Self {
         Self {
             kind: ReliabilityQosPolicyKind::BEST_EFFORT_RELIABILITY_QOS,
-            max_blocking_time: Duration_t { sec: 0, nanosec: 100_000_000 },
+            max_blocking_time: Duration_t {
+                sec: 0,
+                nanosec: 100_000_000,
+            },
         }
     }
 }
@@ -785,16 +828,24 @@ impl Default for DestinationOrderQosPolicyKind {
     }
 }
 
-impl From<DestinationOrderQosPolicyKind> for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind {
+impl From<DestinationOrderQosPolicyKind>
+    for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind
+{
     fn from(kind: DestinationOrderQosPolicyKind) -> Self {
         match kind {
-            DestinationOrderQosPolicyKind::BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS => Self::ByReceptionTimestamp,
-            DestinationOrderQosPolicyKind::BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS => Self::BySourceTimestamp,
+            DestinationOrderQosPolicyKind::BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS => {
+                Self::ByReceptionTimestamp
+            }
+            DestinationOrderQosPolicyKind::BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS => {
+                Self::BySourceTimestamp
+            }
         }
     }
 }
 
-impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind> for DestinationOrderQosPolicyKind {
+impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind>
+    for DestinationOrderQosPolicyKind
+{
     fn from(kind: dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind) -> Self {
         match kind {
             dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind::ByReceptionTimestamp => Self::BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS,
@@ -809,14 +860,18 @@ pub struct DestinationOrderQosPolicy {
     pub kind: DestinationOrderQosPolicyKind,
 }
 
-impl From<DestinationOrderQosPolicy> for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy {
+impl From<DestinationOrderQosPolicy>
+    for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy
+{
     fn from(val: DestinationOrderQosPolicy) -> Self {
         Self {
             kind: val.kind.into(),
         }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy> for DestinationOrderQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy>
+    for DestinationOrderQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy) -> Self {
         Self {
             kind: val.kind.into(),
@@ -858,7 +913,9 @@ impl From<HistoryQosPolicy> for dust_dds::infrastructure::qos_policy::HistoryQos
     fn from(val: HistoryQosPolicy) -> Self {
         let kind = match val.kind {
             HistoryQosPolicyKind::KEEP_LAST_HISTORY_QOS => {
-                dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepLast(val.depth as u32)
+                dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepLast(
+                    val.depth as u32,
+                )
             }
             HistoryQosPolicyKind::KEEP_ALL_HISTORY_QOS => {
                 dust_dds::infrastructure::qos_policy::HistoryQosPolicyKind::KeepAll
@@ -900,7 +957,9 @@ impl Default for ResourceLimitsQosPolicy {
     }
 }
 
-impl From<ResourceLimitsQosPolicy> for dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy {
+impl From<ResourceLimitsQosPolicy>
+    for dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy
+{
     fn from(val: ResourceLimitsQosPolicy) -> Self {
         let map_len = |v: i32| {
             if v < 0 {
@@ -916,7 +975,9 @@ impl From<ResourceLimitsQosPolicy> for dust_dds::infrastructure::qos_policy::Res
         }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy> for ResourceLimitsQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy>
+    for ResourceLimitsQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::ResourceLimitsQosPolicy) -> Self {
         let map_len = |l: dust_dds::infrastructure::qos_policy::Length| match l {
             dust_dds::infrastructure::qos_policy::Length::Unlimited => -1,
@@ -973,14 +1034,18 @@ impl Default for WriterDataLifecycleQosPolicy {
     }
 }
 
-impl From<WriterDataLifecycleQosPolicy> for dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy {
+impl From<WriterDataLifecycleQosPolicy>
+    for dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy
+{
     fn from(val: WriterDataLifecycleQosPolicy) -> Self {
         Self {
             autodispose_unregistered_instances: val.autodispose_unregistered_instances,
         }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy> for WriterDataLifecycleQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy>
+    for WriterDataLifecycleQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::WriterDataLifecycleQosPolicy) -> Self {
         Self {
             autodispose_unregistered_instances: val.autodispose_unregistered_instances,
@@ -1010,7 +1075,9 @@ impl Default for ReaderDataLifecycleQosPolicy {
     }
 }
 
-impl From<ReaderDataLifecycleQosPolicy> for dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy {
+impl From<ReaderDataLifecycleQosPolicy>
+    for dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy
+{
     fn from(val: ReaderDataLifecycleQosPolicy) -> Self {
         Self {
             autopurge_nowriter_samples_delay: val.autopurge_nowriter_samples_delay.into(),
@@ -1018,7 +1085,9 @@ impl From<ReaderDataLifecycleQosPolicy> for dust_dds::infrastructure::qos_policy
         }
     }
 }
-impl From<dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy> for ReaderDataLifecycleQosPolicy {
+impl From<dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy>
+    for ReaderDataLifecycleQosPolicy
+{
     fn from(val: dust_dds::infrastructure::qos_policy::ReaderDataLifecycleQosPolicy) -> Self {
         Self {
             autopurge_nowriter_samples_delay: val.autopurge_nowriter_samples_delay.into(),

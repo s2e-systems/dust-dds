@@ -294,7 +294,9 @@ impl<'a> CGenerator<'a> {
     /// Returns the extensibility annotation string for a struct, if present.
     /// Returns `None` when no extensibility annotation is found (Final by convention
     /// in the DDS type system, so no explicit call is needed).
-    fn get_extensibility_annotation(inner_pairs: pest::iterators::Pairs<Rule>) -> Option<&'static str> {
+    fn get_extensibility_annotation(
+        inner_pairs: pest::iterators::Pairs<Rule>,
+    ) -> Option<&'static str> {
         for annotation_appl in inner_pairs.filter(|p| p.as_rule() == Rule::annotation_appl) {
             let inner = annotation_appl.into_inner();
             if let Some(scoped_name) = inner.clone().find(|p| p.as_rule() == Rule::scoped_name) {
@@ -341,7 +343,8 @@ impl<'a> CGenerator<'a> {
         let prefixed_struct_name = self.current_qualified_name(struct_name).replace("::", "_");
         let dds_struct_name = self.current_qualified_name(struct_name);
 
-        self.defined_types.push((dds_struct_name.clone(), TypeDef::Struct));
+        self.defined_types
+            .push((dds_struct_name.clone(), TypeDef::Struct));
 
         self.writer.push_str("    struct ");
         self.writer.push_str(&prefixed_struct_name);
@@ -361,21 +364,30 @@ impl<'a> CGenerator<'a> {
         self.writer
             .push_str("        static const DustDdsDynamicType* type = NULL;\n");
         self.writer.push_str("        if (type == NULL) {\n");
-            let ext = Self::get_extensibility_annotation(inner_pairs.clone())
-                .unwrap_or("EXTENSIBILITY_KIND_FINAL");
+        let ext = Self::get_extensibility_annotation(inner_pairs.clone())
+            .unwrap_or("EXTENSIBILITY_KIND_FINAL");
 
-            self.writer.push_str("            DustDdsTypeDescriptor descriptor = {\n");
-            self.writer.push_str("                .kind = TYPE_KIND_STRUCTURE,\n");
-            self.writer.push_str(&format!("                .name = \"{}\",\n", dds_struct_name));
-            self.writer.push_str("                .base_type = NULL,\n");
-            self.writer.push_str("                .discriminator_type = NULL,\n");
-            self.writer.push_str("                .bound = NULL,\n");
-            self.writer.push_str("                .element_type = NULL,\n");
-            self.writer.push_str("                .key_element_type = NULL,\n");
-            self.writer.push_str(&format!("                .extensibility_kind = {},\n", ext));
-            self.writer.push_str("                .is_nested = false\n");
-            self.writer.push_str("            };\n");
-            self.writer.push_str("            DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);\n");
+        self.writer
+            .push_str("            DustDdsTypeDescriptor descriptor = {\n");
+        self.writer
+            .push_str("                .kind = TYPE_KIND_STRUCTURE,\n");
+        self.writer.push_str(&format!(
+            "                .name = \"{}\",\n",
+            dds_struct_name
+        ));
+        self.writer.push_str("                .base_type = NULL,\n");
+        self.writer
+            .push_str("                .discriminator_type = NULL,\n");
+        self.writer.push_str("                .bound = NULL,\n");
+        self.writer
+            .push_str("                .element_type = NULL,\n");
+        self.writer
+            .push_str("                .key_element_type = NULL,\n");
+        self.writer
+            .push_str(&format!("                .extensibility_kind = {},\n", ext));
+        self.writer.push_str("                .is_nested = false\n");
+        self.writer.push_str("            };\n");
+        self.writer.push_str("            DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);\n");
 
         // Collect members with their types and annotation flags
         let mut members = Vec::new();
@@ -390,8 +402,7 @@ impl<'a> CGenerator<'a> {
                 .clone()
                 .find(|p| p.as_rule() == Rule::declarators)
                 .expect("Declarator must exist according to grammar");
-            let (is_key, is_optional) =
-                Self::get_member_annotations(m_inner.clone());
+            let (is_key, is_optional) = Self::get_member_annotations(m_inner.clone());
 
             for declarator in declarators.into_inner() {
                 let array_or_simple_declarator = declarator
@@ -403,7 +414,13 @@ impl<'a> CGenerator<'a> {
                     _ => todo!(),
                 };
                 let resolved_type_spec = self.resolve_type_spec(type_spec.clone());
-                members.push((member_id, resolved_type_spec, field_name, is_key, is_optional));
+                members.push((
+                    member_id,
+                    resolved_type_spec,
+                    field_name,
+                    is_key,
+                    is_optional,
+                ));
                 member_id += 1;
             }
         }
@@ -411,8 +428,8 @@ impl<'a> CGenerator<'a> {
         // Emit add_member calls using DustDdsMemberDescriptor
         for (member_id, type_spec, field_name, is_key, is_optional) in &members {
             let type_expr = self.get_dynamic_type_expr(type_spec.clone());
-            let needs_type_var = type_expr.contains("create_string_type")
-                || type_expr.contains("_get_type");
+            let needs_type_var =
+                type_expr.contains("create_string_type") || type_expr.contains("_get_type");
 
             self.writer.push_str("            {\n");
             let type_val = if needs_type_var {
@@ -425,13 +442,28 @@ impl<'a> CGenerator<'a> {
                 &type_expr
             };
 
-            self.writer.push_str("                DustDdsMemberDescriptor member = {\n");
-            self.writer.push_str(&format!("                    .name = \"{}\",\n", field_name));
-            self.writer.push_str(&format!("                    .id = {},\n", member_id));
-            self.writer.push_str(&format!("                    .type = {},\n", type_val));
-            self.writer.push_str(&format!("                    .is_key = {},\n", if *is_key { "true" } else { "false" }));
-            self.writer.push_str(&format!("                    .is_optional = {},\n", if *is_optional { "true" } else { "false" }));
-            self.writer.push_str(&format!("                    .is_must_understand = {}\n", if *is_optional { "false" } else { "true" }));
+            self.writer
+                .push_str("                DustDdsMemberDescriptor member = {\n");
+            self.writer.push_str(&format!(
+                "                    .name = \"{}\",\n",
+                field_name
+            ));
+            self.writer
+                .push_str(&format!("                    .id = {},\n", member_id));
+            self.writer
+                .push_str(&format!("                    .type = {},\n", type_val));
+            self.writer.push_str(&format!(
+                "                    .is_key = {},\n",
+                if *is_key { "true" } else { "false" }
+            ));
+            self.writer.push_str(&format!(
+                "                    .is_optional = {},\n",
+                if *is_optional { "true" } else { "false" }
+            ));
+            self.writer.push_str(&format!(
+                "                    .is_must_understand = {}\n",
+                if *is_optional { "false" } else { "true" }
+            ));
             self.writer.push_str("                };\n");
 
             self.writer.push_str(
@@ -614,10 +646,7 @@ impl<'a> CGenerator<'a> {
                         "            {{\n                if (src->{} != NULL) {{\n                    size_t len = wcstombs(NULL, src->{}, 0);\n                    if (len != (size_t)-1) {{\n                        char* temp = malloc(len + 1);\n                        wcstombs(temp, src->{}, len + 1);\n                        dds_dynamic_data_set_string_value(sample, {}, temp);\n                        free(temp);\n                    }}\n                }}\n            }}\n",
                         field_name, field_name, field_name, member_id
                     ));
-                    free_sample_code.push_str(&format!(
-                        "        free(sample->{});\n",
-                        field_name
-                    ));
+                    free_sample_code.push_str(&format!("        free(sample->{});\n", field_name));
                 }
                 _ => {
                     // Custom identifier / nested struct
@@ -702,8 +731,7 @@ impl<'a> CGenerator<'a> {
                         .expect("Rule must have inner content");
                 }
                 Rule::boolean_type => {
-                    return "dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN)"
-                        .to_string();
+                    return "dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN)".to_string();
                 }
                 Rule::char_type => {
                     return "dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8)".to_string();
@@ -1003,7 +1031,8 @@ impl<'a> CGenerator<'a> {
         let enum_name = identifier.as_str();
         let prefixed_enum_name = self.current_qualified_name(enum_name).replace("::", "_");
 
-        self.defined_types.push((self.current_qualified_name(enum_name), TypeDef::Enum));
+        self.defined_types
+            .push((self.current_qualified_name(enum_name), TypeDef::Enum));
 
         self.writer.push_str("    enum ");
         self.writer.push_str(&prefixed_enum_name);
@@ -1020,7 +1049,7 @@ impl<'a> CGenerator<'a> {
                 .into_inner()
                 .find(|x| x.as_rule() == Rule::identifier)
                 .expect("Must have an identifier according to the grammar");
-            
+
             self.writer.push_str("        ");
             self.writer.push_str(&prefixed_enum_name);
             self.writer.push('_');
@@ -1056,11 +1085,11 @@ impl<'a> CGenerator<'a> {
             .clone()
             .find(|p| p.as_rule() == Rule::any_declarators)
             .expect("Must have any_declarators according to grammar");
-        
+
         for any_declarator in any_declarators.into_inner() {
             let name_str = any_declarator.as_str();
             let prefixed_name = self.current_qualified_name(name_str).replace("::", "_");
-            
+
             self.defined_types.push((
                 self.current_qualified_name(name_str),
                 TypeDef::Alias(type_spec.clone()),
@@ -1107,7 +1136,11 @@ impl<'a> CGenerator<'a> {
             let mut candidate_parts = self.modules[0..i].to_vec();
             candidate_parts.extend(t_parts.iter().map(|s| s.to_string()));
             let candidate_qname = candidate_parts.join("::");
-            if self.defined_types.iter().any(|(qname, _)| qname == &candidate_qname) {
+            if self
+                .defined_types
+                .iter()
+                .any(|(qname, _)| qname == &candidate_qname)
+            {
                 return Some(candidate_qname);
             }
         }

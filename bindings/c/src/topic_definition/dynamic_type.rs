@@ -186,7 +186,6 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
         Box::leak(vec![unsafe { *descriptor.bound }].into_boxed_slice())
     };
 
-
     let element_type = if descriptor.element_type.is_null() {
         None
     } else {
@@ -275,9 +274,7 @@ pub unsafe extern "C" fn dds_dynamic_type_create_string_type(
 
 /// Frees a DynamicType object.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_dynamic_type_free(
-    dynamic_type: Option<NonNull<DustDdsDynamicType>>,
-) {
+pub unsafe extern "C" fn dds_dynamic_type_free(dynamic_type: Option<NonNull<DustDdsDynamicType>>) {
     if let Some(dt) = dynamic_type {
         let ptr_val = dt.as_ptr() as usize;
         let is_static_primitive = ptr_val == &BOOLEAN_TYPE as *const _ as usize
@@ -408,8 +405,6 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_free(
 // ---------------------------------------------------------------------------
 // MemberDescriptor lifecycle
 // ---------------------------------------------------------------------------
-
-
 
 #[cfg(test)]
 mod tests {

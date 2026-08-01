@@ -74,8 +74,7 @@ pub unsafe extern "C" fn dds_wait_set_attach_condition(
     let wait_set_ref = unsafe { wait_set.as_mut() };
     let condition_ref = unsafe { condition.as_ref() };
 
-    let rust_cond =
-        dust_dds::wait_set::Condition::StatusCondition(condition_ref.inner().clone());
+    let rust_cond = dust_dds::wait_set::Condition::StatusCondition(condition_ref.inner().clone());
 
     match wait_set_ref.0.attach_condition(rust_cond) {
         Ok(()) => RETCODE_OK,

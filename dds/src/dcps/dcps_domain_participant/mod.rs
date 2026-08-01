@@ -643,7 +643,6 @@ impl DcpsDomainParticipant {
         self.domain_participant.domain_id
     }
 
-
     pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
         self.domain_participant
             .discovered_participant_list

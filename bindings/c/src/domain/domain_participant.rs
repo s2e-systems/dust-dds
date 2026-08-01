@@ -241,9 +241,7 @@ mod tests {
         dds_domain_participant_factory_delete_participant,
         dds_domain_participant_factory_get_instance,
     };
-    use crate::infrastructure::qos::{
-        dds_publisher_qos_default, dds_subscriber_qos_default,
-    };
+    use crate::infrastructure::qos::{dds_publisher_qos_default, dds_subscriber_qos_default};
 
     #[test]
     fn create_delete_publisher() {
@@ -257,7 +255,8 @@ mod tests {
         };
         assert!(participant.is_some());
 
-        let publisher = unsafe { dds_domain_participant_create_publisher(participant, std::ptr::null()) };
+        let publisher =
+            unsafe { dds_domain_participant_create_publisher(participant, std::ptr::null()) };
         assert!(publisher.is_some());
 
         let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
@@ -315,7 +314,7 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            TYPE_KIND_INT32, DustDdsMemberDescriptor, dds_dynamic_type_builder_add_member,
+            DustDdsMemberDescriptor, TYPE_KIND_INT32, dds_dynamic_type_builder_add_member,
             dds_dynamic_type_builder_build, dds_dynamic_type_builder_create_struct,
             dds_dynamic_type_free, dds_dynamic_type_get_primitive_type,
         };
@@ -347,9 +346,7 @@ mod tests {
             is_must_understand: true,
         };
 
-        let res = unsafe {
-            dds_dynamic_type_builder_add_member(builder, &member_descriptor)
-        };
+        let res = unsafe { dds_dynamic_type_builder_add_member(builder, &member_descriptor) };
         assert_eq!(res, RETCODE_OK);
 
         let dynamic_type = unsafe { dds_dynamic_type_builder_build(builder) };

@@ -29,14 +29,14 @@ pub unsafe extern "C" fn dds_dynamic_data_create(
         return None;
     }
     let dynamic_data = DynamicDataFactory::create_data(unsafe { &*r#type }.inner().clone());
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicData::new(dynamic_data))))
+    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicData::new(
+        dynamic_data,
+    ))))
 }
 
 /// Frees a DynamicData instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_dynamic_data_free(
-    data: Option<NonNull<DustDdsDynamicData>>,
-) {
+pub unsafe extern "C" fn dds_dynamic_data_free(data: Option<NonNull<DustDdsDynamicData>>) {
     if let Some(d) = data {
         unsafe {
             drop(Box::from_raw(d.as_ptr()));
@@ -46,9 +46,7 @@ pub unsafe extern "C" fn dds_dynamic_data_free(
 
 /// Frees a string allocated by the Rust bindings.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_string_free(
-    ptr: *mut std::os::raw::c_char,
-) {
+pub unsafe extern "C" fn dds_string_free(ptr: *mut std::os::raw::c_char) {
     if !ptr.is_null() {
         unsafe {
             drop(std::ffi::CString::from_raw(ptr));
@@ -288,7 +286,6 @@ pub unsafe extern "C" fn dds_dynamic_data_get_float64_value(
     }
 }
 
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_char8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -367,7 +364,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_boolean_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_boolean_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_boolean_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -382,7 +382,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int8_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_int8_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_int8_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -397,7 +400,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint8_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_uint8_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_uint8_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -412,7 +418,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int16_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_int16_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_int16_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -427,7 +436,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint16_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_uint16_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_uint16_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -442,7 +454,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int32_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_int32_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_int32_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -457,7 +472,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint32_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_uint32_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_uint32_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -472,7 +490,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int64_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_int64_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_int64_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -487,7 +508,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint64_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_uint64_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_uint64_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -502,7 +526,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_float32_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_float32_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_float32_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -517,7 +544,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_float64_value(
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { data.as_mut() }.inner_mut().set_float64_value(id, value) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_float64_value(id, value)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -533,7 +563,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_char8_value(
         return RETCODE_BAD_PARAMETER;
     };
     let r_char = value as u8 as char;
-    match unsafe { data.as_mut() }.inner_mut().set_char8_value(id, r_char) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_char8_value(id, r_char)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -556,7 +589,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_string_value(
         Ok(s) => s.to_string(),
         Err(_) => return RETCODE_BAD_PARAMETER,
     };
-    match unsafe { data.as_mut() }.inner_mut().set_string_value(id, string_val) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_string_value(id, string_val)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -575,7 +611,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_complex_value(
         return RETCODE_BAD_PARAMETER;
     };
     let complex_val = unsafe { value.as_ref() }.inner().clone();
-    match unsafe { data.as_mut() }.inner_mut().set_complex_value(id, complex_val) {
+    match unsafe { data.as_mut() }
+        .inner_mut()
+        .set_complex_value(id, complex_val)
+    {
         Ok(()) => RETCODE_OK,
         Err(_) => RETCODE_ERROR,
     }
@@ -646,4 +685,3 @@ pub unsafe extern "C" fn dds_datareader_read(
         }
     }
 }
-

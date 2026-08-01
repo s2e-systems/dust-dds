@@ -30,7 +30,9 @@ pub const DUST_DDS_STATUS_LIVELINESS_CHANGED_STATUS: DustDdsStatusMask = 0x00000
 pub const DUST_DDS_STATUS_PUBLICATION_MATCHED_STATUS: DustDdsStatusMask = 0x00000800;
 pub const DUST_DDS_STATUS_SUBSCRIPTION_MATCHED_STATUS: DustDdsStatusMask = 0x00001000;
 
-pub(crate) fn mask_to_status_kinds(mask: DustDdsStatusMask) -> Vec<dust_dds::infrastructure::status::StatusKind> {
+pub(crate) fn mask_to_status_kinds(
+    mask: DustDdsStatusMask,
+) -> Vec<dust_dds::infrastructure::status::StatusKind> {
     let mut kinds = Vec::new();
     if mask & DUST_DDS_STATUS_INCONSISTENT_TOPIC_STATUS != 0 {
         kinds.push(dust_dds::infrastructure::status::StatusKind::InconsistentTopic);
