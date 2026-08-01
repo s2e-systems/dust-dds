@@ -407,9 +407,31 @@ impl DynamicTypeBuilderFactory {
             };
         }
 
+        let mut index = 0;
         let mut member_id = 0;
         if is_union {
             for child in target_node.children() {
+                if child.is_element() && child.tag_name().name() == "discriminator" {
+                    let member_desc = MemberDescriptor {
+                        name: "discriminator",
+                        id: member_id,
+                        r#type: discriminator_type.expect("discriminator must be defined"),
+                        default_value: None,
+                        index,
+                        label: &[],
+                        try_construct_kind,
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: true,
+                        is_shared: false,
+                        is_default_label: false,
+                        is_external: false,
+                    };
+
+                    builder.add_member(member_desc)?;
+                    member_id += 1;
+                    index += 1;
+                }
                 if child.is_element() && child.tag_name().name() == "case" {
                     let mut m_name = None;
                     let mut m_type = None;
@@ -471,7 +493,7 @@ impl DynamicTypeBuilderFactory {
                         id: member_id,
                         r#type: type_ptr,
                         default_value: None,
-                        index: member_id,
+                        index,
                         label,
                         try_construct_kind,
                         is_key: false,
@@ -484,6 +506,7 @@ impl DynamicTypeBuilderFactory {
 
                     builder.add_member(member_desc)?;
                     member_id += 1;
+                    index += 1;
                 }
             }
         } else if is_enum {
@@ -860,8 +883,8 @@ impl DynamicDataFactory {
 /// Represents a data sample conforming to a [`DynamicType`] schema.
 #[derive(Clone)]
 pub struct DynamicData<'a> {
-    r#type: DynamicType<'a>,
-    abstract_data: BTreeMap<MemberId, DataStorage>,
+    pub(crate) r#type: DynamicType<'a>,
+    pub(crate) abstract_data: BTreeMap<MemberId, DataStorage>,
 }
 
 impl<'a> core::fmt::Debug for DynamicData<'a> {
@@ -1635,6 +1658,14 @@ impl TypeSupport for DynamicData<'static> {
     }
 }
 
+fn parse_i32(s: &str) -> XTypesResult<i32> {
+    if let Some(hex) = s.strip_prefix("0x") {
+        i32::from_str_radix(hex, 16).map_err(|_| XTypesError::InvalidData)
+    } else {
+        s.parse::<i32>().map_err(|_| XTypesError::InvalidData)
+    }
+}
+
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
     /// Deserializes data from an XML string into this `DynamicData` instance.
@@ -1644,38 +1675,50 @@ impl<'a> DynamicData<'a> {
         self.populate_from_xml_node(root)
     }
 
+    fn set_discrimant(&mut self, node: roxmltree::Node) -> XTypesResult<()> {
+        let tag_name = node.tag_name().name();
+        let discriminator_label = if tag_name == "discriminator" {
+            parse_i32(node.text().ok_or(XTypesError::InvalidData)?)?
+        } else {
+            let variant_member = self.r#type.get_member_by_name(tag_name)?;
+            *variant_member
+                .descriptor
+                .label
+                .first()
+                .ok_or(XTypesError::InvalidType)?
+        };
+
+        match self.r#type.get_member(0)?.descriptor.r#type.get_kind() {
+            TypeKind::BOOLEAN => todo!(),
+            TypeKind::BYTE => todo!(),
+            TypeKind::INT16 => self.set_int16_value(0, discriminator_label as i16),
+            TypeKind::INT32 => self.set_int32_value(0, discriminator_label as i32),
+            TypeKind::INT64 => self.set_int64_value(0, discriminator_label as i64),
+            TypeKind::UINT16 => self.set_uint16_value(0, discriminator_label as u16),
+            TypeKind::UINT32 => self.set_uint32_value(0, discriminator_label as u32),
+            TypeKind::UINT64 => self.set_uint64_value(0, discriminator_label as u64),
+            TypeKind::INT8 => self.set_int8_value(0, discriminator_label as i8),
+            TypeKind::UINT8 => self.set_uint8_value(0, discriminator_label as u8),
+            TypeKind::CHAR8 => todo!(),
+            TypeKind::CHAR16 => todo!(),
+            TypeKind::ALIAS => todo!(),
+            TypeKind::ENUM => todo!(),
+            _ => return Err(XTypesError::InvalidType),
+        }
+    }
+
     fn populate_from_xml_node(&mut self, node: roxmltree::Node) -> XTypesResult<()> {
         for child in node.children().filter(|c| c.is_element()) {
             let tag_name = child.tag_name().name();
 
-            if tag_name == "discriminator" && self.r#type.get_kind() == TypeKind::UNION {
-                continue;
+            if self.r#type.get_kind() == TypeKind::UNION {
+                self.set_discrimant(child)?;
             }
 
             if let Ok(member) = self.r#type.get_member_by_name(tag_name) {
                 let member_id = member.get_id();
                 let member_descriptor = member.get_descriptor()?;
                 let member_type = member_descriptor.r#type;
-
-                if self.r#type.get_kind() == TypeKind::UNION {
-                    if let Some(&label) = member_descriptor.label.first() {
-                        let disc_type = self
-                            .r#type
-                            .get_descriptor()
-                            .discriminator_type
-                            .unwrap_or_else(|| {
-                                DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32)
-                            });
-                        let disc_storage = match disc_type.get_kind() {
-                            TypeKind::UINT32
-                            | TypeKind::UINT16
-                            | TypeKind::UINT8
-                            | TypeKind::BYTE => DataStorage::UInt32(label as u32),
-                            _ => DataStorage::Int32(label),
-                        };
-                        self.set_value(0, disc_storage);
-                    }
-                }
 
                 let data = Self::parse_xml_node_to_data(child, member_type)?;
                 self.set_value(member_id, data);
