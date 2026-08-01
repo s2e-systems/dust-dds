@@ -36,7 +36,9 @@ int main(void) {
     DustDdsDataReader* reader = dds_subscriber_create_datareader(
         subscriber,
         topic,
-        DUST_DDS_DATAREADER_QOS_DEFAULT
+        DUST_DDS_DATAREADER_QOS_DEFAULT,
+        NULL,
+        0
     );
     assert(reader != NULL);
 

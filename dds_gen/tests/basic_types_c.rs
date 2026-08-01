@@ -42,53 +42,53 @@ fn basic_types() {
                 .extensibility_kind = EXTENSIBILITY_KIND_FINAL,
                 .is_nested = false
             };
-            DustDdsDynamicTypeBuilder* builder = dust_dds_dynamic_type_builder_factory_create_type(&descriptor);
+            DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);
             {
                 DustDdsMemberDescriptor member = {
                     .name = "a",
                     .id = 0,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_BOOLEAN),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "b",
                     .id = 1,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "c",
                     .id = 2,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_CHAR8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "d",
                     .id = 3,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
+                DustDdsDynamicType* member_type = dds_dynamic_type_create_string_type(4294967295);
                 DustDdsMemberDescriptor member = {
                     .name = "e",
                     .id = 4,
@@ -97,11 +97,11 @@ fn basic_types() {
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
-                dust_dds_dynamic_type_free(member_type);
+                dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_free(member_type);
             }
             {
-                DustDdsDynamicType* member_type = dust_dds_dynamic_type_create_string_type(4294967295);
+                DustDdsDynamicType* member_type = dds_dynamic_type_create_string_type(4294967295);
                 DustDdsMemberDescriptor member = {
                     .name = "f",
                     .id = 5,
@@ -110,98 +110,98 @@ fn basic_types() {
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
-                dust_dds_dynamic_type_free(member_type);
+                dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_free(member_type);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "g",
                     .id = 6,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_INT16),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "h",
                     .id = 7,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT16),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "i",
                     .id = 8,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "j",
                     .id = 9,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "k",
                     .id = 10,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_INT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "l",
                     .id = 11,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_UINT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "m",
                     .id = 12,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DustDdsMemberDescriptor member = {
                     .name = "n",
                     .id = 13,
-                    .type = dust_dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
+                    .type = dds_dynamic_type_get_primitive_type(TYPE_KIND_FLOAT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dust_dds_dynamic_type_builder_add_member(builder, &member);
+                dds_dynamic_type_builder_add_member(builder, &member);
             }
-            type = dust_dds_dynamic_type_builder_build(builder);
+            type = dds_dynamic_type_builder_build(builder);
         }
         return type;
     }
@@ -209,77 +209,77 @@ fn basic_types() {
     static inline struct BasicTypes BasicTypes_create_sample(DustDdsDynamicData* src) {
         struct BasicTypes sample;
         memset(&sample, 0, sizeof(sample));
-        dust_dds_dynamic_data_get_boolean_value(src, 0, &sample.a);
-        dust_dds_dynamic_data_get_char8_value(src, 1, &sample.b);
+        dds_dynamic_data_get_boolean_value(src, 0, &sample.a);
+        dds_dynamic_data_get_char8_value(src, 1, &sample.b);
         {
             char temp;
-            dust_dds_dynamic_data_get_char8_value(src, 2, &temp);
+            dds_dynamic_data_get_char8_value(src, 2, &temp);
             sample.c = (wchar_t)temp;
         }
-        dust_dds_dynamic_data_get_uint8_value(src, 3, &sample.d);
-        dust_dds_dynamic_data_get_string_value(src, 4, &sample.e);
+        dds_dynamic_data_get_uint8_value(src, 3, &sample.d);
+        dds_dynamic_data_get_string_value(src, 4, &sample.e);
         {
             char* temp = NULL;
-            dust_dds_dynamic_data_get_string_value(src, 5, &temp);
+            dds_dynamic_data_get_string_value(src, 5, &temp);
             if (temp != NULL) {
                 size_t len = mbstowcs(NULL, temp, 0);
                 if (len != (size_t)-1) {
                     sample.f = malloc((len + 1) * sizeof(wchar_t));
                     mbstowcs(sample.f, temp, len + 1);
                 }
-                dust_dds_string_free(temp);
+                dds_string_free(temp);
             }
         }
-        dust_dds_dynamic_data_get_int16_value(src, 6, &sample.g);
-        dust_dds_dynamic_data_get_uint16_value(src, 7, &sample.h);
-        dust_dds_dynamic_data_get_int32_value(src, 8, &sample.i);
-        dust_dds_dynamic_data_get_uint32_value(src, 9, &sample.j);
-        dust_dds_dynamic_data_get_int64_value(src, 10, &sample.k);
-        dust_dds_dynamic_data_get_uint64_value(src, 11, &sample.l);
-        dust_dds_dynamic_data_get_float32_value(src, 12, &sample.m);
-        dust_dds_dynamic_data_get_float64_value(src, 13, &sample.n);
+        dds_dynamic_data_get_int16_value(src, 6, &sample.g);
+        dds_dynamic_data_get_uint16_value(src, 7, &sample.h);
+        dds_dynamic_data_get_int32_value(src, 8, &sample.i);
+        dds_dynamic_data_get_uint32_value(src, 9, &sample.j);
+        dds_dynamic_data_get_int64_value(src, 10, &sample.k);
+        dds_dynamic_data_get_uint64_value(src, 11, &sample.l);
+        dds_dynamic_data_get_float32_value(src, 12, &sample.m);
+        dds_dynamic_data_get_float64_value(src, 13, &sample.n);
         return sample;
     }
 
     static inline DustDdsDynamicData* BasicTypes_create_dynamic_sample(const struct BasicTypes* src) {
-        DustDdsDynamicData* sample = dust_dds_dynamic_data_create(BasicTypes_get_type());
+        DustDdsDynamicData* sample = dds_dynamic_data_create(BasicTypes_get_type());
         if (sample != NULL) {
-            dust_dds_dynamic_data_set_boolean_value(sample, 0, src->a);
-            dust_dds_dynamic_data_set_char8_value(sample, 1, src->b);
-            dust_dds_dynamic_data_set_char8_value(sample, 2, (char)src->c);
-            dust_dds_dynamic_data_set_uint8_value(sample, 3, src->d);
-            dust_dds_dynamic_data_set_string_value(sample, 4, src->e);
+            dds_dynamic_data_set_boolean_value(sample, 0, src->a);
+            dds_dynamic_data_set_char8_value(sample, 1, src->b);
+            dds_dynamic_data_set_char8_value(sample, 2, (char)src->c);
+            dds_dynamic_data_set_uint8_value(sample, 3, src->d);
+            dds_dynamic_data_set_string_value(sample, 4, src->e);
             {
                 if (src->f != NULL) {
                     size_t len = wcstombs(NULL, src->f, 0);
                     if (len != (size_t)-1) {
                         char* temp = malloc(len + 1);
                         wcstombs(temp, src->f, len + 1);
-                        dust_dds_dynamic_data_set_string_value(sample, 5, temp);
+                        dds_dynamic_data_set_string_value(sample, 5, temp);
                         free(temp);
                     }
                 }
             }
-            dust_dds_dynamic_data_set_int16_value(sample, 6, src->g);
-            dust_dds_dynamic_data_set_uint16_value(sample, 7, src->h);
-            dust_dds_dynamic_data_set_int32_value(sample, 8, src->i);
-            dust_dds_dynamic_data_set_uint32_value(sample, 9, src->j);
-            dust_dds_dynamic_data_set_int64_value(sample, 10, src->k);
-            dust_dds_dynamic_data_set_uint64_value(sample, 11, src->l);
-            dust_dds_dynamic_data_set_float32_value(sample, 12, src->m);
-            dust_dds_dynamic_data_set_float64_value(sample, 13, src->n);
+            dds_dynamic_data_set_int16_value(sample, 6, src->g);
+            dds_dynamic_data_set_uint16_value(sample, 7, src->h);
+            dds_dynamic_data_set_int32_value(sample, 8, src->i);
+            dds_dynamic_data_set_uint32_value(sample, 9, src->j);
+            dds_dynamic_data_set_int64_value(sample, 10, src->k);
+            dds_dynamic_data_set_uint64_value(sample, 11, src->l);
+            dds_dynamic_data_set_float32_value(sample, 12, src->m);
+            dds_dynamic_data_set_float64_value(sample, 13, src->n);
         }
         return sample;
     }
 
     static inline void BasicTypes_free_sample(struct BasicTypes* sample) {
         if (sample != NULL) {
-        dust_dds_string_free(sample->e);
+        dds_string_free(sample->e);
         free(sample->f);
         }
     }
 
-    static inline ReturnCode dust_dds_datawriter_write_BasicTypes(DustDdsDataWriter* writer, const struct BasicTypes* data) {
+    static inline ReturnCode dds_datawriter_write_BasicTypes(DustDdsDataWriter* writer, const struct BasicTypes* data) {
         if (writer == NULL || data == NULL) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -287,12 +287,12 @@ fn basic_types() {
         if (sample == NULL) {
             return RETCODE_ERROR;
         }
-        ReturnCode result = dust_dds_datawriter_write(writer, sample);
-        dust_dds_dynamic_data_free(sample);
+        ReturnCode result = dds_datawriter_write(writer, sample);
+        dds_dynamic_data_free(sample);
         return result;
     }
 
-    static inline ReturnCode dust_dds_datareader_read_BasicTypes(DustDdsDataReader* reader, struct BasicTypes* data_values, int32_t max_samples, int32_t* received_samples) {
+    static inline ReturnCode dds_datareader_read_BasicTypes(DustDdsDataReader* reader, struct BasicTypes* data_values, int32_t max_samples, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -300,12 +300,12 @@ fn basic_types() {
         if (samples == NULL) {
             return RETCODE_OUT_OF_RESOURCES;
         }
-        ReturnCode result = dust_dds_datareader_read(reader, samples, max_samples, received_samples);
+        ReturnCode result = dds_datareader_read(reader, samples, max_samples, received_samples);
         if (result == RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dust_dds_dynamic_data_free(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
                 }
             }
         }

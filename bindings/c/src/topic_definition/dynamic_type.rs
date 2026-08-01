@@ -180,11 +180,12 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
         Some(unsafe { &*descriptor.discriminator_type }.0.clone())
     };
 
-    let bound = if descriptor.bound.is_null() {
-        None
+    let bound: &'static [u32] = if descriptor.bound.is_null() {
+        &[]
     } else {
-        Some(unsafe { *descriptor.bound })
+        Box::leak(vec![unsafe { *descriptor.bound }].into_boxed_slice())
     };
+
 
     let element_type = if descriptor.element_type.is_null() {
         None
@@ -317,7 +318,7 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_create_struct(
         name: name_str.to_string().leak(),
         base_type: None,
         discriminator_type: None,
-        bound: None,
+        bound: &[],
         element_type: None,
         key_element_type: None,
         extensibility_kind: ExtensibilityKind::Final,
