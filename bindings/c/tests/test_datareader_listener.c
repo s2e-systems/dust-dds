@@ -1,10 +1,8 @@
+#include "unity.h"
 #include <stdio.h>
-#include <assert.h>
 #include <unistd.h>
 #include "../include/dust_dds.h"
-#include "build/hello_world.h"
-
-#define dds_datawriter_write_HelloWorld dust_dds_datawriter_write_HelloWorld
+#include "hello_world.h"
 
 struct MyListenerData {
     int counter;
@@ -16,16 +14,19 @@ static void on_data_available(DustDdsDataReader* reader, void* listener_data) {
     data->counter++;
 }
 
-int main(void) {
-    DustDdsDomainParticipantFactory* factory = dds_domain_participant_factory_get_instance();
-    assert(factory != NULL);
+void setUp(void) {}
+void tearDown(void) {}
+
+void test_datareader_listener_callback(void) {
+    DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dds_domain_participant_factory_get_instance();
+    TEST_ASSERT_NOT_NULL(factory);
 
     DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
         DUST_DDS_PARTICIPANT_QOS_DEFAULT
     );
-    assert(participant != NULL);
+    TEST_ASSERT_NOT_NULL(participant);
 
     // Create topic
     DustDdsTopic* topic = dds_domain_participant_create_topic(
@@ -35,14 +36,14 @@ int main(void) {
         DUST_DDS_TOPIC_QOS_DEFAULT,
         (DustDdsDynamicType*)HelloWorld_get_type()
     );
-    assert(topic != NULL);
+    TEST_ASSERT_NOT_NULL(topic);
 
     // Create subscriber
     DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(
         participant,
         DUST_DDS_SUBSCRIBER_QOS_DEFAULT
     );
-    assert(subscriber != NULL);
+    TEST_ASSERT_NOT_NULL(subscriber);
 
     // Set up DataReaderListener
     struct MyListenerData my_data = { 0 };
@@ -65,14 +66,14 @@ int main(void) {
         &listener,
         DUST_DDS_STATUS_DATA_AVAILABLE_STATUS
     );
-    assert(reader != NULL);
+    TEST_ASSERT_NOT_NULL(reader);
 
     // Create publisher
     DustDdsPublisher* publisher = dds_domain_participant_create_publisher(
         participant,
         DUST_DDS_PUBLISHER_QOS_DEFAULT
     );
-    assert(publisher != NULL);
+    TEST_ASSERT_NOT_NULL(publisher);
 
     // Create data writer
     DustDdsDataWriter* writer = dds_publisher_create_datawriter(
@@ -80,7 +81,7 @@ int main(void) {
         topic,
         DUST_DDS_DATAWRITER_QOS_DEFAULT
     );
-    assert(writer != NULL);
+    TEST_ASSERT_NOT_NULL(writer);
 
     // Wait for match / discovery
     printf("Waiting for discovery...\n");
@@ -90,7 +91,7 @@ int main(void) {
     sample.msg = "Hello Listener!";
     sample.count = 1;
     ReturnCode result = dds_datawriter_write_HelloWorld(writer, &sample);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Wait for listener to trigger
     printf("Waiting for listener to trigger...\n");
@@ -101,28 +102,31 @@ int main(void) {
         usleep(100000); // 100ms
     }
 
-    assert(my_data.counter > 0);
+    TEST_ASSERT_TRUE(my_data.counter > 0);
     printf("Callback successfully triggered! Counter: %d\n", my_data.counter);
 
     // Clean up
     result = dds_publisher_delete_datawriter(publisher, writer);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_delete_publisher(participant, publisher);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_subscriber_delete_datareader(subscriber, reader);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_delete_topic(participant, topic);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_factory_delete_participant(factory, participant);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+}
 
-    printf("Listener test successfully completed execution.\n");
-    return 0;
+int main(void) {
+    UNITY_BEGIN();
+    RUN_TEST(test_datareader_listener_callback);
+    return UNITY_END();
 }

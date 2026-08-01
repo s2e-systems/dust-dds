@@ -1,12 +1,14 @@
-#include <stdio.h>
-#include <assert.h>
+#include "unity.h"
 #include <string.h>
 #include <stdlib.h>
 #include "../include/dust_dds.h"
 
-int main(void) {
+void setUp(void) {}
+void tearDown(void) {}
+
+void test_participant_lifecycle(void) {
     DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dds_domain_participant_factory_get_instance();
-    assert(factory != NULL);
+    TEST_ASSERT_NOT_NULL(factory);
 
     // Test creating participant with NULL QoS (default QoS)
     DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
@@ -14,13 +16,13 @@ int main(void) {
         0,
         NULL
     );
-    assert(participant != NULL);
+    TEST_ASSERT_NOT_NULL(participant);
 
     ReturnCode result = dds_domain_participant_factory_delete_participant(
         factory,
         participant
     );
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Test creating participant with specific DomainParticipantQos object and custom UserDataQosPolicy
     DomainParticipantQos qos = dds_domain_participant_qos_default();
@@ -31,15 +33,15 @@ int main(void) {
     memcpy(qos.user_data.value.buffer, custom_user_data, sizeof(custom_user_data));
 
     // Verify user data matches
-    assert(qos.user_data.value.length == sizeof(custom_user_data));
-    assert(memcmp(qos.user_data.value.buffer, custom_user_data, sizeof(custom_user_data)) == 0);
+    TEST_ASSERT_EQUAL_UINT(sizeof(custom_user_data), qos.user_data.value.length);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(custom_user_data, qos.user_data.value.buffer, sizeof(custom_user_data));
 
     participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
         &qos
     );
-    assert(participant != NULL);
+    TEST_ASSERT_NOT_NULL(participant);
 
     // Clean up our allocated buffer (the Rust function will make a copy internal to DDS)
     free(qos.user_data.value.buffer);
@@ -48,32 +50,32 @@ int main(void) {
 
     // Test creating publisher and subscriber on participant with default QoS and NULL
     DustDdsPublisher* publisher = dds_domain_participant_create_publisher(participant, NULL);
-    assert(publisher != NULL);
+    TEST_ASSERT_NOT_NULL(publisher);
     result = dds_domain_participant_delete_publisher(participant, publisher);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     PublisherQos pub_qos = dds_publisher_qos_default();
     publisher = dds_domain_participant_create_publisher(participant, &pub_qos);
-    assert(publisher != NULL);
+    TEST_ASSERT_NOT_NULL(publisher);
     result = dds_domain_participant_delete_publisher(participant, publisher);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(participant, NULL);
-    assert(subscriber != NULL);
+    TEST_ASSERT_NOT_NULL(subscriber);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     SubscriberQos sub_qos = dds_subscriber_qos_default();
     subscriber = dds_domain_participant_create_subscriber(participant, &sub_qos);
-    assert(subscriber != NULL);
+    TEST_ASSERT_NOT_NULL(subscriber);
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     result = dds_domain_participant_factory_delete_participant(
         factory,
         participant
     );
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Test lookup_participant
     participant = dds_domain_participant_factory_create_participant(
@@ -81,66 +83,69 @@ int main(void) {
         1, // domain_id = 1
         NULL
     );
-    assert(participant != NULL);
+    TEST_ASSERT_NOT_NULL(participant);
 
     DustDdsDomainParticipant* looked_up = dds_domain_participant_factory_lookup_participant(factory, 1);
-    assert(looked_up != NULL);
+    TEST_ASSERT_NOT_NULL(looked_up);
 
     result = dds_domain_participant_factory_delete_participant(factory, looked_up);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // After deleting, lookup should return NULL
     looked_up = dds_domain_participant_factory_lookup_participant(factory, 1);
-    assert(looked_up == NULL);
+    TEST_ASSERT_NULL(looked_up);
 
     result = dds_domain_participant_factory_delete_participant(factory, participant);
-    assert(result == RETCODE_ALREADY_DELETED);
+    TEST_ASSERT_EQUAL_INT(RETCODE_ALREADY_DELETED, result);
 
     // Test get/set default participant QoS
     DomainParticipantQos default_part_qos;
     result = dds_domain_participant_factory_get_default_participant_qos(factory, &default_part_qos);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Verify entity factory default
-    assert(default_part_qos.entity_factory.autoenable_created_entities == true);
+    TEST_ASSERT_TRUE(default_part_qos.entity_factory.autoenable_created_entities);
 
     default_part_qos.entity_factory.autoenable_created_entities = false;
 
     // Set as default participant QoS
     result = dds_domain_participant_factory_set_default_participant_qos(factory, &default_part_qos);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Verify default participant QoS was updated
     DomainParticipantQos default_part_qos2;
     result = dds_domain_participant_factory_get_default_participant_qos(factory, &default_part_qos2);
-    assert(result == RETCODE_OK);
-    assert(default_part_qos2.entity_factory.autoenable_created_entities == false);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_FALSE(default_part_qos2.entity_factory.autoenable_created_entities);
 
     // Restore to standard default QoS
     result = dds_domain_participant_factory_set_default_participant_qos(factory, NULL);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Test factory QoS
     DomainParticipantFactoryQos factory_qos;
     result = dds_domain_participant_factory_get_qos(factory, &factory_qos);
-    assert(result == RETCODE_OK);
-    assert(factory_qos.entity_factory.autoenable_created_entities == true);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_TRUE(factory_qos.entity_factory.autoenable_created_entities);
 
     factory_qos.entity_factory.autoenable_created_entities = false;
     result = dds_domain_participant_factory_set_qos(factory, &factory_qos);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Verify factory QoS updated
     DomainParticipantFactoryQos factory_qos2;
     result = dds_domain_participant_factory_get_qos(factory, &factory_qos2);
-    assert(result == RETCODE_OK);
-    assert(factory_qos2.entity_factory.autoenable_created_entities == false);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_FALSE(factory_qos2.entity_factory.autoenable_created_entities);
 
     // Restore factory QoS to default
     DomainParticipantFactoryQos default_factory_qos = dds_domain_participant_factory_qos_default();
     result = dds_domain_participant_factory_set_qos(factory, &default_factory_qos);
-    assert(result == RETCODE_OK);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+}
 
-    printf("C test passed: create_participant, create_publisher, create_subscriber, and participant factory methods succeeded!\n");
-    return 0;
+int main(void) {
+    UNITY_BEGIN();
+    RUN_TEST(test_participant_lifecycle);
+    return UNITY_END();
 }
