@@ -111,10 +111,7 @@ impl StringSeq {
 pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
-            let _ = Box::from_raw(std::slice::from_raw_parts_mut(
-                seq.buffer,
-                seq.length as usize,
-            ));
+            let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(seq.buffer, seq.length as usize));
         }
     }
 }
@@ -335,18 +332,15 @@ impl From<dust_dds::infrastructure::qos_policy::LifespanQosPolicy> for LifespanQ
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum DurabilityQosPolicyKind {
+    #[default]
     VOLATILE_DURABILITY_QOS,
     TRANSIENT_LOCAL_DURABILITY_QOS,
     TRANSIENT_DURABILITY_QOS,
     PERSISTENT_DURABILITY_QOS,
 }
 
-impl Default for DurabilityQosPolicyKind {
-    fn default() -> Self {
-        Self::VOLATILE_DURABILITY_QOS
-    }
-}
 
 impl From<DurabilityQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind
@@ -406,17 +400,14 @@ impl From<dust_dds::infrastructure::qos_policy::DurabilityQosPolicy> for Durabil
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum PresentationQosPolicyAccessScopeKind {
+    #[default]
     INSTANCE_PRESENTATION_QOS,
     TOPIC_PRESENTATION_QOS,
     GROUP_PRESENTATION_QOS,
 }
 
-impl Default for PresentationQosPolicyAccessScopeKind {
-    fn default() -> Self {
-        Self::INSTANCE_PRESENTATION_QOS
-    }
-}
 
 impl From<PresentationQosPolicyAccessScopeKind>
     for dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind
@@ -534,16 +525,13 @@ impl From<dust_dds::infrastructure::qos_policy::LatencyBudgetQosPolicy> for Late
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum OwnershipQosPolicyKind {
+    #[default]
     SHARED_OWNERSHIP_QOS,
     EXCLUSIVE_OWNERSHIP_QOS,
 }
 
-impl Default for OwnershipQosPolicyKind {
-    fn default() -> Self {
-        Self::SHARED_OWNERSHIP_QOS
-    }
-}
 
 impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind {
     fn from(kind: OwnershipQosPolicyKind) -> Self {
@@ -612,17 +600,14 @@ impl From<dust_dds::infrastructure::qos_policy::OwnershipStrengthQosPolicy>
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum LivelinessQosPolicyKind {
+    #[default]
     AUTOMATIC_LIVELINESS_QOS,
     MANUAL_BY_PARTICIPANT_LIVELINESS_QOS,
     MANUAL_BY_TOPIC_LIVELINESS_QOS,
 }
 
-impl Default for LivelinessQosPolicyKind {
-    fn default() -> Self {
-        Self::AUTOMATIC_LIVELINESS_QOS
-    }
-}
 
 impl From<LivelinessQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind
@@ -741,16 +726,13 @@ impl From<dust_dds::infrastructure::qos_policy::PartitionQosPolicy> for Partitio
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum ReliabilityQosPolicyKind {
+    #[default]
     BEST_EFFORT_RELIABILITY_QOS,
     RELIABLE_RELIABILITY_QOS,
 }
 
-impl Default for ReliabilityQosPolicyKind {
-    fn default() -> Self {
-        Self::BEST_EFFORT_RELIABILITY_QOS
-    }
-}
 
 impl From<ReliabilityQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind
@@ -817,16 +799,13 @@ impl From<dust_dds::infrastructure::qos_policy::ReliabilityQosPolicy> for Reliab
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum DestinationOrderQosPolicyKind {
+    #[default]
     BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS,
     BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS,
 }
 
-impl Default for DestinationOrderQosPolicyKind {
-    fn default() -> Self {
-        Self::BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS
-    }
-}
 
 impl From<DestinationOrderQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind
@@ -882,16 +861,13 @@ impl From<dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicy>
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum HistoryQosPolicyKind {
+    #[default]
     KEEP_LAST_HISTORY_QOS,
     KEEP_ALL_HISTORY_QOS,
 }
 
-impl Default for HistoryQosPolicyKind {
-    fn default() -> Self {
-        Self::KEEP_LAST_HISTORY_QOS
-    }
-}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

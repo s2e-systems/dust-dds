@@ -28,7 +28,7 @@ pub unsafe extern "C" fn dds_dynamic_data_create(
     if r#type.is_null() {
         return None;
     }
-    let dynamic_data = DynamicDataFactory::create_data(unsafe { &*r#type }.inner().clone());
+    let dynamic_data = DynamicDataFactory::create_data(*unsafe { &*r#type }.inner());
     NonNull::new(Box::into_raw(Box::new(DustDdsDynamicData::new(
         dynamic_data,
     ))))
@@ -669,9 +669,9 @@ pub unsafe extern "C" fn dds_datareader_read(
                     if let Some(dynamic_data) = sample.data {
                         let wrapper = DustDdsDynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
-                        *data_values.offset(i as isize) = ptr;
+                        *data_values.add(i) = ptr;
                     } else {
-                        *data_values.offset(i as isize) = None;
+                        *data_values.add(i) = None;
                     }
                 }
             }

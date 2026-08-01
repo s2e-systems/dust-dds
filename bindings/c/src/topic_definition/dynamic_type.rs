@@ -171,13 +171,13 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
     let base_type = if descriptor.base_type.is_null() {
         None
     } else {
-        Some(unsafe { &*descriptor.base_type }.0.clone())
+        Some(unsafe { &*descriptor.base_type }.0)
     };
 
     let discriminator_type = if descriptor.discriminator_type.is_null() {
         None
     } else {
-        Some(unsafe { &*descriptor.discriminator_type }.0.clone())
+        Some(unsafe { &*descriptor.discriminator_type }.0)
     };
 
     let bound: &'static [u32] = if descriptor.bound.is_null() {
@@ -189,13 +189,13 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
     let element_type = if descriptor.element_type.is_null() {
         None
     } else {
-        Some(unsafe { &*descriptor.element_type }.0.clone())
+        Some(unsafe { &*descriptor.element_type }.0)
     };
 
     let key_element_type = if descriptor.key_element_type.is_null() {
         None
     } else {
-        Some(unsafe { &*descriptor.key_element_type }.0.clone())
+        Some(unsafe { &*descriptor.key_element_type }.0)
     };
 
     let kind = type_kind_from_u8(descriptor.kind)?;
@@ -356,7 +356,7 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_add_member(
     let member_descriptor = MemberDescriptor {
         name: name_str,
         id: desc_ref.id,
-        r#type: unsafe { &*desc_ref.r#type }.0.clone(),
+        r#type: unsafe { &*desc_ref.r#type }.0,
         default_value: None,
         index: desc_ref.id,
         label: &[],

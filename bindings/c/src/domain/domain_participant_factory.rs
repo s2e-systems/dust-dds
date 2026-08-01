@@ -44,7 +44,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
     };
 
     let factory_ref = factory.map_or_else(
-        || dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance(),
+        dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance,
         |f| unsafe { f.as_ref() }.0,
     );
 
@@ -138,7 +138,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     match unsafe { factory.as_ref() }
@@ -189,7 +189,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     match unsafe { factory.as_ref() }.0.set_qos(qos) {

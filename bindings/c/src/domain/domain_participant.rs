@@ -56,7 +56,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_publisher(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
@@ -236,7 +236,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
@@ -250,7 +250,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
             qos,
             None::<CTopicListenerWrapper>,
             &status_kinds,
-            dynamic_type_ref.inner().clone(),
+            *dynamic_type_ref.inner(),
         )
     } else {
         let wrapper = CTopicListenerWrapper {
@@ -262,7 +262,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
             qos,
             Some(wrapper),
             &status_kinds,
-            dynamic_type_ref.inner().clone(),
+            *dynamic_type_ref.inner(),
         )
     };
 
@@ -460,7 +460,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_qos(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
     match unsafe { participant.as_ref() }.inner().set_qos(qos) {
         Ok(()) => RETCODE_OK,
@@ -684,7 +684,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_publisher_qos(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
     match unsafe { participant.as_ref() }
         .inner()
@@ -731,7 +731,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_subscriber_qos(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
     match unsafe { participant.as_ref() }
         .inner()
@@ -778,7 +778,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_topic_qos(
     let qos = if qos.is_null() {
         QosKind::Default
     } else {
-        QosKind::Specific(unsafe { &*qos }.clone().into())
+        QosKind::Specific((*unsafe { &*qos }).into())
     };
     match unsafe { participant.as_ref() }
         .inner()

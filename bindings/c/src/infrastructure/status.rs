@@ -218,10 +218,7 @@ impl From<Vec<dust_dds::infrastructure::status::QosPolicyCount>> for QosPolicyCo
 pub unsafe extern "C" fn dds_qos_policy_count_seq_free(seq: QosPolicyCountSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
-            let _ = Box::from_raw(std::slice::from_raw_parts_mut(
-                seq.buffer,
-                seq.length as usize,
-            ));
+            let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(seq.buffer, seq.length as usize));
         }
     }
 }

@@ -1058,7 +1058,7 @@ impl<'a> CGenerator<'a> {
             if i < enumerators.len() - 1 {
                 self.writer.push_str(",\n");
             } else {
-                self.writer.push_str("\n");
+                self.writer.push('\n');
             }
         }
 

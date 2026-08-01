@@ -44,7 +44,7 @@ pub unsafe extern "C" fn dds_subscriber_create_datareader(
     let qos = if qos.is_null() {
         dust_dds::infrastructure::qos::QosKind::Default
     } else {
-        dust_dds::infrastructure::qos::QosKind::Specific(unsafe { &*qos }.clone().into())
+        dust_dds::infrastructure::qos::QosKind::Specific((*unsafe { &*qos }).into())
     };
 
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);

@@ -1,6 +1,5 @@
 use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    Duration_t, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
     LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OctetSeq, OwnershipQosPolicy,
     OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
     ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, StringSeq,
