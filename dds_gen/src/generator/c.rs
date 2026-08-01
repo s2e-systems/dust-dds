@@ -1,11 +1,19 @@
 use crate::parser::{IdlPair, Rule};
 
+#[derive(Clone, Debug)]
+enum TypeDef<'a> {
+    Struct,
+    Enum,
+    Alias(pest::iterators::Pair<'a, Rule>),
+}
+
 /// _Rust_ generator.
 #[derive(Debug)]
 pub struct CGenerator<'a> {
     writer: &'a mut String,
     /// List of modules to keep track of hierarchy.
     modules: Vec<String>,
+    defined_types: Vec<(String, TypeDef<'a>)>,
 }
 
 impl<'a> CGenerator<'a> {
@@ -13,10 +21,11 @@ impl<'a> CGenerator<'a> {
         Self {
             writer,
             modules: Vec::default(),
+            defined_types: Vec::default(),
         }
     }
 
-    pub fn generate(&mut self, pair: IdlPair) {
+    pub fn generate(&mut self, pair: IdlPair<'a>) {
         match pair.as_rule() {
             Rule::EOI => (),
             Rule::escape => todo!(),
@@ -46,8 +55,8 @@ impl<'a> CGenerator<'a> {
             Rule::specification => self.specification(pair),
             Rule::semicolon => (),
             Rule::definition => self.definition(pair),
-            Rule::module_dcl => todo!(),
-            Rule::scoped_name => todo!(),
+            Rule::module_dcl => self.module_dcl(pair),
+            Rule::scoped_name => self.scoped_name(pair),
             Rule::const_dcl => todo!(),
             Rule::const_type => todo!(),
             Rule::const_expr => todo!(),
@@ -106,15 +115,15 @@ impl<'a> CGenerator<'a> {
             Rule::case_label => todo!(),
             Rule::element_spec => todo!(),
             Rule::union_forward_dcl => todo!(),
-            Rule::enum_dcl => todo!(),
-            Rule::enumerator => todo!(),
+            Rule::enum_dcl => self.enum_dcl(pair),
+            Rule::enumerator => (),
             Rule::array_declarator => todo!(),
             Rule::fixed_array_size => todo!(),
             Rule::native_dcl => todo!(),
             Rule::simple_declarator => self.simple_declarator(pair),
-            Rule::typedef_dcl => todo!(),
-            Rule::type_declarator => todo!(),
-            Rule::any_declarators => todo!(),
+            Rule::typedef_dcl => self.typedef_dcl(pair),
+            Rule::type_declarator => self.type_declarator(pair),
+            Rule::any_declarators => (),
             Rule::any_declarator => todo!(),
             Rule::declarators => todo!(),
             Rule::declarator => todo!(),
@@ -238,7 +247,7 @@ impl<'a> CGenerator<'a> {
         }
     }
 
-    fn specification(&mut self, pair: IdlPair) {
+    fn specification(&mut self, pair: IdlPair<'a>) {
         self.writer
             .push_str("\n    #include <stdbool.h>\n    #include <stdint.h>\n    #include <stddef.h>\n    #include <stdlib.h>\n    #include <string.h>\n    #include \"dust_dds.h\"\n\n");
         for definition in pair.into_inner() {
@@ -247,7 +256,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn definition(&mut self, pair: IdlPair) {
+    fn definition(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -256,7 +265,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn type_dcl(&mut self, pair: IdlPair) {
+    fn type_dcl(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -265,7 +274,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn constr_type_dcl(&mut self, pair: IdlPair) {
+    fn constr_type_dcl(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -274,7 +283,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn struct_dcl(&mut self, pair: IdlPair) {
+    fn struct_dcl(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -321,15 +330,21 @@ impl<'a> CGenerator<'a> {
         (is_key, is_optional)
     }
 
-    fn struct_def(&mut self, pair: IdlPair) {
+    fn struct_def(&mut self, pair: IdlPair<'a>) {
         let inner_pairs = pair.into_inner();
         let identifier = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::identifier)
             .expect("Identifier must exist according to the grammar");
 
+        let struct_name = identifier.as_str();
+        let prefixed_struct_name = self.current_qualified_name(struct_name).replace("::", "_");
+        let dds_struct_name = self.current_qualified_name(struct_name);
+
+        self.defined_types.push((dds_struct_name.clone(), TypeDef::Struct));
+
         self.writer.push_str("    struct ");
-        self.generate(identifier.clone());
+        self.writer.push_str(&prefixed_struct_name);
         self.writer.push_str(" {\n");
 
         for member in inner_pairs.clone().filter(|p| p.as_rule() == Rule::member) {
@@ -338,12 +353,10 @@ impl<'a> CGenerator<'a> {
 
         self.writer.push_str("    };\n");
 
-        let struct_name = identifier.as_str();
-
         // --- get_type() ---
         self.writer
             .push_str("\n    static inline const DustDdsDynamicType* ");
-        self.writer.push_str(struct_name);
+        self.writer.push_str(&prefixed_struct_name);
         self.writer.push_str("_get_type(void) {\n");
         self.writer
             .push_str("        static const DustDdsDynamicType* type = NULL;\n");
@@ -353,7 +366,7 @@ impl<'a> CGenerator<'a> {
 
             self.writer.push_str("            DustDdsTypeDescriptor descriptor = {\n");
             self.writer.push_str("                .kind = TYPE_KIND_STRUCTURE,\n");
-            self.writer.push_str(&format!("                .name = \"{}\",\n", struct_name));
+            self.writer.push_str(&format!("                .name = \"{}\",\n", dds_struct_name));
             self.writer.push_str("                .base_type = NULL,\n");
             self.writer.push_str("                .discriminator_type = NULL,\n");
             self.writer.push_str("                .bound = NULL,\n");
@@ -389,7 +402,8 @@ impl<'a> CGenerator<'a> {
                     Rule::simple_declarator => array_or_simple_declarator.as_str().to_string(),
                     _ => todo!(),
                 };
-                members.push((member_id, type_spec.clone(), field_name, is_key, is_optional));
+                let resolved_type_spec = self.resolve_type_spec(type_spec.clone());
+                members.push((member_id, resolved_type_spec, field_name, is_key, is_optional));
                 member_id += 1;
             }
         }
@@ -607,17 +621,18 @@ impl<'a> CGenerator<'a> {
                 }
                 _ => {
                     // Custom identifier / nested struct
+                    let resolved_leaf = self.resolve_type(&leaf_str);
                     create_sample_code.push_str(&format!(
                         "        {{\n            DustDdsDynamicData* member_data = NULL;\n            dds_dynamic_data_get_complex_value(src, {}, &member_data);\n            if (member_data != NULL) {{\n                sample.{} = {}_create_sample(member_data);\n                dds_dynamic_data_free(member_data);\n            }}\n        }}\n",
-                        member_id, field_name, leaf_str
+                        member_id, field_name, resolved_leaf
                     ));
                     create_dynamic_sample_code.push_str(&format!(
                         "            {{\n                DustDdsDynamicData* member_data = {}_create_dynamic_sample(&src->{});\n                dds_dynamic_data_set_complex_value(sample, {}, member_data);\n                dds_dynamic_data_free(member_data);\n            }}\n",
-                        leaf_str, field_name, member_id
+                        resolved_leaf, field_name, member_id
                     ));
                     free_sample_code.push_str(&format!(
                         "        {}_free_sample(&sample->{});\n",
-                        leaf_str, field_name
+                        resolved_leaf, field_name
                     ));
                 }
             }
@@ -625,31 +640,31 @@ impl<'a> CGenerator<'a> {
 
         self.writer.push_str(&format!(
             "\n    static inline struct {} {}_create_sample(DustDdsDynamicData* src) {{\n        struct {} sample;\n        memset(&sample, 0, sizeof(sample));\n{}        return sample;\n    }}\n",
-            struct_name, struct_name, struct_name, create_sample_code
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, create_sample_code
         ));
 
         self.writer.push_str(&format!(
             "\n    static inline DustDdsDynamicData* {}_create_dynamic_sample(const struct {}* src) {{\n        DustDdsDynamicData* sample = dds_dynamic_data_create({}_get_type());\n        if (sample != NULL) {{\n{}        }}\n        return sample;\n    }}\n",
-            struct_name, struct_name, struct_name, create_dynamic_sample_code
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, create_dynamic_sample_code
         ));
 
         self.writer.push_str(&format!(
             "\n    static inline void {}_free_sample(struct {}* sample) {{\n        if (sample != NULL) {{\n{}        }}\n    }}\n",
-            struct_name, struct_name, free_sample_code
+            prefixed_struct_name, prefixed_struct_name, free_sample_code
         ));
 
         self.writer.push_str(&format!(
             "\n    static inline ReturnCode dds_datawriter_write_{}(DustDdsDataWriter* writer, const struct {}* data) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_write(writer, sample);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
-            struct_name, struct_name, struct_name
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
             "\n    static inline ReturnCode dds_datareader_read_{}(DustDdsDataReader* reader, struct {}* data_values, int32_t max_samples, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return RETCODE_OUT_OF_RESOURCES;\n        }}\n        ReturnCode result = dds_datareader_read(reader, samples, max_samples, received_samples);\n        if (result == RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
-            struct_name, struct_name, struct_name
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
     }
 
-    fn get_type_leaf(&self, type_spec: IdlPair) -> (Rule, String) {
+    fn get_type_leaf(&self, type_spec: IdlPair<'a>) -> (Rule, String) {
         let mut current = type_spec;
         loop {
             match current.as_rule() {
@@ -670,7 +685,7 @@ impl<'a> CGenerator<'a> {
         }
     }
 
-    fn get_dynamic_type_expr(&self, type_spec: IdlPair) -> String {
+    fn get_dynamic_type_expr(&self, type_spec: IdlPair<'a>) -> String {
         let mut current = type_spec;
         loop {
             match current.as_rule() {
@@ -747,13 +762,14 @@ impl<'a> CGenerator<'a> {
                     return format!("dds_dynamic_type_create_string_type({})", bound);
                 }
                 _ => {
-                    return format!("(DustDdsDynamicType*){}_get_type()", current.as_str());
+                    let resolved = self.resolve_type(current.as_str());
+                    return format!("(DustDdsDynamicType*){}_get_type()", resolved);
                 }
             }
         }
     }
 
-    fn member(&mut self, pair: IdlPair) {
+    fn member(&mut self, pair: IdlPair<'a>) {
         let inner_pairs = pair.into_inner();
 
         let type_spec = inner_pairs
@@ -784,7 +800,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn simple_declarator(&mut self, pair: IdlPair) {
+    fn simple_declarator(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -793,12 +809,12 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn identifier(&mut self, pair: IdlPair) {
+    fn identifier(&mut self, pair: IdlPair<'a>) {
         self.writer.push_str(pair.as_str())
     }
 
     #[inline]
-    fn type_spec(&mut self, pair: IdlPair) {
+    fn type_spec(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -807,7 +823,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn simple_type_spec(&mut self, pair: IdlPair) {
+    fn simple_type_spec(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -816,7 +832,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn base_type_spec(&mut self, pair: IdlPair) {
+    fn base_type_spec(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -824,7 +840,7 @@ impl<'a> CGenerator<'a> {
         )
     }
 
-    fn floating_pt_type(&mut self, pair: IdlPair) {
+    fn floating_pt_type(&mut self, pair: IdlPair<'a>) {
         match pair.as_str() {
             "float" => self.writer.push_str("float"),
             "double" => self.writer.push_str("double"),
@@ -834,7 +850,7 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn integer_type(&mut self, pair: IdlPair) {
+    fn integer_type(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -843,12 +859,12 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn signed_tiny_int(&mut self, _pair: IdlPair) {
+    fn signed_tiny_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("int8_t")
     }
 
     #[inline]
-    fn signed_int(&mut self, pair: IdlPair) {
+    fn signed_int(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -857,27 +873,27 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn signed_short_int(&mut self, _pair: IdlPair) {
+    fn signed_short_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("int16_t")
     }
 
     #[inline]
-    fn signed_long_int(&mut self, _pair: IdlPair) {
+    fn signed_long_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("int32_t")
     }
 
     #[inline]
-    fn signed_longlong_int(&mut self, _pair: IdlPair) {
+    fn signed_longlong_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("int64_t")
     }
 
     #[inline]
-    fn unsigned_tiny_int(&mut self, _pair: IdlPair) {
+    fn unsigned_tiny_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("uint8_t")
     }
 
     #[inline]
-    fn unsigned_int(&mut self, pair: IdlPair) {
+    fn unsigned_int(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -886,27 +902,27 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn unsigned_short_int(&mut self, _pair: IdlPair) {
+    fn unsigned_short_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("uint16_t")
     }
 
     #[inline]
-    fn unsigned_long_int(&mut self, _pair: IdlPair) {
+    fn unsigned_long_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("uint32_t")
     }
 
     #[inline]
-    fn unsigned_longlong_int(&mut self, _pair: IdlPair) {
+    fn unsigned_longlong_int(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("uint64_t")
     }
 
     #[inline]
-    fn octet_type(&mut self, _pair: IdlPair) {
+    fn octet_type(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("uint8_t")
     }
 
     #[inline]
-    fn template_type_spec(&mut self, pair: IdlPair) {
+    fn template_type_spec(&mut self, pair: IdlPair<'a>) {
         self.generate(
             pair.into_inner()
                 .next()
@@ -915,27 +931,186 @@ impl<'a> CGenerator<'a> {
     }
 
     #[inline]
-    fn string_type(&mut self, _pair: IdlPair) {
+    fn string_type(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("char*")
     }
 
     #[inline]
-    fn wide_string_type(&mut self, _pair: IdlPair) {
+    fn wide_string_type(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("wchar_t*")
     }
 
     #[inline]
-    fn char_type(&mut self, _pair: IdlPair) {
+    fn char_type(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("char")
     }
 
     #[inline]
-    fn wide_char_type(&mut self, _pair: IdlPair) {
+    fn wide_char_type(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("wchar_t")
     }
 
     #[inline]
-    fn boolean(&mut self, _pair: IdlPair) {
+    fn boolean(&mut self, _pair: IdlPair<'a>) {
         self.writer.push_str("bool")
+    }
+
+    fn current_qualified_name(&self, identifier: &str) -> String {
+        if self.modules.is_empty() {
+            identifier.to_string()
+        } else {
+            format!("{}::{}", self.modules.join("::"), identifier)
+        }
+    }
+
+    fn resolve_type(&self, t: &str) -> String {
+        if let Some(resolved_qname) = self.resolve_qualified_name(t) {
+            return resolved_qname.replace("::", "_");
+        }
+        t.replace("::", "_")
+    }
+
+    fn module_dcl(&mut self, pair: IdlPair<'a>) {
+        let inner_pairs = pair.into_inner();
+        let identifier = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+        self.modules.push(identifier.as_str().to_string());
+
+        for definition in inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::definition)
+        {
+            self.generate(definition);
+        }
+
+        self.modules.pop();
+    }
+
+    fn scoped_name(&mut self, pair: IdlPair<'a>) {
+        let resolved = self.resolve_type(pair.as_str());
+        self.writer.push_str(&resolved);
+    }
+
+    fn enum_dcl(&mut self, pair: IdlPair<'a>) {
+        let inner_pairs = pair.clone().into_inner();
+        let identifier = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+
+        let enum_name = identifier.as_str();
+        let prefixed_enum_name = self.current_qualified_name(enum_name).replace("::", "_");
+
+        self.defined_types.push((self.current_qualified_name(enum_name), TypeDef::Enum));
+
+        self.writer.push_str("    enum ");
+        self.writer.push_str(&prefixed_enum_name);
+        self.writer.push_str(" {\n");
+
+        let enumerators: Vec<IdlPair<'a>> = inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::enumerator)
+            .collect();
+
+        for (i, enumerator) in enumerators.iter().enumerate() {
+            let enum_ident = enumerator
+                .clone()
+                .into_inner()
+                .find(|x| x.as_rule() == Rule::identifier)
+                .expect("Must have an identifier according to the grammar");
+            
+            self.writer.push_str("        ");
+            self.writer.push_str(&prefixed_enum_name);
+            self.writer.push('_');
+            self.writer.push_str(enum_ident.as_str());
+
+            if i < enumerators.len() - 1 {
+                self.writer.push_str(",\n");
+            } else {
+                self.writer.push_str("\n");
+            }
+        }
+
+        self.writer.push_str("    };\n");
+    }
+
+    #[inline]
+    fn typedef_dcl(&mut self, pair: IdlPair<'a>) {
+        self.generate(
+            pair.into_inner()
+                .next()
+                .expect("Must have an element according to the grammar"),
+        )
+    }
+
+    fn type_declarator(&mut self, pair: IdlPair<'a>) {
+        let inner_pairs = pair.into_inner();
+        let type_spec = inner_pairs.clone().find(|p| {
+            p.as_rule() == Rule::template_type_spec
+                || p.as_rule() == Rule::constr_type_dcl
+                || p.as_rule() == Rule::simple_type_spec
+        }).expect("template_type_spec, constr_type_dcl or simple_type_spec must exist according to grammar");
+        let any_declarators = inner_pairs
+            .clone()
+            .find(|p| p.as_rule() == Rule::any_declarators)
+            .expect("Must have any_declarators according to grammar");
+        
+        for any_declarator in any_declarators.into_inner() {
+            let name_str = any_declarator.as_str();
+            let prefixed_name = self.current_qualified_name(name_str).replace("::", "_");
+            
+            self.defined_types.push((
+                self.current_qualified_name(name_str),
+                TypeDef::Alias(type_spec.clone()),
+            ));
+
+            self.writer.push_str("    typedef ");
+            self.generate(type_spec.clone());
+            self.writer.push(' ');
+            self.writer.push_str(&prefixed_name);
+            self.writer.push_str(";\n");
+        }
+    }
+
+    fn resolve_type_spec(&self, type_spec: IdlPair<'a>) -> IdlPair<'a> {
+        let (leaf_rule, leaf_str) = self.get_type_leaf(type_spec.clone());
+        if leaf_rule == Rule::scoped_name {
+            if let Some(alias_spec) = self.find_alias(&leaf_str) {
+                return self.resolve_type_spec(alias_spec);
+            }
+        }
+        type_spec
+    }
+
+    fn find_alias(&self, t: &str) -> Option<IdlPair<'a>> {
+        let resolved_qname = self.resolve_qualified_name(t)?;
+        for (qname, typedef) in &self.defined_types {
+            if qname == &resolved_qname {
+                if let TypeDef::Alias(spec) = typedef {
+                    return Some(spec.clone());
+                }
+            }
+        }
+        None
+    }
+
+    fn resolve_qualified_name(&self, t: &str) -> Option<String> {
+        if let Some(absolute_t) = t.strip_prefix("::") {
+            return Some(absolute_t.to_string());
+        }
+
+        let t_parts: Vec<&str> = t.split("::").collect();
+
+        for i in (0..=self.modules.len()).rev() {
+            let mut candidate_parts = self.modules[0..i].to_vec();
+            candidate_parts.extend(t_parts.iter().map(|s| s.to_string()));
+            let candidate_qname = candidate_parts.join("::");
+            if self.defined_types.iter().any(|(qname, _)| qname == &candidate_qname) {
+                return Some(candidate_qname);
+            }
+        }
+        None
     }
 }
