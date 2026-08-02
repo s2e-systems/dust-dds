@@ -1,4 +1,4 @@
 struct HelloWorld {
     string msg;
-    unsigned long count;
+    @key unsigned long count;
 };

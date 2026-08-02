@@ -683,7 +683,52 @@ impl<'a> CGenerator<'a> {
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline ReturnCode dds_datawriter_write_{}(DustDdsDataWriter* writer, const struct {}* data) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_write(writer, sample);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline ReturnCode {}_dds_datawriter_write(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_write(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_write_w_timestamp(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_register_instance(DustDdsDataWriter* writer, const struct {}* data, InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_register_instance_w_timestamp(DustDdsDataWriter* writer, const struct {}* data, struct Time_t source_timestamp, InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_unregister_instance(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_unregister_instance_w_timestamp(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_dispose(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_dispose(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_dispose_w_timestamp(DustDdsDataWriter* writer, const struct {}* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_get_key_value(DustDdsDataWriter* writer, struct {}* key_holder, const InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);\n        if (result == RETCODE_OK) {{\n            *key_holder = {}_create_sample(sample);\n        }}\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
+        ));
+
+        self.writer.push_str(&format!(
+            "\n    static inline ReturnCode {}_dds_datawriter_lookup_instance(DustDdsDataWriter* writer, const struct {}* key_holder, InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return RETCODE_BAD_PARAMETER;\n        }}\n        DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return RETCODE_ERROR;\n        }}\n        ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 

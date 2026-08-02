@@ -126,7 +126,18 @@ void test_hello_world_write_read(void) {
     sample.msg = "Hello from C bindings!";
     sample.count = 42;
     printf("Writing HelloWorld sample...\n");
-    result = dds_datawriter_write_HelloWorld(writer, &sample);
+
+    // Test register_instance and lookup_instance
+    InstanceHandle_t handle;
+    result = HelloWorld_dds_datawriter_register_instance(writer, &sample, &handle);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    InstanceHandle_t lookup_handle;
+    result = HelloWorld_dds_datawriter_lookup_instance(writer, &sample, &lookup_handle);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_MEMORY(handle, lookup_handle, sizeof(InstanceHandle_t));
+
+    result = HelloWorld_dds_datawriter_write(writer, &sample, &handle);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Wait for data to be available on reader
@@ -138,14 +149,21 @@ void test_hello_world_write_read(void) {
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 
     // Read the sample
-    struct HelloWorld samples[1];
-    int32_t received = 0;
-    result = dds_datareader_read_HelloWorld(reader, samples, 1, &received);
+    struct HelloWorld data_values[1];
+    int32_t received_samples = 0;
+    result = dds_datareader_read_HelloWorld(reader, data_values, 1, &received_samples);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
-    TEST_ASSERT_EQUAL_INT(1, received);
-    TEST_ASSERT_EQUAL_STRING("Hello from C bindings!", samples[0].msg);
-    TEST_ASSERT_EQUAL_UINT(42, samples[0].count);
-    HelloWorld_free_sample(&samples[0]);
+    TEST_ASSERT_EQUAL_INT(1, received_samples);
+    TEST_ASSERT_EQUAL_STRING("Hello from C bindings!", data_values[0].msg);
+    TEST_ASSERT_EQUAL_INT(42, data_values[0].count);
+
+    // Free the string allocated by the Rust bindings
+    HelloWorld_free_sample(&data_values[0]);
+
+    // Test unregister_instance now that reading is done
+    result = HelloWorld_dds_datawriter_unregister_instance(writer, &sample, &handle);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
 
     // Wait for acknowledgment on writer
     DustDdsDuration ack_timeout = { 10, 0 };
