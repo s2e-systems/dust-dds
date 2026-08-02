@@ -1,5 +1,7 @@
 use crate::DustDdsStatusCondition;
+use crate::infrastructure::condition::DustDdsStatusMask;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
+use crate::infrastructure::listeners::{CDataWriterListenerWrapper, DustDdsDataWriterListener};
 use crate::infrastructure::qos::DataWriterQos;
 use crate::publication::publisher::DustDdsPublisher;
 use crate::topic_definition::topic::DustDdsTopic;
@@ -29,6 +31,8 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     topic: Option<NonNull<DustDdsTopic>>,
     qos: *const DataWriterQos,
+    listener: *const DustDdsDataWriterListener,
+    mask: DustDdsStatusMask,
 ) -> Option<NonNull<DustDdsDataWriter>> {
     let Some(publisher) = publisher else {
         return None;
@@ -43,23 +47,42 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
         dust_dds::infrastructure::qos::QosKind::Specific((*unsafe { &*qos }).into())
     };
 
-    struct NoDataWriterListener;
-    impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData<'static>>
-        for NoDataWriterListener
-    {
-    }
+    let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
 
     let publisher_ref = unsafe { publisher.as_ref() };
     let topic_ref = unsafe { topic.as_ref() };
 
-    match publisher_ref
-        .inner()
-        .create_datawriter::<DynamicData<'static>>(
-            topic_ref.inner(),
-            qos,
-            None::<NoDataWriterListener>,
-            &[],
-        ) {
+    let result = if listener.is_null() {
+        struct NoDataWriterListener;
+        impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData<'static>>
+            for NoDataWriterListener
+        {
+        }
+
+        publisher_ref
+            .inner()
+            .create_datawriter::<DynamicData<'static>>(
+                topic_ref.inner(),
+                qos,
+                None::<NoDataWriterListener>,
+                &status_kinds,
+            )
+    } else {
+        let listener_wrapper = CDataWriterListenerWrapper {
+            listener: unsafe { *listener },
+        };
+
+        publisher_ref
+            .inner()
+            .create_datawriter::<DynamicData<'static>>(
+                topic_ref.inner(),
+                qos,
+                Some(listener_wrapper),
+                &status_kinds,
+            )
+    };
+
+    match result {
         Ok(dw) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
         Err(_) => None,
     }
@@ -125,5 +148,28 @@ pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
     match writer_ref.inner().wait_for_acknowledgments(max_wait.into()) {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
+    }
+}
+
+/// Looks up an existing DataWriter.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_publisher_lookup_datawriter(
+    publisher: Option<NonNull<DustDdsPublisher>>,
+    topic_name: *const std::os::raw::c_char,
+) -> Option<NonNull<DustDdsDataWriter>> {
+    let Some(publisher) = publisher else {
+        return None;
+    };
+    if topic_name.is_null() {
+        return None;
+    }
+    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }.to_str().ok()?;
+
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .lookup_datawriter::<DynamicData<'static>>(topic_name_str)
+    {
+        Ok(Some(dw)) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
+        _ => None,
     }
 }

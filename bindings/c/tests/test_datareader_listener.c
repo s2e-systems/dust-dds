@@ -87,7 +87,9 @@ void test_datareader_listener_callback(void) {
     DustDdsDataWriter* writer = dds_publisher_create_datawriter(
         publisher,
         topic,
-        DUST_DDS_DATAWRITER_QOS_DEFAULT
+        DUST_DDS_DATAWRITER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(writer);
 

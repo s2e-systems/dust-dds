@@ -67,7 +67,9 @@ void test_hello_world_write_read(void) {
     DustDdsDataWriter* writer = dds_publisher_create_datawriter(
         publisher,
         topic_pub,
-        DUST_DDS_DATAWRITER_QOS_DEFAULT
+        DUST_DDS_DATAWRITER_QOS_DEFAULT,
+        NULL,
+        0
     );
     TEST_ASSERT_NOT_NULL(writer);
 
