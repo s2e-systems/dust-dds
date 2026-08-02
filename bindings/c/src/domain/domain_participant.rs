@@ -518,29 +518,6 @@ pub unsafe extern "C" fn dds_domain_participant_set_listener(
     }
 }
 
-/// Gets the DomainParticipantListener.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_listener(
-    participant: Option<NonNull<DustDdsDomainParticipant>>,
-) -> DustDdsDomainParticipantListener {
-    let _ = participant;
-    DustDdsDomainParticipantListener {
-        listener_data: std::ptr::null_mut(),
-        on_inconsistent_topic: None,
-        on_liveliness_lost: None,
-        on_offered_deadline_missed: None,
-        on_offered_incompatible_qos: None,
-        on_sample_lost: None,
-        on_data_available: None,
-        on_sample_rejected: None,
-        on_liveliness_changed: None,
-        on_requested_deadline_missed: None,
-        on_requested_incompatible_qos: None,
-        on_publication_matched: None,
-        on_subscription_matched: None,
-    }
-}
-
 /// Ignores a participant.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_ignore_participant(
