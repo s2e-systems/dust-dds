@@ -38,6 +38,10 @@ impl DustDdsWaitSet {
 }
 
 /// Creates a new WaitSet.
+///
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_wait_set_new() -> Option<NonNull<DustDdsWaitSet>> {
     NonNull::new(Box::into_raw(Box::new(DustDdsWaitSet(
@@ -46,6 +50,11 @@ pub unsafe extern "C" fn dds_wait_set_new() -> Option<NonNull<DustDdsWaitSet>> {
 }
 
 /// Frees a WaitSet object.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_wait_set_free(
     wait_set: Option<NonNull<DustDdsWaitSet>>,
@@ -59,6 +68,12 @@ pub unsafe extern "C" fn dds_wait_set_free(
 }
 
 /// Attaches a Condition to the WaitSet.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
+/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_wait_set_attach_condition(
     wait_set: Option<NonNull<DustDdsWaitSet>>,
@@ -83,6 +98,11 @@ pub unsafe extern "C" fn dds_wait_set_attach_condition(
 }
 
 /// Allows an application thread to wait for the occurrence of certain conditions.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_wait_set_wait(
     wait_set: Option<NonNull<DustDdsWaitSet>>,

@@ -22,13 +22,16 @@ impl DustDdsTopicDescription {
 }
 
 /// Gets the participant to which the TopicDescription belongs.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_description_get_participant(
     topic_desc: Option<NonNull<DustDdsTopicDescription>>,
 ) -> Option<NonNull<DustDdsDomainParticipant>> {
-    let Some(topic_desc) = topic_desc else {
-        return None;
-    };
+    let topic_desc = topic_desc?;
     let participant = unsafe { topic_desc.as_ref() }.inner().get_participant();
     NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
         participant,
@@ -36,6 +39,12 @@ pub unsafe extern "C" fn dds_topic_description_get_participant(
 }
 
 /// Gets the type name.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_description_get_type_name(
     topic_desc: Option<NonNull<DustDdsTopicDescription>>,
@@ -57,6 +66,12 @@ pub unsafe extern "C" fn dds_topic_description_get_type_name(
 }
 
 /// Gets the name.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_description_get_name(
     topic_desc: Option<NonNull<DustDdsTopicDescription>>,
@@ -78,6 +93,11 @@ pub unsafe extern "C" fn dds_topic_description_get_name(
 }
 
 /// Frees a TopicDescription object.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_description_free(
     topic_desc: Option<NonNull<DustDdsTopicDescription>>,

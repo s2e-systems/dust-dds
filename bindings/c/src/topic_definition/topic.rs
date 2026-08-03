@@ -16,7 +16,11 @@ impl DustDdsTopic {
         &self.0
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_get_instance_handle(
     topic: Option<std::ptr::NonNull<DustDdsTopic>>,

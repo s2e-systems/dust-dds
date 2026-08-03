@@ -14,6 +14,11 @@ pub struct DustDdsDomainParticipantFactory(
 );
 
 /// Returns the DomainParticipantFactory singleton instance.
+///
+/// # Safety
+///
+/// There are no special safety invariants for calling this function caller must observe the following safety invariants:
+/// - The caller must observe the standard FFI safety constraints when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_get_instance()
 -> *const DustDdsDomainParticipantFactory {
@@ -29,6 +34,13 @@ pub unsafe extern "C" fn dds_domain_participant_factory_get_instance()
 /// Creates a new DomainParticipant object.
 /// Passing NULL (`DUST_DDS_PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
+/// - `listener` must be a valid pointer to a `DustDdsDomainParticipantListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -37,9 +49,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
     listener: *const DustDdsDomainParticipantListener,
     mask: DustDdsStatusMask,
 ) -> Option<NonNull<DustDdsDomainParticipant>> {
-    let Some(factory) = factory else {
-        return None;
-    };
+    let factory = factory?;
 
     let qos = if qos.is_null() {
         QosKind::Default
@@ -78,6 +88,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
 
 /// Deletes an existing DomainParticipant.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -106,14 +122,17 @@ pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
 
 /// Retrieves a previously created DomainParticipant belonging to the specified domain_id.
 /// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL if not found or on error.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     domain_id: i32,
 ) -> Option<NonNull<DustDdsDomainParticipant>> {
-    let Some(factory) = factory else {
-        return None;
-    };
+    let factory = factory?;
 
     match unsafe { factory.as_ref() }.0.lookup_participant(domain_id) {
         Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(
@@ -126,6 +145,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
 /// Sets the default DomainParticipantQos.
 /// Passing NULL represents the default QoS.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -153,6 +178,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_
 /// Gets the default DomainParticipantQos.
 /// Writes the QoS into the user-supplied pointer.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `qos` must be a valid pointer to a `DomainParticipantQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_get_default_participant_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -177,6 +208,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_get_default_participant_
 /// Sets the DomainParticipantFactoryQos policies.
 /// Passing NULL represents the default QoS.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -201,6 +238,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
 /// Gets the DomainParticipantFactoryQos policies.
 /// Writes the QoS into the user-supplied pointer.
 /// Returns RETCODE_OK on success, or standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_domain_participant_factory_get_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
@@ -352,6 +395,6 @@ mod tests {
         assert_eq!(result, RETCODE_OK);
 
         let default_qos = unsafe { dds_domain_participant_factory_qos_default() };
-        assert_eq!(default_qos.entity_factory.autoenable_created_entities, true);
+        assert!(default_qos.entity_factory.autoenable_created_entities);
     }
 }

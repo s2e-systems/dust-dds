@@ -26,6 +26,14 @@ impl DustDdsDataReader {
 }
 
 /// Creates a new DataReader.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `subscriber` must point to a valid, initialized `DustDdsSubscriber` instance.
+/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `qos` must be a valid pointer to a `DataReaderQos` instance (or null).
+/// - `listener` must be a valid pointer to a `DustDdsDataReaderListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_subscriber_create_datareader(
     subscriber: Option<NonNull<DustDdsSubscriber>>,
@@ -34,12 +42,8 @@ pub unsafe extern "C" fn dds_subscriber_create_datareader(
     listener: *const DustDdsDataReaderListener,
     mask: DustDdsStatusMask,
 ) -> Option<NonNull<DustDdsDataReader>> {
-    let Some(subscriber) = subscriber else {
-        return None;
-    };
-    let Some(topic) = topic else {
-        return None;
-    };
+    let subscriber = subscriber?;
+    let topic = topic?;
 
     let qos = if qos.is_null() {
         dust_dds::infrastructure::qos::QosKind::Default
@@ -90,6 +94,12 @@ pub unsafe extern "C" fn dds_subscriber_create_datareader(
 }
 
 /// Deletes an existing DataReader.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `subscriber` must point to a valid, initialized `DustDdsSubscriber` instance.
+/// - `datareader` must point to a valid, initialized `DustDdsDataReader` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_subscriber_delete_datareader(
     subscriber: Option<NonNull<DustDdsSubscriber>>,
@@ -120,13 +130,16 @@ pub unsafe extern "C" fn dds_subscriber_delete_datareader(
 }
 
 /// Gets the StatusCondition associated with the DataReader.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_get_statuscondition(
     reader: Option<NonNull<DustDdsDataReader>>,
 ) -> Option<NonNull<DustDdsStatusCondition>> {
-    let Some(reader) = reader else {
-        return None;
-    };
+    let reader = reader?;
 
     let reader_ref = unsafe { reader.as_ref() };
     let condition = reader_ref.inner().get_statuscondition();

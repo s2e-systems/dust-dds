@@ -21,6 +21,11 @@ impl DustDdsDynamicData {
 }
 
 /// Creates a new DynamicData instance for a given DynamicType.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `r#type` must be a valid pointer to a `DustDdsDynamicType` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_create(
     r#type: *const DustDdsDynamicType,
@@ -35,6 +40,11 @@ pub unsafe extern "C" fn dds_dynamic_data_create(
 }
 
 /// Frees a DynamicData instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_free(data: Option<NonNull<DustDdsDynamicData>>) {
     if let Some(d) = data {
@@ -45,6 +55,11 @@ pub unsafe extern "C" fn dds_dynamic_data_free(data: Option<NonNull<DustDdsDynam
 }
 
 /// Frees a string allocated by the Rust bindings.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `ptr` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_string_free(ptr: *mut std::os::raw::c_char) {
     if !ptr.is_null() {
@@ -55,6 +70,11 @@ pub unsafe extern "C" fn dds_string_free(ptr: *mut std::os::raw::c_char) {
 }
 
 // Explicit primitive getters
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `bool` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_boolean_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -75,7 +95,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_boolean_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `i8` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_int8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -96,7 +120,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_int8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `u8` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_uint8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -117,7 +145,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_uint8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `i16` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_int16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -138,7 +170,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_int16_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `u16` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_uint16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -159,7 +195,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_uint16_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_int32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -180,7 +220,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_int32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `u32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_uint32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -201,7 +245,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_uint32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `i64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_int64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -222,7 +270,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_int64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `u64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_uint64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -243,7 +295,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_uint64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `f32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_float32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -264,7 +320,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_float32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `f64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_float64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -285,7 +345,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_float64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_char8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -306,7 +370,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_char8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_string_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -331,7 +399,11 @@ pub unsafe extern "C" fn dds_dynamic_data_get_string_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `DustDdsDynamicData` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_get_complex_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -355,6 +427,10 @@ pub unsafe extern "C" fn dds_dynamic_data_get_complex_value(
 }
 
 // Explicit primitive setters
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_boolean_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -372,7 +448,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_boolean_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_int8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -390,7 +469,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_uint8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -408,7 +490,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_int16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -426,7 +511,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int16_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_uint16_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -444,7 +532,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint16_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_int32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -462,7 +553,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_uint32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -480,7 +574,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_int64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -498,7 +595,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_int64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_uint64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -516,7 +616,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_uint64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_float32_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -534,7 +637,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_float32_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_float64_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -552,7 +658,10 @@ pub unsafe extern "C" fn dds_dynamic_data_set_float64_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_char8_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -571,7 +680,11 @@ pub unsafe extern "C" fn dds_dynamic_data_set_char8_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_string_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -597,7 +710,11 @@ pub unsafe extern "C" fn dds_dynamic_data_set_string_value(
         Err(_) => RETCODE_ERROR,
     }
 }
-
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `value` must point to a valid, initialized `DustDdsDynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_data_set_complex_value(
     data: Option<NonNull<DustDdsDynamicData>>,
@@ -621,6 +738,13 @@ pub unsafe extern "C" fn dds_dynamic_data_set_complex_value(
 }
 
 /// Writes data using the generic DustDdsDataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_write(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -651,6 +775,13 @@ pub unsafe extern "C" fn dds_datawriter_write(
 }
 
 /// Registers an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_register_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -685,6 +816,13 @@ pub unsafe extern "C" fn dds_datawriter_register_instance(
 }
 
 /// Registers an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_register_instance_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -720,6 +858,13 @@ pub unsafe extern "C" fn dds_datawriter_register_instance_w_timestamp(
 }
 
 /// Unregisters an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_unregister_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -750,6 +895,13 @@ pub unsafe extern "C" fn dds_datawriter_unregister_instance(
 }
 
 /// Unregisters an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_unregister_instance_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -781,6 +933,13 @@ pub unsafe extern "C" fn dds_datawriter_unregister_instance_w_timestamp(
 }
 
 /// Writes data with timestamp using the generic DustDdsDataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_write_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -813,6 +972,13 @@ pub unsafe extern "C" fn dds_datawriter_write_w_timestamp(
 }
 
 /// Disposes an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_dispose(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -843,6 +1009,13 @@ pub unsafe extern "C" fn dds_datawriter_dispose(
 }
 
 /// Disposes an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_dispose_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -875,6 +1048,13 @@ pub unsafe extern "C" fn dds_datawriter_dispose_w_timestamp(
 }
 
 /// Retrieves the instance key value.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_get_key_value(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -901,6 +1081,13 @@ pub unsafe extern "C" fn dds_datawriter_get_key_value(
 }
 
 /// Looks up the handle of an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_lookup_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
@@ -937,6 +1124,14 @@ use crate::subscription::data_reader::{
 };
 
 /// Reads data using the generic DustDdsDataReader.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_read(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -995,6 +1190,14 @@ pub unsafe extern "C" fn dds_datareader_read(
 }
 
 /// Takes data using the generic DustDdsDataReader.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_take(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1053,6 +1256,13 @@ pub unsafe extern "C" fn dds_datareader_take(
 }
 
 /// Reads the next sample.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_value` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_read_next_sample(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1086,6 +1296,13 @@ pub unsafe extern "C" fn dds_datareader_read_next_sample(
 }
 
 /// Takes the next sample.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_value` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_take_next_sample(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1119,6 +1336,15 @@ pub unsafe extern "C" fn dds_datareader_take_next_sample(
 }
 
 /// Reads a specific instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_read_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1180,6 +1406,15 @@ pub unsafe extern "C" fn dds_datareader_read_instance(
 }
 
 /// Takes a specific instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_take_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1241,6 +1476,15 @@ pub unsafe extern "C" fn dds_datareader_take_instance(
 }
 
 /// Reads the next instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_read_next_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1313,6 +1557,15 @@ pub unsafe extern "C" fn dds_datareader_read_next_instance(
 }
 
 /// Takes the next instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
+/// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+/// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_take_next_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1385,6 +1638,13 @@ pub unsafe extern "C" fn dds_datareader_take_next_instance(
 }
 
 /// Returns the loan of the sample and info collections.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `_reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `_data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `_sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_return_loan(
     _reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1395,6 +1655,13 @@ pub unsafe extern "C" fn dds_datareader_return_loan(
 }
 
 /// Retrieves the key value of an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_get_key_value(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
@@ -1421,6 +1688,13 @@ pub unsafe extern "C" fn dds_datareader_get_key_value(
 }
 
 /// Looks up the handle of an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datareader_lookup_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,

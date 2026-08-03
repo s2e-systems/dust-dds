@@ -19,6 +19,11 @@ impl DustDdsPublisher {
 }
 
 /// Deletes all the entities that were created by means of the Publisher's create_datawriter operations.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_delete_contained_entities(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -36,6 +41,12 @@ pub unsafe extern "C" fn dds_publisher_delete_contained_entities(
 }
 
 /// Sets the QoS policies of the Publisher.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `qos` must be a valid pointer to a `PublisherQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_set_qos(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -56,6 +67,12 @@ pub unsafe extern "C" fn dds_publisher_set_qos(
 }
 
 /// Gets the QoS policies of the Publisher.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `qos` must be a valid pointer to a `PublisherQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_get_qos(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -77,6 +94,12 @@ pub unsafe extern "C" fn dds_publisher_get_qos(
 }
 
 /// Sets the PublisherListener and StatusMask.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `listener` must be a valid pointer to a `DustDdsPublisherListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_set_listener(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -107,6 +130,11 @@ pub unsafe extern "C" fn dds_publisher_set_listener(
 }
 
 /// Suspends publications.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_suspend_publications(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -121,6 +149,11 @@ pub unsafe extern "C" fn dds_publisher_suspend_publications(
 }
 
 /// Resumes publications.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_resume_publications(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -135,6 +168,11 @@ pub unsafe extern "C" fn dds_publisher_resume_publications(
 }
 
 /// Begins a coherent set of changes.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_begin_coherent_changes(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -152,6 +190,11 @@ pub unsafe extern "C" fn dds_publisher_begin_coherent_changes(
 }
 
 /// Ends a coherent set of changes.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_end_coherent_changes(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -166,6 +209,11 @@ pub unsafe extern "C" fn dds_publisher_end_coherent_changes(
 }
 
 /// Blocks the calling thread until all data written by the reliable DataWriter entities is acknowledged.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_wait_for_acknowledgments(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -184,13 +232,16 @@ pub unsafe extern "C" fn dds_publisher_wait_for_acknowledgments(
 }
 
 /// Returns the DomainParticipant to which the Publisher belongs.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_get_participant(
     publisher: Option<NonNull<DustDdsPublisher>>,
 ) -> Option<NonNull<crate::DustDdsDomainParticipant>> {
-    let Some(publisher) = publisher else {
-        return None;
-    };
+    let publisher = publisher?;
     let participant = unsafe { publisher.as_ref() }.inner().get_participant();
     NonNull::new(Box::into_raw(Box::new(
         crate::DustDdsDomainParticipant::new(participant),
@@ -198,6 +249,12 @@ pub unsafe extern "C" fn dds_publisher_get_participant(
 }
 
 /// Sets the default DataWriterQos.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_set_default_datawriter_qos(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -221,6 +278,12 @@ pub unsafe extern "C" fn dds_publisher_set_default_datawriter_qos(
 }
 
 /// Gets the default DataWriterQos.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `qos` must be a valid pointer to a `DataWriterQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_get_default_datawriter_qos(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -245,6 +308,13 @@ pub unsafe extern "C" fn dds_publisher_get_default_datawriter_qos(
 }
 
 /// Copies the policies in the TopicQos to the corresponding policies in the DataWriterQos.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `a_datawriter_qos` must be a valid pointer to a `DataWriterQos` instance for writing (or null).
+/// - `a_topic_qos` must be a valid pointer to a `TopicQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_copy_from_topic_qos(
     publisher: Option<NonNull<DustDdsPublisher>>,

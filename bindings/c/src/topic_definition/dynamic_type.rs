@@ -150,6 +150,11 @@ fn extensibility_kind_from_u8(value: u8) -> Option<ExtensibilityKind> {
 
 /// Creates a new DynamicTypeBuilder using the provided TypeDescriptor.
 /// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `descriptor` must be a valid pointer to a `DustDdsTypeDescriptor` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_builder_factory_create_type(
     descriptor: *const DustDdsTypeDescriptor,
@@ -236,6 +241,10 @@ static CHAR8_TYPE: DustDdsDynamicType = DustDdsDynamicType(char::TYPE);
 
 /// Returns a DynamicType representing the specified primitive type kind.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+///
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_get_primitive_type(
     kind: u8,
@@ -261,6 +270,10 @@ pub unsafe extern "C" fn dds_dynamic_type_get_primitive_type(
 
 /// Creates a DynamicType for a string with the specified bound.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+///
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_create_string_type(
     bound: u32,
@@ -273,6 +286,11 @@ pub unsafe extern "C" fn dds_dynamic_type_create_string_type(
 }
 
 /// Frees a DynamicType object.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `dynamic_type` must point to a valid, initialized `DustDdsDynamicType` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_free(dynamic_type: Option<NonNull<DustDdsDynamicType>>) {
     if let Some(dt) = dynamic_type {
@@ -302,6 +320,11 @@ pub unsafe extern "C" fn dds_dynamic_type_free(dynamic_type: Option<NonNull<Dust
 
 /// Creates a new DynamicTypeBuilder for a structure type.
 /// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `name` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_builder_create_struct(
     name: *const std::os::raw::c_char,
@@ -334,6 +357,12 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_create_struct(
 /// `dds_member_descriptor_free` when done.
 ///
 /// Returns RETCODE_OK on success, or a standard DDS return code on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
+/// - `descriptor` must be a valid pointer to a `DustDdsMemberDescriptor` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_builder_add_member(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
@@ -376,13 +405,16 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_add_member(
 
 /// Builds the DynamicType from the builder and consumes the builder.
 /// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_builder_build(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
 ) -> Option<NonNull<DustDdsDynamicType>> {
-    let Some(builder) = builder else {
-        return None;
-    };
+    let builder = builder?;
     let builder_val = unsafe { *Box::from_raw(builder.as_ptr()) };
     let dynamic_type = builder_val.0.build();
     NonNull::new(Box::into_raw(Box::new(DustDdsDynamicType::new(
@@ -391,6 +423,11 @@ pub unsafe extern "C" fn dds_dynamic_type_builder_build(
 }
 
 /// Frees a DynamicTypeBuilder object.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_dynamic_type_builder_free(
     builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,

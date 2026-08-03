@@ -77,6 +77,11 @@ pub(crate) fn mask_to_status_kinds(
 }
 
 /// Defines the list of communication statuses that are taken into account to determine the trigger_value of the StatusCondition.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_status_condition_set_enabled_statuses(
     condition: Option<NonNull<DustDdsStatusCondition>>,
@@ -96,6 +101,11 @@ pub unsafe extern "C" fn dds_status_condition_set_enabled_statuses(
 }
 
 /// Frees a StatusCondition object.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_status_condition_free(
     condition: Option<NonNull<DustDdsStatusCondition>>,

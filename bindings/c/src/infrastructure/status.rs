@@ -213,7 +213,9 @@ impl From<Vec<dust_dds::infrastructure::status::QosPolicyCount>> for QosPolicyCo
         }
     }
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_qos_policy_count_seq_free(seq: QosPolicyCountSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
@@ -333,6 +335,10 @@ impl Default for InstanceHandleSeq {
 }
 
 impl InstanceHandleSeq {
+    /// # Safety
+    ///
+    /// The caller must observe the following safety invariants:
+    /// - The caller must observe the standard FFI safety constraints when calling this function.
     pub unsafe fn to_vec(&self) -> Vec<dust_dds::infrastructure::instance::InstanceHandle> {
         if self.buffer.is_null() || self.length <= 0 {
             Vec::new()
@@ -358,7 +364,9 @@ impl InstanceHandleSeq {
         }
     }
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_instance_handle_seq_free(seq: InstanceHandleSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
@@ -380,7 +388,9 @@ pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub user_data: crate::infrastructure::qos_policy::UserDataQosPolicy,
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_participant_builtin_topic_data_free(
     data: ParticipantBuiltinTopicData,
@@ -409,7 +419,9 @@ pub struct TopicBuiltinTopicData {
     pub ownership: crate::infrastructure::qos_policy::OwnershipQosPolicy,
     pub topic_data: crate::infrastructure::qos_policy::TopicDataQosPolicy,
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
     if !data.name.is_null() {

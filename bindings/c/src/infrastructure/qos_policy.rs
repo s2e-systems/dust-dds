@@ -32,6 +32,10 @@ impl Default for OctetSeq {
 }
 
 impl OctetSeq {
+    /// # Safety
+    ///
+    /// The caller must observe the following safety invariants:
+    /// - The caller must observe the standard FFI safety constraints when calling this function.
     pub unsafe fn to_vec(&self) -> Vec<u8> {
         if self.buffer.is_null() || self.length <= 0 {
             Vec::new()
@@ -71,6 +75,10 @@ impl Default for StringSeq {
 }
 
 impl StringSeq {
+    /// # Safety
+    ///
+    /// The caller must observe the following safety invariants:
+    /// - The caller must observe the standard FFI safety constraints when calling this function.
     pub unsafe fn to_vec(&self) -> Vec<String> {
         if self.buffer.is_null() || self.length <= 0 {
             Vec::new()
@@ -106,7 +114,9 @@ impl StringSeq {
         }
     }
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
@@ -118,7 +128,9 @@ pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
         }
     }
 }
-
+/// # Safety
+///
+/// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_string_seq_free(seq: StringSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
@@ -208,6 +220,7 @@ impl From<Option<dust_dds::infrastructure::time::Time>> for Time_t {
     }
 }
 
+#[allow(non_camel_case_types)]
 pub type QosPolicyId_t = i32;
 
 pub const INVALID_QOS_POLICY_ID: QosPolicyId_t = 0;

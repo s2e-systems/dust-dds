@@ -26,6 +26,14 @@ impl DustDdsDataWriter {
 }
 
 /// Creates a new DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
+/// - `listener` must be a valid pointer to a `DustDdsDataWriterListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_create_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -34,12 +42,8 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
     listener: *const DustDdsDataWriterListener,
     mask: DustDdsStatusMask,
 ) -> Option<NonNull<DustDdsDataWriter>> {
-    let Some(publisher) = publisher else {
-        return None;
-    };
-    let Some(topic) = topic else {
-        return None;
-    };
+    let publisher = publisher?;
+    let topic = topic?;
 
     let qos = if qos.is_null() {
         dust_dds::infrastructure::qos::QosKind::Default
@@ -89,6 +93,12 @@ pub unsafe extern "C" fn dds_publisher_create_datawriter(
 }
 
 /// Deletes an existing DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `datawriter` must point to a valid, initialized `DustDdsDataWriter` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_delete_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
@@ -119,13 +129,16 @@ pub unsafe extern "C" fn dds_publisher_delete_datawriter(
 }
 
 /// Gets the StatusCondition associated with the DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
     writer: Option<NonNull<DustDdsDataWriter>>,
 ) -> Option<NonNull<DustDdsStatusCondition>> {
-    let Some(writer) = writer else {
-        return None;
-    };
+    let writer = writer?;
 
     let writer_ref = unsafe { writer.as_ref() };
     let condition = writer_ref.inner().get_statuscondition();
@@ -135,6 +148,11 @@ pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
 }
 
 /// Waits for all acknowledged samples.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
     writer: Option<NonNull<DustDdsDataWriter>>,
@@ -152,14 +170,18 @@ pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
 }
 
 /// Looks up an existing DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `topic_name` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dds_publisher_lookup_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     topic_name: *const std::os::raw::c_char,
 ) -> Option<NonNull<DustDdsDataWriter>> {
-    let Some(publisher) = publisher else {
-        return None;
-    };
+    let publisher = publisher?;
     if topic_name.is_null() {
         return None;
     }
