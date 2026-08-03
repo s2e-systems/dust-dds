@@ -134,3 +134,131 @@ pub unsafe extern "C" fn dds_datareader_get_statuscondition(
         condition,
     ))))
 }
+
+pub type SampleStateMask = u32;
+pub type ViewStateMask = u32;
+pub type InstanceStateMask = u32;
+
+pub const READ_SAMPLE_STATE: SampleStateMask = 0x0001;
+pub const NOT_READ_SAMPLE_STATE: SampleStateMask = 0x0002;
+pub const ANY_SAMPLE_STATE: SampleStateMask = 0xffff;
+
+pub const NEW_VIEW_STATE: ViewStateMask = 0x0001;
+pub const NOT_NEW_VIEW_STATE: ViewStateMask = 0x0002;
+pub const ANY_VIEW_STATE: ViewStateMask = 0xffff;
+
+pub const ALIVE_INSTANCE_STATE: InstanceStateMask = 0x0001;
+pub const NOT_ALIVE_DISPOSED_INSTANCE_STATE: InstanceStateMask = 0x0002;
+pub const NOT_ALIVE_NO_WRITERS_INSTANCE_STATE: InstanceStateMask = 0x0004;
+pub const ANY_INSTANCE_STATE: InstanceStateMask = 0xffff;
+pub const NOT_ALIVE_INSTANCE_STATE: InstanceStateMask = 0x0006;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SampleInfo {
+    pub sample_state: SampleStateMask,
+    pub view_state: ViewStateMask,
+    pub instance_state: InstanceStateMask,
+    pub disposed_generation_count: i32,
+    pub no_writers_generation_count: i32,
+    pub sample_rank: i32,
+    pub generation_rank: i32,
+    pub absolute_generation_rank: i32,
+    pub source_timestamp: crate::infrastructure::qos_policy::Time_t,
+    pub instance_handle: crate::infrastructure::status::InstanceHandle_t,
+    pub publication_handle: crate::infrastructure::status::InstanceHandle_t,
+    pub valid_data: bool,
+}
+
+pub(crate) fn sample_state_kind_to_mask(
+    value: dust_dds::infrastructure::sample_info::SampleStateKind,
+) -> SampleStateMask {
+    match value {
+        dust_dds::infrastructure::sample_info::SampleStateKind::Read => READ_SAMPLE_STATE,
+        dust_dds::infrastructure::sample_info::SampleStateKind::NotRead => NOT_READ_SAMPLE_STATE,
+    }
+}
+
+pub(crate) fn view_state_kind_to_mask(
+    value: dust_dds::infrastructure::sample_info::ViewStateKind,
+) -> ViewStateMask {
+    match value {
+        dust_dds::infrastructure::sample_info::ViewStateKind::New => NEW_VIEW_STATE,
+        dust_dds::infrastructure::sample_info::ViewStateKind::NotNew => NOT_NEW_VIEW_STATE,
+    }
+}
+
+pub(crate) fn instance_state_kind_to_mask(
+    value: dust_dds::infrastructure::sample_info::InstanceStateKind,
+) -> InstanceStateMask {
+    match value {
+        dust_dds::infrastructure::sample_info::InstanceStateKind::Alive => ALIVE_INSTANCE_STATE,
+        dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveDisposed => {
+            NOT_ALIVE_DISPOSED_INSTANCE_STATE
+        }
+        dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveNoWriters => {
+            NOT_ALIVE_NO_WRITERS_INSTANCE_STATE
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::sample_info::SampleInfo> for SampleInfo {
+    fn from(value: dust_dds::infrastructure::sample_info::SampleInfo) -> Self {
+        Self {
+            sample_state: sample_state_kind_to_mask(value.sample_state),
+            view_state: view_state_kind_to_mask(value.view_state),
+            instance_state: instance_state_kind_to_mask(value.instance_state),
+            disposed_generation_count: value.disposed_generation_count,
+            no_writers_generation_count: value.no_writers_generation_count,
+            sample_rank: value.sample_rank,
+            generation_rank: value.generation_rank,
+            absolute_generation_rank: value.absolute_generation_rank,
+            source_timestamp: value.source_timestamp.into(),
+            instance_handle: value.instance_handle.into(),
+            publication_handle: value.publication_handle.into(),
+            valid_data: value.valid_data,
+        }
+    }
+}
+
+pub(crate) fn sample_states_from_mask(
+    mask: SampleStateMask,
+) -> Vec<dust_dds::infrastructure::sample_info::SampleStateKind> {
+    let mut states = Vec::new();
+    if (mask & READ_SAMPLE_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::SampleStateKind::Read);
+    }
+    if (mask & NOT_READ_SAMPLE_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::SampleStateKind::NotRead);
+    }
+    states
+}
+
+pub(crate) fn view_states_from_mask(
+    mask: ViewStateMask,
+) -> Vec<dust_dds::infrastructure::sample_info::ViewStateKind> {
+    let mut states = Vec::new();
+    if (mask & NEW_VIEW_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::ViewStateKind::New);
+    }
+    if (mask & NOT_NEW_VIEW_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::ViewStateKind::NotNew);
+    }
+    states
+}
+
+pub(crate) fn instance_states_from_mask(
+    mask: InstanceStateMask,
+) -> Vec<dust_dds::infrastructure::sample_info::InstanceStateKind> {
+    let mut states = Vec::new();
+    if (mask & ALIVE_INSTANCE_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::InstanceStateKind::Alive);
+    }
+    if (mask & NOT_ALIVE_DISPOSED_INSTANCE_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveDisposed);
+    }
+    if (mask & NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) != 0 {
+        states.push(dust_dds::infrastructure::sample_info::InstanceStateKind::NotAliveNoWriters);
+    }
+    states
+}

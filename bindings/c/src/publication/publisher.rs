@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos};
+use crate::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 
 /// cbindgen:opaque
 pub struct DustDdsPublisher(pub(crate) dust_dds::publication::publisher::Publisher);
@@ -26,7 +26,10 @@ pub unsafe extern "C" fn dds_publisher_delete_contained_entities(
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { publisher.as_ref() }.inner().delete_contained_entities() {
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .delete_contained_entities()
+    {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
@@ -85,9 +88,10 @@ pub unsafe extern "C" fn dds_publisher_set_listener(
     };
     let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
     let result = if listener.is_null() {
-        unsafe { publisher.as_ref() }
-            .inner()
-            .set_listener(None::<crate::infrastructure::listeners::CPublisherListenerWrapper>, &status_kinds)
+        unsafe { publisher.as_ref() }.inner().set_listener(
+            None::<crate::infrastructure::listeners::CPublisherListenerWrapper>,
+            &status_kinds,
+        )
     } else {
         let wrapper = crate::infrastructure::listeners::CPublisherListenerWrapper {
             listener: unsafe { *listener },
@@ -138,7 +142,10 @@ pub unsafe extern "C" fn dds_publisher_begin_coherent_changes(
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { publisher.as_ref() }.inner().begin_coherent_changes() {
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .begin_coherent_changes()
+    {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
@@ -167,7 +174,10 @@ pub unsafe extern "C" fn dds_publisher_wait_for_acknowledgments(
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
     };
-    match unsafe { publisher.as_ref() }.inner().wait_for_acknowledgments(max_wait.into()) {
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .wait_for_acknowledgments(max_wait.into())
+    {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
@@ -182,9 +192,9 @@ pub unsafe extern "C" fn dds_publisher_get_participant(
         return None;
     };
     let participant = unsafe { publisher.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(crate::DustDdsDomainParticipant::new(
-        participant,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(
+        crate::DustDdsDomainParticipant::new(participant),
+    )))
 }
 
 /// Sets the default DataWriterQos.
@@ -201,7 +211,10 @@ pub unsafe extern "C" fn dds_publisher_set_default_datawriter_qos(
     } else {
         dust_dds::infrastructure::qos::QosKind::Specific((*unsafe { &*qos }).into())
     };
-    match unsafe { publisher.as_ref() }.inner().set_default_datawriter_qos(qos) {
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .set_default_datawriter_qos(qos)
+    {
         Ok(()) => RETCODE_OK,
         Err(e) => e.into(),
     }
@@ -219,7 +232,10 @@ pub unsafe extern "C" fn dds_publisher_get_default_datawriter_qos(
     if qos.is_null() {
         return RETCODE_BAD_PARAMETER;
     }
-    match unsafe { publisher.as_ref() }.inner().get_default_datawriter_qos() {
+    match unsafe { publisher.as_ref() }
+        .inner()
+        .get_default_datawriter_qos()
+    {
         Ok(q) => {
             unsafe { *qos = q.into() };
             RETCODE_OK
@@ -242,9 +258,13 @@ pub unsafe extern "C" fn dds_publisher_copy_from_topic_qos(
         return RETCODE_BAD_PARAMETER;
     }
     let publisher_ref = unsafe { publisher.as_ref() };
-    let mut rust_datawriter_qos: dust_dds::infrastructure::qos::DataWriterQos = unsafe { *a_datawriter_qos }.into();
+    let mut rust_datawriter_qos: dust_dds::infrastructure::qos::DataWriterQos =
+        unsafe { *a_datawriter_qos }.into();
     let rust_topic_qos: dust_dds::infrastructure::qos::TopicQos = unsafe { *a_topic_qos }.into();
-    match publisher_ref.inner().copy_from_topic_qos(&mut rust_datawriter_qos, &rust_topic_qos) {
+    match publisher_ref
+        .inner()
+        .copy_from_topic_qos(&mut rust_datawriter_qos, &rust_topic_qos)
+    {
         Ok(()) => {
             unsafe { *a_datawriter_qos = rust_datawriter_qos.into() };
             RETCODE_OK

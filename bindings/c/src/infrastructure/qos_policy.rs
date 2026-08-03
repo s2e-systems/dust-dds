@@ -111,7 +111,10 @@ impl StringSeq {
 pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
-            let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(seq.buffer, seq.length as usize));
+            let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                seq.buffer,
+                seq.length as usize,
+            ));
         }
     }
 }
@@ -183,6 +186,24 @@ impl From<dust_dds::infrastructure::time::Time> for Time_t {
         Time_t {
             sec: value.sec(),
             nanosec: value.nanosec(),
+        }
+    }
+}
+
+pub const TIME_INVALID_SEC: i32 = -1;
+pub const TIME_INVALID_NSEC: u32 = 0xffffffff;
+
+impl From<Option<dust_dds::infrastructure::time::Time>> for Time_t {
+    fn from(value: Option<dust_dds::infrastructure::time::Time>) -> Self {
+        match value {
+            Some(t) => Time_t {
+                sec: t.sec(),
+                nanosec: t.nanosec(),
+            },
+            None => Time_t {
+                sec: TIME_INVALID_SEC,
+                nanosec: TIME_INVALID_NSEC,
+            },
         }
     }
 }
@@ -341,7 +362,6 @@ pub enum DurabilityQosPolicyKind {
     PERSISTENT_DURABILITY_QOS,
 }
 
-
 impl From<DurabilityQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::DurabilityQosPolicyKind
 {
@@ -407,7 +427,6 @@ pub enum PresentationQosPolicyAccessScopeKind {
     TOPIC_PRESENTATION_QOS,
     GROUP_PRESENTATION_QOS,
 }
-
 
 impl From<PresentationQosPolicyAccessScopeKind>
     for dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind
@@ -532,7 +551,6 @@ pub enum OwnershipQosPolicyKind {
     EXCLUSIVE_OWNERSHIP_QOS,
 }
 
-
 impl From<OwnershipQosPolicyKind> for dust_dds::infrastructure::qos_policy::OwnershipQosPolicyKind {
     fn from(kind: OwnershipQosPolicyKind) -> Self {
         match kind {
@@ -607,7 +625,6 @@ pub enum LivelinessQosPolicyKind {
     MANUAL_BY_PARTICIPANT_LIVELINESS_QOS,
     MANUAL_BY_TOPIC_LIVELINESS_QOS,
 }
-
 
 impl From<LivelinessQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::LivelinessQosPolicyKind
@@ -733,7 +750,6 @@ pub enum ReliabilityQosPolicyKind {
     RELIABLE_RELIABILITY_QOS,
 }
 
-
 impl From<ReliabilityQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::ReliabilityQosPolicyKind
 {
@@ -806,7 +822,6 @@ pub enum DestinationOrderQosPolicyKind {
     BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS,
 }
 
-
 impl From<DestinationOrderQosPolicyKind>
     for dust_dds::infrastructure::qos_policy::DestinationOrderQosPolicyKind
 {
@@ -867,7 +882,6 @@ pub enum HistoryQosPolicyKind {
     KEEP_LAST_HISTORY_QOS,
     KEEP_ALL_HISTORY_QOS,
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

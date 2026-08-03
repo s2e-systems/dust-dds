@@ -151,7 +151,7 @@ void test_hello_world_write_read(void) {
     // Read the sample
     struct HelloWorld data_values[1];
     int32_t received_samples = 0;
-    result = dds_datareader_read_HelloWorld(reader, data_values, 1, &received_samples);
+    result = HelloWorld_dds_datareader_read(reader, data_values, NULL, 1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE, &received_samples);
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
     TEST_ASSERT_EQUAL_INT(1, received_samples);
     TEST_ASSERT_EQUAL_STRING("Hello from C bindings!", data_values[0].msg);

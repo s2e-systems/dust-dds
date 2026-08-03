@@ -3,7 +3,7 @@ use std::path::Path;
 #[test]
 fn appendable_struct() {
     let idl_file = Path::new("tests/appendable_struct.idl");
-    let expected = r#"
+    let expected = r###"
     #include <stdbool.h>
     #include <stdint.h>
     #include <stddef.h>
@@ -80,7 +80,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline ReturnCode dds_datawriter_write_Point(DustDdsDataWriter* writer, const struct Point* data) {
+    static inline ReturnCode Point_dds_datawriter_write(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -88,12 +88,132 @@ fn appendable_struct() {
         if (sample == NULL) {
             return RETCODE_ERROR;
         }
-        ReturnCode result = dds_datawriter_write(writer, sample);
+        ReturnCode result = dds_datawriter_write(writer, sample, handle);
         dds_dynamic_data_free(sample);
         return result;
     }
 
-    static inline ReturnCode dds_datareader_read_Point(DustDdsDataReader* reader, struct Point* data_values, int32_t max_samples, int32_t* received_samples) {
+    static inline ReturnCode Point_dds_datawriter_write_w_timestamp(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_register_instance(DustDdsDataWriter* writer, const struct Point* data, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_register_instance_w_timestamp(DustDdsDataWriter* writer, const struct Point* data, struct Time_t source_timestamp, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_unregister_instance(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_unregister_instance_w_timestamp(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_dispose(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_dispose_w_timestamp(DustDdsDataWriter* writer, const struct Point* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_get_key_value(DustDdsDataWriter* writer, struct Point* key_holder, const InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = Point_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datawriter_lookup_instance(DustDdsDataWriter* writer, const struct Point* key_holder, InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_read(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -101,7 +221,7 @@ fn appendable_struct() {
         if (samples == NULL) {
             return RETCODE_OUT_OF_RESOURCES;
         }
-        ReturnCode result = dds_datareader_read(reader, samples, max_samples, received_samples);
+        ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
@@ -111,6 +231,174 @@ fn appendable_struct() {
             }
         }
         free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_take(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Point_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_read_next_sample(DustDdsDataReader* reader, struct Point* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = Point_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_take_next_sample(DustDdsDataReader* reader, struct Point* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = Point_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_read_instance(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Point_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_take_instance(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Point_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_read_next_instance(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Point_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_take_next_instance(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Point_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_return_loan(DustDdsDataReader* reader, struct Point* data_values, struct SampleInfo* sample_infos) {
+        return dds_datareader_return_loan(reader, NULL, sample_infos);
+    }
+
+    static inline ReturnCode Point_dds_datareader_get_key_value(DustDdsDataReader* reader, struct Point* key_holder, const InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = Point_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Point_dds_datareader_lookup_instance(DustDdsDataReader* reader, const struct Point* key_holder, InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Point_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
+        dds_dynamic_data_free(sample);
         return result;
     }
     struct Data {
@@ -182,7 +470,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline ReturnCode dds_datawriter_write_Data(DustDdsDataWriter* writer, const struct Data* data) {
+    static inline ReturnCode Data_dds_datawriter_write(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -190,12 +478,132 @@ fn appendable_struct() {
         if (sample == NULL) {
             return RETCODE_ERROR;
         }
-        ReturnCode result = dds_datawriter_write(writer, sample);
+        ReturnCode result = dds_datawriter_write(writer, sample, handle);
         dds_dynamic_data_free(sample);
         return result;
     }
 
-    static inline ReturnCode dds_datareader_read_Data(DustDdsDataReader* reader, struct Data* data_values, int32_t max_samples, int32_t* received_samples) {
+    static inline ReturnCode Data_dds_datawriter_write_w_timestamp(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_register_instance(DustDdsDataWriter* writer, const struct Data* data, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_register_instance_w_timestamp(DustDdsDataWriter* writer, const struct Data* data, struct Time_t source_timestamp, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_unregister_instance(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_unregister_instance_w_timestamp(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_dispose(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_dispose_w_timestamp(DustDdsDataWriter* writer, const struct Data* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_get_key_value(DustDdsDataWriter* writer, struct Data* key_holder, const InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = Data_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datawriter_lookup_instance(DustDdsDataWriter* writer, const struct Data* key_holder, InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_read(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -203,7 +611,7 @@ fn appendable_struct() {
         if (samples == NULL) {
             return RETCODE_OUT_OF_RESOURCES;
         }
-        ReturnCode result = dds_datareader_read(reader, samples, max_samples, received_samples);
+        ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
@@ -213,6 +621,174 @@ fn appendable_struct() {
             }
         }
         free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_take(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Data_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_read_next_sample(DustDdsDataReader* reader, struct Data* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = Data_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_take_next_sample(DustDdsDataReader* reader, struct Data* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = Data_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_read_instance(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Data_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_take_instance(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Data_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_read_next_instance(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Data_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_take_next_instance(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = Data_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_return_loan(DustDdsDataReader* reader, struct Data* data_values, struct SampleInfo* sample_infos) {
+        return dds_datareader_return_loan(reader, NULL, sample_infos);
+    }
+
+    static inline ReturnCode Data_dds_datareader_get_key_value(DustDdsDataReader* reader, struct Data* key_holder, const InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = Data_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode Data_dds_datareader_lookup_instance(DustDdsDataReader* reader, const struct Data* key_holder, InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = Data_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
+        dds_dynamic_data_free(sample);
         return result;
     }
     struct MultiDimensionalPoint {
@@ -298,7 +874,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline ReturnCode dds_datawriter_write_MultiDimensionalPoint(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data) {
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_write(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -306,12 +882,132 @@ fn appendable_struct() {
         if (sample == NULL) {
             return RETCODE_ERROR;
         }
-        ReturnCode result = dds_datawriter_write(writer, sample);
+        ReturnCode result = dds_datawriter_write(writer, sample, handle);
         dds_dynamic_data_free(sample);
         return result;
     }
 
-    static inline ReturnCode dds_datareader_read_MultiDimensionalPoint(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, int32_t max_samples, int32_t* received_samples) {
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_write_w_timestamp(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_register_instance(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_register_instance_w_timestamp(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, struct Time_t source_timestamp, InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_unregister_instance(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_unregister_instance_w_timestamp(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_dispose(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_dispose_w_timestamp(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* data, const InstanceHandle_t* handle, struct Time_t source_timestamp) {
+        if (writer == NULL || data == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(data);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_get_key_value(DustDdsDataWriter* writer, struct MultiDimensionalPoint* key_holder, const InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = MultiDimensionalPoint_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datawriter_lookup_instance(DustDdsDataWriter* writer, const struct MultiDimensionalPoint* key_holder, InstanceHandle_t* handle) {
+        if (writer == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_read(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return RETCODE_BAD_PARAMETER;
         }
@@ -319,7 +1015,7 @@ fn appendable_struct() {
         if (samples == NULL) {
             return RETCODE_OUT_OF_RESOURCES;
         }
-        ReturnCode result = dds_datareader_read(reader, samples, max_samples, received_samples);
+        ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
@@ -331,7 +1027,175 @@ fn appendable_struct() {
         free(samples);
         return result;
     }
-"#;
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_take(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = MultiDimensionalPoint_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_read_next_sample(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = MultiDimensionalPoint_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_take_next_sample(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_value, struct SampleInfo* sample_info) {
+        if (reader == NULL || data_value == NULL || sample_info == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = NULL;
+        ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        if (result == RETCODE_OK) {
+            if (sample != NULL) {
+                *data_value = MultiDimensionalPoint_create_sample(sample);
+                dds_dynamic_data_free(sample);
+            }
+        }
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_read_instance(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = MultiDimensionalPoint_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_take_instance(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* a_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = MultiDimensionalPoint_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_read_next_instance(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = MultiDimensionalPoint_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_take_next_instance(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos, int32_t max_samples, const InstanceHandle_t* previous_handle, SampleStateMask sample_states, ViewStateMask view_states, InstanceStateMask instance_states, int32_t* received_samples) {
+        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData** samples = (DustDdsDynamicData**)calloc(max_samples, sizeof(DustDdsDynamicData*));
+        if (samples == NULL) {
+            return RETCODE_OUT_OF_RESOURCES;
+        }
+        ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        if (result == RETCODE_OK) {
+            for (int32_t i = 0; i < *received_samples; i++) {
+                if (samples[i] != NULL) {
+                    data_values[i] = MultiDimensionalPoint_create_sample(samples[i]);
+                    dds_dynamic_data_free(samples[i]);
+                }
+            }
+        }
+        free(samples);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_return_loan(DustDdsDataReader* reader, struct MultiDimensionalPoint* data_values, struct SampleInfo* sample_infos) {
+        return dds_datareader_return_loan(reader, NULL, sample_infos);
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_get_key_value(DustDdsDataReader* reader, struct MultiDimensionalPoint* key_holder, const InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        if (result == RETCODE_OK) {
+            *key_holder = MultiDimensionalPoint_create_sample(sample);
+        }
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+
+    static inline ReturnCode MultiDimensionalPoint_dds_datareader_lookup_instance(DustDdsDataReader* reader, const struct MultiDimensionalPoint* key_holder, InstanceHandle_t* handle) {
+        if (reader == NULL || key_holder == NULL || handle == NULL) {
+            return RETCODE_BAD_PARAMETER;
+        }
+        DustDdsDynamicData* sample = MultiDimensionalPoint_create_dynamic_sample(key_holder);
+        if (sample == NULL) {
+            return RETCODE_ERROR;
+        }
+        ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
+        dds_dynamic_data_free(sample);
+        return result;
+    }
+"###;
 
     let result = dust_dds_gen::compile_idl_c(idl_file).unwrap();
 

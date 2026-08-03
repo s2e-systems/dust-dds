@@ -163,7 +163,9 @@ pub unsafe extern "C" fn dds_publisher_lookup_datawriter(
     if topic_name.is_null() {
         return None;
     }
-    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }.to_str().ok()?;
+    let topic_name_str = unsafe { std::ffi::CStr::from_ptr(topic_name) }
+        .to_str()
+        .ok()?;
 
     match unsafe { publisher.as_ref() }
         .inner()
