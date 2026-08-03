@@ -1,28 +1,29 @@
-#![allow(improper_ctypes_definitions)]
-
 use std::ptr::NonNull;
 
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
-use crate::publication::publisher::DustDdsPublisher;
-use crate::subscription::subscriber::DustDdsSubscriber;
-use crate::topic_definition::dynamic_type::DustDdsDynamicType;
-use crate::topic_definition::topic::DustDdsTopic;
+use crate::{
+    infrastructure::{
+        condition::DustDdsStatusMask,
+        error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode},
+        listeners::{
+            CDomainParticipantListenerWrapper, CPublisherListenerWrapper,
+            CSubscriberListenerWrapper, CTopicListenerWrapper, DustDdsDomainParticipantListener,
+            DustDdsPublisherListener, DustDdsSubscriberListener, DustDdsTopicListener,
+        },
+        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos_policy::{Duration_t, StringSeq, Time_t},
+        status::{
+            BuiltInTopicKey, InstanceHandle_t, InstanceHandleSeq, ParticipantBuiltinTopicData,
+            TopicBuiltinTopicData,
+        },
+    },
+    publication::publisher::DustDdsPublisher,
+    subscription::subscriber::DustDdsSubscriber,
+    topic_definition::{
+        content_filtered_topic::DustDdsContentFilteredTopic, dynamic_type::DustDdsDynamicType,
+        topic::DustDdsTopic, topic_description::DustDdsTopicDescription,
+    },
+};
 use dust_dds::infrastructure::qos::QosKind;
-
-use crate::infrastructure::condition::DustDdsStatusMask;
-use crate::infrastructure::listeners::{
-    CDomainParticipantListenerWrapper, CPublisherListenerWrapper, CSubscriberListenerWrapper,
-    CTopicListenerWrapper, DustDdsDomainParticipantListener, DustDdsPublisherListener,
-    DustDdsSubscriberListener, DustDdsTopicListener,
-};
-use crate::infrastructure::qos_policy::{Duration_t, StringSeq, Time_t};
-use crate::infrastructure::status::{
-    BuiltInTopicKey, InstanceHandle_t, InstanceHandleSeq, ParticipantBuiltinTopicData,
-    TopicBuiltinTopicData,
-};
-use crate::topic_definition::content_filtered_topic::DustDdsContentFilteredTopic;
-use crate::topic_definition::topic_description::DustDdsTopicDescription;
 
 /// cbindgen:opaque
 pub struct DustDdsDomainParticipant(

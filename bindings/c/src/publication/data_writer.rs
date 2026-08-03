@@ -1,10 +1,8 @@
-use crate::DustDdsStatusCondition;
-use crate::infrastructure::condition::DustDdsStatusMask;
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::listeners::{CDataWriterListenerWrapper, DustDdsDataWriterListener};
-use crate::infrastructure::qos::DataWriterQos;
-use crate::publication::publisher::DustDdsPublisher;
-use crate::topic_definition::topic::DustDdsTopic;
+use crate::{
+    DustDdsDynamicData, DustDdsStatusCondition,
+    infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
+    publication::publisher::DustDdsPublisher,
+};
 use dust_dds::xtypes::dynamic_type::DynamicData;
 use std::ptr::NonNull;
 
@@ -25,102 +23,380 @@ impl DustDdsDataWriter {
     }
 }
 
-/// Creates a new DataWriter.
+/// Writes data using the generic DustDdsDataWriter.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
-/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
-/// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
-/// - `listener` must be a valid pointer to a `DustDdsDataWriterListener` instance (or null).
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_publisher_create_datawriter(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    topic: Option<NonNull<DustDdsTopic>>,
-    qos: *const DataWriterQos,
-    listener: *const DustDdsDataWriterListener,
-    mask: DustDdsStatusMask,
-) -> Option<NonNull<DustDdsDataWriter>> {
-    let publisher = publisher?;
-    let topic = topic?;
-
-    let qos = if qos.is_null() {
-        dust_dds::infrastructure::qos::QosKind::Default
-    } else {
-        dust_dds::infrastructure::qos::QosKind::Specific((*unsafe { &*qos }).into())
+pub unsafe extern "C" fn dds_datawriter_write(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
     };
-
-    let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
-
-    let publisher_ref = unsafe { publisher.as_ref() };
-    let topic_ref = unsafe { topic.as_ref() };
-
-    let result = if listener.is_null() {
-        struct NoDataWriterListener;
-        impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData<'static>>
-            for NoDataWriterListener
-        {
-        }
-
-        publisher_ref
-            .inner()
-            .create_datawriter::<DynamicData<'static>>(
-                topic_ref.inner(),
-                qos,
-                None::<NoDataWriterListener>,
-                &status_kinds,
-            )
-    } else {
-        let listener_wrapper = CDataWriterListenerWrapper {
-            listener: unsafe { *listener },
-        };
-
-        publisher_ref
-            .inner()
-            .create_datawriter::<DynamicData<'static>>(
-                topic_ref.inner(),
-                qos,
-                Some(listener_wrapper),
-                &status_kinds,
-            )
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
     };
-
-    match result {
-        Ok(dw) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
-        Err(_) => None,
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
+        .inner()
+        .write(data_val, rust_handle)
+    {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
     }
 }
 
-/// Deletes an existing DataWriter.
+/// Registers an instance.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
-/// - `datawriter` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_publisher_delete_datawriter(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    datawriter: Option<NonNull<DustDdsDataWriter>>,
+pub unsafe extern "C" fn dds_datawriter_register_instance(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *mut crate::infrastructure::status::InstanceHandle_t,
 ) -> ReturnCode {
-    let Some(datawriter) = datawriter else {
-        return RETCODE_OK;
-    };
-    let Some(publisher) = publisher else {
+    let Some(writer) = writer else {
         return RETCODE_BAD_PARAMETER;
     };
-
-    let publisher_ref = unsafe { publisher.as_ref() };
-    let datawriter_ref = unsafe { datawriter.as_ref() };
-
-    match publisher_ref
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if handle.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
         .inner()
-        .delete_datawriter(datawriter_ref.inner())
+        .register_instance(data_val)
     {
-        Ok(()) => {
+        Ok(h) => {
             unsafe {
-                drop(Box::from_raw(datawriter.as_ptr()));
+                *handle = match h {
+                    Some(handle_val) => <[u8; 16]>::from(handle_val),
+                    None => [0; 16],
+                };
+            }
+            RETCODE_OK
+        }
+        Err(e) => e.into(),
+    }
+}
+
+/// Registers an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_register_instance_w_timestamp(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    source_timestamp: crate::infrastructure::qos_policy::Time_t,
+    handle: *mut crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if handle.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
+        .inner()
+        .register_instance_w_timestamp(data_val, source_timestamp.into())
+    {
+        Ok(h) => {
+            unsafe {
+                *handle = match h {
+                    Some(handle_val) => <[u8; 16]>::from(handle_val),
+                    None => [0; 16],
+                };
+            }
+            RETCODE_OK
+        }
+        Err(e) => e.into(),
+    }
+}
+
+/// Unregisters an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_unregister_instance(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
+        .inner()
+        .unregister_instance(data_val, rust_handle)
+    {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Unregisters an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_unregister_instance_w_timestamp(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+    source_timestamp: crate::infrastructure::qos_policy::Time_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
+        .inner()
+        .unregister_instance_w_timestamp(data_val, rust_handle, source_timestamp.into())
+    {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Writes data with timestamp using the generic DustDdsDataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_write_w_timestamp(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+    source_timestamp: crate::infrastructure::qos_policy::Time_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(data) = data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }.inner().write_w_timestamp(
+        data_val,
+        rust_handle,
+        source_timestamp.into(),
+    ) {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Disposes an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_dispose(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }
+        .inner()
+        .dispose(data_val, rust_handle)
+    {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Disposes an instance with timestamp.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_dispose_w_timestamp(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    instance_data: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+    source_timestamp: crate::infrastructure::qos_policy::Time_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(instance_data) = instance_data else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let rust_handle = if handle.is_null() {
+        None
+    } else {
+        Some(dust_dds::infrastructure::instance::InstanceHandle::new(
+            unsafe { *handle },
+        ))
+    };
+    let data_val = unsafe { instance_data.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }.inner().dispose_w_timestamp(
+        data_val,
+        rust_handle,
+        source_timestamp.into(),
+    ) {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Retrieves the instance key value.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_get_key_value(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    key_holder: Option<NonNull<DustDdsDynamicData>>,
+    handle: *const crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(mut key_holder) = key_holder else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if handle.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    let rust_handle = dust_dds::infrastructure::instance::InstanceHandle::new(unsafe { *handle });
+    match unsafe { writer.as_ref() }
+        .inner()
+        .get_key_value(unsafe { key_holder.as_mut() }.inner_mut(), rust_handle)
+    {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
+}
+
+/// Looks up the handle of an instance.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_datawriter_lookup_instance(
+    writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
+    key_holder: Option<NonNull<DustDdsDynamicData>>,
+    handle: *mut crate::infrastructure::status::InstanceHandle_t,
+) -> ReturnCode {
+    let Some(writer) = writer else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    let Some(key_holder) = key_holder else {
+        return RETCODE_BAD_PARAMETER;
+    };
+    if handle.is_null() {
+        return RETCODE_BAD_PARAMETER;
+    }
+    let data_val = unsafe { key_holder.as_ref() }.inner().clone();
+    match unsafe { writer.as_ref() }.inner().lookup_instance(data_val) {
+        Ok(h) => {
+            unsafe {
+                *handle = match h {
+                    Some(handle_val) => <[u8; 16]>::from(handle_val),
+                    None => [0; 16],
+                };
             }
             RETCODE_OK
         }

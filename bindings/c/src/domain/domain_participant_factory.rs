@@ -1,11 +1,14 @@
 use std::ptr::NonNull;
 
-use crate::domain::domain_participant::DustDdsDomainParticipant;
-use crate::infrastructure::condition::DustDdsStatusMask;
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::listeners::CDomainParticipantListenerWrapper;
-use crate::infrastructure::listeners::DustDdsDomainParticipantListener;
-use crate::infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos};
+use crate::{
+    domain::domain_participant::DustDdsDomainParticipant,
+    infrastructure::{
+        condition::DustDdsStatusMask,
+        error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
+        listeners::{CDomainParticipantListenerWrapper, DustDdsDomainParticipantListener},
+        qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+    },
+};
 use dust_dds::infrastructure::qos::QosKind;
 
 /// cbindgen:opaque

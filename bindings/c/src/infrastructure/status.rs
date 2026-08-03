@@ -1,9 +1,8 @@
-#![allow(non_camel_case_types)]
-
 use crate::infrastructure::qos_policy::QosPolicyId_t;
 
 pub type StatusKind = u32;
 pub type StatusMask = u32;
+#[allow(non_camel_case_types)]
 pub type InstanceHandle_t = [u8; 16];
 
 pub const INCONSISTENT_TOPIC_STATUS: StatusKind = 0x0001 << 0;
@@ -54,6 +53,7 @@ impl From<dust_dds::infrastructure::status::SampleLostStatus> for SampleLostStat
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum SampleRejectedStatusKind {
     NOT_REJECTED,
     REJECTED_BY_INSTANCES_LIMIT,

@@ -1,5 +1,7 @@
-use crate::domain::domain_participant::DustDdsDomainParticipant;
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
+use crate::{
+    domain::domain_participant::DustDdsDomainParticipant,
+    infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode},
+};
 use std::ptr::NonNull;
 
 /// cbindgen:opaque

@@ -1,18 +1,16 @@
-#![allow(dead_code, unused_imports)]
-
 use dust_dds::xtypes::dynamic_type::DynamicData;
 use std::ptr::NonNull;
 
-use crate::publication::data_writer::DustDdsDataWriter;
-use crate::subscription::data_reader::DustDdsDataReader;
-use crate::subscription::subscriber::DustDdsSubscriber;
-use crate::topic_definition::topic::DustDdsTopic;
-
-use crate::infrastructure::status::{
-    InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
-    OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-    RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-    SampleRejectedStatus, SubscriptionMatchedStatus,
+use crate::{
+    infrastructure::status::{
+        InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
+    publication::data_writer::DustDdsDataWriter,
+    subscription::{data_reader::DustDdsDataReader, subscriber::DustDdsSubscriber},
+    topic_definition::topic::DustDdsTopic,
 };
 
 // =========================================================================

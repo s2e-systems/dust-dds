@@ -1,7 +1,15 @@
 use std::ptr::NonNull;
 
-use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
-use crate::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
+use dust_dds::xtypes::dynamic_type::DynamicData;
+
+use crate::{
+    CDataWriterListenerWrapper, DustDdsDataWriter, DustDdsDataWriterListener, DustDdsStatusMask,
+    DustDdsTopic,
+    infrastructure::{
+        error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
+    },
+};
 
 /// cbindgen:opaque
 pub struct DustDdsPublisher(pub(crate) dust_dds::publication::publisher::Publisher);
@@ -15,6 +23,109 @@ impl DustDdsPublisher {
 
     pub fn inner(&self) -> &dust_dds::publication::publisher::Publisher {
         &self.0
+    }
+}
+
+/// Creates a new DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
+/// - `listener` must be a valid pointer to a `DustDdsDataWriterListener` instance (or null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_publisher_create_datawriter(
+    publisher: Option<NonNull<DustDdsPublisher>>,
+    topic: Option<NonNull<DustDdsTopic>>,
+    qos: *const DataWriterQos,
+    listener: *const DustDdsDataWriterListener,
+    mask: DustDdsStatusMask,
+) -> Option<NonNull<DustDdsDataWriter>> {
+    let publisher = publisher?;
+    let topic = topic?;
+
+    let qos = if qos.is_null() {
+        dust_dds::infrastructure::qos::QosKind::Default
+    } else {
+        dust_dds::infrastructure::qos::QosKind::Specific((*unsafe { &*qos }).into())
+    };
+
+    let status_kinds = crate::infrastructure::condition::mask_to_status_kinds(mask);
+
+    let publisher_ref = unsafe { publisher.as_ref() };
+    let topic_ref = unsafe { topic.as_ref() };
+
+    let result = if listener.is_null() {
+        struct NoDataWriterListener;
+        impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData<'static>>
+            for NoDataWriterListener
+        {
+        }
+
+        publisher_ref
+            .inner()
+            .create_datawriter::<DynamicData<'static>>(
+                topic_ref.inner(),
+                qos,
+                None::<NoDataWriterListener>,
+                &status_kinds,
+            )
+    } else {
+        let listener_wrapper = CDataWriterListenerWrapper {
+            listener: unsafe { *listener },
+        };
+
+        publisher_ref
+            .inner()
+            .create_datawriter::<DynamicData<'static>>(
+                topic_ref.inner(),
+                qos,
+                Some(listener_wrapper),
+                &status_kinds,
+            )
+    };
+
+    match result {
+        Ok(dw) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
+        Err(_) => None,
+    }
+}
+
+/// Deletes an existing DataWriter.
+///
+/// # Safety
+///
+/// The caller must observe the following safety invariants:
+/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `datawriter` must point to a valid, initialized `DustDdsDataWriter` instance.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn dds_publisher_delete_datawriter(
+    publisher: Option<NonNull<DustDdsPublisher>>,
+    datawriter: Option<NonNull<DustDdsDataWriter>>,
+) -> ReturnCode {
+    let Some(datawriter) = datawriter else {
+        return RETCODE_OK;
+    };
+    let Some(publisher) = publisher else {
+        return RETCODE_BAD_PARAMETER;
+    };
+
+    let publisher_ref = unsafe { publisher.as_ref() };
+    let datawriter_ref = unsafe { datawriter.as_ref() };
+
+    match publisher_ref
+        .inner()
+        .delete_datawriter(datawriter_ref.inner())
+    {
+        Ok(()) => {
+            unsafe {
+                drop(Box::from_raw(datawriter.as_ptr()));
+            }
+            RETCODE_OK
+        }
+        Err(e) => e.into(),
     }
 }
 

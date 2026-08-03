@@ -1,5 +1,3 @@
-#![allow(improper_ctypes_definitions)]
-
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 
 /// cbindgen:opaque
