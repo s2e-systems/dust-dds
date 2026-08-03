@@ -3,8 +3,6 @@ use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode
 /// cbindgen:opaque
 pub struct DustDdsTopic(pub(crate) dust_dds::topic_definition::topic::Topic);
 
-pub type Topic = DustDdsTopic;
-
 impl DustDdsTopic {
     pub fn new(topic: dust_dds::topic_definition::topic::Topic) -> Self {
         Self(topic)

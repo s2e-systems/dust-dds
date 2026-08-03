@@ -9,8 +9,6 @@ pub struct DustDdsTopicDescription(
     pub(crate) Box<dyn dust_dds::topic_definition::topic_description::TopicDescription>,
 );
 
-pub type TopicDescription = DustDdsTopicDescription;
-
 impl DustDdsTopicDescription {
     pub fn new(
         topic_description: Box<dyn dust_dds::topic_definition::topic_description::TopicDescription>,
