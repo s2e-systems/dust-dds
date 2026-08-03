@@ -146,9 +146,80 @@ void test_participant_lifecycle(void)
     TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
 }
 
+void test_subscriber_lifecycle(void)
+{
+    DustDdsDomainParticipantFactory *factory = (DustDdsDomainParticipantFactory *)dds_domain_participant_factory_get_instance();
+    TEST_ASSERT_NOT_NULL(factory);
+
+    DustDdsDomainParticipant *participant = dds_domain_participant_factory_create_participant(
+        factory,
+        0,
+        NULL,
+        NULL,
+        0);
+    TEST_ASSERT_NOT_NULL(participant);
+
+    DustDdsSubscriber *subscriber = dds_domain_participant_create_subscriber(participant, NULL, NULL, 0);
+    TEST_ASSERT_NOT_NULL(subscriber);
+
+    // Test get_participant
+    DustDdsDomainParticipant *sub_participant = dds_subscriber_get_participant(subscriber);
+    TEST_ASSERT_NOT_NULL(sub_participant);
+
+    // Test get_qos and set_qos
+    SubscriberQos qos = dds_subscriber_qos_default();
+    ReturnCode result = dds_subscriber_get_qos(subscriber, &qos);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    result = dds_subscriber_set_qos(subscriber, &qos);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    // Test get/set default datareader qos
+    DataReaderQos dr_qos = dds_datareader_qos_default();
+    result = dds_subscriber_get_default_datareader_qos(subscriber, &dr_qos);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    result = dds_subscriber_set_default_datareader_qos(subscriber, &dr_qos);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    // Test set_listener
+    result = dds_subscriber_set_listener(subscriber, NULL, 0);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    // Test notify_datareaders (commented out as it's not yet implemented in the Rust core and panics)
+    // result = dds_subscriber_notify_datareaders(subscriber);
+    // TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    // Test lookup_datareader
+    DustDdsDataReader *looked_up = dds_subscriber_lookup_datareader(subscriber, "NonExistentTopic");
+    TEST_ASSERT_NULL(looked_up);
+
+    // Test delete_contained_entities (commented out as it's not yet implemented in the Rust core and panics)
+    // result = dds_subscriber_delete_contained_entities(subscriber);
+    // TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    // Test unsupported/unimplemented functions
+    result = dds_subscriber_begin_access(subscriber);
+    TEST_ASSERT_EQUAL_INT(RETCODE_UNSUPPORTED, result);
+
+    result = dds_subscriber_end_access(subscriber);
+    TEST_ASSERT_EQUAL_INT(RETCODE_UNSUPPORTED, result);
+
+    result = dds_subscriber_get_datareaders(subscriber);
+    TEST_ASSERT_EQUAL_INT(RETCODE_UNSUPPORTED, result);
+
+    // Cleanup subscriber and participant
+    result = dds_domain_participant_delete_subscriber(participant, subscriber);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+
+    result = dds_domain_participant_factory_delete_participant(factory, participant);
+    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_participant_lifecycle);
+    RUN_TEST(test_subscriber_lifecycle);
     return UNITY_END();
 }
