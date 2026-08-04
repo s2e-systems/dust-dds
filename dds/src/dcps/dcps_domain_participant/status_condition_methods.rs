@@ -49,7 +49,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             } => {
                 let dp = self.find_participant(&participant_handle)?;
                 if publisher_handle == dp.domain_participant.builtin_publisher.instance_handle {
-                    for dw in dp.domain_participant.builtin_publisher.data_writer_list_mut() {
+                    if dp.domain_participant.builtin_publisher.dcps_participant_writer.instance_handle == writer_handle {
+                        return Ok(dp.domain_participant.builtin_publisher.dcps_participant_writer.status_condition.get_enabled_statuses());
+                    }
+                    for dw in dp.domain_participant.builtin_publisher.stateful_data_writer_list_mut() {
                         if dw.instance_handle == writer_handle {
                             return Ok(dw.status_condition.get_enabled_statuses());
                         }
@@ -137,7 +140,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             } => {
                 let dp = self.find_participant(&participant_handle)?;
                 if publisher_handle == dp.domain_participant.builtin_publisher.instance_handle {
-                    for dw in dp.domain_participant.builtin_publisher.data_writer_list_mut() {
+                    if dp.domain_participant.builtin_publisher.dcps_participant_writer.instance_handle == writer_handle {
+                        dp.domain_participant.builtin_publisher.dcps_participant_writer.status_condition.set_enabled_statuses(status_mask);
+                        return Ok(());
+                    }
+                    for dw in dp.domain_participant.builtin_publisher.stateful_data_writer_list_mut() {
                         if dw.instance_handle == writer_handle {
                             dw.status_condition.set_enabled_statuses(status_mask);
                             return Ok(());
@@ -225,7 +232,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             } => {
                 let dp = self.find_participant(&participant_handle)?;
                 if publisher_handle == dp.domain_participant.builtin_publisher.instance_handle {
-                    for dw in dp.domain_participant.builtin_publisher.data_writer_list_mut() {
+                    if dp.domain_participant.builtin_publisher.dcps_participant_writer.instance_handle == writer_handle {
+                        return Ok(dp.domain_participant.builtin_publisher.dcps_participant_writer.status_condition.get_trigger_value());
+                    }
+                    for dw in dp.domain_participant.builtin_publisher.stateful_data_writer_list_mut() {
                         if dw.instance_handle == writer_handle {
                             return Ok(dw.status_condition.get_trigger_value());
                         }
@@ -315,7 +325,12 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             } => {
                 let dp = self.find_participant(&participant_handle)?;
                 if publisher_handle == dp.domain_participant.builtin_publisher.instance_handle {
-                    for dw in dp.domain_participant.builtin_publisher.data_writer_list_mut() {
+                    if dp.domain_participant.builtin_publisher.dcps_participant_writer.instance_handle == writer_handle {
+                        dp.domain_participant.builtin_publisher.dcps_participant_writer.status_condition
+                            .register_notification(notification_sender);
+                        return Ok(());
+                    }
+                    for dw in dp.domain_participant.builtin_publisher.stateful_data_writer_list_mut() {
                         if dw.instance_handle == writer_handle {
                             dw.status_condition
                                 .register_notification(notification_sender);

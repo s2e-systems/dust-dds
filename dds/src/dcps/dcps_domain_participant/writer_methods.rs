@@ -4,7 +4,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         channels::oneshot::{OneshotSender, oneshot},
-        dcps_domain_participant::{DcpsDomainParticipant, RtpsWriterKind, serialize},
+        dcps_domain_participant::{DcpsDomainParticipant, serialize},
         dcps_mail::{DcpsMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
@@ -294,7 +294,7 @@ impl DcpsDomainParticipant {
         let data_writer = if publisher_handle == &self.domain_participant.builtin_publisher.instance_handle {
             self.domain_participant
                 .builtin_publisher
-                .data_writer_list_mut()
+                .stateful_data_writer_list_mut()
                 .into_iter()
                 .find(|x| &x.instance_handle == data_writer_handle)
         } else {
@@ -356,8 +356,10 @@ impl DcpsDomainParticipant {
                 if s.samples.len() == depth as usize {
                     if let Some(&smallest_seq_num_instance) = s.samples.front() {
                         if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                            if let RtpsWriterKind::Stateful(w) = &data_writer.transport_writer {
-                                if !w.is_change_acknowledged(smallest_seq_num_instance) {
+                            if !data_writer
+                                .transport_writer
+                                .is_change_acknowledged(smallest_seq_num_instance)
+                            {
                                     if data_writer.acknowledgement_notification.is_some() {
                                         reply_sender.send(Err(DdsError::Error(String::from(
                                             "Another writer already waiting for acknowledgements.",
@@ -425,7 +427,6 @@ impl DcpsDomainParticipant {
                                     });
                                     return;
                                 }
-                            }
                         }
                     }
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
@@ -608,17 +609,15 @@ impl DcpsDomainParticipant {
             return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
 
-        match &data_writer.transport_writer {
-            RtpsWriterKind::Stateful(w) => {
-                if w.is_change_acknowledged(data_writer.last_change_sequence_number) {
-                    notify_sender.send(Ok(()));
-                } else {
-                    data_writer
-                        .wait_for_acknowledgments_notification
-                        .push(notify_sender);
-                }
-            }
-            RtpsWriterKind::Stateless(_) => notify_sender.send(Ok(())),
+        if data_writer
+            .transport_writer
+            .is_change_acknowledged(data_writer.last_change_sequence_number)
+        {
+            notify_sender.send(Ok(()));
+        } else {
+            data_writer
+                .wait_for_acknowledgments_notification
+                .push(notify_sender);
         }
     }
 }

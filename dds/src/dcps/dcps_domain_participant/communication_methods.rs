@@ -4,7 +4,7 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            AddChangeResult, DcpsDomainParticipant, RtpsReaderKind, RtpsWriterKind,
+            AddChangeResult, DcpsDomainParticipant, RtpsReaderKind,
             reader_methods::deserialize_topic_type,
         },
         listeners::domain_participant_listener::ListenerMail,
@@ -430,36 +430,31 @@ impl DcpsDomainParticipant {
                             .user_defined_publisher_list
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
-                            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
+                            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
                         {
-                            match &mut dw.transport_writer {
-                                RtpsWriterKind::Stateful(w) => {
-                                    if w.on_acknack_submessage_received(
-                                        ack_nack_submessage,
-                                        message_receiver.source_guid_prefix(),
-                                        self.transport.message_writer.as_ref(),
-                                        &runtime.clock(),
-                                    )
-                                    .is_some()
-                                    {
-                                        if let Some(x) = dw.acknowledgement_notification.take()
-                                        {
-                                            x.send(());
-                                        }
+                            if dw.transport_writer.on_acknack_submessage_received(
+                                ack_nack_submessage,
+                                message_receiver.source_guid_prefix(),
+                                self.transport.message_writer.as_ref(),
+                                &runtime.clock(),
+                            )
+                            .is_some()
+                            {
+                                if let Some(x) = dw.acknowledgement_notification.take()
+                                {
+                                    x.send(());
+                                }
 
-                                        if w.is_change_acknowledged(
-                                            dw.last_change_sequence_number,
-                                        ) {
-                                            for n in dw
-                                                .wait_for_acknowledgments_notification
-                                                .drain(..)
-                                            {
-                                                n.send(Ok(()));
-                                            }
-                                        }
+                                if dw.transport_writer.is_change_acknowledged(
+                                    dw.last_change_sequence_number,
+                                ) {
+                                    for n in dw
+                                        .wait_for_acknowledgments_notification
+                                        .drain(..)
+                                    {
+                                        n.send(Ok(()));
                                     }
                                 }
-                                RtpsWriterKind::Stateless(_) => (),
                             }
                         }
                     }
@@ -469,18 +464,13 @@ impl DcpsDomainParticipant {
                             .user_defined_publisher_list
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
-                            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
+                            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
                         {
-                            match &mut dw.transport_writer {
-                                RtpsWriterKind::Stateful(w) => {
-                                    w.on_nack_frag_submessage_received(
-                                        nack_frag_submessage,
-                                        message_receiver.source_guid_prefix(),
-                                        self.transport.message_writer.as_ref(),
-                                    );
-                                }
-                                RtpsWriterKind::Stateless(_) => (),
-                            }
+                            dw.transport_writer.on_nack_frag_submessage_received(
+                                nack_frag_submessage,
+                                message_receiver.source_guid_prefix(),
+                                self.transport.message_writer.as_ref(),
+                            );
                         }
                     }
                     _ => (),
@@ -645,14 +635,9 @@ impl DcpsDomainParticipant {
             .user_defined_publisher_list
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
-            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
+            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
         {
-            match &mut dw.transport_writer {
-                RtpsWriterKind::Stateful(writer) => {
-                    writer.write_message(self.transport.message_writer.as_ref(), clock)
-                }
-                RtpsWriterKind::Stateless(_writer) => {}
-            }
+            dw.transport_writer.write_message(self.transport.message_writer.as_ref(), clock);
         }
     }
 }

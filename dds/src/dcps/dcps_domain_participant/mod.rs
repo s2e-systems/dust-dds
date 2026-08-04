@@ -959,17 +959,22 @@ impl PublisherEntity {
     }
 }
 
-pub(crate) enum RtpsWriterKind {
-    Stateful(RtpsStatefulWriter),
-    Stateless(RtpsStatelessWriter),
+pub(crate) trait RtpsWriter {
+    fn guid(&self) -> Guid;
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+        message_writer: &(impl WriteMessage + ?Sized),
+        runtime: &impl DdsRuntime,
+    );
+    fn remove_change(&mut self, sequence_number: i64);
+    fn changes(&self) -> &[CacheChange];
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange>;
 }
 
-impl RtpsWriterKind {
+impl RtpsWriter for RtpsStatefulWriter {
     fn guid(&self) -> Guid {
-        match self {
-            RtpsWriterKind::Stateful(w) => w.guid(),
-            RtpsWriterKind::Stateless(w) => w.guid(),
-        }
+        self.guid()
     }
 
     fn add_change(
@@ -978,35 +983,50 @@ impl RtpsWriterKind {
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
     ) {
-        match self {
-            RtpsWriterKind::Stateful(w) => {
-                w.add_change(cache_change, message_writer, &runtime.clock())
-            }
-            RtpsWriterKind::Stateless(w) => w.add_change(cache_change, message_writer),
-        }
+        self.add_change(cache_change, message_writer, &runtime.clock())
     }
 
     fn remove_change(&mut self, sequence_number: i64) {
-        match self {
-            RtpsWriterKind::Stateful(w) => w.remove_change(sequence_number),
-            RtpsWriterKind::Stateless(w) => w.remove_change(sequence_number),
-        }
+        self.remove_change(sequence_number)
     }
 
-    pub(crate) fn changes(&self) -> &[CacheChange] {
-        match self {
-            RtpsWriterKind::Stateful(w) => w.changes(),
-            RtpsWriterKind::Stateless(w) => w.changes(),
-        }
+    fn changes(&self) -> &[CacheChange] {
+        self.changes()
     }
 
-    pub(crate) fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        match self {
-            RtpsWriterKind::Stateful(w) => w.changes_mut(),
-            RtpsWriterKind::Stateless(w) => w.changes_mut(),
-        }
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        self.changes_mut()
     }
 }
+
+impl RtpsWriter for RtpsStatelessWriter {
+    fn guid(&self) -> Guid {
+        self.guid()
+    }
+
+    fn add_change(
+        &mut self,
+        cache_change: CacheChange,
+        message_writer: &(impl WriteMessage + ?Sized),
+        _runtime: &impl DdsRuntime,
+    ) {
+        self.add_change(cache_change, message_writer)
+    }
+
+    fn remove_change(&mut self, sequence_number: i64) {
+        self.remove_change(sequence_number)
+    }
+
+    fn changes(&self) -> &[CacheChange] {
+        self.changes()
+    }
+
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        self.changes_mut()
+    }
+}
+
+
 
 struct RegisteredInstanceInfo {
     instance_handle: InstanceHandle,
@@ -1020,9 +1040,9 @@ struct IncompatibleSubscriptions {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
 }
 
-pub(crate) struct DataWriterEntity {
+pub(crate) struct DataWriterEntity<T = RtpsStatefulWriter> {
     instance_handle: InstanceHandle,
-    transport_writer: RtpsWriterKind,
+    transport_writer: T,
     topic_name: String,
     type_name: String,
     type_support: DynamicType<'static>,
@@ -1045,11 +1065,11 @@ pub(crate) struct DataWriterEntity {
     wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
 }
 
-impl DataWriterEntity {
+impl<T: RtpsWriter> DataWriterEntity<T> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         instance_handle: InstanceHandle,
-        transport_writer: RtpsWriterKind,
+        transport_writer: T,
         topic_name: String,
         type_name: String,
         type_support: DynamicType<'static>,

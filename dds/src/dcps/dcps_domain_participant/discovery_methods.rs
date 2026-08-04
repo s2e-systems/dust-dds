@@ -28,7 +28,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
             ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
-            IncompatibleSubscriptions, RtpsReaderKind, RtpsWriterKind,
+            IncompatibleSubscriptions, RtpsReaderKind,
             TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
         },
         listeners::domain_participant_listener::ListenerMail,
@@ -1094,11 +1094,7 @@ impl DcpsDomainParticipant {
                                         multicast_locator_list,
                                         expects_inline_qos: false,
                                     };
-                                    if let RtpsWriterKind::Stateful(w) =
-                                        &mut data_writer.transport_writer
-                                    {
-                                        w.add_matched_reader(reader_proxy);
-                                    }
+                                    data_writer.transport_writer.add_matched_reader(reader_proxy);
 
                                     if data_writer
                                         .listener_mask
@@ -2644,12 +2640,9 @@ impl DcpsDomainParticipant {
                 for matched_subscription in &data_writer.matched_subscription_list {
                     if matched_subscription.key.value[..12] == prefix {
                         // Remove readers
-                        if let RtpsWriterKind::Stateful(stateful_writer) =
-                            &mut data_writer.transport_writer
-                        {
-                            stateful_writer
-                                .delete_matched_reader(matched_subscription.key.value.into());
-                        }
+                        data_writer.transport_writer
+                            .delete_matched_reader(matched_subscription.key.value.into());
+
                     }
                 }
                 data_writer
@@ -2706,10 +2699,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
-                }
+                dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -2718,10 +2708,8 @@ impl DcpsDomainParticipant {
     fn remove_matched_publications_detector(&mut self, prefix: GuidPrefix) {
         {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
-            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
-                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-                w.delete_matched_reader(guid);
-            }
+            let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+                dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -2825,10 +2813,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
-                }
+                dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -2837,10 +2822,8 @@ impl DcpsDomainParticipant {
     fn remove_matched_subscriptions_detector(&mut self, prefix: GuidPrefix) {
         {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
-            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
-                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-                w.delete_matched_reader(guid);
-            }
+            let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+                dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -2944,10 +2927,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
-                }
+                dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -2956,10 +2936,8 @@ impl DcpsDomainParticipant {
     fn remove_matched_topics_detector(&mut self, prefix: GuidPrefix) {
         {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
-            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
-                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-                w.delete_matched_reader(guid);
-            }
+            let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+                dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -3061,10 +3039,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
-                }
+                dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -3073,10 +3048,8 @@ impl DcpsDomainParticipant {
     fn remove_matched_service_request_data_reader(&mut self, prefix: GuidPrefix) {
         {
             let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
-            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
-                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
-                w.delete_matched_reader(guid);
-            }
+            let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
+                dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -3174,10 +3147,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
-                    RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
-                }
+                dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -3186,10 +3156,8 @@ impl DcpsDomainParticipant {
     fn remove_matched_service_reply_data_reader(&mut self, prefix: GuidPrefix) {
         {
             let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
-            if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
-                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
-                w.delete_matched_reader(guid);
-            }
+            let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
+                dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
