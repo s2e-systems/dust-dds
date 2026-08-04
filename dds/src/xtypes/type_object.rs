@@ -2699,7 +2699,28 @@ impl CompleteTypeObject {
 
                 // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
                 //   member ID) in both T1 and T2.
-                // TODO
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        return false;
+                    }
+                }
 
                 // • For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies
                 //   m1.type.length >= m2.type.length.
