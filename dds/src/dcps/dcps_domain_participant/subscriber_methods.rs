@@ -1,9 +1,13 @@
 use alloc::string::String;
 
 use crate::{
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+    },
     dcps::{
         dcps_domain_participant::{
-            DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, SubscriberEntity,
+            DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, UserDefinedSubscriber,
+            TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -160,7 +164,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x: &&mut SubscriberEntity| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -195,13 +199,16 @@ impl DcpsDomainParticipant {
 
         // Built-in subscriber is identified by the handle of the participant itself
         if &self.domain_participant.instance_handle == subscriber_handle {
-            Ok(self
-                .domain_participant
-                .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| dr.topic_name == topic_name)
-                .map(|x| x.instance_handle))
+            let dr = match topic_name.as_str() {
+                DCPS_PARTICIPANT => &self.domain_participant.builtin_subscriber.dcps_participant_reader,
+                DCPS_TOPIC => &self.domain_participant.builtin_subscriber.dcps_topic_reader,
+                DCPS_PUBLICATION => &self.domain_participant.builtin_subscriber.dcps_publication_reader,
+                DCPS_SUBSCRIPTION => &self.domain_participant.builtin_subscriber.dcps_subscription_reader,
+                TYPE_LOOKUP_REQUEST_TOPIC_NAME => &self.domain_participant.builtin_subscriber.type_lookup_request_reader,
+                TYPE_LOOKUP_REPLY_TOPIC_NAME => &self.domain_participant.builtin_subscriber.type_lookup_reply_reader,
+                _ => return Ok(None),
+            };
+            Ok(Some(dr.instance_handle))
         } else {
             let Some(s) = self
                 .domain_participant

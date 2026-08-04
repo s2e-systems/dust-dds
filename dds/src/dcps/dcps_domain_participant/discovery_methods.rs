@@ -233,6 +233,9 @@ impl DcpsDomainParticipant {
 
     pub fn check_missed_reader_deadline(&mut self, now: Time) {
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            let subscriber_handle = subscriber.instance_handle;
+            let subscriber_listener_mask = subscriber.listener_mask;
+            let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {
                 if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
                     for change_instance_handle in data_reader.instances.iter().filter_map(|x| {
@@ -260,7 +263,7 @@ impl DcpsDomainParticipant {
                             self.domain_participant.instance_handle,
                         );
                         let the_subscriber = SubscriberAsync::new(
-                            subscriber.instance_handle,
+                            subscriber_handle,
                             the_participant.clone(),
                         );
 
@@ -309,15 +312,14 @@ impl DcpsDomainParticipant {
                                 })
                                 .ok();
                             }
-                        } else if subscriber
-                            .listener_mask
+                        } else if subscriber_listener_mask
                             .is_enabled(&StatusKind::RequestedDeadlineMissed)
                         {
                             let status = data_reader.requested_deadline_missed_status.clone();
                             data_reader
                                 .requested_deadline_missed_status
                                 .total_count_change = 0;
-                            if let Some(l) = &subscriber.listener_sender {
+                            if let Some(l) = &subscriber_listener_sender {
                                 l.send(ListenerMail::RequestedDeadlineMissed {
                                     the_reader,
                                     status,
@@ -1342,6 +1344,10 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn process_discovered_writers(&mut self, runtime: &impl DdsRuntime) {
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            let subscriber_handle = subscriber.instance_handle;
+            let subscriber_qos = subscriber.qos.clone();
+            let subscriber_listener_mask = subscriber.listener_mask;
+            let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {
                 let reader_topic_name = if let Some(matched_topic) = self
                     .domain_participant
@@ -1403,7 +1409,7 @@ impl DcpsDomainParticipant {
                         .partition
                         .name
                         .iter()
-                        .any(|n| subscriber.qos.partition.name.contains(n));
+                        .any(|n| subscriber_qos.partition.name.contains(n));
 
                     let is_any_received_regex_matched_with_partition_qos = discovered_writer_data
                         .dds_publication_data
@@ -1412,16 +1418,14 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
                         .any(|regex| {
-                            subscriber
-                                .qos
+                            subscriber_qos
                                 .partition
                                 .name
                                 .iter()
                                 .any(|n| regex.is_match(n))
                         });
 
-                    let is_any_local_regex_matched_with_received_partition_qos = subscriber
-                        .qos
+                    let is_any_local_regex_matched_with_received_partition_qos = subscriber_qos
                         .partition
                         .name
                         .iter()
@@ -1437,14 +1441,12 @@ impl DcpsDomainParticipant {
 
                     let is_partition_matched =
                         discovered_writer_data.dds_publication_data.partition
-                            == subscriber.qos.partition
+                            == subscriber_qos.partition
                             || is_any_name_matched
                             || is_any_received_regex_matched_with_partition_qos
                             || is_any_local_regex_matched_with_received_partition_qos;
 
                     if is_partition_matched {
-                        let subscriber_qos = subscriber.qos.clone();
-
                         let reader_associated_topic = if let Some(matched_topic) = self
                             .domain_participant
                             .content_filtered_topic_list
@@ -1599,7 +1601,7 @@ impl DcpsDomainParticipant {
                             self.domain_participant.instance_handle,
                         );
                         let the_subscriber = SubscriberAsync::new(
-                            subscriber.instance_handle,
+                            subscriber_handle,
                             the_participant.clone(),
                         );
                         let the_reader = DataReaderAsync::new(
@@ -1697,12 +1699,11 @@ impl DcpsDomainParticipant {
                                             })
                                             .ok();
                                         }
-                                    } else if subscriber
-                                        .listener_mask
+                                    } else if subscriber_listener_mask
                                         .is_enabled(&StatusKind::SubscriptionMatched)
                                     {
                                         let status = data_reader.get_subscription_matched_status();
-                                        if let Some(l) = &subscriber.listener_sender {
+                                        if let Some(l) = &subscriber_listener_sender {
                                             l.send(ListenerMail::SubscriptionMatched {
                                                 the_reader,
                                                 status,
@@ -1748,13 +1749,12 @@ impl DcpsDomainParticipant {
                                             })
                                             .ok();
                                         }
-                                    } else if subscriber
-                                        .listener_mask
+                                    } else if subscriber_listener_mask
                                         .is_enabled(&StatusKind::RequestedIncompatibleQos)
                                     {
                                         let status =
                                             data_reader.get_requested_incompatible_qos_status();
-                                        if let Some(l) = &subscriber.listener_sender {
+                                        if let Some(l) = &subscriber_listener_sender {
                                             l.send(ListenerMail::RequestedIncompatibleQos {
                                                 the_reader,
                                                 status,
@@ -1876,12 +1876,10 @@ impl DcpsDomainParticipant {
         &mut self,
         runtime: &impl DdsRuntime,
     ) {
-        if let Some(dcps_reader) = self
+        let dcps_reader = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_PARTICIPANT)
+            .dcps_participant_reader;
         {
             if let Ok(samples) = dcps_reader.read(
                 i32::MAX,
@@ -1908,12 +1906,10 @@ impl DcpsDomainParticipant {
     }
 
     pub fn process_builtin_publications_detector_cache_change(&mut self) {
-        if let Some(sedp_publication) = self
+        let sedp_publication = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_PUBLICATION)
+            .dcps_publication_reader;
         {
             if let Ok(samples) = sedp_publication.read(
                 i32::MAX,
@@ -1997,12 +1993,10 @@ impl DcpsDomainParticipant {
     }
 
     pub fn process_builtin_subscriptions_detector_cache_change(&mut self) {
-        if let Some(sedp_subscriptions) = self
+        let sedp_subscriptions = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
+            .dcps_subscription_reader;
         {
             if let Ok(samples) = sedp_subscriptions.read(
                 i32::MAX,
@@ -2121,12 +2115,10 @@ impl DcpsDomainParticipant {
     }
 
     pub fn process_builtin_topics_detector_cache_change(&mut self) {
-        if let Some(sedp_topics) = self
+        let sedp_topics = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_TOPIC)
+            .dcps_topic_reader;
         {
             if let Ok(samples) = sedp_topics.read(
                 i32::MAX,
@@ -2152,12 +2144,10 @@ impl DcpsDomainParticipant {
     }
 
     pub fn process_builtin_type_lookup_request_cache_change(&mut self, runtime: &impl DdsRuntime) {
-        if let Some(type_lookup_request_reader) = self
+        let type_lookup_request_reader = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
+            .type_lookup_request_reader;
         {
             if let Ok(samples) = type_lookup_request_reader.take(
                 i32::MAX,
@@ -2249,12 +2239,10 @@ impl DcpsDomainParticipant {
 
     pub fn process_builtin_type_lookup_reply_cache_change(&mut self, runtime: &impl DdsRuntime) {
         let mut type_lookup_reply_received = false;
-        if let Some(type_lookup_reply_reader) = self
+        let type_lookup_reply_reader = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
+            .type_lookup_reply_reader;
         {
             if let Ok(samples) = type_lookup_reply_reader.take(
                 i32::MAX,
@@ -2794,41 +2782,27 @@ impl DcpsDomainParticipant {
                 reliability_kind: ReliabilityKind::Reliable,
                 durability_kind: DurabilityKind::TransientLocal,
             };
-            if let Some(dr) = self
+            let dr = &mut self
                 .domain_participant
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
-                })
-            {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
-                }
+                .dcps_publication_reader;
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_publications_announcer(&mut self, prefix: GuidPrefix) {
-        if let Some(dr) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR
-            })
-        {
+            let dr = &mut self
+                .domain_participant
+                .builtin_subscriber
+                .dcps_publication_reader;
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
-        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -2914,41 +2888,27 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
             };
-            if let Some(dr) = self
+            let dr = &mut self
                 .domain_participant
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
-                })
-            {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
-                }
+                .dcps_subscription_reader;
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_subscriptions_announcer(&mut self, prefix: GuidPrefix) {
-        if let Some(dr) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR
-            })
-        {
+            let dr = &mut self
+                .domain_participant
+                .builtin_subscriber
+                .dcps_subscription_reader;
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
                 r.delete_matched_writer(guid);
             }
-        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -3028,38 +2988,26 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
             };
-            if let Some(dr) = self
+            let dr = &mut self
                 .domain_participant
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| {
-                    dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
-                })
-            {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
-                }
+                .dcps_topic_reader;
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_topics_announcer(&mut self, prefix: GuidPrefix) {
-        if let Some(dr) = self
+        let dr = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| {
-                dr.transport_reader.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
-            })
-        {
-            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
-                let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-                r.delete_matched_writer(guid);
-            }
+            .dcps_topic_reader;
+        if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
+            let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+            r.delete_matched_writer(guid);
         }
     }
 
@@ -3146,35 +3094,27 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
             };
-            if let Some(dr) = self
+            let dr = &mut self
                 .domain_participant
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
-            {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
-                }
+                .type_lookup_request_reader;
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_request_data_writer(&mut self, prefix: GuidPrefix) {
-        if let Some(dr) = self
-            .domain_participant
-            .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REQ_READER)
-        {
+            let dr = &mut self
+                .domain_participant
+                .builtin_subscriber
+                .type_lookup_request_reader;
             if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
                 let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_WRITER);
                 r.delete_matched_writer(guid);
             }
-        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -3260,34 +3200,26 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
             };
-            if let Some(dr) = self
+            let dr = &mut self
                 .domain_participant
                 .builtin_subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
-            {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
-                    RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
-                }
+                .type_lookup_reply_reader;
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => r.add_matched_writer(&writer_proxy),
+                RtpsReaderKind::Stateless(_) => panic!("Invalid built-in reader type"),
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_reply_data_writer(&mut self, prefix: GuidPrefix) {
-        if let Some(dr) = self
+        let dr = &mut self
             .domain_participant
             .builtin_subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|dr| dr.transport_reader.guid().entity_id() == ENTITYID_TL_SVC_REPLY_READER)
-        {
-            if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
-                let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_WRITER);
-                r.delete_matched_writer(guid);
-            }
+            .type_lookup_reply_reader;
+        if let RtpsReaderKind::Stateful(r) = &mut dr.transport_reader {
+            let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_WRITER);
+            r.delete_matched_writer(guid);
         }
     }
 

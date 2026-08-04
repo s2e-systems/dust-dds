@@ -71,24 +71,27 @@ impl DcpsDomainParticipant {
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let subscriber = if subscriber_handle == &self.domain_participant.instance_handle {
-            Some(&mut self.domain_participant.builtin_subscriber)
-        } else {
+        let data_reader = if subscriber_handle == &self.domain_participant.instance_handle {
             self.domain_participant
+                .builtin_subscriber
+                .find_data_reader_mut(data_reader_handle)
+        } else {
+            let subscriber = self
+                .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
+                .find(|x| &x.instance_handle == subscriber_handle);
+            if let Some(subscriber) = subscriber {
+                subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == data_reader_handle)
+            } else {
+                None
+            }
         };
 
-        let Some(subscriber) = subscriber else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
+        let Some(data_reader) = data_reader else {
             return Err(DdsError::AlreadyDeleted);
         };
 

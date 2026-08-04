@@ -1,4 +1,5 @@
 mod builtin_publisher;
+mod builtin_subscriber;
 mod communication_methods;
 mod discovery_methods;
 mod participant_methods;
@@ -87,6 +88,7 @@ use alloc::{
     vec::Vec,
 };
 use builtin_publisher::BuiltinPublisher;
+use builtin_subscriber::BuiltinSubscriber;
 use core::{
     future::{Future, poll_fn},
     pin::{Pin, pin},
@@ -305,7 +307,6 @@ impl DcpsDomainParticipant {
 
         const NUMBER_BUILTIN_ENTITIES: usize = 6;
         let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
-        let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
         topic_list.push(TopicEntity::new(
             TopicQos::default(),
@@ -373,108 +374,7 @@ impl DcpsDomainParticipant {
             TypeLookupReply::TYPE,
         ));
 
-        let rtps_stateless_reader = RtpsStatelessReader::new(Guid::new(
-            guid_prefix,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-        ));
-
-        let dcps_participant_reader = DataReaderEntity::new(
-            InstanceHandle::new(rtps_stateless_reader.guid().into()),
-            SPDP_READER_QOS,
-            String::from(DCPS_PARTICIPANT),
-            ParticipantBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateless(rtps_stateless_reader),
-        );
-        builtin_data_reader_list.push(dcps_participant_reader);
-
-        let dcps_topic_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            ReliabilityKind::Reliable,
-        );
-
-        let dcps_topic_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
-            SEDP_DATA_READER_QOS,
-            String::from(DCPS_TOPIC),
-            TopicBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_topic_transport_reader),
-        );
-        builtin_data_reader_list.push(dcps_topic_reader);
-
-        let dcps_publication_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-            ReliabilityKind::Reliable,
-        );
-
-        let dcps_publication_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
-            SEDP_DATA_READER_QOS,
-            String::from(DCPS_PUBLICATION),
-            PublicationBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_publication_transport_reader),
-        );
-        builtin_data_reader_list.push(dcps_publication_reader);
-
-        let dcps_subscription_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            ReliabilityKind::Reliable,
-        );
-
-        let dcps_subscription_reader = DataReaderEntity::new(
-            InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
-            SEDP_DATA_READER_QOS,
-            String::from(DCPS_SUBSCRIPTION),
-            SubscriptionBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
-        );
-        builtin_data_reader_list.push(dcps_subscription_reader);
-
-        let type_lookup_request_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
-            ReliabilityKind::Reliable,
-        );
-        let type_lookup_request_reader = DataReaderEntity::new(
-            InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
-            TYPE_LOOKUP_READER_QOS,
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
-            TypeLookupRequest::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
-        );
-        builtin_data_reader_list.push(type_lookup_request_reader);
-
-        let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
-            ReliabilityKind::Reliable,
-        );
-        let type_lookup_reply_reader = DataReaderEntity::new(
-            InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
-            TYPE_LOOKUP_READER_QOS,
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
-            TypeLookupReply::TYPE,
-            None,
-            StatusMask::default(),
-            RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
-        );
-        builtin_data_reader_list.push(type_lookup_reply_reader);
-
-        let builtin_subscriber = SubscriberEntity::new(
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
-            SubscriberQos::default(),
-            builtin_data_reader_list,
-            None,
-            StatusMask::default(),
-        );
-
+        let builtin_subscriber = BuiltinSubscriber::new(guid_prefix);
         let builtin_publisher = BuiltinPublisher::new(guid_prefix, &transport);
 
         let domain_participant = DomainParticipantEntity::new(
@@ -599,9 +499,9 @@ struct DomainParticipantEntity {
     topic_counter: u16,
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
-    builtin_subscriber: SubscriberEntity,
+    builtin_subscriber: BuiltinSubscriber,
     builtin_publisher: BuiltinPublisher,
-    user_defined_subscriber_list: Vec<SubscriberEntity>,
+    user_defined_subscriber_list: Vec<UserDefinedSubscriber>,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity>,
     default_publisher_qos: PublisherQos,
@@ -631,7 +531,7 @@ impl DomainParticipantEntity {
         listener_mask: StatusMask,
         instance_handle: InstanceHandle,
         builtin_publisher: BuiltinPublisher,
-        builtin_subscriber: SubscriberEntity,
+        builtin_subscriber: BuiltinSubscriber,
         locally_created_topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
@@ -792,7 +692,7 @@ impl DomainParticipantEntity {
         }
     }
 
-    fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<SubscriberEntity> {
+    fn remove_subscriber(&mut self, handle: &InstanceHandle) -> Option<UserDefinedSubscriber> {
         let i = self
             .user_defined_subscriber_list
             .iter()
@@ -848,35 +748,63 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-struct SubscriberEntity {
+pub(crate) struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
-    data_reader_list: Vec<DataReaderEntity>,
     enabled: bool,
-    default_data_reader_qos: DataReaderQos,
-    status_condition: DcpsStatusCondition,
-    listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: StatusMask,
 }
 
 impl SubscriberEntity {
-    fn new(
+    pub(crate) fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
-        data_reader_list: Vec<DataReaderEntity>,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
     ) -> Self {
         Self {
             instance_handle,
             qos,
-            data_reader_list,
             enabled: false,
+        }
+    }
+}
+
+pub(crate) struct UserDefinedSubscriber {
+    pub(crate) subscriber_entity: SubscriberEntity,
+    pub(crate) default_data_reader_qos: DataReaderQos,
+    pub(crate) status_condition: DcpsStatusCondition,
+    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
+    pub(crate) listener_mask: StatusMask,
+    pub(crate) data_reader_list: Vec<DataReaderEntity>,
+}
+
+impl UserDefinedSubscriber {
+    pub(crate) fn new(
+        instance_handle: InstanceHandle,
+        qos: SubscriberQos,
+        listener_sender: Option<MpscSender<ListenerMail>>,
+        listener_mask: StatusMask,
+    ) -> Self {
+        Self {
+            subscriber_entity: SubscriberEntity::new(instance_handle, qos),
             default_data_reader_qos: DataReaderQos::const_default(),
             status_condition: DcpsStatusCondition::default(),
             listener_sender,
             listener_mask,
+            data_reader_list: Vec::new(),
         }
+    }
+}
+
+impl core::ops::Deref for UserDefinedSubscriber {
+    type Target = SubscriberEntity;
+
+    fn deref(&self) -> &Self::Target {
+        &self.subscriber_entity
+    }
+}
+
+impl core::ops::DerefMut for UserDefinedSubscriber {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.subscriber_entity
     }
 }
 
@@ -1510,7 +1438,7 @@ struct InstanceOwnership {
     last_received_time: Time,
 }
 
-struct DataReaderEntity {
+pub(crate) struct DataReaderEntity {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,

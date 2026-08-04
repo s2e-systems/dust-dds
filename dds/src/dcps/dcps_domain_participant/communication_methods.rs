@@ -3,11 +3,15 @@ use tracing::info;
 
 use crate::{
     dcps::{
+        channels::mpsc::MpscSender,
         dcps_domain_participant::{
-            AddChangeResult, DcpsDomainParticipant, RtpsReaderKind,
+            AddChangeResult, ContentFilteredTopicEntity, DataReaderEntity, DcpsDomainParticipant,
+            DcpsSender, DiscoveredParticipantInfo, RtpsReaderKind, TopicEntity,
             reader_methods::deserialize_topic_type,
         },
         listeners::domain_participant_listener::ListenerMail,
+        status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::{
             KeyHolderType, get_instance_handle_from_dynamic_data,
         },
@@ -16,7 +20,7 @@ use crate::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync,
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind},
+    infrastructure::{domain::DomainId, instance::InstanceHandle, status::StatusKind, time::Time},
     rtps::message_receiver::MessageReceiver,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -34,41 +38,114 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
     pub fn process_received_cache_changes(&mut self, runtime: &impl DdsRuntime) {
         let reception_timestamp = runtime.clock().now();
-        for subscriber in self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_subscriber,
-            ))
-        {
-            for data_reader in &mut subscriber.data_reader_list {
-                let changes = match &mut data_reader.transport_reader {
-                    RtpsReaderKind::Stateful(r) => core::mem::take(r.changes_mut()),
-                    RtpsReaderKind::Stateless(r) => core::mem::take(r.changes_mut()),
-                };
-                let subscriber_handle = &subscriber.instance_handle.clone();
-                let data_reader_handle = &data_reader.instance_handle.clone();
-                tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
+        let dcps_sender = self.dcps_sender;
+        let domain_id = self.domain_participant.domain_id;
+        let dp_instance_handle = self.domain_participant.instance_handle;
+        let dp_listener_mask = self.domain_participant.listener_mask;
+        let dp_listener_sender = &self.domain_participant.listener_sender;
+        let discovered_participant_list = &mut self.domain_participant.discovered_participant_list;
+        let content_filtered_topic_list = &self.domain_participant.content_filtered_topic_list;
+        let locally_created_topic_list = &self.domain_participant.locally_created_topic_list;
+
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            let subscriber_handle = subscriber.instance_handle;
+            let subscriber_listener_mask = subscriber.listener_mask;
+            let subscriber_listener_sender = subscriber.listener_sender.clone();
+            let (subscriber_status_condition, data_reader_list) = (
+                &mut subscriber.status_condition,
+                &mut subscriber.data_reader_list,
+            );
+            for data_reader in data_reader_list {
+                Self::process_single_reader_cache_changes(
+                    discovered_participant_list,
+                    content_filtered_topic_list,
+                    locally_created_topic_list,
+                    dcps_sender,
+                    domain_id,
+                    dp_instance_handle,
+                    dp_listener_mask,
+                    dp_listener_sender,
+                    subscriber_handle,
+                    subscriber_listener_mask,
+                    &subscriber_listener_sender,
+                    subscriber_status_condition,
+                    data_reader,
+                    reception_timestamp,
+                    runtime,
+                );
+            }
+        }
+
+        let subscriber_handle = self.domain_participant.builtin_subscriber.instance_handle;
+        let subscriber_listener_mask = StatusMask::default();
+        let subscriber_listener_sender = None;
+        let mut dummy_status_condition = DcpsStatusCondition::default();
+        let builtin_subscriber = &mut self.domain_participant.builtin_subscriber;
+        let reader_list = [
+            &mut builtin_subscriber.dcps_participant_reader,
+            &mut builtin_subscriber.dcps_publication_reader,
+            &mut builtin_subscriber.dcps_subscription_reader,
+            &mut builtin_subscriber.dcps_topic_reader,
+            &mut builtin_subscriber.type_lookup_request_reader,
+            &mut builtin_subscriber.type_lookup_reply_reader,
+        ];
+        for data_reader in reader_list {
+            Self::process_single_reader_cache_changes(
+                discovered_participant_list,
+                content_filtered_topic_list,
+                locally_created_topic_list,
+                dcps_sender,
+                domain_id,
+                dp_instance_handle,
+                dp_listener_mask,
+                dp_listener_sender,
+                subscriber_handle,
+                subscriber_listener_mask,
+                &subscriber_listener_sender,
+                &mut dummy_status_condition,
+                data_reader,
+                reception_timestamp,
+                runtime,
+            );
+        }
+    }
+
+    fn process_single_reader_cache_changes(
+        discovered_participant_list: &mut [DiscoveredParticipantInfo],
+    content_filtered_topic_list: &[ContentFilteredTopicEntity],
+    locally_created_topic_list: &[TopicEntity],
+    dcps_sender: DcpsSender,
+    domain_id: DomainId,
+    dp_instance_handle: InstanceHandle,
+    dp_listener_mask: StatusMask,
+    dp_listener_sender: &Option<MpscSender<ListenerMail>>,
+    subscriber_handle: InstanceHandle,
+    subscriber_listener_mask: StatusMask,
+    subscriber_listener_sender: &Option<MpscSender<ListenerMail>>,
+    subscriber_status_condition: &mut DcpsStatusCondition,
+    data_reader: &mut DataReaderEntity,
+    reception_timestamp: Time,
+    runtime: &impl DdsRuntime,
+) {
+        let changes = match &mut data_reader.transport_reader {
+            RtpsReaderKind::Stateful(r) => core::mem::take(r.changes_mut()),
+            RtpsReaderKind::Stateless(r) => core::mem::take(r.changes_mut()),
+        };
+        let data_reader_handle = &data_reader.instance_handle.clone();
+        tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
-                    if let Some(matched_participant) = self
-                        .domain_participant
-                        .discovered_participant_list
+                    if let Some(matched_participant) = discovered_participant_list
                         .iter_mut()
                         .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
                     {
                         matched_participant.last_communication_timestamp = runtime.clock().now();
                     }
-                    let (topic_name, type_name) = if let Some(content_filtered_topic) = self
-                        .domain_participant
-                        .content_filtered_topic_list
+                    let (topic_name, type_name) = if let Some(content_filtered_topic) = content_filtered_topic_list
                         .iter()
                         .find(|t| t.topic_name == data_reader.topic_name)
                     {
-                        let Some(reader_topic) = self
-                            .domain_participant
-                            .locally_created_topic_list
+                        let Some(reader_topic) = locally_created_topic_list
                             .iter()
                             .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
                         else {
@@ -193,19 +270,14 @@ impl DcpsDomainParticipant {
                             reader_topic.topic_name.clone(),
                         )
                     } else {
-                        let Some(reader_topic) = self
-                            .domain_participant
-                            .locally_created_topic_list
+                        let Some(reader_topic) = locally_created_topic_list
                             .iter()
                             .find(|t| t.topic_name == data_reader.topic_name)
                         else {
-                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
                             return;
                         };
-                        (
-                            reader_topic.type_name.clone(),
-                            reader_topic.topic_name.clone(),
-                        )
+                        (data_reader.topic_name.clone(), reader_topic.type_name.clone())
                     };
 
                     let change_instance_handle = if let Some(i) = cache_change.instance_handle {
@@ -267,12 +339,12 @@ impl DcpsDomainParticipant {
                     };
 
                     let the_participant = DomainParticipantAsync::new(
-                        self.dcps_sender,
-                        self.domain_participant.domain_id,
-                        self.domain_participant.instance_handle,
+                        dcps_sender,
+                        domain_id,
+                        dp_instance_handle,
                     );
                     let the_subscriber =
-                        SubscriberAsync::new(*subscriber_handle, the_participant.clone());
+                        SubscriberAsync::new(subscriber_handle, the_participant.clone());
 
                     let the_reader = DataReaderAsync::new(
                         *data_reader_handle,
@@ -296,11 +368,10 @@ impl DcpsDomainParticipant {
                                 .listener_mask
                                 .is_enabled(&StatusKind::DataAvailable);
 
-                            if subscriber
-                                .listener_mask
+                            if subscriber_listener_mask
                                 .is_enabled(&StatusKind::DataOnReaders)
                             {
-                                if let Some(l) = &subscriber.listener_sender {
+                                if let Some(l) = subscriber_listener_sender {
                                     l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
                                 }
                             } else if data_reader_on_data_available_active {
@@ -310,8 +381,7 @@ impl DcpsDomainParticipant {
                                 }
                             }
 
-                            subscriber
-                                .status_condition
+                            subscriber_status_condition
                                 .add_communication_state(StatusKind::DataOnReaders);
 
                             data_reader
@@ -339,22 +409,19 @@ impl DcpsDomainParticipant {
                                     l.send(ListenerMail::SampleRejected { the_reader, status })
                                         .ok();
                                 };
-                            } else if subscriber
-                                .listener_mask
+                            } else if subscriber_listener_mask
                                 .is_enabled(&StatusKind::SampleRejected)
                             {
                                 let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = &subscriber.listener_sender {
+                                if let Some(l) = subscriber_listener_sender {
                                     l.send(ListenerMail::SampleRejected { status, the_reader })
                                         .ok();
                                 }
-                            } else if self
-                                .domain_participant
-                                .listener_mask
+                            } else if dp_listener_mask
                                 .is_enabled(&StatusKind::SampleRejected)
                             {
                                 let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = &self.domain_participant.listener_sender {
+                                if let Some(l) = dp_listener_sender {
                                     l.send(ListenerMail::SampleRejected { status, the_reader })
                                         .ok();
                                 }
@@ -368,8 +435,6 @@ impl DcpsDomainParticipant {
                     }
                 }
             }
-        }
-    }
 
     #[tracing::instrument(skip(self, data_message, runtime))]
     pub fn handle_data(&mut self, data_message: &[u8], runtime: &impl DdsRuntime) {
@@ -391,36 +456,33 @@ impl DcpsDomainParticipant {
                         self.handle_heartbeat_submessage(&message_receiver, heartbeat_submessage);
                     }
                     RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
-                        for subscriber in self
+                        for dr in self
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_subscriber,
-                            ))
+                            .flat_map(|s| s.data_reader_list.iter_mut())
+                            .chain(self.domain_participant.builtin_subscriber.data_reader_list_mut())
                         {
-                            for dr in &mut subscriber.data_reader_list {
-                                match &mut dr.transport_reader {
-                                    RtpsReaderKind::Stateful(r) => {
-                                        let writer_guid = Guid::new(
-                                            message_receiver.source_guid_prefix(),
-                                            heartbeat_frag_submessage.writer_id(),
-                                        );
-                                        if let Some(writer_proxy) =
-                                            r.matched_writer_lookup(writer_guid)
+                            match &mut dr.transport_reader {
+                                RtpsReaderKind::Stateful(r) => {
+                                    let writer_guid = Guid::new(
+                                        message_receiver.source_guid_prefix(),
+                                        heartbeat_frag_submessage.writer_id(),
+                                    );
+                                    if let Some(writer_proxy) =
+                                        r.matched_writer_lookup(writer_guid)
+                                    {
+                                        if writer_proxy.last_received_heartbeat_count()
+                                            < heartbeat_frag_submessage.count()
                                         {
-                                            if writer_proxy.last_received_heartbeat_count()
-                                                < heartbeat_frag_submessage.count()
-                                            {
-                                                writer_proxy
-                                                    .set_last_received_heartbeat_frag_count(
-                                                        heartbeat_frag_submessage.count(),
-                                                    );
-                                            }
+                                            writer_proxy
+                                                .set_last_received_heartbeat_frag_count(
+                                                    heartbeat_frag_submessage.count(),
+                                                );
                                         }
                                     }
-                                    RtpsReaderKind::Stateless(_) => (),
                                 }
+                                RtpsReaderKind::Stateless(_) => (),
                             }
                         }
                     }
@@ -504,30 +566,27 @@ impl DcpsDomainParticipant {
         message_receiver: &MessageReceiver<'_>,
         data_submessage: &DataSubmessage,
     ) {
-        for subscriber in self
+        for dr in self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_subscriber,
-            ))
+            .flat_map(|s| s.data_reader_list.iter_mut())
+            .chain(self.domain_participant.builtin_subscriber.data_reader_list_mut())
         {
-            for dr in &mut subscriber.data_reader_list {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => {
-                        r.on_data_submessage(
-                            data_submessage,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                        );
-                    }
-                    RtpsReaderKind::Stateless(r) => {
-                        r.on_data_submessage(
-                            data_submessage,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                        );
-                    }
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    r.on_data_submessage(
+                        data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
+                }
+                RtpsReaderKind::Stateless(r) => {
+                    r.on_data_submessage(
+                        data_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
                 }
             }
         }
@@ -539,35 +598,32 @@ impl DcpsDomainParticipant {
         message_receiver: &MessageReceiver<'_>,
         gap_submessage: &GapSubmessage,
     ) {
-        for subscriber in self
+        for dr in self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_subscriber,
-            ))
+            .flat_map(|s| s.data_reader_list.iter_mut())
+            .chain(self.domain_participant.builtin_subscriber.data_reader_list_mut())
         {
-            for dr in &mut subscriber.data_reader_list {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => {
-                        let writer_guid = Guid::new(
-                            message_receiver.source_guid_prefix(),
-                            gap_submessage.writer_id(),
-                        );
-                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                            for seq_num in
-                                gap_submessage.gap_start()..gap_submessage.gap_list().base()
-                            {
-                                writer_proxy.irrelevant_change_set(seq_num)
-                            }
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    let writer_guid = Guid::new(
+                        message_receiver.source_guid_prefix(),
+                        gap_submessage.writer_id(),
+                    );
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                        for seq_num in
+                            gap_submessage.gap_start()..gap_submessage.gap_list().base()
+                        {
+                            writer_proxy.irrelevant_change_set(seq_num)
+                        }
 
-                            for seq_num in gap_submessage.gap_list().set() {
-                                writer_proxy.irrelevant_change_set(seq_num)
-                            }
+                        for seq_num in gap_submessage.gap_list().set() {
+                            writer_proxy.irrelevant_change_set(seq_num)
                         }
                     }
-                    RtpsReaderKind::Stateless(_) => (),
                 }
+                RtpsReaderKind::Stateless(_) => (),
             }
         }
     }
@@ -577,46 +633,43 @@ impl DcpsDomainParticipant {
         message_receiver: &MessageReceiver<'_>,
         heartbeat_submessage: &HeartbeatSubmessage,
     ) {
-        for subscriber in self
+        for dr in self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_subscriber,
-            ))
+            .flat_map(|s| s.data_reader_list.iter_mut())
+            .chain(self.domain_participant.builtin_subscriber.data_reader_list_mut())
         {
-            for dr in &mut subscriber.data_reader_list {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => {
-                        let writer_guid = Guid::new(
-                            message_receiver.source_guid_prefix(),
-                            heartbeat_submessage.writer_id(),
-                        );
-                        let reader_guid = r.guid();
-                        if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
-                            if writer_proxy.last_received_heartbeat_count()
-                                < heartbeat_submessage.count()
-                            {
-                                writer_proxy.set_last_received_heartbeat_count(
-                                    heartbeat_submessage.count(),
-                                );
-                                writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
-                                writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    let writer_guid = Guid::new(
+                        message_receiver.source_guid_prefix(),
+                        heartbeat_submessage.writer_id(),
+                    );
+                    let reader_guid = r.guid();
+                    if let Some(writer_proxy) = r.matched_writer_lookup(writer_guid) {
+                        if writer_proxy.last_received_heartbeat_count()
+                            < heartbeat_submessage.count()
+                        {
+                            writer_proxy.set_last_received_heartbeat_count(
+                                heartbeat_submessage.count(),
+                            );
+                            writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                            writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
 
-                                let must_send_acknacks = !heartbeat_submessage.final_flag()
-                                    || (!heartbeat_submessage.liveliness_flag()
-                                        && writer_proxy.missing_changes().count() > 0);
-                                writer_proxy.set_must_send_acknacks(must_send_acknacks);
+                            let must_send_acknacks = !heartbeat_submessage.final_flag()
+                                || (!heartbeat_submessage.liveliness_flag()
+                                    && writer_proxy.missing_changes().count() > 0);
+                            writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
-                                writer_proxy.write_message(
-                                    &reader_guid,
-                                    self.transport.message_writer.as_ref(),
-                                );
-                            }
+                            writer_proxy.write_message(
+                                &reader_guid,
+                                self.transport.message_writer.as_ref(),
+                            );
                         }
                     }
-                    RtpsReaderKind::Stateless(_) => (),
                 }
+                RtpsReaderKind::Stateless(_) => (),
             }
         }
     }
@@ -626,25 +679,22 @@ impl DcpsDomainParticipant {
         message_receiver: &MessageReceiver<'_>,
         data_frag_submessage: &DataFragSubmessage,
     ) {
-        for subscriber in self
+        for dr in self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_subscriber,
-            ))
+            .flat_map(|s| s.data_reader_list.iter_mut())
+            .chain(self.domain_participant.builtin_subscriber.data_reader_list_mut())
         {
-            for dr in &mut subscriber.data_reader_list {
-                match &mut dr.transport_reader {
-                    RtpsReaderKind::Stateful(r) => {
-                        r.on_data_frag_submessage(
-                            data_frag_submessage,
-                            message_receiver.source_guid_prefix(),
-                            message_receiver.source_timestamp(),
-                        );
-                    }
-                    RtpsReaderKind::Stateless(_) => (),
+            match &mut dr.transport_reader {
+                RtpsReaderKind::Stateful(r) => {
+                    r.on_data_frag_submessage(
+                        data_frag_submessage,
+                        message_receiver.source_guid_prefix(),
+                        message_receiver.source_timestamp(),
+                    );
                 }
+                RtpsReaderKind::Stateless(_) => (),
             }
         }
     }

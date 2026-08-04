@@ -23,9 +23,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
                     .find(|s| s.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_enabled_statuses());
@@ -64,21 +61,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for s in dp
-                    .domain_participant
-                    .user_defined_subscriber_list
-                    .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
-                {
-                    if s.instance_handle == subscriber_handle {
-                        for dr in s.data_reader_list.iter_mut() {
-                            if dr.instance_handle == reader_handle {
-                                return Ok(dr.status_condition.get_enabled_statuses());
-                            }
-                        }
-                    }
+                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                } else {
+                    None
+                };
+                if let Some(dr) = dr {
+                    return Ok(dr.status_condition.get_enabled_statuses());
                 }
             }
         }
@@ -101,9 +92,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
                     .find(|s| s.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 s.status_condition.set_enabled_statuses(status_mask);
@@ -145,22 +133,16 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for s in dp
-                    .domain_participant
-                    .user_defined_subscriber_list
-                    .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
-                {
-                    if s.instance_handle == subscriber_handle {
-                        for dr in s.data_reader_list.iter_mut() {
-                            if dr.instance_handle == reader_handle {
-                                dr.status_condition.set_enabled_statuses(status_mask);
-                                return Ok(());
-                            }
-                        }
-                    }
+                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                } else {
+                    None
+                };
+                if let Some(dr) = dr {
+                    dr.status_condition.set_enabled_statuses(status_mask);
+                    return Ok(());
                 }
             }
         }
@@ -182,9 +164,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
                     .find(|s| s.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_trigger_value());
@@ -223,21 +202,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for s in dp
-                    .domain_participant
-                    .user_defined_subscriber_list
-                    .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
-                {
-                    if s.instance_handle == subscriber_handle {
-                        for dr in s.data_reader_list.iter_mut() {
-                            if dr.instance_handle == reader_handle {
-                                return Ok(dr.status_condition.get_trigger_value());
-                            }
-                        }
-                    }
+                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                } else {
+                    None
+                };
+                if let Some(dr) = dr {
+                    return Ok(dr.status_condition.get_trigger_value());
                 }
             }
         }
@@ -260,9 +233,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
                     .find(|s| s.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 s.status_condition
@@ -307,23 +277,17 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                for s in dp
-                    .domain_participant
-                    .user_defined_subscriber_list
-                    .iter_mut()
-                    .chain(core::iter::once(
-                        &mut dp.domain_participant.builtin_subscriber,
-                    ))
-                {
-                    if s.instance_handle == subscriber_handle {
-                        for dr in s.data_reader_list.iter_mut() {
-                            if dr.instance_handle == reader_handle {
-                                dr.status_condition
-                                    .register_notification(notification_sender);
-                                return Ok(());
-                            }
-                        }
-                    }
+                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                } else {
+                    None
+                };
+                if let Some(dr) = dr {
+                    dr.status_condition
+                        .register_notification(notification_sender);
+                    return Ok(());
                 }
             }
         }
