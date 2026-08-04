@@ -1043,8 +1043,6 @@ pub(crate) struct DataWriterEntity<T> {
     instance_handle: InstanceHandle,
     transport_writer: T,
     topic_name: String,
-    type_name: String,
-    type_support: DynamicType<'static>,
     enabled: bool,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
@@ -1056,16 +1054,12 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_handle: InstanceHandle,
         transport_writer: T,
         topic_name: String,
-        type_name: String,
-        type_support: DynamicType<'static>,
         qos: DataWriterQos,
     ) -> Self {
         Self {
             instance_handle,
             transport_writer,
             topic_name,
-            type_name,
-            type_support,
             enabled: false,
             last_change_sequence_number: 0,
             qos,
@@ -1177,6 +1171,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
     fn dispose_w_timestamp(
         &mut self,
         dynamic_data: &DynamicData<'static>,
+        type_support: &DynamicType<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1188,7 +1183,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         let mut member_list = Vec::new();
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
-        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
+        if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -1225,6 +1220,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
     fn register_w_timestamp(
         &mut self,
         dynamic_data: &DynamicData<'static>,
+        type_support: &DynamicType<'static>,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         if !self.enabled {
@@ -1234,7 +1230,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         let mut member_list = Vec::new();
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
-        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
+        if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -1262,6 +1258,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
     fn unregister_w_timestamp(
         &mut self,
         dynamic_data: &DynamicData<'static>,
+        type_support: &DynamicType<'static>,
         timestamp: Time,
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
@@ -1273,7 +1270,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         let mut member_list = Vec::new();
         let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
 
-        if TopicKind::from(&self.type_support) == TopicKind::NoKey {
+        if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
         }
 
@@ -1351,8 +1348,6 @@ impl UserDefinedDataWriter {
         instance_handle: InstanceHandle,
         transport_writer: RtpsStatefulWriter,
         topic_name: String,
-        type_name: String,
-        type_support: DynamicType<'static>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         qos: DataWriterQos,
@@ -1362,8 +1357,6 @@ impl UserDefinedDataWriter {
                 instance_handle,
                 transport_writer,
                 topic_name,
-                type_name,
-                type_support,
                 qos,
             ),
             listener_sender,

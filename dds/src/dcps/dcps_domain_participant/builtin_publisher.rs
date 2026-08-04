@@ -1,11 +1,6 @@
 use crate::{
     builtin_topics::{
         DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
-    },
-    dcps::data_representation_builtin_endpoints::type_lookup::{
-        TypeLookupReply, TypeLookupRequest,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -21,9 +16,8 @@ use crate::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix},
     },
-    xtypes::type_support::Type,
 };
-use alloc::{string::String, string::ToString};
+use alloc::string::String;
 
 use super::{
     DataWriterEntity, ENTITYID_BUILTIN_PUBLISHER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -89,8 +83,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             dcps_participant_transport_writer,
             String::from(DCPS_PARTICIPANT),
-            "SpdpDiscoveredParticipantData".to_string(),
-            ParticipantBuiltinTopicData::TYPE,
             spdp_writer_qos(),
         );
 
@@ -102,8 +94,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             dcps_topics_transport_writer,
             String::from(DCPS_TOPIC),
-            "DiscoveredTopicData".to_string(),
-            TopicBuiltinTopicData::TYPE,
             sedp_data_writer_qos(),
         );
 
@@ -115,8 +105,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             dcps_publications_transport_writer,
             String::from(DCPS_PUBLICATION),
-            "DiscoveredWriterData".to_string(),
-            PublicationBuiltinTopicData::TYPE,
             sedp_data_writer_qos(),
         );
 
@@ -128,8 +116,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             dcps_subscriptions_transport_writer,
             String::from(DCPS_SUBSCRIPTION),
-            "DiscoveredReaderData".to_string(),
-            SubscriptionBuiltinTopicData::TYPE,
             sedp_data_writer_qos(),
         );
 
@@ -141,8 +127,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
             type_lookup_request_transport_writer,
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
-            String::from(TypeLookupRequest::TYPE.descriptor.name),
-            TypeLookupRequest::TYPE,
             TYPE_LOOKUP_WRITER_QOS,
         );
 
@@ -154,8 +138,6 @@ impl BuiltinPublisher {
             InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
             type_lookup_reply_transport_writer,
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
-            String::from(TypeLookupReply::TYPE.descriptor.name),
-            TypeLookupReply::TYPE,
             TYPE_LOOKUP_WRITER_QOS,
         );
 

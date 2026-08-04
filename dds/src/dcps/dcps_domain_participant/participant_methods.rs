@@ -321,7 +321,7 @@ impl DcpsDomainParticipant {
 
         for publisher in self.domain_participant.user_defined_publisher_list.iter() {
             for writer in publisher.data_writer_list.iter() {
-                if writer.type_support == topic.type_support {
+                if writer.topic_name == topic.topic_name {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));

@@ -193,8 +193,14 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        let topic = self
+            .domain_participant
+            .locally_created_topic_list
+            .iter()
+            .find(|x| x.topic_name == data_writer.topic_name)
+            .expect("Writer topic must exist");
 
-        data_writer.register_w_timestamp(dynamic_data, timestamp)
+        data_writer.register_w_timestamp(dynamic_data, &topic.type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self, runtime))]
@@ -221,9 +227,16 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        let topic = self
+            .domain_participant
+            .locally_created_topic_list
+            .iter()
+            .find(|x| x.topic_name == data_writer.topic_name)
+            .expect("Writer topic must exist");
 
         data_writer.unregister_w_timestamp(
             dynamic_data,
+            &topic.type_support,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,
@@ -474,9 +487,16 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        let topic = self
+            .domain_participant
+            .locally_created_topic_list
+            .iter()
+            .find(|x| x.topic_name == data_writer.topic_name)
+            .expect("Writer topic must exist");
 
         data_writer.dispose_w_timestamp(
             dynamic_data,
+            &topic.type_support,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,

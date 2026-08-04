@@ -166,8 +166,15 @@ impl DcpsDomainParticipant {
                 .create_dynamic_sample();
                 dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
+                let topic = self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter()
+                    .find(|x| x.topic_name == dw.topic_name)
+                    .expect("Writer topic must exist");
                 dw.unregister_w_timestamp(
                     &dynamic_data,
+                    &topic.type_support,
                     timestamp,
                     self.transport.message_writer.as_ref(),
                     runtime,
@@ -376,7 +383,7 @@ impl DcpsDomainParticipant {
                             .expect("Writer is guaranteed to have matching topic");
                         let the_topic = TopicAsync::new(
                             topic.instance_handle,
-                            data_writer.type_name.clone(),
+                            topic.type_name.clone(),
                             data_writer.topic_name.clone(),
                             the_participant,
                         );
@@ -496,7 +503,7 @@ impl DcpsDomainParticipant {
                 value: self.domain_participant.instance_handle.into(),
             },
             topic_name: data_writer.topic_name.clone().into(),
-            type_name: data_writer.type_name.clone().into(),
+            type_name: topic.type_name.clone().into(),
             type_information: Some(topic.type_support.into()),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
@@ -566,8 +573,15 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
+            let topic = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == dw.topic_name)
+                .expect("Writer topic must exist");
             dw.unregister_w_timestamp(
                 &dynamic_data,
+                &topic.type_support,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,
@@ -706,8 +720,15 @@ impl DcpsDomainParticipant {
             }
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
+            let topic = self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .find(|x| x.topic_name == dw.topic_name)
+                .expect("Writer topic must exist");
             dw.unregister_w_timestamp(
                 &dynamic_data,
+                &topic.type_support,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,
@@ -1005,7 +1026,7 @@ impl DcpsDomainParticipant {
                             PublisherAsync::new(publisher.instance_handle, the_participant.clone());
                         let the_topic = TopicAsync::new(
                             writer_associated_topic.instance_handle,
-                            data_writer.type_name.clone(),
+                            writer_associated_topic.type_name.clone(),
                             data_writer.topic_name.clone(),
                             the_participant,
                         );

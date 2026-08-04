@@ -42,8 +42,6 @@ impl DcpsDomainParticipant {
         };
 
         let topic_kind = TopicKind::from(&topic.type_support);
-        let type_support = topic.type_support;
-        let type_name = topic.type_name.clone();
 
         let Some(publisher) = self
             .domain_participant
@@ -108,8 +106,6 @@ impl DcpsDomainParticipant {
             writer_handle,
             transport_writer,
             topic_name,
-            type_name,
-            type_support,
             listener_sender,
             listener_mask,
             qos,
