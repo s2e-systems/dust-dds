@@ -2848,7 +2848,22 @@ impl CompleteTypeObject {
                 CompleteTypeObject::TkUnion { union_type: t1 },
                 CompleteTypeObject::TkUnion { union_type: t2 },
             ) => {
-                if t1.union_flags != t2.union_flags {
+                let is_t1_final = (t1.union_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t2_final = (t2.union_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t1_appendable =
+                    (t1.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t2_appendable =
+                    (t2.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t1_mutable =
+                    (t1.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+                let is_t2_mutable =
+                    (t2.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+
+                if is_t1_final || is_t2_final {
+                    if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
+                        return false;
+                    }
+                } else if is_t1_appendable != is_t2_appendable || is_t1_mutable != is_t2_mutable {
                     return false;
                 }
                 if !t1

@@ -3031,6 +3031,134 @@ fn xtypes_v2_union_test_suite_union_uint32_bitmask32() {
     assert_eq!(sample.data.unwrap(), expected_received);
 }
 
+/// 'union_final_5_vs_6': {
+///     'common_args': ['--type-folder types --type-file unions'],
+///     'apps': ['pub-exe -P -t test -y Test::union_final_5 --data-folder data --data-file union_x1',
+///              'sub-exe -S -t test -y Test::union_final_6 --data-folder data --data-file union_x1'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'No type assignability between union_final_5 and union_final_6',
+///     'description' : 'Verifies final unions with different numbers of cases:\n\n'
+///                     ' * Publisher uses `union_final_5` (final) from `unions`.\n'
+///                     ' * Subscriber uses `union_final_6` (final) from `unions`.\n'
+///                     ' * `union_final_5` has 5 cases (discriminator 1-5).\n'
+///                     ' * `union_final_6` has 6 cases (disc 0-5).\n'
+///                     ' * Final unions must have the same set of discriminator labels.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_union_test_suite_union_final_5_vs_6() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <union name="union_final_5" extensibility="final">
+                    <discriminator type="uint32"/>
+                    <case><caseDiscriminator value="1"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="2"/><member name="x2" type="int32"/></case>
+                    <case><caseDiscriminator value="3"/><member name="x3" type="int64"/></case>
+                    <case><caseDiscriminator value="4"/><member name="x4" type="uint16"/></case>
+                    <case><caseDiscriminator value="5"/><member name="x5" type="uint32"/></case>
+                </union>
+                <union name="union_final_6" extensibility="final">
+                    <discriminator type="uint32"/>
+                    <case><caseDiscriminator value="1"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="2"/><member name="x2" type="int32"/></case>
+                    <case><caseDiscriminator value="3"/><member name="x3" type="int64"/></case>
+                    <case><caseDiscriminator value="4"/><member name="x4" type="uint16"/></case>
+                    <case><caseDiscriminator value="5"/><member name="x5" type="uint32"/></case>
+                    <case><caseDiscriminator value="0"/><member name="x0" type="uint64"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_final_5",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_final_5",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_final_6",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_final_6",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
+
 /// 'tryc_enum_1' : {
 ///     'common_args' : ['--type-folder types --type-file try_construct'],
 ///     'apps' : ['pub-exe -P -t test -y Test::struct_enum_1 --data-folder data --data-file tryconstruct/enum_val3',
