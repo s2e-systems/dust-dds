@@ -1,13 +1,11 @@
 use alloc::string::String;
 
 use crate::{
-    builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-    },
+    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     dcps::{
         dcps_domain_participant::{
-            DataReaderEntity, DcpsDomainParticipant, RtpsReaderKind, UserDefinedSubscriber,
-            TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+            DataReaderEntity, DcpsDomainParticipant, TYPE_LOOKUP_REPLY_TOPIC_NAME,
+            TYPE_LOOKUP_REQUEST_TOPIC_NAME,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -129,8 +127,7 @@ impl DcpsDomainParticipant {
         let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let transport_reader =
-            RtpsReaderKind::Stateful(RtpsStatefulReader::new(guid, reliablity_kind));
+        let transport_reader = RtpsStatefulReader::new(guid, reliablity_kind);
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_reader = DataReaderEntity::new(
@@ -199,16 +196,40 @@ impl DcpsDomainParticipant {
 
         // Built-in subscriber is identified by the handle of the participant itself
         if &self.domain_participant.instance_handle == subscriber_handle {
-            let dr = match topic_name.as_str() {
-                DCPS_PARTICIPANT => &self.domain_participant.builtin_subscriber.dcps_participant_reader,
-                DCPS_TOPIC => &self.domain_participant.builtin_subscriber.dcps_topic_reader,
-                DCPS_PUBLICATION => &self.domain_participant.builtin_subscriber.dcps_publication_reader,
-                DCPS_SUBSCRIPTION => &self.domain_participant.builtin_subscriber.dcps_subscription_reader,
-                TYPE_LOOKUP_REQUEST_TOPIC_NAME => &self.domain_participant.builtin_subscriber.type_lookup_request_reader,
-                TYPE_LOOKUP_REPLY_TOPIC_NAME => &self.domain_participant.builtin_subscriber.type_lookup_reply_reader,
+            let handle = match topic_name.as_str() {
+                DCPS_PARTICIPANT => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .dcps_participant_reader
+                    .instance_handle,
+                DCPS_TOPIC => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .dcps_topic_reader
+                    .instance_handle,
+                DCPS_PUBLICATION => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .dcps_publication_reader
+                    .instance_handle,
+                DCPS_SUBSCRIPTION => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .dcps_subscription_reader
+                    .instance_handle,
+                TYPE_LOOKUP_REQUEST_TOPIC_NAME => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .type_lookup_request_reader
+                    .instance_handle,
+                TYPE_LOOKUP_REPLY_TOPIC_NAME => self
+                    .domain_participant
+                    .builtin_subscriber
+                    .type_lookup_reply_reader
+                    .instance_handle,
                 _ => return Ok(None),
             };
-            Ok(Some(dr.instance_handle))
+            Ok(Some(handle))
         } else {
             let Some(s) = self
                 .domain_participant

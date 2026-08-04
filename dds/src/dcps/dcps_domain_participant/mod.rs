@@ -70,7 +70,7 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, USER_DEFINED_TOPIC,
+            Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_TOPIC,
         },
     },
     xtypes::{
@@ -755,10 +755,7 @@ pub(crate) struct SubscriberEntity {
 }
 
 impl SubscriberEntity {
-    pub(crate) fn new(
-        instance_handle: InstanceHandle,
-        qos: SubscriberQos,
-    ) -> Self {
+    pub(crate) fn new(instance_handle: InstanceHandle, qos: SubscriberQos) -> Self {
         Self {
             instance_handle,
             qos,
@@ -773,7 +770,7 @@ pub(crate) struct UserDefinedSubscriber {
     pub(crate) status_condition: DcpsStatusCondition,
     pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
     pub(crate) listener_mask: StatusMask,
-    pub(crate) data_reader_list: Vec<DataReaderEntity>,
+    pub(crate) data_reader_list: Vec<DataReaderEntity<RtpsStatefulReader>>,
 }
 
 impl UserDefinedSubscriber {
@@ -948,6 +945,31 @@ impl RtpsWriter for RtpsStatelessWriter {
 
     fn changes(&self) -> &[CacheChange] {
         self.changes()
+    }
+
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        self.changes_mut()
+    }
+}
+
+pub trait RtpsReader {
+    fn guid(&self) -> Guid;
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange>;
+}
+
+impl RtpsReader for RtpsStatefulReader {
+    fn guid(&self) -> Guid {
+        self.guid()
+    }
+
+    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        self.changes_mut()
+    }
+}
+
+impl RtpsReader for RtpsStatelessReader {
+    fn guid(&self) -> Guid {
+        self.guid()
     }
 
     fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
@@ -1281,12 +1303,7 @@ impl UserDefinedDataWriter {
         qos: DataWriterQos,
     ) -> Self {
         Self {
-            rtps_writer: DataWriterEntity::new(
-                instance_handle,
-                transport_writer,
-                topic_name,
-                qos,
-            ),
+            rtps_writer: DataWriterEntity::new(instance_handle, transport_writer, topic_name, qos),
             listener_sender,
             listener_mask,
             status_condition: DcpsStatusCondition::default(),
@@ -1417,28 +1434,13 @@ struct ReaderSample {
     no_writers_generation_count: i32,
 }
 
-
-enum RtpsReaderKind {
-    Stateful(RtpsStatefulReader),
-    Stateless(RtpsStatelessReader),
-}
-
-impl RtpsReaderKind {
-    fn guid(&self) -> Guid {
-        match self {
-            RtpsReaderKind::Stateful(r) => r.guid(),
-            RtpsReaderKind::Stateless(r) => r.guid(),
-        }
-    }
-}
-
 struct InstanceOwnership {
     instance_handle: InstanceHandle,
     owner_handle: [u8; 16],
     last_received_time: Time,
 }
 
-pub(crate) struct DataReaderEntity {
+pub(crate) struct DataReaderEntity<T> {
     instance_handle: InstanceHandle,
     sample_list: Vec<ReaderSample>,
     qos: DataReaderQos,
@@ -1457,10 +1459,10 @@ pub(crate) struct DataReaderEntity {
     listener_mask: StatusMask,
     instances: Vec<InstanceState>,
     instance_ownership: Vec<InstanceOwnership>,
-    transport_reader: RtpsReaderKind,
+    transport_reader: T,
 }
 
-impl DataReaderEntity {
+impl<T> DataReaderEntity<T> {
     #[allow(clippy::too_many_arguments)]
     fn new(
         instance_handle: InstanceHandle,
@@ -1469,7 +1471,7 @@ impl DataReaderEntity {
         type_support: DynamicType<'static>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
-        transport_reader: RtpsReaderKind,
+        transport_reader: T,
     ) -> Self {
         Self {
             instance_handle,

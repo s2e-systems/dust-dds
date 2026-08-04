@@ -14,7 +14,7 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
+        dcps_domain_participant::{DcpsDomainParticipant, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
@@ -71,37 +71,54 @@ impl DcpsDomainParticipant {
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let data_reader = if subscriber_handle == &self.domain_participant.instance_handle {
-            self.domain_participant
-                .builtin_subscriber
-                .find_data_reader_mut(data_reader_handle)
+        let (sample_list, topic_name, type_support) = if subscriber_handle == &self.domain_participant.instance_handle {
+            let bs = &mut self.domain_participant.builtin_subscriber;
+            if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
+                let sample_list = bs.dcps_participant_reader.read(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )?;
+                (sample_list, bs.dcps_participant_reader.topic_name.clone(), bs.dcps_participant_reader.type_support)
+            } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
+                let sample_list = dr.read(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )?;
+                (sample_list, dr.topic_name.clone(), dr.type_support)
+            } else {
+                return Err(DdsError::AlreadyDeleted);
+            }
         } else {
             let subscriber = self
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
                 .find(|x| &x.instance_handle == subscriber_handle);
-            if let Some(subscriber) = subscriber {
-                subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|x| &x.instance_handle == data_reader_handle)
-            } else {
-                None
-            }
+            let Some(subscriber) = subscriber else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == data_reader_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            let sample_list = data_reader.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )?;
+            (sample_list, data_reader.topic_name.clone(), data_reader.type_support)
         };
-
-        let Some(data_reader) = data_reader else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-
-        let sample_list = data_reader.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
 
         Ok(sample_list
             .into_iter()
@@ -109,8 +126,8 @@ impl DcpsDomainParticipant {
                 (
                     if info.valid_data {
                         deserialize_topic_type(
-                            &data_reader.topic_name,
-                            data_reader.type_support,
+                            &topic_name,
+                            type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -546,11 +563,7 @@ impl DcpsDomainParticipant {
             | DurabilityQosPolicyKind::Persistent => (),
         };
 
-        if let RtpsReaderKind::Stateful(r) = &data_reader.transport_reader {
-            Ok(r.is_historical_data_received())
-        } else {
-            Ok(true)
-        }
+        Ok(data_reader.transport_reader.is_historical_data_received())
     }
 
     #[tracing::instrument(skip(self, runtime))]

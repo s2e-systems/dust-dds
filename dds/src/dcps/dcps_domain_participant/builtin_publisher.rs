@@ -1,7 +1,5 @@
 use crate::{
-    builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-    },
+    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     infrastructure::{
         instance::InstanceHandle,
         qos::DataWriterQos,

@@ -20,19 +20,19 @@ use super::{
     DataReaderEntity, ENTITYID_BUILTIN_SUBSCRIBER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_TL_SVC_REPLY_READER,
-    ENTITYID_TL_SVC_REQ_READER, RtpsReaderKind, SEDP_DATA_READER_QOS, SPDP_READER_QOS,
+    ENTITYID_TL_SVC_REQ_READER, SEDP_DATA_READER_QOS, SPDP_READER_QOS,
     SubscriberEntity, TYPE_LOOKUP_READER_QOS, TYPE_LOOKUP_REPLY_TOPIC_NAME,
     TYPE_LOOKUP_REQUEST_TOPIC_NAME,
 };
 
 pub(crate) struct BuiltinSubscriber {
     pub subscriber_entity: SubscriberEntity,
-    pub dcps_participant_reader: DataReaderEntity,
-    pub dcps_topic_reader: DataReaderEntity,
-    pub dcps_publication_reader: DataReaderEntity,
-    pub dcps_subscription_reader: DataReaderEntity,
-    pub type_lookup_request_reader: DataReaderEntity,
-    pub type_lookup_reply_reader: DataReaderEntity,
+    pub dcps_participant_reader: DataReaderEntity<RtpsStatelessReader>,
+    pub dcps_topic_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub dcps_publication_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub dcps_subscription_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub type_lookup_request_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub type_lookup_reply_reader: DataReaderEntity<RtpsStatefulReader>,
 }
 
 impl Deref for BuiltinSubscriber {
@@ -67,7 +67,7 @@ impl BuiltinSubscriber {
             ParticipantBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateless(rtps_stateless_reader),
+            rtps_stateless_reader,
         );
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
@@ -81,7 +81,7 @@ impl BuiltinSubscriber {
             TopicBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_topic_transport_reader),
+            dcps_topic_transport_reader,
         );
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
@@ -95,7 +95,7 @@ impl BuiltinSubscriber {
             PublicationBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_publication_transport_reader),
+            dcps_publication_transport_reader,
         );
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
@@ -109,7 +109,7 @@ impl BuiltinSubscriber {
             SubscriptionBuiltinTopicData::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateful(dcps_subscription_transport_reader),
+            dcps_subscription_transport_reader,
         );
 
         let type_lookup_request_transport_reader = RtpsStatefulReader::new(
@@ -123,7 +123,7 @@ impl BuiltinSubscriber {
             TypeLookupRequest::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateful(type_lookup_request_transport_reader),
+            type_lookup_request_transport_reader,
         );
 
         let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
@@ -137,7 +137,7 @@ impl BuiltinSubscriber {
             TypeLookupReply::TYPE,
             None,
             StatusMask::default(),
-            RtpsReaderKind::Stateful(type_lookup_reply_transport_reader),
+            type_lookup_reply_transport_reader,
         );
 
         Self {
@@ -152,15 +152,17 @@ impl BuiltinSubscriber {
     }
 
     pub fn enable(&mut self) {
-        for dr in self.data_reader_list_mut() {
+        self.dcps_participant_reader.enabled = true;
+        for dr in self.stateful_data_reader_list_mut() {
             dr.enabled = true;
         }
         self.subscriber_entity.enabled = true;
     }
 
-    pub fn data_reader_list_mut(&mut self) -> [&mut DataReaderEntity; 6] {
+    pub fn stateful_data_reader_list_mut(
+        &mut self,
+    ) -> [&mut DataReaderEntity<RtpsStatefulReader>; 5] {
         [
-            &mut self.dcps_participant_reader,
             &mut self.dcps_topic_reader,
             &mut self.dcps_publication_reader,
             &mut self.dcps_subscription_reader,
@@ -169,11 +171,11 @@ impl BuiltinSubscriber {
         ]
     }
 
-    pub fn find_data_reader_mut(
+    pub fn find_stateful_data_reader_mut(
         &mut self,
         handle: &InstanceHandle,
-    ) -> Option<&mut DataReaderEntity> {
-        self.data_reader_list_mut()
+    ) -> Option<&mut DataReaderEntity<RtpsStatefulReader>> {
+        self.stateful_data_reader_list_mut()
             .into_iter()
             .find(|dr| &dr.instance_handle == handle)
     }

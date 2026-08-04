@@ -61,15 +61,19 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
-                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                let status_condition = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    if dp.domain_participant.builtin_subscriber.dcps_participant_reader.instance_handle == reader_handle {
+                        Some(&mut dp.domain_participant.builtin_subscriber.dcps_participant_reader.status_condition)
+                    } else {
+                        dp.domain_participant.builtin_subscriber.find_stateful_data_reader_mut(&reader_handle).map(|dr| &mut dr.status_condition)
+                    }
                 } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
-                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle).map(|dr| &mut dr.status_condition)
                 } else {
                     None
                 };
-                if let Some(dr) = dr {
-                    return Ok(dr.status_condition.get_enabled_statuses());
+                if let Some(sc) = status_condition {
+                    return Ok(sc.get_enabled_statuses());
                 }
             }
         }
@@ -133,15 +137,19 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
-                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                let status_condition = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    if dp.domain_participant.builtin_subscriber.dcps_participant_reader.instance_handle == reader_handle {
+                        Some(&mut dp.domain_participant.builtin_subscriber.dcps_participant_reader.status_condition)
+                    } else {
+                        dp.domain_participant.builtin_subscriber.find_stateful_data_reader_mut(&reader_handle).map(|dr| &mut dr.status_condition)
+                    }
                 } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
-                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle).map(|dr| &mut dr.status_condition)
                 } else {
                     None
                 };
-                if let Some(dr) = dr {
-                    dr.status_condition.set_enabled_statuses(status_mask);
+                if let Some(sc) = status_condition {
+                    sc.set_enabled_statuses(status_mask);
                     return Ok(());
                 }
             }
@@ -202,15 +210,19 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
-                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                let status_condition = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    if dp.domain_participant.builtin_subscriber.dcps_participant_reader.instance_handle == reader_handle {
+                        Some(&mut dp.domain_participant.builtin_subscriber.dcps_participant_reader.status_condition)
+                    } else {
+                        dp.domain_participant.builtin_subscriber.find_stateful_data_reader_mut(&reader_handle).map(|dr| &mut dr.status_condition)
+                    }
                 } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
-                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle).map(|dr| &mut dr.status_condition)
                 } else {
                     None
                 };
-                if let Some(dr) = dr {
-                    return Ok(dr.status_condition.get_trigger_value());
+                if let Some(sc) = status_condition {
+                    return Ok(sc.get_trigger_value());
                 }
             }
         }
@@ -277,16 +289,19 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 reader_handle,
             } => {
                 let dp = self.find_participant(&participant_handle)?;
-                let dr = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
-                    dp.domain_participant.builtin_subscriber.find_data_reader_mut(&reader_handle)
+                let status_condition = if subscriber_handle == dp.domain_participant.builtin_subscriber.instance_handle {
+                    if dp.domain_participant.builtin_subscriber.dcps_participant_reader.instance_handle == reader_handle {
+                        Some(&mut dp.domain_participant.builtin_subscriber.dcps_participant_reader.status_condition)
+                    } else {
+                        dp.domain_participant.builtin_subscriber.find_stateful_data_reader_mut(&reader_handle).map(|dr| &mut dr.status_condition)
+                    }
                 } else if let Some(s) = dp.domain_participant.user_defined_subscriber_list.iter_mut().find(|s| s.instance_handle == subscriber_handle) {
-                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle)
+                    s.data_reader_list.iter_mut().find(|dr| dr.instance_handle == reader_handle).map(|dr| &mut dr.status_condition)
                 } else {
                     None
                 };
-                if let Some(dr) = dr {
-                    dr.status_condition
-                        .register_notification(notification_sender);
+                if let Some(sc) = status_condition {
+                    sc.register_notification(notification_sender);
                     return Ok(());
                 }
             }
