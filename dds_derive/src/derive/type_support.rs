@@ -348,7 +348,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut variant_list: Vec<TokenStream> = vec![quote! {
                  dust_dds::xtypes::dynamic_type::DynamicTypeMember {
                     descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
-                        name: "disc",
+                        name: "discriminator",
                         id: 0u32,
                         r#type: <#discriminator_type as dust_dds::xtypes::type_support::Type>::TYPE,
                         default_value: None,
