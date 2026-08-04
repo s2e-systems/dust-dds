@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 use tracing::info;
 
 use crate::{
@@ -234,9 +234,11 @@ impl DcpsDomainParticipant {
                             ChangeKind::NotAliveDisposed
                             | ChangeKind::NotAliveUnregistered
                             | ChangeKind::NotAliveDisposedUnregistered => {
-                                let Ok(key_holder) =
-                                    KeyHolderType::from_dynamic_type(&data_reader.type_support)
-                                else {
+                                let mut dynamic_members = Vec::new();
+                                let Ok(key_holder) = KeyHolderType::from_dynamic_type(
+                                    &data_reader.type_support,
+                                    &mut dynamic_members,
+                                ) else {
                                     tracing::warn!("Failed to create key holder");
                                     return;
                                 };
