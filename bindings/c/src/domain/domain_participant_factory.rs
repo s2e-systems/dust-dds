@@ -1,18 +1,18 @@
 use std::ptr::NonNull;
 
 use crate::{
-    domain::domain_participant::DustDdsDomainParticipant,
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
-        condition::DustDdsStatusMask,
+        condition::StatusMask,
         error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
-        listeners::{CDomainParticipantListenerWrapper, DustDdsDomainParticipantListener},
+        listeners::{CDomainParticipantListenerWrapper, DomainParticipantListener},
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
     },
 };
 use dust_dds::infrastructure::qos::QosKind;
 
 /// cbindgen:opaque
-pub struct DustDdsDomainParticipantFactory(
+pub struct DomainParticipantFactory(
     pub(crate) &'static dust_dds::domain::domain_participant_factory::DomainParticipantFactory,
 );
 
@@ -24,11 +24,11 @@ pub struct DustDdsDomainParticipantFactory(
 /// - The caller must observe the standard FFI safety constraints when calling this function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_get_instance()
--> *const DustDdsDomainParticipantFactory {
-    static INSTANCE: std::sync::OnceLock<DustDdsDomainParticipantFactory> =
+-> *const DomainParticipantFactory {
+    static INSTANCE: std::sync::OnceLock<DomainParticipantFactory> =
         std::sync::OnceLock::new();
     INSTANCE.get_or_init(|| {
-        DustDdsDomainParticipantFactory(
+        DomainParticipantFactory(
             dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance(),
         )
     })
@@ -36,22 +36,22 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_get_instance()
 
 /// Creates a new DomainParticipant object.
 /// Passing NULL (`DUST_DDS_PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
-/// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL on failure.
+/// Returns a raw pointer to DomainParticipant on success, or NULL on failure.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
-/// - `listener` must be a valid pointer to a `DustDdsDomainParticipantListener` instance (or null).
+/// - `listener` must be a valid pointer to a `DomainParticipantListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_create_participant(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     domain_id: i32,
     qos: *const DomainParticipantQos,
-    listener: *const DustDdsDomainParticipantListener,
-    mask: DustDdsStatusMask,
-) -> Option<NonNull<DustDdsDomainParticipant>> {
+    listener: *const DomainParticipantListener,
+    mask: StatusMask,
+) -> Option<NonNull<DomainParticipant>> {
     let factory = factory?;
 
     let qos = if qos.is_null() {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_create_participant(
     };
 
     match result {
-        Ok(participant) => NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
+        Ok(participant) => NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(
             participant,
         )))),
         Err(_) => None,
@@ -95,12 +95,12 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_create_participant(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
-/// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
+/// - `participant` must point to a valid, initialized `DomainParticipant` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_delete_participant(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
-    participant: Option<NonNull<DustDdsDomainParticipant>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
+    participant: Option<NonNull<DomainParticipant>>,
 ) -> ReturnCode {
     let Some(participant) = participant else {
         return RETCODE_OK;
@@ -124,22 +124,22 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_delete_participant(
 }
 
 /// Retrieves a previously created DomainParticipant belonging to the specified domain_id.
-/// Returns a raw pointer to DustDdsDomainParticipant on success, or NULL if not found or on error.
+/// Returns a raw pointer to DomainParticipant on success, or NULL if not found or on error.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_lookup_participant(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     domain_id: i32,
-) -> Option<NonNull<DustDdsDomainParticipant>> {
+) -> Option<NonNull<DomainParticipant>> {
     let factory = factory?;
 
     match unsafe { factory.as_ref() }.0.lookup_participant(domain_id) {
         Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(
-            DustDdsDomainParticipant::new(participant),
+            DomainParticipant::new(participant),
         ))),
         _ => None,
     }
@@ -152,11 +152,11 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_lookup_participant(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_set_default_participant_qos(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     qos: *const DomainParticipantQos,
 ) -> ReturnCode {
     let Some(factory) = factory else {
@@ -185,11 +185,11 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_set_default_participant_
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_get_default_participant_qos(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     qos: *mut DomainParticipantQos,
 ) -> ReturnCode {
     let Some(factory) = factory else {
@@ -215,11 +215,11 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_get_default_participant_
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_set_qos(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     qos: *const DomainParticipantFactoryQos,
 ) -> ReturnCode {
     let Some(factory) = factory else {
@@ -245,11 +245,11 @@ pub unsafe extern "C" fn DDS_domain_participant_factory_set_qos(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
+/// - `factory` must point to a valid, initialized `DomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_domain_participant_factory_get_qos(
-    factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
+    factory: Option<NonNull<DomainParticipantFactory>>,
     qos: *mut DomainParticipantFactoryQos,
 ) -> ReturnCode {
     let Some(factory) = factory else {

@@ -1,23 +1,23 @@
-use crate::infrastructure::condition::DustDdsStatusCondition;
+use crate::infrastructure::condition::StatusCondition;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use std::ptr::NonNull;
 
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct DustDdsDuration {
+pub struct Duration {
     pub sec: i32,
     pub nanosec: u32,
 }
 
-impl From<DustDdsDuration> for dust_dds::infrastructure::time::Duration {
-    fn from(value: DustDdsDuration) -> Self {
+impl From<Duration> for dust_dds::infrastructure::time::Duration {
+    fn from(value: Duration) -> Self {
         dust_dds::infrastructure::time::Duration::new(value.sec, value.nanosec)
     }
 }
 
-impl From<dust_dds::infrastructure::time::Duration> for DustDdsDuration {
+impl From<dust_dds::infrastructure::time::Duration> for Duration {
     fn from(value: dust_dds::infrastructure::time::Duration) -> Self {
-        DustDdsDuration {
+        Duration {
             sec: value.sec(),
             nanosec: value.nanosec(),
         }
@@ -25,9 +25,9 @@ impl From<dust_dds::infrastructure::time::Duration> for DustDdsDuration {
 }
 
 /// cbindgen:opaque
-pub struct DustDdsWaitSet(pub(crate) dust_dds::wait_set::WaitSet);
+pub struct WaitSet(pub(crate) dust_dds::wait_set::WaitSet);
 
-impl DustDdsWaitSet {
+impl WaitSet {
     pub fn new(wait_set: dust_dds::wait_set::WaitSet) -> Self {
         Self(wait_set)
     }
@@ -43,8 +43,8 @@ impl DustDdsWaitSet {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_wait_set_new() -> Option<NonNull<DustDdsWaitSet>> {
-    NonNull::new(Box::into_raw(Box::new(DustDdsWaitSet(
+pub unsafe extern "C" fn DDS_wait_set_new() -> Option<NonNull<WaitSet>> {
+    NonNull::new(Box::into_raw(Box::new(WaitSet(
         dust_dds::wait_set::WaitSet::new(),
     ))))
 }
@@ -54,10 +54,10 @@ pub unsafe extern "C" fn DDS_wait_set_new() -> Option<NonNull<DustDdsWaitSet>> {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
+/// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_wait_set_free(
-    wait_set: Option<NonNull<DustDdsWaitSet>>,
+    wait_set: Option<NonNull<WaitSet>>,
 ) -> ReturnCode {
     if let Some(wait_set) = wait_set {
         unsafe {
@@ -72,12 +72,12 @@ pub unsafe extern "C" fn DDS_wait_set_free(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
-/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
+/// - `wait_set` must point to a valid, initialized `WaitSet` instance.
+/// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_wait_set_attach_condition(
-    wait_set: Option<NonNull<DustDdsWaitSet>>,
-    condition: Option<NonNull<DustDdsStatusCondition>>,
+    wait_set: Option<NonNull<WaitSet>>,
+    condition: Option<NonNull<StatusCondition>>,
 ) -> ReturnCode {
     let Some(mut wait_set) = wait_set else {
         return RETCODE_BAD_PARAMETER;
@@ -102,11 +102,11 @@ pub unsafe extern "C" fn DDS_wait_set_attach_condition(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `wait_set` must point to a valid, initialized `DustDdsWaitSet` instance.
+/// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_wait_set_wait(
-    wait_set: Option<NonNull<DustDdsWaitSet>>,
-    timeout: DustDdsDuration,
+    wait_set: Option<NonNull<WaitSet>>,
+    timeout: Duration,
 ) -> ReturnCode {
     let Some(wait_set) = wait_set else {
         return RETCODE_BAD_PARAMETER;

@@ -8,9 +8,9 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    publication::data_writer::DustDdsDataWriter,
-    subscription::{data_reader::DustDdsDataReader, subscriber::DustDdsSubscriber},
-    topic_definition::topic::DustDdsTopic,
+    publication::data_writer::DataWriter,
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    topic_definition::topic::Topic,
 };
 
 // =========================================================================
@@ -19,63 +19,63 @@ use crate::{
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsDataReaderListener {
+pub struct DataReaderListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_data_available: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_rejected: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleRejectedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_liveliness_changed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: LivelinessChangedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_deadline_missed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_incompatible_qos: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_subscription_matched: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SubscriptionMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_lost: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsDataReaderListener {}
-unsafe impl Sync for DustDdsDataReaderListener {}
+unsafe impl Send for DataReaderListener {}
+unsafe impl Sync for DataReaderListener {}
 
 pub(crate) struct CDataReaderListenerWrapper {
-    pub listener: DustDdsDataReaderListener,
+    pub listener: DataReaderListener,
 }
 
 unsafe impl Send for CDataReaderListenerWrapper {}
@@ -89,10 +89,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         the_reader: dust_dds::dds_async::data_reader::DataReaderAsync<DynamicData<'static>>,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_data_available) = self.listener.on_data_available {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_data_available(reader_ptr, self.listener.listener_data);
             }
@@ -106,10 +106,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::SampleRejectedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_sample_rejected) = self.listener.on_sample_rejected {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_rejected(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -123,10 +123,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::LivelinessChangedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_liveliness_changed) = self.listener.on_liveliness_changed {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_liveliness_changed(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -140,10 +140,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::RequestedDeadlineMissedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_requested_deadline_missed) = self.listener.on_requested_deadline_missed {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_deadline_missed(
                     reader_ptr,
@@ -161,10 +161,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::RequestedIncompatibleQosStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_requested_incompatible_qos) = self.listener.on_requested_incompatible_qos {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_incompatible_qos(
                     reader_ptr,
@@ -182,10 +182,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_subscription_matched) = self.listener.on_subscription_matched {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_subscription_matched(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -199,10 +199,10 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
         status: dust_dds::infrastructure::status::SampleLostStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_sample_lost) = self.listener.on_sample_lost {
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(the_reader),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_lost(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -217,43 +217,43 @@ impl dust_dds::subscription::data_reader_listener::DataReaderListener<DynamicDat
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsDataWriterListener {
+pub struct DataWriterListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_liveliness_lost: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: LivelinessLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_deadline_missed: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_incompatible_qos: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_publication_matched: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: PublicationMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsDataWriterListener {}
-unsafe impl Sync for DustDdsDataWriterListener {}
+unsafe impl Send for DataWriterListener {}
+unsafe impl Sync for DataWriterListener {}
 
 pub(crate) struct CDataWriterListenerWrapper {
-    pub listener: DustDdsDataWriterListener,
+    pub listener: DataWriterListener,
 }
 
 unsafe impl Send for CDataWriterListenerWrapper {}
@@ -268,10 +268,10 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData
         status: dust_dds::infrastructure::status::LivelinessLostStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_liveliness_lost) = self.listener.on_liveliness_lost {
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(the_writer),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_liveliness_lost(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -285,10 +285,10 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData
         status: dust_dds::infrastructure::status::OfferedDeadlineMissedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_offered_deadline_missed) = self.listener.on_offered_deadline_missed {
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(the_writer),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_deadline_missed(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -302,10 +302,10 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData
         status: dust_dds::infrastructure::status::OfferedIncompatibleQosStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_offered_incompatible_qos) = self.listener.on_offered_incompatible_qos {
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(the_writer),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_incompatible_qos(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -319,10 +319,10 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData
         status: dust_dds::infrastructure::status::PublicationMatchedStatus,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_publication_matched) = self.listener.on_publication_matched {
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(the_writer),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_publication_matched(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -337,22 +337,22 @@ impl dust_dds::publication::data_writer_listener::DataWriterListener<DynamicData
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsTopicListener {
+pub struct TopicListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_inconsistent_topic: Option<
         unsafe extern "C" fn(
-            topic: Option<NonNull<DustDdsTopic>>,
+            topic: Option<NonNull<Topic>>,
             status: InconsistentTopicStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsTopicListener {}
-unsafe impl Sync for DustDdsTopicListener {}
+unsafe impl Send for TopicListener {}
+unsafe impl Sync for TopicListener {}
 
 pub(crate) struct CTopicListenerWrapper {
-    pub listener: DustDdsTopicListener,
+    pub listener: TopicListener,
 }
 
 unsafe impl Send for CTopicListenerWrapper {}
@@ -366,8 +366,8 @@ impl dust_dds::topic_definition::topic_listener::TopicListener for CTopicListene
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_inconsistent_topic) = self.listener.on_inconsistent_topic {
             let mut topic_wrapper =
-                DustDdsTopic::new(dust_dds::topic_definition::topic::Topic::from(the_topic));
-            let topic_ptr = NonNull::new(&mut topic_wrapper as *mut DustDdsTopic);
+                Topic::new(dust_dds::topic_definition::topic::Topic::from(the_topic));
+            let topic_ptr = NonNull::new(&mut topic_wrapper as *mut Topic);
             unsafe {
                 on_inconsistent_topic(topic_ptr, status.into(), self.listener.listener_data);
             }
@@ -382,43 +382,43 @@ impl dust_dds::topic_definition::topic_listener::TopicListener for CTopicListene
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsPublisherListener {
+pub struct PublisherListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_liveliness_lost: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: LivelinessLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_deadline_missed: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_incompatible_qos: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_publication_matched: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: PublicationMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsPublisherListener {}
-unsafe impl Sync for DustDdsPublisherListener {}
+unsafe impl Send for PublisherListener {}
+unsafe impl Sync for PublisherListener {}
 
 pub(crate) struct CPublisherListenerWrapper {
-    pub listener: DustDdsPublisherListener,
+    pub listener: PublisherListener,
 }
 
 unsafe impl Send for CPublisherListenerWrapper {}
@@ -434,10 +434,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for CPublisher
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_liveliness_lost(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -454,10 +454,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for CPublisher
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_deadline_missed(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -474,10 +474,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for CPublisher
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_incompatible_qos(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -494,10 +494,10 @@ impl dust_dds::publication::publisher_listener::PublisherListener for CPublisher
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_publication_matched(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -512,69 +512,69 @@ impl dust_dds::publication::publisher_listener::PublisherListener for CPublisher
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsSubscriberListener {
+pub struct SubscriberListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_data_on_readers: Option<
         unsafe extern "C" fn(
-            subscriber: Option<NonNull<DustDdsSubscriber>>,
+            subscriber: Option<NonNull<Subscriber>>,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_data_available: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_rejected: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleRejectedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_liveliness_changed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: LivelinessChangedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_deadline_missed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_incompatible_qos: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_subscription_matched: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SubscriptionMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_lost: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsSubscriberListener {}
-unsafe impl Sync for DustDdsSubscriberListener {}
+unsafe impl Send for SubscriberListener {}
+unsafe impl Sync for SubscriberListener {}
 
 pub(crate) struct CSubscriberListenerWrapper {
-    pub listener: DustDdsSubscriberListener,
+    pub listener: SubscriberListener,
 }
 
 unsafe impl Send for CSubscriberListenerWrapper {}
@@ -588,10 +588,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
         the_subscriber: dust_dds::dds_async::subscriber::SubscriberAsync,
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_data_on_readers) = self.listener.on_data_on_readers {
-            let mut subscriber_wrapper = DustDdsSubscriber::new(
+            let mut subscriber_wrapper = Subscriber::new(
                 dust_dds::subscription::subscriber::Subscriber::from(the_subscriber),
             );
-            let subscriber_ptr = NonNull::new(&mut subscriber_wrapper as *mut DustDdsSubscriber);
+            let subscriber_ptr = NonNull::new(&mut subscriber_wrapper as *mut Subscriber);
             unsafe {
                 on_data_on_readers(subscriber_ptr, self.listener.listener_data);
             }
@@ -607,10 +607,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_data_available(reader_ptr, self.listener.listener_data);
             }
@@ -627,10 +627,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_rejected(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -647,10 +647,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_liveliness_changed(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -667,10 +667,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_deadline_missed(
                     reader_ptr,
@@ -691,10 +691,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_incompatible_qos(
                     reader_ptr,
@@ -715,10 +715,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_subscription_matched(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -735,10 +735,10 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_lost(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -753,98 +753,98 @@ impl dust_dds::subscription::subscriber_listener::SubscriberListener
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DustDdsDomainParticipantListener {
+pub struct DomainParticipantListener {
     pub listener_data: *mut std::ffi::c_void,
     pub on_inconsistent_topic: Option<
         unsafe extern "C" fn(
-            topic: Option<NonNull<DustDdsTopic>>,
+            topic: Option<NonNull<Topic>>,
             status: InconsistentTopicStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_liveliness_lost: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: LivelinessLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_deadline_missed: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_offered_incompatible_qos: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: OfferedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_lost: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleLostStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_data_available: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_sample_rejected: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SampleRejectedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_liveliness_changed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: LivelinessChangedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_deadline_missed: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedDeadlineMissedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_requested_incompatible_qos: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: RequestedIncompatibleQosStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_publication_matched: Option<
         unsafe extern "C" fn(
-            writer: Option<NonNull<DustDdsDataWriter>>,
+            writer: Option<NonNull<DataWriter>>,
             status: PublicationMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
     pub on_subscription_matched: Option<
         unsafe extern "C" fn(
-            reader: Option<NonNull<DustDdsDataReader>>,
+            reader: Option<NonNull<DataReader>>,
             status: SubscriptionMatchedStatus,
             listener_data: *mut std::ffi::c_void,
         ),
     >,
 }
 
-unsafe impl Send for DustDdsDomainParticipantListener {}
-unsafe impl Sync for DustDdsDomainParticipantListener {}
+unsafe impl Send for DomainParticipantListener {}
+unsafe impl Sync for DomainParticipantListener {}
 
 pub(crate) struct CDomainParticipantListenerWrapper {
-    pub listener: DustDdsDomainParticipantListener,
+    pub listener: DomainParticipantListener,
 }
 
 unsafe impl Send for CDomainParticipantListenerWrapper {}
@@ -860,8 +860,8 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
     ) -> impl std::future::Future<Output = ()> + Send {
         if let Some(on_inconsistent_topic) = self.listener.on_inconsistent_topic {
             let mut topic_wrapper =
-                DustDdsTopic::new(dust_dds::topic_definition::topic::Topic::from(the_topic));
-            let topic_ptr = NonNull::new(&mut topic_wrapper as *mut DustDdsTopic);
+                Topic::new(dust_dds::topic_definition::topic::Topic::from(the_topic));
+            let topic_ptr = NonNull::new(&mut topic_wrapper as *mut Topic);
             unsafe {
                 on_inconsistent_topic(topic_ptr, status.into(), self.listener.listener_data);
             }
@@ -878,10 +878,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_liveliness_lost(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -898,10 +898,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_deadline_missed(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -918,10 +918,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_offered_incompatible_qos(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -938,10 +938,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_lost(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -957,10 +957,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_data_available(reader_ptr, self.listener.listener_data);
             }
@@ -977,10 +977,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_sample_rejected(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -997,10 +997,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_liveliness_changed(reader_ptr, status.into(), self.listener.listener_data);
             }
@@ -1017,10 +1017,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_deadline_missed(
                     reader_ptr,
@@ -1041,10 +1041,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_requested_incompatible_qos(
                     reader_ptr,
@@ -1065,10 +1065,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let writer_async_dynamic: dust_dds::dds_async::data_writer::DataWriterAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_writer) };
-            let mut writer_wrapper = DustDdsDataWriter::new(
+            let mut writer_wrapper = DataWriter::new(
                 dust_dds::publication::data_writer::DataWriter::from(writer_async_dynamic),
             );
-            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DustDdsDataWriter);
+            let writer_ptr = NonNull::new(&mut writer_wrapper as *mut DataWriter);
             unsafe {
                 on_publication_matched(writer_ptr, status.into(), self.listener.listener_data);
             }
@@ -1085,10 +1085,10 @@ impl dust_dds::domain::domain_participant_listener::DomainParticipantListener
             let reader_async_dynamic: dust_dds::dds_async::data_reader::DataReaderAsync<
                 DynamicData<'static>,
             > = unsafe { std::mem::transmute(the_reader) };
-            let mut reader_wrapper = DustDdsDataReader::new(
+            let mut reader_wrapper = DataReader::new(
                 dust_dds::subscription::data_reader::DataReader::from(reader_async_dynamic),
             );
-            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DustDdsDataReader);
+            let reader_ptr = NonNull::new(&mut reader_wrapper as *mut DataReader);
             unsafe {
                 on_subscription_matched(reader_ptr, status.into(), self.listener.listener_data);
             }

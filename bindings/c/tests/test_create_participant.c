@@ -8,11 +8,11 @@ void tearDown(void) {}
 
 void test_participant_lifecycle(void)
 {
-    DDS_DustDdsDomainParticipantFactory *factory = (DDS_DustDdsDomainParticipantFactory *)DDS_domain_participant_factory_get_instance();
+    DDS_DomainParticipantFactory *factory = (DDS_DomainParticipantFactory *)DDS_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
     // Test creating participant with NULL QoS (default QoS)
-    DDS_DustDdsDomainParticipant *participant = DDS_domain_participant_factory_create_participant(
+    DDS_DomainParticipant *participant = DDS_domain_participant_factory_create_participant(
         factory,
         0,
         NULL,
@@ -51,7 +51,7 @@ void test_participant_lifecycle(void)
     qos.user_data.value.length = 0;
 
     // Test creating publisher and subscriber on participant with default QoS and NULL
-    DDS_DustDdsPublisher *publisher = DDS_domain_participant_create_publisher(participant, NULL, NULL, 0);
+    DDS_Publisher *publisher = DDS_domain_participant_create_publisher(participant, NULL, NULL, 0);
     TEST_ASSERT_NOT_NULL(publisher);
     result = DDS_domain_participant_delete_publisher(participant, publisher);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
@@ -62,7 +62,7 @@ void test_participant_lifecycle(void)
     result = DDS_domain_participant_delete_publisher(participant, publisher);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
-    DDS_DustDdsSubscriber *subscriber = DDS_domain_participant_create_subscriber(participant, NULL, NULL, 0);
+    DDS_Subscriber *subscriber = DDS_domain_participant_create_subscriber(participant, NULL, NULL, 0);
     TEST_ASSERT_NOT_NULL(subscriber);
     result = DDS_domain_participant_delete_subscriber(participant, subscriber);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
@@ -87,7 +87,7 @@ void test_participant_lifecycle(void)
         0);
     TEST_ASSERT_NOT_NULL(participant);
 
-    DDS_DustDdsDomainParticipant *looked_up = DDS_domain_participant_factory_lookup_participant(factory, 1);
+    DDS_DomainParticipant *looked_up = DDS_domain_participant_factory_lookup_participant(factory, 1);
     TEST_ASSERT_NOT_NULL(looked_up);
 
     result = DDS_domain_participant_factory_delete_participant(factory, looked_up);
@@ -148,10 +148,10 @@ void test_participant_lifecycle(void)
 
 void test_subscriber_lifecycle(void)
 {
-    DDS_DustDdsDomainParticipantFactory *factory = (DDS_DustDdsDomainParticipantFactory *)DDS_domain_participant_factory_get_instance();
+    DDS_DomainParticipantFactory *factory = (DDS_DomainParticipantFactory *)DDS_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
-    DDS_DustDdsDomainParticipant *participant = DDS_domain_participant_factory_create_participant(
+    DDS_DomainParticipant *participant = DDS_domain_participant_factory_create_participant(
         factory,
         0,
         NULL,
@@ -159,11 +159,11 @@ void test_subscriber_lifecycle(void)
         0);
     TEST_ASSERT_NOT_NULL(participant);
 
-    DDS_DustDdsSubscriber *subscriber = DDS_domain_participant_create_subscriber(participant, NULL, NULL, 0);
+    DDS_Subscriber *subscriber = DDS_domain_participant_create_subscriber(participant, NULL, NULL, 0);
     TEST_ASSERT_NOT_NULL(subscriber);
 
     // Test get_participant
-    DDS_DustDdsDomainParticipant *sub_participant = DDS_subscriber_get_participant(subscriber);
+    DDS_DomainParticipant *sub_participant = DDS_subscriber_get_participant(subscriber);
     TEST_ASSERT_NOT_NULL(sub_participant);
 
     // Test get_qos and set_qos
@@ -191,7 +191,7 @@ void test_subscriber_lifecycle(void)
     // TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Test lookup_datareader
-    DDS_DustDdsDataReader *looked_up = DDS_subscriber_lookup_datareader(subscriber, "NonExistentTopic");
+    DDS_DataReader *looked_up = DDS_subscriber_lookup_datareader(subscriber, "NonExistentTopic");
     TEST_ASSERT_NULL(looked_up);
 
     // Test delete_contained_entities (commented out as it's not yet implemented in the Rust core and panics)

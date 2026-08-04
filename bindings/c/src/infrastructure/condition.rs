@@ -1,10 +1,11 @@
+pub type StatusMask = u32;
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 use std::ptr::NonNull;
 
 /// cbindgen:opaque
-pub struct DustDdsStatusCondition(pub(crate) dust_dds::condition::StatusCondition);
+pub struct StatusCondition(pub(crate) dust_dds::condition::StatusCondition);
 
-impl DustDdsStatusCondition {
+impl StatusCondition {
     pub fn new(condition: dust_dds::condition::StatusCondition) -> Self {
         Self(condition)
     }
@@ -14,24 +15,23 @@ impl DustDdsStatusCondition {
     }
 }
 
-pub type DustDdsStatusMask = u32;
 
-pub const DUST_DDS_STATUS_INCONSISTENT_TOPIC_STATUS: DustDdsStatusMask = 0x00000001;
-pub const DUST_DDS_STATUS_OFFERED_DEADLINE_MISSED_STATUS: DustDdsStatusMask = 0x00000002;
-pub const DUST_DDS_STATUS_REQUESTED_DEADLINE_MISSED_STATUS: DustDdsStatusMask = 0x00000004;
-pub const DUST_DDS_STATUS_OFFERED_INCOMPATIBLE_QOS_STATUS: DustDdsStatusMask = 0x00000008;
-pub const DUST_DDS_STATUS_REQUESTED_INCOMPATIBLE_QOS_STATUS: DustDdsStatusMask = 0x00000010;
-pub const DUST_DDS_STATUS_SAMPLE_LOST_STATUS: DustDdsStatusMask = 0x00000020;
-pub const DUST_DDS_STATUS_SAMPLE_REJECTED_STATUS: DustDdsStatusMask = 0x00000040;
-pub const DUST_DDS_STATUS_DATA_ON_READERS_STATUS: DustDdsStatusMask = 0x00000080;
-pub const DUST_DDS_STATUS_DATA_AVAILABLE_STATUS: DustDdsStatusMask = 0x00000100;
-pub const DUST_DDS_STATUS_LIVELINESS_LOST_STATUS: DustDdsStatusMask = 0x00000200;
-pub const DUST_DDS_STATUS_LIVELINESS_CHANGED_STATUS: DustDdsStatusMask = 0x00000400;
-pub const DUST_DDS_STATUS_PUBLICATION_MATCHED_STATUS: DustDdsStatusMask = 0x00000800;
-pub const DUST_DDS_STATUS_SUBSCRIPTION_MATCHED_STATUS: DustDdsStatusMask = 0x00001000;
+pub const DUST_DDS_STATUS_INCONSISTENT_TOPIC_STATUS: StatusMask = 0x00000001;
+pub const DUST_DDS_STATUS_OFFERED_DEADLINE_MISSED_STATUS: StatusMask = 0x00000002;
+pub const DUST_DDS_STATUS_REQUESTED_DEADLINE_MISSED_STATUS: StatusMask = 0x00000004;
+pub const DUST_DDS_STATUS_OFFERED_INCOMPATIBLE_QOS_STATUS: StatusMask = 0x00000008;
+pub const DUST_DDS_STATUS_REQUESTED_INCOMPATIBLE_QOS_STATUS: StatusMask = 0x00000010;
+pub const DUST_DDS_STATUS_SAMPLE_LOST_STATUS: StatusMask = 0x00000020;
+pub const DUST_DDS_STATUS_SAMPLE_REJECTED_STATUS: StatusMask = 0x00000040;
+pub const DUST_DDS_STATUS_DATA_ON_READERS_STATUS: StatusMask = 0x00000080;
+pub const DUST_DDS_STATUS_DATA_AVAILABLE_STATUS: StatusMask = 0x00000100;
+pub const DUST_DDS_STATUS_LIVELINESS_LOST_STATUS: StatusMask = 0x00000200;
+pub const DUST_DDS_STATUS_LIVELINESS_CHANGED_STATUS: StatusMask = 0x00000400;
+pub const DUST_DDS_STATUS_PUBLICATION_MATCHED_STATUS: StatusMask = 0x00000800;
+pub const DUST_DDS_STATUS_SUBSCRIPTION_MATCHED_STATUS: StatusMask = 0x00001000;
 
 pub(crate) fn mask_to_status_kinds(
-    mask: DustDdsStatusMask,
+    mask: StatusMask,
 ) -> Vec<dust_dds::infrastructure::status::StatusKind> {
     let mut kinds = Vec::new();
     if mask & DUST_DDS_STATUS_INCONSISTENT_TOPIC_STATUS != 0 {
@@ -81,11 +81,11 @@ pub(crate) fn mask_to_status_kinds(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
+/// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_status_condition_set_enabled_statuses(
-    condition: Option<NonNull<DustDdsStatusCondition>>,
-    mask: DustDdsStatusMask,
+    condition: Option<NonNull<StatusCondition>>,
+    mask: StatusMask,
 ) -> ReturnCode {
     let Some(condition) = condition else {
         return RETCODE_BAD_PARAMETER;
@@ -105,10 +105,10 @@ pub unsafe extern "C" fn DDS_status_condition_set_enabled_statuses(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `condition` must point to a valid, initialized `DustDdsStatusCondition` instance.
+/// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_status_condition_free(
-    condition: Option<NonNull<DustDdsStatusCondition>>,
+    condition: Option<NonNull<StatusCondition>>,
 ) -> ReturnCode {
     if let Some(condition) = condition {
         unsafe {

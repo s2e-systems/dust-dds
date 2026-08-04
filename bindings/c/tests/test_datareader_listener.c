@@ -8,7 +8,7 @@ struct MyListenerData {
     int counter;
 };
 
-static void on_data_available(DDS_DustDdsDataReader* reader, void* listener_data) {
+static void on_data_available(DDS_DataReader* reader, void* listener_data) {
     printf("C on_data_available callback triggered!\n");
     struct MyListenerData* data = (struct MyListenerData*)listener_data;
     data->counter++;
@@ -18,10 +18,10 @@ void setUp(void) {}
 void tearDown(void) {}
 
 void test_datareader_listener_callback(void) {
-    DDS_DustDdsDomainParticipantFactory* factory = (DDS_DustDdsDomainParticipantFactory*)DDS_domain_participant_factory_get_instance();
+    DDS_DomainParticipantFactory* factory = (DDS_DomainParticipantFactory*)DDS_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
-    DDS_DustDdsDomainParticipant* participant = DDS_domain_participant_factory_create_participant(
+    DDS_DomainParticipant* participant = DDS_domain_participant_factory_create_participant(
         factory,
         0,
         DUST_DDS_PARTICIPANT_QOS_DEFAULT,
@@ -31,19 +31,19 @@ void test_datareader_listener_callback(void) {
     TEST_ASSERT_NOT_NULL(participant);
 
     // Create topic
-    DDS_DustDdsTopic* topic = DDS_domain_participant_create_topic(
+    DDS_Topic* topic = DDS_domain_participant_create_topic(
         participant,
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
         NULL,
         0,
-        (DDS_DustDdsDynamicType*)HelloWorld_get_type()
+        (DDS_DynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic);
 
     // Create subscriber
-    DDS_DustDdsSubscriber* subscriber = DDS_domain_participant_create_subscriber(
+    DDS_Subscriber* subscriber = DDS_domain_participant_create_subscriber(
         participant,
         DUST_DDS_SUBSCRIBER_QOS_DEFAULT,
         NULL,
@@ -53,7 +53,7 @@ void test_datareader_listener_callback(void) {
 
     // Set up DataReaderListener
     struct MyListenerData my_data = { 0 };
-    DDS_DustDdsDataReaderListener listener = {
+    DDS_DataReaderListener listener = {
         .listener_data = &my_data,
         .on_data_available = on_data_available,
         .on_sample_rejected = NULL,
@@ -65,7 +65,7 @@ void test_datareader_listener_callback(void) {
     };
 
     // Create data reader with the listener
-    DDS_DustDdsDataReader* reader = DDS_subscriber_create_datareader(
+    DDS_DataReader* reader = DDS_subscriber_create_datareader(
         subscriber,
         topic,
         DUST_DDS_DATAREADER_QOS_DEFAULT,
@@ -75,7 +75,7 @@ void test_datareader_listener_callback(void) {
     TEST_ASSERT_NOT_NULL(reader);
 
     // Create publisher
-    DDS_DustDdsPublisher* publisher = DDS_domain_participant_create_publisher(
+    DDS_Publisher* publisher = DDS_domain_participant_create_publisher(
         participant,
         DUST_DDS_PUBLISHER_QOS_DEFAULT,
         NULL,
@@ -84,7 +84,7 @@ void test_datareader_listener_callback(void) {
     TEST_ASSERT_NOT_NULL(publisher);
 
     // Create data writer
-    DDS_DustDdsDataWriter* writer = DDS_publisher_create_datawriter(
+    DDS_DataWriter* writer = DDS_publisher_create_datawriter(
         publisher,
         topic,
         DUST_DDS_DATAWRITER_QOS_DEFAULT,

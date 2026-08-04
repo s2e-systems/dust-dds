@@ -1,9 +1,9 @@
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode};
 
 /// cbindgen:opaque
-pub struct DustDdsTopic(pub(crate) dust_dds::topic_definition::topic::Topic);
+pub struct Topic(pub(crate) dust_dds::topic_definition::topic::Topic);
 
-impl DustDdsTopic {
+impl Topic {
     pub fn new(topic: dust_dds::topic_definition::topic::Topic) -> Self {
         Self(topic)
     }
@@ -15,11 +15,11 @@ impl DustDdsTopic {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `topic` must point to a valid, initialized `Topic` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_topic_get_instance_handle(
-    topic: Option<std::ptr::NonNull<DustDdsTopic>>,
+    topic: Option<std::ptr::NonNull<Topic>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
 ) -> ReturnCode {
     let Some(topic) = topic else {

@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 use dust_dds::xtypes::dynamic_type::DynamicData;
 
 use crate::{
-    CDataWriterListenerWrapper, DustDdsDataWriter, DustDdsDataWriterListener, DustDdsStatusMask,
-    DustDdsTopic,
+    CDataWriterListenerWrapper, DataWriter, DataWriterListener, StatusMask,
+    Topic,
     infrastructure::{
         error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -12,9 +12,9 @@ use crate::{
 };
 
 /// cbindgen:opaque
-pub struct DustDdsPublisher(pub(crate) dust_dds::publication::publisher::Publisher);
+pub struct Publisher(pub(crate) dust_dds::publication::publisher::Publisher);
 
-impl DustDdsPublisher {
+impl Publisher {
     pub fn new(publisher: dust_dds::publication::publisher::Publisher) -> Self {
         Self(publisher)
     }
@@ -29,18 +29,18 @@ impl DustDdsPublisher {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
-/// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
+/// - `topic` must point to a valid, initialized `Topic` instance.
 /// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
-/// - `listener` must be a valid pointer to a `DustDdsDataWriterListener` instance (or null).
+/// - `listener` must be a valid pointer to a `DataWriterListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_create_datawriter(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    topic: Option<NonNull<DustDdsTopic>>,
+    publisher: Option<NonNull<Publisher>>,
+    topic: Option<NonNull<Topic>>,
     qos: *const DataWriterQos,
-    listener: *const DustDdsDataWriterListener,
-    mask: DustDdsStatusMask,
-) -> Option<NonNull<DustDdsDataWriter>> {
+    listener: *const DataWriterListener,
+    mask: StatusMask,
+) -> Option<NonNull<DataWriter>> {
     let publisher = publisher?;
     let topic = topic?;
 
@@ -86,7 +86,7 @@ pub unsafe extern "C" fn DDS_publisher_create_datawriter(
     };
 
     match result {
-        Ok(dw) => NonNull::new(Box::into_raw(Box::new(DustDdsDataWriter::new(dw)))),
+        Ok(dw) => NonNull::new(Box::into_raw(Box::new(DataWriter::new(dw)))),
         Err(_) => None,
     }
 }
@@ -96,12 +96,12 @@ pub unsafe extern "C" fn DDS_publisher_create_datawriter(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
-/// - `datawriter` must point to a valid, initialized `DustDdsDataWriter` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
+/// - `datawriter` must point to a valid, initialized `DataWriter` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_delete_datawriter(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    datawriter: Option<NonNull<DustDdsDataWriter>>,
+    publisher: Option<NonNull<Publisher>>,
+    datawriter: Option<NonNull<DataWriter>>,
 ) -> ReturnCode {
     let Some(datawriter) = datawriter else {
         return RETCODE_OK;
@@ -132,10 +132,10 @@ pub unsafe extern "C" fn DDS_publisher_delete_datawriter(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_delete_contained_entities(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -154,11 +154,11 @@ pub unsafe extern "C" fn DDS_publisher_delete_contained_entities(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 /// - `qos` must be a valid pointer to a `PublisherQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_set_qos(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
     qos: *const PublisherQos,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
@@ -180,11 +180,11 @@ pub unsafe extern "C" fn DDS_publisher_set_qos(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 /// - `qos` must be a valid pointer to a `PublisherQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_get_qos(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
     qos: *mut PublisherQos,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
@@ -207,13 +207,13 @@ pub unsafe extern "C" fn DDS_publisher_get_qos(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
-/// - `listener` must be a valid pointer to a `DustDdsPublisherListener` instance (or null).
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
+/// - `listener` must be a valid pointer to a `PublisherListener` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_set_listener(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    listener: *const crate::infrastructure::listeners::DustDdsPublisherListener,
-    mask: crate::infrastructure::condition::DustDdsStatusMask,
+    publisher: Option<NonNull<Publisher>>,
+    listener: *const crate::infrastructure::listeners::PublisherListener,
+    mask: crate::infrastructure::condition::StatusMask,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -243,10 +243,10 @@ pub unsafe extern "C" fn DDS_publisher_set_listener(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_suspend_publications(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -262,10 +262,10 @@ pub unsafe extern "C" fn DDS_publisher_suspend_publications(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_resume_publications(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -281,10 +281,10 @@ pub unsafe extern "C" fn DDS_publisher_resume_publications(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_begin_coherent_changes(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -303,10 +303,10 @@ pub unsafe extern "C" fn DDS_publisher_begin_coherent_changes(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_end_coherent_changes(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -322,11 +322,11 @@ pub unsafe extern "C" fn DDS_publisher_end_coherent_changes(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_wait_for_acknowledgments(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-    max_wait: crate::infrastructure::wait_set::DustDdsDuration,
+    publisher: Option<NonNull<Publisher>>,
+    max_wait: crate::infrastructure::wait_set::Duration,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
         return RETCODE_BAD_PARAMETER;
@@ -345,15 +345,15 @@ pub unsafe extern "C" fn DDS_publisher_wait_for_acknowledgments(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_get_participant(
-    publisher: Option<NonNull<DustDdsPublisher>>,
-) -> Option<NonNull<crate::DustDdsDomainParticipant>> {
+    publisher: Option<NonNull<Publisher>>,
+) -> Option<NonNull<crate::DomainParticipant>> {
     let publisher = publisher?;
     let participant = unsafe { publisher.as_ref() }.inner().get_participant();
     NonNull::new(Box::into_raw(Box::new(
-        crate::DustDdsDomainParticipant::new(participant),
+        crate::DomainParticipant::new(participant),
     )))
 }
 
@@ -362,11 +362,11 @@ pub unsafe extern "C" fn DDS_publisher_get_participant(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 /// - `qos` must be a valid pointer to a `DataWriterQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_set_default_datawriter_qos(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
     qos: *const DataWriterQos,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
@@ -391,11 +391,11 @@ pub unsafe extern "C" fn DDS_publisher_set_default_datawriter_qos(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 /// - `qos` must be a valid pointer to a `DataWriterQos` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_get_default_datawriter_qos(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
     qos: *mut DataWriterQos,
 ) -> ReturnCode {
     let Some(publisher) = publisher else {
@@ -421,12 +421,12 @@ pub unsafe extern "C" fn DDS_publisher_get_default_datawriter_qos(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
+/// - `publisher` must point to a valid, initialized `Publisher` instance.
 /// - `a_datawriter_qos` must be a valid pointer to a `DataWriterQos` instance for writing (or null).
 /// - `a_topic_qos` must be a valid pointer to a `TopicQos` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_publisher_copy_from_topic_qos(
-    publisher: Option<NonNull<DustDdsPublisher>>,
+    publisher: Option<NonNull<Publisher>>,
     a_datawriter_qos: *mut DataWriterQos,
     a_topic_qos: *const TopicQos,
 ) -> ReturnCode {

@@ -1,39 +1,39 @@
 use crate::{
-    DustDdsDynamicData, DustDdsStatusCondition, RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode,
+    DynamicData, StatusCondition, RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode,
 };
-use dust_dds::xtypes::dynamic_type::DynamicData;
+use dust_dds::xtypes::dynamic_type::DynamicData as RustDynamicData;
 use std::ptr::NonNull;
 
 /// cbindgen:opaque
-pub struct DustDdsDataReader(
-    pub(crate) dust_dds::subscription::data_reader::DataReader<DynamicData<'static>>,
+pub struct DataReader(
+    pub(crate) dust_dds::subscription::data_reader::DataReader<RustDynamicData<'static>>,
 );
 
-impl DustDdsDataReader {
+impl DataReader {
     pub fn new(
-        data_reader: dust_dds::subscription::data_reader::DataReader<DynamicData<'static>>,
+        data_reader: dust_dds::subscription::data_reader::DataReader<RustDynamicData<'static>>,
     ) -> Self {
         Self(data_reader)
     }
 
-    pub fn inner(&self) -> &dust_dds::subscription::data_reader::DataReader<DynamicData<'static>> {
+    pub fn inner(&self) -> &dust_dds::subscription::data_reader::DataReader<RustDynamicData<'static>> {
         &self.0
     }
 }
 
-/// Reads data using the generic DustDdsDataReader.
+/// Reads data using the generic DataReader.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_read(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     sample_states: SampleStateMask,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn DDS_datareader_read(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -87,19 +87,19 @@ pub unsafe extern "C" fn DDS_datareader_read(
     }
 }
 
-/// Takes data using the generic DustDdsDataReader.
+/// Takes data using the generic DataReader.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_take(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     sample_states: SampleStateMask,
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn DDS_datareader_take(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -158,13 +158,13 @@ pub unsafe extern "C" fn DDS_datareader_take(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_value` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_value` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_read_next_sample(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_value: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_value: *mut Option<NonNull<DynamicData>>,
     sample_info: *mut SampleInfo,
 ) -> ReturnCode {
     let Some(reader) = reader else {
@@ -179,7 +179,7 @@ pub unsafe extern "C" fn DDS_datareader_read_next_sample(
         Ok(sample) => {
             unsafe {
                 if let Some(dynamic_data) = sample.data {
-                    let wrapper = DustDdsDynamicData::new(dynamic_data);
+                    let wrapper = DynamicData::new(dynamic_data);
                     let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                     *data_value = ptr;
                 } else {
@@ -198,13 +198,13 @@ pub unsafe extern "C" fn DDS_datareader_read_next_sample(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_value` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_value` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_take_next_sample(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_value: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_value: *mut Option<NonNull<DynamicData>>,
     sample_info: *mut SampleInfo,
 ) -> ReturnCode {
     let Some(reader) = reader else {
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn DDS_datareader_take_next_sample(
         Ok(sample) => {
             unsafe {
                 if let Some(dynamic_data) = sample.data {
-                    let wrapper = DustDdsDynamicData::new(dynamic_data);
+                    let wrapper = DynamicData::new(dynamic_data);
                     let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                     *data_value = ptr;
                 } else {
@@ -238,15 +238,15 @@ pub unsafe extern "C" fn DDS_datareader_take_next_sample(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_read_instance(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     a_handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -281,7 +281,7 @@ pub unsafe extern "C" fn DDS_datareader_read_instance(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -308,15 +308,15 @@ pub unsafe extern "C" fn DDS_datareader_read_instance(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_take_instance(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     a_handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -351,7 +351,7 @@ pub unsafe extern "C" fn DDS_datareader_take_instance(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -378,15 +378,15 @@ pub unsafe extern "C" fn DDS_datareader_take_instance(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_read_next_instance(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     previous_handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -432,7 +432,7 @@ pub unsafe extern "C" fn DDS_datareader_read_next_instance(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -459,15 +459,15 @@ pub unsafe extern "C" fn DDS_datareader_read_next_instance(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_take_next_instance(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
     max_samples: i32,
     previous_handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -513,7 +513,7 @@ pub unsafe extern "C" fn DDS_datareader_take_next_instance(
                 *received_samples = count;
                 for (i, sample) in samples.into_iter().enumerate() {
                     if let Some(dynamic_data) = sample.data {
-                        let wrapper = DustDdsDynamicData::new(dynamic_data);
+                        let wrapper = DynamicData::new(dynamic_data);
                         let ptr = NonNull::new(Box::into_raw(Box::new(wrapper)));
                         *data_values.add(i) = ptr;
                     } else {
@@ -540,13 +540,13 @@ pub unsafe extern "C" fn DDS_datareader_take_next_instance(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `_reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `_data_values` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `_reader` must point to a valid, initialized `DataReader` instance.
+/// - `_data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `_sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_return_loan(
-    _reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    _data_values: *mut Option<NonNull<DustDdsDynamicData>>,
+    _reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    _data_values: *mut Option<NonNull<DynamicData>>,
     _sample_infos: *mut SampleInfo,
 ) -> ReturnCode {
     RETCODE_OK
@@ -557,13 +557,13 @@ pub unsafe extern "C" fn DDS_datareader_return_loan(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `key_holder` must point to a valid, initialized `DynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_get_key_value(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    key_holder: Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    key_holder: Option<NonNull<DynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
 ) -> ReturnCode {
     let Some(reader) = reader else {
@@ -590,13 +590,13 @@ pub unsafe extern "C" fn DDS_datareader_get_key_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
-/// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
+/// - `key_holder` must point to a valid, initialized `DynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_lookup_instance(
-    reader: Option<NonNull<crate::subscription::data_reader::DustDdsDataReader>>,
-    key_holder: Option<NonNull<DustDdsDynamicData>>,
+    reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
+    key_holder: Option<NonNull<DynamicData>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
 ) -> ReturnCode {
     let Some(reader) = reader else {
@@ -631,16 +631,16 @@ pub unsafe extern "C" fn DDS_datareader_lookup_instance(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `reader` must point to a valid, initialized `DustDdsDataReader` instance.
+/// - `reader` must point to a valid, initialized `DataReader` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_datareader_get_statuscondition(
-    reader: Option<NonNull<DustDdsDataReader>>,
-) -> Option<NonNull<DustDdsStatusCondition>> {
+    reader: Option<NonNull<DataReader>>,
+) -> Option<NonNull<StatusCondition>> {
     let reader = reader?;
 
     let reader_ref = unsafe { reader.as_ref() };
     let condition = reader_ref.inner().get_statuscondition();
-    NonNull::new(Box::into_raw(Box::new(DustDdsStatusCondition::new(
+    NonNull::new(Box::into_raw(Box::new(StatusCondition::new(
         condition,
     ))))
 }

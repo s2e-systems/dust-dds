@@ -8,11 +8,11 @@ void setUp(void) {}
 void tearDown(void) {}
 
 void test_hello_world_write_read(void) {
-    DDS_DustDdsDomainParticipantFactory* factory = (DDS_DustDdsDomainParticipantFactory*)DDS_domain_participant_factory_get_instance();
+    DDS_DomainParticipantFactory* factory = (DDS_DomainParticipantFactory*)DDS_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
     // Create Publisher Participant
-    DDS_DustDdsDomainParticipant* participant_pub = DDS_domain_participant_factory_create_participant(
+    DDS_DomainParticipant* participant_pub = DDS_domain_participant_factory_create_participant(
         factory,
         0,
         DUST_DDS_PARTICIPANT_QOS_DEFAULT,
@@ -22,7 +22,7 @@ void test_hello_world_write_read(void) {
     TEST_ASSERT_NOT_NULL(participant_pub);
 
     // Create Subscriber Participant
-    DDS_DustDdsDomainParticipant* participant_sub = DDS_domain_participant_factory_create_participant(
+    DDS_DomainParticipant* participant_sub = DDS_domain_participant_factory_create_participant(
         factory,
         0,
         DUST_DDS_PARTICIPANT_QOS_DEFAULT,
@@ -32,31 +32,31 @@ void test_hello_world_write_read(void) {
     TEST_ASSERT_NOT_NULL(participant_sub);
 
     // Create Topic for Publisher
-    DDS_DustDdsTopic* topic_pub = DDS_domain_participant_create_topic(
+    DDS_Topic* topic_pub = DDS_domain_participant_create_topic(
         participant_pub,
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
         NULL,
         0,
-        (DDS_DustDdsDynamicType*)HelloWorld_get_type()
+        (DDS_DynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic_pub);
 
     // Create Topic for Subscriber
-    DDS_DustDdsTopic* topic_sub = DDS_domain_participant_create_topic(
+    DDS_Topic* topic_sub = DDS_domain_participant_create_topic(
         participant_sub,
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
         NULL,
         0,
-        (DDS_DustDdsDynamicType*)HelloWorld_get_type()
+        (DDS_DynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic_sub);
 
     // Create Publisher and Writer
-    DDS_DustDdsPublisher* publisher = DDS_domain_participant_create_publisher(
+    DDS_Publisher* publisher = DDS_domain_participant_create_publisher(
         participant_pub,
         DUST_DDS_PUBLISHER_QOS_DEFAULT,
         NULL,
@@ -64,7 +64,7 @@ void test_hello_world_write_read(void) {
     );
     TEST_ASSERT_NOT_NULL(publisher);
 
-    DDS_DustDdsDataWriter* writer = DDS_publisher_create_datawriter(
+    DDS_DataWriter* writer = DDS_publisher_create_datawriter(
         publisher,
         topic_pub,
         DUST_DDS_DATAWRITER_QOS_DEFAULT,
@@ -74,7 +74,7 @@ void test_hello_world_write_read(void) {
     TEST_ASSERT_NOT_NULL(writer);
 
     // Create Subscriber and Reader
-    DDS_DustDdsSubscriber* subscriber = DDS_domain_participant_create_subscriber(
+    DDS_Subscriber* subscriber = DDS_domain_participant_create_subscriber(
         participant_sub,
         DUST_DDS_SUBSCRIBER_QOS_DEFAULT,
         NULL,
@@ -82,7 +82,7 @@ void test_hello_world_write_read(void) {
     );
     TEST_ASSERT_NOT_NULL(subscriber);
 
-    DDS_DustDdsDataReader* reader = DDS_subscriber_create_datareader(
+    DDS_DataReader* reader = DDS_subscriber_create_datareader(
         subscriber,
         topic_sub,
         DUST_DDS_DATAREADER_QOS_DEFAULT,
@@ -92,29 +92,29 @@ void test_hello_world_write_read(void) {
     TEST_ASSERT_NOT_NULL(reader);
 
     // Set up Status Conditions and Wait Sets for Discovery
-    DDS_DustDdsStatusCondition* writer_cond = DDS_datawriter_get_statuscondition(writer);
+    DDS_StatusCondition* writer_cond = DDS_datawriter_get_statuscondition(writer);
     TEST_ASSERT_NOT_NULL(writer_cond);
     DDS_ReturnCode result = DDS_status_condition_set_enabled_statuses(writer_cond, DDS_DUST_DDS_STATUS_PUBLICATION_MATCHED_STATUS);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
-    DDS_DustDdsWaitSet* wait_set_pub = DDS_wait_set_new();
+    DDS_WaitSet* wait_set_pub = DDS_wait_set_new();
     TEST_ASSERT_NOT_NULL(wait_set_pub);
     result = DDS_wait_set_attach_condition(wait_set_pub, writer_cond);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
-    DDS_DustDdsStatusCondition* reader_cond = DDS_datareader_get_statuscondition(reader);
+    DDS_StatusCondition* reader_cond = DDS_datareader_get_statuscondition(reader);
     TEST_ASSERT_NOT_NULL(reader_cond);
     result = DDS_status_condition_set_enabled_statuses(reader_cond, DDS_DUST_DDS_STATUS_SUBSCRIPTION_MATCHED_STATUS);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
-    DDS_DustDdsWaitSet* wait_set_sub = DDS_wait_set_new();
+    DDS_WaitSet* wait_set_sub = DDS_wait_set_new();
     TEST_ASSERT_NOT_NULL(wait_set_sub);
     result = DDS_wait_set_attach_condition(wait_set_sub, reader_cond);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Wait for Discovery (matching) on both ends
     printf("Waiting for discovery...\n");
-    DDS_DustDdsDuration wait_timeout = { 10, 0 }; // 10 seconds timeout
+    DDS_Duration wait_timeout = { 10, 0 }; // 10 seconds timeout
     result = DDS_wait_set_wait(wait_set_pub, wait_timeout);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
@@ -166,7 +166,7 @@ void test_hello_world_write_read(void) {
 
 
     // Wait for acknowledgment on writer
-    DDS_DustDdsDuration ack_timeout = { 10, 0 };
+    DDS_Duration ack_timeout = { 10, 0 };
     result = DDS_datawriter_wait_for_acknowledgments(writer, ack_timeout);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 

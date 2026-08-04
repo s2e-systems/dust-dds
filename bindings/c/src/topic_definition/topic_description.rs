@@ -1,15 +1,15 @@
 use crate::{
-    domain::domain_participant::DustDdsDomainParticipant,
+    domain::domain_participant::DomainParticipant,
     infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode},
 };
 use std::ptr::NonNull;
 
 /// cbindgen:opaque
-pub struct DustDdsTopicDescription(
+pub struct TopicDescription(
     pub(crate) Box<dyn dust_dds::topic_definition::topic_description::TopicDescription>,
 );
 
-impl DustDdsTopicDescription {
+impl TopicDescription {
     pub fn new(
         topic_description: Box<dyn dust_dds::topic_definition::topic_description::TopicDescription>,
     ) -> Self {
@@ -26,14 +26,14 @@ impl DustDdsTopicDescription {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `topic_desc` must point to a valid, initialized `TopicDescription` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_topic_description_get_participant(
-    topic_desc: Option<NonNull<DustDdsTopicDescription>>,
-) -> Option<NonNull<DustDdsDomainParticipant>> {
+    topic_desc: Option<NonNull<TopicDescription>>,
+) -> Option<NonNull<DomainParticipant>> {
     let topic_desc = topic_desc?;
     let participant = unsafe { topic_desc.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(DustDdsDomainParticipant::new(
+    NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(
         participant,
     ))))
 }
@@ -43,11 +43,11 @@ pub unsafe extern "C" fn DDS_topic_description_get_participant(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `topic_desc` must point to a valid, initialized `TopicDescription` instance.
 /// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_topic_description_get_type_name(
-    topic_desc: Option<NonNull<DustDdsTopicDescription>>,
+    topic_desc: Option<NonNull<TopicDescription>>,
     value: *mut *mut std::os::raw::c_char,
 ) -> ReturnCode {
     let Some(topic_desc) = topic_desc else {
@@ -70,11 +70,11 @@ pub unsafe extern "C" fn DDS_topic_description_get_type_name(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `topic_desc` must point to a valid, initialized `TopicDescription` instance.
 /// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_topic_description_get_name(
-    topic_desc: Option<NonNull<DustDdsTopicDescription>>,
+    topic_desc: Option<NonNull<TopicDescription>>,
     value: *mut *mut std::os::raw::c_char,
 ) -> ReturnCode {
     let Some(topic_desc) = topic_desc else {
@@ -97,10 +97,10 @@ pub unsafe extern "C" fn DDS_topic_description_get_name(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `topic_desc` must point to a valid, initialized `DustDdsTopicDescription` instance.
+/// - `topic_desc` must point to a valid, initialized `TopicDescription` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_topic_description_free(
-    topic_desc: Option<NonNull<DustDdsTopicDescription>>,
+    topic_desc: Option<NonNull<TopicDescription>>,
 ) -> ReturnCode {
     if let Some(topic_desc) = topic_desc {
         unsafe {

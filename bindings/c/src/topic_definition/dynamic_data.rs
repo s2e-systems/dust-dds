@@ -1,23 +1,23 @@
 use crate::{
     infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode},
-    topic_definition::dynamic_type::DustDdsDynamicType,
+    topic_definition::dynamic_type::DynamicType,
 };
-use dust_dds::xtypes::dynamic_type::{DynamicData, DynamicDataFactory};
+use dust_dds::xtypes::dynamic_type::{DynamicData as RustDynamicData, DynamicDataFactory};
 use std::ptr::NonNull;
 
 /// cbindgen:opaque
-pub struct DustDdsDynamicData(pub(crate) DynamicData<'static>);
+pub struct DynamicData(pub(crate) RustDynamicData<'static>);
 
-impl DustDdsDynamicData {
-    pub fn new(d: DynamicData<'static>) -> Self {
+impl DynamicData {
+    pub fn new(d: RustDynamicData<'static>) -> Self {
         Self(d)
     }
 
-    pub fn inner(&self) -> &DynamicData<'static> {
+    pub fn inner(&self) -> &RustDynamicData<'static> {
         &self.0
     }
 
-    pub fn inner_mut(&mut self) -> &mut DynamicData<'static> {
+    pub fn inner_mut(&mut self) -> &mut RustDynamicData<'static> {
         &mut self.0
     }
 }
@@ -27,16 +27,16 @@ impl DustDdsDynamicData {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `r#type` must be a valid pointer to a `DustDdsDynamicType` instance (or null).
+/// - `r#type` must be a valid pointer to a `DynamicType` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_create(
-    r#type: *const DustDdsDynamicType,
-) -> Option<NonNull<DustDdsDynamicData>> {
+    r#type: *const DynamicType,
+) -> Option<NonNull<DynamicData>> {
     if r#type.is_null() {
         return None;
     }
     let dynamic_data = DynamicDataFactory::create_data(*unsafe { &*r#type }.inner());
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicData::new(
+    NonNull::new(Box::into_raw(Box::new(DynamicData::new(
         dynamic_data,
     ))))
 }
@@ -46,9 +46,9 @@ pub unsafe extern "C" fn DDS_dynamic_data_create(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_dynamic_data_free(data: Option<NonNull<DustDdsDynamicData>>) {
+pub unsafe extern "C" fn DDS_dynamic_data_free(data: Option<NonNull<DynamicData>>) {
     if let Some(d) = data {
         unsafe {
             drop(Box::from_raw(d.as_ptr()));
@@ -75,11 +75,11 @@ pub unsafe extern "C" fn DDS_string_free(ptr: *mut std::os::raw::c_char) {
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `bool` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_boolean_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut bool,
 ) -> ReturnCode {
@@ -100,11 +100,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_boolean_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `i8` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_int8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut i8,
 ) -> ReturnCode {
@@ -125,11 +125,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_int8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `u8` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_uint8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut u8,
 ) -> ReturnCode {
@@ -150,11 +150,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_uint8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `i16` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_int16_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut i16,
 ) -> ReturnCode {
@@ -175,11 +175,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_int16_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `u16` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_uint16_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut u16,
 ) -> ReturnCode {
@@ -200,11 +200,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_uint16_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_int32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut i32,
 ) -> ReturnCode {
@@ -225,11 +225,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_int32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `u32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_uint32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut u32,
 ) -> ReturnCode {
@@ -250,11 +250,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_uint32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `i64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_int64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut i64,
 ) -> ReturnCode {
@@ -275,11 +275,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_int64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `u64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_uint64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut u64,
 ) -> ReturnCode {
@@ -300,11 +300,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_uint64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `f32` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_float32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut f32,
 ) -> ReturnCode {
@@ -325,11 +325,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_float32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `f64` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_float64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut f64,
 ) -> ReturnCode {
@@ -350,11 +350,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_float64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_char8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut std::os::raw::c_char,
 ) -> ReturnCode {
@@ -375,11 +375,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_char8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `c_char` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_string_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *mut *mut std::os::raw::c_char,
 ) -> ReturnCode {
@@ -404,13 +404,13 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_string_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
-/// - `value` must be a valid pointer to a `DustDdsDynamicData` instance for writing (or null).
+/// - `data` must point to a valid, initialized `DynamicData` instance.
+/// - `value` must be a valid pointer to a `DynamicData` instance for writing (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_get_complex_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
-    value: *mut *mut DustDdsDynamicData,
+    value: *mut *mut DynamicData,
 ) -> ReturnCode {
     let Some(data) = data else {
         return RETCODE_BAD_PARAMETER;
@@ -420,7 +420,7 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_complex_value(
     }
     match unsafe { data.as_ref() }.inner().get_complex_value(id) {
         Ok(complex_data) => {
-            let owned_complex = DustDdsDynamicData::new(complex_data.clone());
+            let owned_complex = DynamicData::new(complex_data.clone());
             unsafe { *value = Box::into_raw(Box::new(owned_complex)) };
             RETCODE_OK
         }
@@ -432,10 +432,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_get_complex_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_boolean_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: bool,
 ) -> ReturnCode {
@@ -453,10 +453,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_boolean_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_int8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: i8,
 ) -> ReturnCode {
@@ -474,10 +474,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_int8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_uint8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: u8,
 ) -> ReturnCode {
@@ -495,10 +495,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_uint8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_int16_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: i16,
 ) -> ReturnCode {
@@ -516,10 +516,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_int16_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_uint16_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: u16,
 ) -> ReturnCode {
@@ -537,10 +537,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_uint16_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_int32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: i32,
 ) -> ReturnCode {
@@ -558,10 +558,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_int32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_uint32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: u32,
 ) -> ReturnCode {
@@ -579,10 +579,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_uint32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_int64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: i64,
 ) -> ReturnCode {
@@ -600,10 +600,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_int64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_uint64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: u64,
 ) -> ReturnCode {
@@ -621,10 +621,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_uint64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_float32_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: f32,
 ) -> ReturnCode {
@@ -642,10 +642,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_float32_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_float64_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: f64,
 ) -> ReturnCode {
@@ -663,10 +663,10 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_float64_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_char8_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: std::os::raw::c_char,
 ) -> ReturnCode {
@@ -685,11 +685,11 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_char8_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
 /// - `value` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_string_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
     value: *const std::os::raw::c_char,
 ) -> ReturnCode {
@@ -715,13 +715,13 @@ pub unsafe extern "C" fn DDS_dynamic_data_set_string_value(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
-/// - `value` must point to a valid, initialized `DustDdsDynamicData` instance.
+/// - `data` must point to a valid, initialized `DynamicData` instance.
+/// - `value` must point to a valid, initialized `DynamicData` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_data_set_complex_value(
-    data: Option<NonNull<DustDdsDynamicData>>,
+    data: Option<NonNull<DynamicData>>,
     id: u32,
-    value: Option<NonNull<DustDdsDynamicData>>,
+    value: Option<NonNull<DynamicData>>,
 ) -> ReturnCode {
     let Some(mut data) = data else {
         return RETCODE_BAD_PARAMETER;

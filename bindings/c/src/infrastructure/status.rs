@@ -1,7 +1,6 @@
 use crate::infrastructure::qos_policy::QosPolicyId_t;
 
 pub type StatusKind = u32;
-pub type StatusMask = u32;
 #[allow(non_camel_case_types)]
 pub type InstanceHandle_t = [u8; 16];
 

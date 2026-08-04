@@ -1,7 +1,7 @@
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
 use dust_dds::xtypes::dynamic_type::{
-    DynamicType, DynamicTypeBuilder, DynamicTypeBuilderFactory, ExtensibilityKind,
-    MemberDescriptor, TryConstructKind, TypeDescriptor, TypeKind,
+    DynamicType as RustDynamicType, DynamicTypeBuilder as RustDynamicTypeBuilder, DynamicTypeBuilderFactory, ExtensibilityKind,
+    MemberDescriptor as RustMemberDescriptor, TryConstructKind, TypeDescriptor as RustTypeDescriptor, TypeKind,
 };
 use std::ptr::NonNull;
 
@@ -41,27 +41,27 @@ pub const EXTENSIBILITY_KIND_APPENDABLE: u8 = 1;
 pub const EXTENSIBILITY_KIND_MUTABLE: u8 = 2;
 
 /// cbindgen:opaque
-pub struct DustDdsDynamicType(pub(crate) DynamicType<'static>);
+pub struct DynamicType(pub(crate) RustDynamicType<'static>);
 
-impl DustDdsDynamicType {
-    pub fn new(t: DynamicType<'static>) -> Self {
+impl DynamicType {
+    pub fn new(t: RustDynamicType<'static>) -> Self {
         Self(t)
     }
 
-    pub fn inner(&self) -> &DynamicType<'static> {
+    pub fn inner(&self) -> &RustDynamicType<'static> {
         &self.0
     }
 }
 
 /// cbindgen:opaque
-pub struct DustDdsDynamicTypeBuilder(pub(crate) DynamicTypeBuilder);
+pub struct DynamicTypeBuilder(pub(crate) RustDynamicTypeBuilder);
 
-impl DustDdsDynamicTypeBuilder {
-    pub fn new(b: DynamicTypeBuilder) -> Self {
+impl DynamicTypeBuilder {
+    pub fn new(b: RustDynamicTypeBuilder) -> Self {
         Self(b)
     }
 
-    pub fn inner(&self) -> &DynamicTypeBuilder {
+    pub fn inner(&self) -> &RustDynamicTypeBuilder {
         &self.0
     }
 }
@@ -82,10 +82,10 @@ impl DustDdsDynamicTypeBuilder {
 /// ```
 /// C representation of the DDS MemberDescriptor valuetype.
 #[repr(C)]
-pub struct DustDdsMemberDescriptor {
+pub struct MemberDescriptor {
     pub name: *const std::os::raw::c_char,
     pub id: u32,
-    pub r#type: *const DustDdsDynamicType,
+    pub r#type: *const DynamicType,
     pub is_key: bool,
     pub is_optional: bool,
     pub is_must_understand: bool,
@@ -93,14 +93,14 @@ pub struct DustDdsMemberDescriptor {
 
 /// C representation of the DDS TypeDescriptor valuetype.
 #[repr(C)]
-pub struct DustDdsTypeDescriptor {
+pub struct TypeDescriptor {
     pub kind: u8,
     pub name: *const std::os::raw::c_char,
-    pub base_type: *const DustDdsDynamicType,
-    pub discriminator_type: *const DustDdsDynamicType,
+    pub base_type: *const DynamicType,
+    pub discriminator_type: *const DynamicType,
     pub bound: *const u32,
-    pub element_type: *const DustDdsDynamicType,
-    pub key_element_type: *const DustDdsDynamicType,
+    pub element_type: *const DynamicType,
+    pub key_element_type: *const DynamicType,
     pub extensibility_kind: u8,
     pub is_nested: bool,
 }
@@ -149,16 +149,16 @@ fn extensibility_kind_from_u8(value: u8) -> Option<ExtensibilityKind> {
 }
 
 /// Creates a new DynamicTypeBuilder using the provided TypeDescriptor.
-/// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
+/// Returns a raw pointer to DynamicTypeBuilder on success, or NULL on failure.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `descriptor` must be a valid pointer to a `DustDdsTypeDescriptor` instance (or null).
+/// - `descriptor` must be a valid pointer to a `TypeDescriptor` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_builder_factory_create_type(
-    descriptor: *const DustDdsTypeDescriptor,
-) -> Option<NonNull<DustDdsDynamicTypeBuilder>> {
+    descriptor: *const TypeDescriptor,
+) -> Option<NonNull<DynamicTypeBuilder>> {
     if descriptor.is_null() {
         return None;
     }
@@ -206,7 +206,7 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_factory_create_type(
     let kind = type_kind_from_u8(descriptor.kind)?;
     let extensibility_kind = extensibility_kind_from_u8(descriptor.extensibility_kind)?;
 
-    let type_desc = TypeDescriptor {
+    let type_desc = RustTypeDescriptor {
         kind,
         name: name_str,
         base_type,
@@ -219,28 +219,28 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_factory_create_type(
     };
 
     let builder = DynamicTypeBuilderFactory::create_type(type_desc);
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicTypeBuilder::new(
+    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(
         builder,
     ))))
 }
 
-// Compile-time static instances of DustDdsDynamicType for standard primitive types
+// Compile-time static instances of DynamicType for standard primitive types
 use dust_dds::xtypes::type_support::Type;
-static BOOLEAN_TYPE: DustDdsDynamicType = DustDdsDynamicType(bool::TYPE);
-static INT8_TYPE: DustDdsDynamicType = DustDdsDynamicType(i8::TYPE);
-static UINT8_TYPE: DustDdsDynamicType = DustDdsDynamicType(u8::TYPE);
-static INT16_TYPE: DustDdsDynamicType = DustDdsDynamicType(i16::TYPE);
-static UINT16_TYPE: DustDdsDynamicType = DustDdsDynamicType(u16::TYPE);
-static INT32_TYPE: DustDdsDynamicType = DustDdsDynamicType(i32::TYPE);
-static UINT32_TYPE: DustDdsDynamicType = DustDdsDynamicType(u32::TYPE);
-static INT64_TYPE: DustDdsDynamicType = DustDdsDynamicType(i64::TYPE);
-static UINT64_TYPE: DustDdsDynamicType = DustDdsDynamicType(u64::TYPE);
-static FLOAT32_TYPE: DustDdsDynamicType = DustDdsDynamicType(f32::TYPE);
-static FLOAT64_TYPE: DustDdsDynamicType = DustDdsDynamicType(f64::TYPE);
-static CHAR8_TYPE: DustDdsDynamicType = DustDdsDynamicType(char::TYPE);
+static BOOLEAN_TYPE: DynamicType = DynamicType(bool::TYPE);
+static INT8_TYPE: DynamicType = DynamicType(i8::TYPE);
+static UINT8_TYPE: DynamicType = DynamicType(u8::TYPE);
+static INT16_TYPE: DynamicType = DynamicType(i16::TYPE);
+static UINT16_TYPE: DynamicType = DynamicType(u16::TYPE);
+static INT32_TYPE: DynamicType = DynamicType(i32::TYPE);
+static UINT32_TYPE: DynamicType = DynamicType(u32::TYPE);
+static INT64_TYPE: DynamicType = DynamicType(i64::TYPE);
+static UINT64_TYPE: DynamicType = DynamicType(u64::TYPE);
+static FLOAT32_TYPE: DynamicType = DynamicType(f32::TYPE);
+static FLOAT64_TYPE: DynamicType = DynamicType(f64::TYPE);
+static CHAR8_TYPE: DynamicType = DynamicType(char::TYPE);
 
 /// Returns a DynamicType representing the specified primitive type kind.
-/// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+/// Returns a raw pointer to DynamicType on success, or NULL on failure.
 ///
 /// # Safety
 ///
@@ -248,7 +248,7 @@ static CHAR8_TYPE: DustDdsDynamicType = DustDdsDynamicType(char::TYPE);
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_get_primitive_type(
     kind: u8,
-) -> Option<NonNull<DustDdsDynamicType>> {
+) -> Option<NonNull<DynamicType>> {
     let ptr = match kind {
         TYPE_KIND_BOOLEAN => &BOOLEAN_TYPE,
         TYPE_KIND_INT8 => &INT8_TYPE,
@@ -269,7 +269,7 @@ pub unsafe extern "C" fn DDS_dynamic_type_get_primitive_type(
 }
 
 /// Creates a DynamicType for a string with the specified bound.
-/// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+/// Returns a raw pointer to DynamicType on success, or NULL on failure.
 ///
 /// # Safety
 ///
@@ -277,10 +277,10 @@ pub unsafe extern "C" fn DDS_dynamic_type_get_primitive_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_create_string_type(
     bound: u32,
-) -> Option<NonNull<DustDdsDynamicType>> {
+) -> Option<NonNull<DynamicType>> {
     let builder = DynamicTypeBuilderFactory::create_string_type(bound);
     let dynamic_type = builder.build();
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicType::new(
+    NonNull::new(Box::into_raw(Box::new(DynamicType::new(
         dynamic_type,
     ))))
 }
@@ -290,9 +290,9 @@ pub unsafe extern "C" fn DDS_dynamic_type_create_string_type(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `dynamic_type` must point to a valid, initialized `DustDdsDynamicType` instance.
+/// - `dynamic_type` must point to a valid, initialized `DynamicType` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_dynamic_type_free(dynamic_type: Option<NonNull<DustDdsDynamicType>>) {
+pub unsafe extern "C" fn DDS_dynamic_type_free(dynamic_type: Option<NonNull<DynamicType>>) {
     if let Some(dt) = dynamic_type {
         let ptr_val = dt.as_ptr() as usize;
         let is_static_primitive = ptr_val == &BOOLEAN_TYPE as *const _ as usize
@@ -319,7 +319,7 @@ pub unsafe extern "C" fn DDS_dynamic_type_free(dynamic_type: Option<NonNull<Dust
 }
 
 /// Creates a new DynamicTypeBuilder for a structure type.
-/// Returns a raw pointer to DustDdsDynamicTypeBuilder on success, or NULL on failure.
+/// Returns a raw pointer to DynamicTypeBuilder on success, or NULL on failure.
 ///
 /// # Safety
 ///
@@ -328,12 +328,12 @@ pub unsafe extern "C" fn DDS_dynamic_type_free(dynamic_type: Option<NonNull<Dust
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_builder_create_struct(
     name: *const std::os::raw::c_char,
-) -> Option<NonNull<DustDdsDynamicTypeBuilder>> {
+) -> Option<NonNull<DynamicTypeBuilder>> {
     if name.is_null() {
         return None;
     }
     let name_str = unsafe { std::ffi::CStr::from_ptr(name) }.to_str().ok()?;
-    let descriptor = TypeDescriptor {
+    let descriptor = RustTypeDescriptor {
         kind: TypeKind::STRUCTURE,
         name: name_str.to_string().leak(),
         base_type: None,
@@ -345,7 +345,7 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_create_struct(
         is_nested: false,
     };
     let builder = DynamicTypeBuilderFactory::create_type(descriptor);
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicTypeBuilder::new(
+    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(
         builder,
     ))))
 }
@@ -361,12 +361,12 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_create_struct(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
-/// - `descriptor` must be a valid pointer to a `DustDdsMemberDescriptor` instance (or null).
+/// - `builder` must point to a valid, initialized `DynamicTypeBuilder` instance.
+/// - `descriptor` must be a valid pointer to a `MemberDescriptor` instance (or null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_builder_add_member(
-    builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
-    descriptor: *const DustDdsMemberDescriptor,
+    builder: Option<NonNull<DynamicTypeBuilder>>,
+    descriptor: *const MemberDescriptor,
 ) -> ReturnCode {
     let Some(mut builder) = builder else {
         return RETCODE_BAD_PARAMETER;
@@ -382,7 +382,7 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_add_member(
         Ok(s) => s.to_string().leak() as &'static str,
         Err(_) => return RETCODE_BAD_PARAMETER,
     };
-    let member_descriptor = MemberDescriptor {
+    let member_descriptor = RustMemberDescriptor {
         name: name_str,
         id: desc_ref.id,
         r#type: unsafe { &*desc_ref.r#type }.0,
@@ -404,20 +404,20 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_add_member(
 }
 
 /// Builds the DynamicType from the builder and consumes the builder.
-/// Returns a raw pointer to DustDdsDynamicType on success, or NULL on failure.
+/// Returns a raw pointer to DynamicType on success, or NULL on failure.
 ///
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
+/// - `builder` must point to a valid, initialized `DynamicTypeBuilder` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_builder_build(
-    builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
-) -> Option<NonNull<DustDdsDynamicType>> {
+    builder: Option<NonNull<DynamicTypeBuilder>>,
+) -> Option<NonNull<DynamicType>> {
     let builder = builder?;
     let builder_val = unsafe { *Box::from_raw(builder.as_ptr()) };
     let dynamic_type = builder_val.0.build();
-    NonNull::new(Box::into_raw(Box::new(DustDdsDynamicType::new(
+    NonNull::new(Box::into_raw(Box::new(DynamicType::new(
         dynamic_type,
     ))))
 }
@@ -427,10 +427,10 @@ pub unsafe extern "C" fn DDS_dynamic_type_builder_build(
 /// # Safety
 ///
 /// The caller must observe the following safety invariants:
-/// - `builder` must point to a valid, initialized `DustDdsDynamicTypeBuilder` instance.
+/// - `builder` must point to a valid, initialized `DynamicTypeBuilder` instance.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_dynamic_type_builder_free(
-    builder: Option<NonNull<DustDdsDynamicTypeBuilder>>,
+    builder: Option<NonNull<DynamicTypeBuilder>>,
 ) {
     if let Some(b) = builder {
         unsafe {
