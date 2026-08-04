@@ -353,8 +353,8 @@ impl DcpsDomainParticipant {
                 });
 
             if let Some(smallest_seq_num_instance) = smallest_seq_num_instance {
-                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
-                    if !data_writer
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
+                    && !data_writer
                         .transport_writer
                         .is_change_acknowledged(smallest_seq_num_instance)
                     {
@@ -418,7 +418,6 @@ impl DcpsDomainParticipant {
                         });
                         return;
                     }
-                }
 
                 if let Some(s) = data_writer
                     .rtps_writer

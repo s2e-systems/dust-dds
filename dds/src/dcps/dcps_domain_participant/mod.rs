@@ -960,7 +960,7 @@ impl PublisherEntity {
     }
 }
 
-pub(crate) trait RtpsWriter {
+pub trait RtpsWriter {
     fn guid(&self) -> Guid;
     fn add_change(
         &mut self,
