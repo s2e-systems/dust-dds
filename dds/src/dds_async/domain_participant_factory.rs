@@ -133,9 +133,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
     pub async fn lookup_participant(
         &self,
-        _domain_id: DomainId,
+        domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        todo!()
+        let (reply_sender, reply_receiver) = oneshot();
+        self.dcps_sender
+            .send(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::LookupParticipant {
+                    domain_id,
+                    reply_sender,
+                },
+            ))
+            .await;
+        Ok(reply_receiver
+            .await?
+            .map(|handle| DomainParticipantAsync::new(self.dcps_sender, domain_id, handle)))
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).

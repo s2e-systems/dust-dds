@@ -83,3 +83,4 @@ docs/_build/
 shapes_demo/android/keystore.properties
 shapes_demo/android/app/keystore.jks
 bindings/python/dds_venv/*
+bindings/c/tests/hello_world.h
