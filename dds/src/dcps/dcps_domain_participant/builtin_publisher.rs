@@ -4,11 +4,8 @@ use crate::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
     },
-    dcps::{
-        data_representation_builtin_endpoints::type_lookup::{
-            TypeLookupReply, TypeLookupRequest,
-        },
-        status_mask::StatusMask,
+    dcps::data_representation_builtin_endpoints::type_lookup::{
+        TypeLookupReply, TypeLookupRequest,
     },
     infrastructure::{
         instance::InstanceHandle,
@@ -19,9 +16,7 @@ use crate::{
         },
         time::{Duration, DurationKind},
     },
-    rtps::{
-        stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter,
-    },
+    rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
     transport::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix},
@@ -31,11 +26,11 @@ use crate::{
 use alloc::{string::String, string::ToString};
 
 use super::{
-    DataWriterEntity, ENTITYID_BUILTIN_PUBLISHER,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-    ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_WRITER, TYPE_LOOKUP_REPLY_TOPIC_NAME,
-    TYPE_LOOKUP_REQUEST_TOPIC_NAME, TYPE_LOOKUP_WRITER_QOS,
+    BuiltinDataWriter, ENTITYID_BUILTIN_PUBLISHER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+    ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, ENTITYID_TL_SVC_REPLY_WRITER,
+    ENTITYID_TL_SVC_REQ_WRITER, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+    TYPE_LOOKUP_WRITER_QOS,
 };
 
 fn spdp_writer_qos() -> DataWriterQos {
@@ -71,12 +66,12 @@ fn sedp_data_writer_qos() -> DataWriterQos {
 }
 
 pub(crate) struct BuiltinPublisher {
-    pub dcps_participant_writer: DataWriterEntity<RtpsStatelessWriter>,
-    pub dcps_topics_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub dcps_publications_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub dcps_subscriptions_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub type_lookup_request_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub type_lookup_reply_writer: DataWriterEntity<RtpsStatefulWriter>,
+    pub dcps_participant_writer: BuiltinDataWriter<RtpsStatelessWriter>,
+    pub dcps_topics_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub dcps_publications_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub dcps_subscriptions_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub type_lookup_request_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub type_lookup_reply_writer: BuiltinDataWriter<RtpsStatefulWriter>,
     pub instance_handle: InstanceHandle,
     pub enabled: bool,
 }
@@ -90,14 +85,12 @@ impl BuiltinPublisher {
         for &discovery_locator in &transport.metatraffic_multicast_locator_list {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
-        let dcps_participant_writer = DataWriterEntity::new(
+        let dcps_participant_writer = BuiltinDataWriter::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             dcps_participant_transport_writer,
             String::from(DCPS_PARTICIPANT),
             "SpdpDiscoveredParticipantData".to_string(),
             ParticipantBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
             spdp_writer_qos(),
         );
 
@@ -105,14 +98,12 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
             transport.fragment_size,
         );
-        let dcps_topics_writer = DataWriterEntity::new(
+        let dcps_topics_writer = BuiltinDataWriter::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             dcps_topics_transport_writer,
             String::from(DCPS_TOPIC),
             "DiscoveredTopicData".to_string(),
             TopicBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
             sedp_data_writer_qos(),
         );
 
@@ -120,14 +111,12 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
             transport.fragment_size,
         );
-        let dcps_publications_writer = DataWriterEntity::new(
+        let dcps_publications_writer = BuiltinDataWriter::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             dcps_publications_transport_writer,
             String::from(DCPS_PUBLICATION),
             "DiscoveredWriterData".to_string(),
             PublicationBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
             sedp_data_writer_qos(),
         );
 
@@ -135,14 +124,12 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
             transport.fragment_size,
         );
-        let dcps_subscriptions_writer = DataWriterEntity::new(
+        let dcps_subscriptions_writer = BuiltinDataWriter::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             dcps_subscriptions_transport_writer,
             String::from(DCPS_SUBSCRIPTION),
             "DiscoveredReaderData".to_string(),
             SubscriptionBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
             sedp_data_writer_qos(),
         );
 
@@ -150,14 +137,12 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
             transport.fragment_size,
         );
-        let type_lookup_request_writer = DataWriterEntity::new(
+        let type_lookup_request_writer = BuiltinDataWriter::new(
             InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
             type_lookup_request_transport_writer,
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             String::from(TypeLookupRequest::TYPE.descriptor.name),
             TypeLookupRequest::TYPE,
-            None,
-            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
 
@@ -165,14 +150,12 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER),
             transport.fragment_size,
         );
-        let type_lookup_reply_writer = DataWriterEntity::new(
+        let type_lookup_reply_writer = BuiltinDataWriter::new(
             InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
             type_lookup_reply_transport_writer,
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             String::from(TypeLookupReply::TYPE.descriptor.name),
             TypeLookupReply::TYPE,
-            None,
-            StatusMask::default(),
             TYPE_LOOKUP_WRITER_QOS,
         );
 
@@ -183,7 +166,9 @@ impl BuiltinPublisher {
             dcps_subscriptions_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
-            instance_handle: InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
+            instance_handle: InstanceHandle::new(
+                Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into(),
+            ),
             enabled: false,
         }
     }
@@ -196,7 +181,9 @@ impl BuiltinPublisher {
         self.enabled = true;
     }
 
-    pub fn stateful_data_writer_list_mut(&mut self) -> [&mut DataWriterEntity<RtpsStatefulWriter>; 5] {
+    pub fn stateful_data_writer_list_mut(
+        &mut self,
+    ) -> [&mut BuiltinDataWriter<RtpsStatefulWriter>; 5] {
         [
             &mut self.dcps_topics_writer,
             &mut self.dcps_publications_writer,
@@ -207,7 +194,7 @@ impl BuiltinPublisher {
     }
 
     #[allow(dead_code)]
-    pub fn stateful_data_writer_list(&self) -> [&DataWriterEntity<RtpsStatefulWriter>; 5] {
+    pub fn stateful_data_writer_list(&self) -> [&BuiltinDataWriter<RtpsStatefulWriter>; 5] {
         [
             &self.dcps_topics_writer,
             &self.dcps_publications_writer,

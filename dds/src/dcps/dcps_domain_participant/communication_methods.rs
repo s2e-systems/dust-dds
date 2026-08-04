@@ -430,32 +430,42 @@ impl DcpsDomainParticipant {
                             .user_defined_publisher_list
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
-                            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
                         {
-                            if dw.transport_writer.on_acknack_submessage_received(
-                                ack_nack_submessage,
-                                message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
-                                &runtime.clock(),
-                            )
-                            .is_some()
+                            if dw
+                                .transport_writer
+                                .on_acknack_submessage_received(
+                                    ack_nack_submessage,
+                                    message_receiver.source_guid_prefix(),
+                                    self.transport.message_writer.as_ref(),
+                                    &runtime.clock(),
+                                )
+                                .is_some()
                             {
-                                if let Some(x) = dw.acknowledgement_notification.take()
-                                {
+                                if let Some(x) = dw.acknowledgement_notification.take() {
                                     x.send(());
                                 }
 
-                                if dw.transport_writer.is_change_acknowledged(
-                                    dw.last_change_sequence_number,
-                                ) {
-                                    for n in dw
-                                        .wait_for_acknowledgments_notification
-                                        .drain(..)
-                                    {
+                                if dw
+                                    .transport_writer
+                                    .is_change_acknowledged(dw.last_change_sequence_number)
+                                {
+                                    for n in dw.wait_for_acknowledgments_notification.drain(..) {
                                         n.send(Ok(()));
                                     }
                                 }
                             }
+                        }
+                        for dw in self
+                            .domain_participant
+                            .builtin_publisher
+                            .stateful_data_writer_list_mut()
+                        {
+                            dw.transport_writer.on_acknack_submessage_received(
+                                ack_nack_submessage,
+                                message_receiver.source_guid_prefix(),
+                                self.transport.message_writer.as_ref(),
+                                &runtime.clock(),
+                            );
                         }
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
@@ -464,7 +474,17 @@ impl DcpsDomainParticipant {
                             .user_defined_publisher_list
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
-                            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
+                        {
+                            dw.transport_writer.on_nack_frag_submessage_received(
+                                nack_frag_submessage,
+                                message_receiver.source_guid_prefix(),
+                                self.transport.message_writer.as_ref(),
+                            );
+                        }
+                        for dw in self
+                            .domain_participant
+                            .builtin_publisher
+                            .stateful_data_writer_list_mut()
                         {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
@@ -635,9 +655,17 @@ impl DcpsDomainParticipant {
             .user_defined_publisher_list
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
-            .chain(self.domain_participant.builtin_publisher.stateful_data_writer_list_mut())
         {
-            dw.transport_writer.write_message(self.transport.message_writer.as_ref(), clock);
+            dw.transport_writer
+                .write_message(self.transport.message_writer.as_ref(), clock);
+        }
+        for dw in self
+            .domain_participant
+            .builtin_publisher
+            .stateful_data_writer_list_mut()
+        {
+            dw.transport_writer
+                .write_message(self.transport.message_writer.as_ref(), clock);
         }
     }
 }

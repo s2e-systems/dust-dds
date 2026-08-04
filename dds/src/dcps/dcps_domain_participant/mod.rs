@@ -79,7 +79,6 @@ use crate::{
         type_support::{Type, TypeSupport},
     },
 };
-use builtin_publisher::BuiltinPublisher;
 use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
@@ -87,6 +86,7 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
+use builtin_publisher::BuiltinPublisher;
 use core::{
     future::{Future, poll_fn},
     pin::{Pin, pin},
@@ -101,7 +101,8 @@ const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_IN_TO
 const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
 
 const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
-pub(crate) const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+pub(crate) const ENTITYID_BUILTIN_PUBLISHER: EntityId =
+    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
 
 pub(crate) const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -932,7 +933,7 @@ impl TopicEntity {
 struct PublisherEntity {
     qos: PublisherQos,
     instance_handle: InstanceHandle,
-    data_writer_list: Vec<DataWriterEntity>,
+    data_writer_list: Vec<UserDefinedDataWriter>,
     enabled: bool,
     default_datawriter_qos: DataWriterQos,
     listener_sender: Option<MpscSender<ListenerMail>>,
@@ -943,7 +944,7 @@ impl PublisherEntity {
     const fn new(
         qos: PublisherQos,
         instance_handle: InstanceHandle,
-        data_writer_list: Vec<DataWriterEntity>,
+        data_writer_list: Vec<UserDefinedDataWriter>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
     ) -> Self {
@@ -1026,8 +1027,6 @@ impl RtpsWriter for RtpsStatelessWriter {
     }
 }
 
-
-
 struct RegisteredInstanceInfo {
     instance_handle: InstanceHandle,
     last_write_time: Option<Time>,
@@ -1035,46 +1034,30 @@ struct RegisteredInstanceInfo {
 }
 
 #[derive(Default)]
-struct IncompatibleSubscriptions {
+pub(crate) struct IncompatibleSubscriptions {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
 }
 
-pub(crate) struct DataWriterEntity<T = RtpsStatefulWriter> {
+pub(crate) struct BuiltinDataWriter<T> {
     instance_handle: InstanceHandle,
     transport_writer: T,
     topic_name: String,
     type_name: String,
     type_support: DynamicType<'static>,
-    matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
-    publication_matched_status: PublicationMatchedStatus,
-    incompatible_subscriptions: IncompatibleSubscriptions,
     enabled: bool,
-    status_condition: DcpsStatusCondition,
-    listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: StatusMask,
     last_change_sequence_number: i64,
     qos: DataWriterQos,
     registered_instance_info: Vec<RegisteredInstanceInfo>,
-    offered_deadline_missed_status: OfferedDeadlineMissedStatus,
-    /// Member used for notifying reliable writers which are waiting to send
-    /// their samples without losing data
-    acknowledgement_notification: Option<OneshotSender<()>>,
-    /// Member used to notify the external user which called the
-    /// wait_for_acknowledgments method
-    wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
 }
 
-impl<T: RtpsWriter> DataWriterEntity<T> {
-    #[allow(clippy::too_many_arguments)]
+impl<T: RtpsWriter> BuiltinDataWriter<T> {
     pub(crate) fn new(
         instance_handle: InstanceHandle,
         transport_writer: T,
         topic_name: String,
         type_name: String,
         type_support: DynamicType<'static>,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
         qos: DataWriterQos,
     ) -> Self {
         Self {
@@ -1083,19 +1066,10 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             topic_name,
             type_name,
             type_support,
-            matched_subscription_list: Vec::new(),
-            publication_matched_status: PublicationMatchedStatus::const_default(),
-            incompatible_subscriptions: IncompatibleSubscriptions::default(),
             enabled: false,
-            status_condition: DcpsStatusCondition::default(),
-            listener_sender,
-            listener_mask,
             last_change_sequence_number: 0,
             qos,
             registered_instance_info: Vec::new(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
-            acknowledgement_notification: None,
-            wait_for_acknowledgments_notification: Vec::new(),
         }
     }
 
@@ -1338,6 +1312,70 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         self.transport_writer
             .add_change(cache_change, message_writer, runtime);
         Ok(())
+    }
+}
+
+pub(crate) struct UserDefinedDataWriter {
+    pub(crate) rtps_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
+    pub(crate) listener_mask: StatusMask,
+    pub(crate) status_condition: DcpsStatusCondition,
+    pub(crate) matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
+    pub(crate) publication_matched_status: PublicationMatchedStatus,
+    pub(crate) incompatible_subscriptions: IncompatibleSubscriptions,
+    pub(crate) offered_deadline_missed_status: OfferedDeadlineMissedStatus,
+    /// Member used for notifying reliable writers which are waiting to send
+    /// their samples without losing data
+    pub(crate) acknowledgement_notification: Option<OneshotSender<()>>,
+    /// Member used to notify the external user which called the
+    /// wait_for_acknowledgments method
+    pub(crate) wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
+}
+
+impl core::ops::Deref for UserDefinedDataWriter {
+    type Target = BuiltinDataWriter<RtpsStatefulWriter>;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_writer
+    }
+}
+
+impl core::ops::DerefMut for UserDefinedDataWriter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.rtps_writer
+    }
+}
+
+impl UserDefinedDataWriter {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        instance_handle: InstanceHandle,
+        transport_writer: RtpsStatefulWriter,
+        topic_name: String,
+        type_name: String,
+        type_support: DynamicType<'static>,
+        listener_sender: Option<MpscSender<ListenerMail>>,
+        listener_mask: StatusMask,
+        qos: DataWriterQos,
+    ) -> Self {
+        Self {
+            rtps_writer: BuiltinDataWriter::new(
+                instance_handle,
+                transport_writer,
+                topic_name,
+                type_name,
+                type_support,
+                qos,
+            ),
+            listener_sender,
+            listener_mask,
+            status_condition: DcpsStatusCondition::default(),
+            matched_subscription_list: Vec::new(),
+            publication_matched_status: PublicationMatchedStatus::const_default(),
+            incompatible_subscriptions: IncompatibleSubscriptions::default(),
+            offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
+            acknowledgement_notification: None,
+            wait_for_acknowledgments_notification: Vec::new(),
+        }
     }
 
     fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {

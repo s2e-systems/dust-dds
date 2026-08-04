@@ -20,16 +20,16 @@ use crate::{
             },
         },
         dcps_domain_participant::{
-            BUILT_IN_TOPIC_NAME_LIST, BuiltInKeyHolder, DataReaderEntity, DataWriterEntity,
-            DcpsDomainParticipant, DiscoveredParticipantInfo, DiscoveredTypeRepresentationState,
+            BUILT_IN_TOPIC_NAME_LIST, BuiltInKeyHolder, DataReaderEntity, DcpsDomainParticipant,
+            DiscoveredParticipantInfo, DiscoveredTypeRepresentationState,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
             ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
-            IncompatibleSubscriptions, RtpsReaderKind,
-            TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+            IncompatibleSubscriptions, RtpsReaderKind, TYPE_LOOKUP_REPLY_TOPIC_NAME,
+            TYPE_LOOKUP_REQUEST_TOPIC_NAME, UserDefinedDataWriter,
         },
         listeners::domain_participant_listener::ListenerMail,
     },
@@ -127,7 +127,10 @@ impl DcpsDomainParticipant {
             };
 
             {
-                let w = &mut self.domain_participant.builtin_publisher.dcps_participant_writer;
+                let w = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .dcps_participant_writer;
                 let timestamp = runtime.clock().now();
                 let sample_instance_handle = self.domain_participant.instance_handle;
                 let serialized_data = spdp_discovered_participant_data.into_bytes();
@@ -151,7 +154,10 @@ impl DcpsDomainParticipant {
         if self.domain_participant.enabled {
             let timestamp = runtime.clock().now();
             {
-                let dw = &mut self.domain_participant.builtin_publisher.dcps_participant_writer;
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .dcps_participant_writer;
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
                 let topic_key_data = BuiltInTopicKey {
@@ -344,15 +350,17 @@ impl DcpsDomainParticipant {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-                    for instance in data_writer.registered_instance_info.iter_mut().filter(|x| {
-                        match x.last_write_time {
-                            Some(t) => now - t > deadline,
-                            None => false,
-                        }
-                    }) {
+                    let mut missed_handles = Vec::new();
+                    for instance in data_writer.registered_instance_info.iter_mut() {
                         if let Some(t) = &mut instance.last_write_time {
-                            *t += deadline;
+                            if now - *t > deadline {
+                                *t += deadline;
+                                missed_handles.push(instance.instance_handle);
+                            }
                         }
+                    }
+
+                    for instance_handle in missed_handles {
                         let the_participant = DomainParticipantAsync::new(
                             self.dcps_sender,
                             self.domain_participant.domain_id,
@@ -379,7 +387,7 @@ impl DcpsDomainParticipant {
                         );
                         data_writer
                             .offered_deadline_missed_status
-                            .last_instance_handle = instance.instance_handle;
+                            .last_instance_handle = instance_handle;
                         data_writer.offered_deadline_missed_status.total_count += 1;
                         data_writer
                             .offered_deadline_missed_status
@@ -518,7 +526,10 @@ impl DcpsDomainParticipant {
         };
 
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_publications_writer;
             let now = runtime.clock().now();
             let sample_instance_handle = data_writer.transport_writer.guid().into();
             let serialized_data = discovered_writer_data.into_bytes();
@@ -539,12 +550,15 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, data_writer, runtime))]
     pub(super) fn announce_deleted_data_writer(
         &mut self,
-        data_writer: DataWriterEntity,
+        data_writer: UserDefinedDataWriter,
         runtime: &impl DdsRuntime,
     ) {
         let timestamp = runtime.clock().now();
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_publications_writer;
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
@@ -653,7 +667,10 @@ impl DcpsDomainParticipant {
         };
 
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_subscriptions_writer;
             let now = runtime.clock().now();
             let sample_instance_handle = data_reader.transport_reader.guid().into();
             let serialized_data = discovered_reader_data.into_bytes();
@@ -679,7 +696,10 @@ impl DcpsDomainParticipant {
     ) {
         let timestamp = runtime.clock().now();
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_subscriptions_writer;
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_reader.transport_reader.guid().into(),
@@ -754,11 +774,12 @@ impl DcpsDomainParticipant {
     pub fn process_discovered_readers(&mut self, runtime: &impl DdsRuntime) {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
+                let writer_topic_name = data_writer.topic_name.clone();
                 for discovered_reader_data in self
                     .domain_participant
                     .discovered_reader_list
                     .iter()
-                    .filter(|x| x.dds_subscription_data.topic_name.value == data_writer.topic_name)
+                    .filter(|x| x.dds_subscription_data.topic_name.value == writer_topic_name)
                 {
                     if data_writer
                         .matched_subscription_list
@@ -1094,7 +1115,9 @@ impl DcpsDomainParticipant {
                                         multicast_locator_list,
                                         expects_inline_qos: false,
                                     };
-                                    data_writer.transport_writer.add_matched_reader(reader_proxy);
+                                    data_writer
+                                        .transport_writer
+                                        .add_matched_reader(reader_proxy);
 
                                     if data_writer
                                         .listener_mask
@@ -2640,9 +2663,10 @@ impl DcpsDomainParticipant {
                 for matched_subscription in &data_writer.matched_subscription_list {
                     if matched_subscription.key.value[..12] == prefix {
                         // Remove readers
-                        data_writer.transport_writer
+                        data_writer
+                            .rtps_writer
+                            .transport_writer
                             .delete_matched_reader(matched_subscription.key.value.into());
-
                     }
                 }
                 data_writer
@@ -2698,7 +2722,10 @@ impl DcpsDomainParticipant {
                 expects_inline_qos,
             };
             {
-                let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .dcps_publications_writer;
                 dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
@@ -2707,9 +2734,12 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     fn remove_matched_publications_detector(&mut self, prefix: GuidPrefix) {
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_publications_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-                dw.transport_writer.delete_matched_reader(guid);
+            dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -2812,7 +2842,10 @@ impl DcpsDomainParticipant {
                 expects_inline_qos,
             };
             {
-                let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .dcps_subscriptions_writer;
                 dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
@@ -2821,9 +2854,12 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     fn remove_matched_subscriptions_detector(&mut self, prefix: GuidPrefix) {
         {
-            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_subscriptions_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-                dw.transport_writer.delete_matched_reader(guid);
+            dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -2937,7 +2973,7 @@ impl DcpsDomainParticipant {
         {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-                dw.transport_writer.delete_matched_reader(guid);
+            dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -3038,7 +3074,10 @@ impl DcpsDomainParticipant {
                 expects_inline_qos,
             };
             {
-                let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .type_lookup_request_writer;
                 dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
@@ -3047,9 +3086,12 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_request_data_reader(&mut self, prefix: GuidPrefix) {
         {
-            let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .type_lookup_request_writer;
             let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
-                dw.transport_writer.delete_matched_reader(guid);
+            dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -3146,7 +3188,10 @@ impl DcpsDomainParticipant {
                 expects_inline_qos,
             };
             {
-                let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .type_lookup_reply_writer;
                 dw.transport_writer.add_matched_reader(reader_proxy);
             }
         }
@@ -3155,9 +3200,12 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_reply_data_reader(&mut self, prefix: GuidPrefix) {
         {
-            let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .type_lookup_reply_writer;
             let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
-                dw.transport_writer.delete_matched_reader(guid);
+            dw.transport_writer.delete_matched_reader(guid);
         }
     }
 
@@ -3229,7 +3277,10 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
     ) {
         {
-            let w = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
+            let w = &mut self
+                .domain_participant
+                .builtin_publisher
+                .type_lookup_request_writer;
             let dynamic_data = TypeLookupRequest {
                 header: RequestHeader {
                     request_id: SampleIdentity {

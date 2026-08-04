@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use crate::{
     dcps::{
-        dcps_domain_participant::{DataWriterEntity, DcpsDomainParticipant},
+        dcps_domain_participant::{DcpsDomainParticipant, UserDefinedDataWriter},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
@@ -104,7 +104,7 @@ impl DcpsDomainParticipant {
             self.transport.fragment_size,
         );
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
-        let data_writer = DataWriterEntity::new(
+        let data_writer = UserDefinedDataWriter::new(
             writer_handle,
             transport_writer,
             topic_name,
