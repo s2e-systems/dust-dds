@@ -31,7 +31,7 @@ impl Subscriber {
 /// - `qos` must be a valid pointer to a `DataReaderQos` instance (or null).
 /// - `listener` must be a valid pointer to a `DataReaderListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_create_datareader(
+pub unsafe extern "C" fn DDS_Subscriber_create_datareader(
     subscriber: Option<NonNull<Subscriber>>,
     topic: Option<NonNull<Topic>>,
     qos: *const DataReaderQos,
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn DDS_subscriber_create_datareader(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `datareader` must point to a valid, initialized `DataReader` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_delete_datareader(
+pub unsafe extern "C" fn DDS_Subscriber_delete_datareader(
     subscriber: Option<NonNull<Subscriber>>,
     datareader: Option<NonNull<DataReader>>,
 ) -> ReturnCode {
@@ -132,7 +132,7 @@ pub unsafe extern "C" fn DDS_subscriber_delete_datareader(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_delete_contained_entities(
+pub unsafe extern "C" fn DDS_Subscriber_delete_contained_entities(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
     let Some(subscriber) = subscriber else {
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn DDS_subscriber_delete_contained_entities(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `topic_name` must point to a valid, null-terminated C string.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_lookup_datareader(
+pub unsafe extern "C" fn DDS_Subscriber_lookup_datareader(
     subscriber: Option<NonNull<Subscriber>>,
     topic_name: *const std::os::raw::c_char,
 ) -> Option<NonNull<DataReader>> {
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn DDS_subscriber_lookup_datareader(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_notify_datareaders(
+pub unsafe extern "C" fn DDS_Subscriber_notify_datareaders(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
     let Some(subscriber) = subscriber else {
@@ -202,7 +202,7 @@ pub unsafe extern "C" fn DDS_subscriber_notify_datareaders(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `qos` must be a valid pointer to a `SubscriberQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_set_qos(
+pub unsafe extern "C" fn DDS_Subscriber_set_qos(
     subscriber: Option<NonNull<Subscriber>>,
     qos: *const SubscriberQos,
 ) -> ReturnCode {
@@ -228,7 +228,7 @@ pub unsafe extern "C" fn DDS_subscriber_set_qos(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `qos` must be a valid pointer to a `SubscriberQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_get_qos(
+pub unsafe extern "C" fn DDS_Subscriber_get_qos(
     subscriber: Option<NonNull<Subscriber>>,
     qos: *mut SubscriberQos,
 ) -> ReturnCode {
@@ -255,7 +255,7 @@ pub unsafe extern "C" fn DDS_subscriber_get_qos(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `listener` must be a valid pointer to a `SubscriberListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_set_listener(
+pub unsafe extern "C" fn DDS_Subscriber_set_listener(
     subscriber: Option<NonNull<Subscriber>>,
     listener: *const crate::infrastructure::listeners::SubscriberListener,
     mask: crate::infrastructure::condition::StatusMask,
@@ -290,7 +290,7 @@ pub unsafe extern "C" fn DDS_subscriber_set_listener(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_begin_access(
+pub unsafe extern "C" fn DDS_Subscriber_begin_access(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
     let Some(_) = subscriber else {
@@ -306,7 +306,7 @@ pub unsafe extern "C" fn DDS_subscriber_begin_access(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_end_access(
+pub unsafe extern "C" fn DDS_Subscriber_end_access(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
     let Some(_) = subscriber else {
@@ -322,7 +322,7 @@ pub unsafe extern "C" fn DDS_subscriber_end_access(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_get_participant(
+pub unsafe extern "C" fn DDS_Subscriber_get_participant(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> Option<NonNull<crate::DomainParticipant>> {
     let subscriber = subscriber?;
@@ -340,7 +340,7 @@ pub unsafe extern "C" fn DDS_subscriber_get_participant(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `qos` must be a valid pointer to a `DataReaderQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_set_default_datareader_qos(
+pub unsafe extern "C" fn DDS_Subscriber_set_default_datareader_qos(
     subscriber: Option<NonNull<Subscriber>>,
     qos: *const DataReaderQos,
 ) -> ReturnCode {
@@ -369,7 +369,7 @@ pub unsafe extern "C" fn DDS_subscriber_set_default_datareader_qos(
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 /// - `qos` must be a valid pointer to a `DataReaderQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_get_default_datareader_qos(
+pub unsafe extern "C" fn DDS_Subscriber_get_default_datareader_qos(
     subscriber: Option<NonNull<Subscriber>>,
     qos: *mut DataReaderQos,
 ) -> ReturnCode {
@@ -400,7 +400,7 @@ pub unsafe extern "C" fn DDS_subscriber_get_default_datareader_qos(
 /// - `a_datareader_qos` must be a valid pointer to a `DataReaderQos` instance for writing (or null).
 /// - `a_topic_qos` must be a valid pointer to a `TopicQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_copy_from_topic_qos(
+pub unsafe extern "C" fn DDS_Subscriber_copy_from_topic_qos(
     subscriber: Option<NonNull<Subscriber>>,
     a_datareader_qos: *mut DataReaderQos,
     a_topic_qos: *const TopicQos,
@@ -433,7 +433,7 @@ pub unsafe extern "C" fn DDS_subscriber_copy_from_topic_qos(
 /// The caller must observe the following safety invariants:
 /// - `subscriber` must point to a valid, initialized `Subscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_subscriber_get_datareaders(
+pub unsafe extern "C" fn DDS_Subscriber_get_datareaders(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
     let Some(_) = subscriber else {

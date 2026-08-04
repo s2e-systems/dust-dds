@@ -422,7 +422,7 @@ pub struct TopicBuiltinTopicData {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
+pub unsafe extern "C" fn DDS_Topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
     if !data.name.is_null() {
         unsafe {
             let _ = std::ffi::CString::from_raw(data.name);

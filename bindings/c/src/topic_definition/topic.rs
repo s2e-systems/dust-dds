@@ -18,7 +18,7 @@ impl Topic {
 /// - `topic` must point to a valid, initialized `Topic` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_topic_get_instance_handle(
+pub unsafe extern "C" fn DDS_Topic_get_instance_handle(
     topic: Option<std::ptr::NonNull<Topic>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
 ) -> ReturnCode {

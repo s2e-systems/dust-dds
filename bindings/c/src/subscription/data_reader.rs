@@ -31,7 +31,7 @@ impl DataReader {
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_read(
+pub unsafe extern "C" fn DDS_DataReader_read(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn DDS_datareader_read(
 /// - `sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_take(
+pub unsafe extern "C" fn DDS_DataReader_take(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -162,7 +162,7 @@ pub unsafe extern "C" fn DDS_datareader_take(
 /// - `data_value` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_read_next_sample(
+pub unsafe extern "C" fn DDS_DataReader_read_next_sample(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_value: *mut Option<NonNull<DynamicData>>,
     sample_info: *mut SampleInfo,
@@ -202,7 +202,7 @@ pub unsafe extern "C" fn DDS_datareader_read_next_sample(
 /// - `data_value` must point to a valid, initialized `DynamicData` instance.
 /// - `sample_info` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_take_next_sample(
+pub unsafe extern "C" fn DDS_DataReader_take_next_sample(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_value: *mut Option<NonNull<DynamicData>>,
     sample_info: *mut SampleInfo,
@@ -244,7 +244,7 @@ pub unsafe extern "C" fn DDS_datareader_take_next_sample(
 /// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_read_instance(
+pub unsafe extern "C" fn DDS_DataReader_read_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -314,7 +314,7 @@ pub unsafe extern "C" fn DDS_datareader_read_instance(
 /// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_take_instance(
+pub unsafe extern "C" fn DDS_DataReader_take_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -384,7 +384,7 @@ pub unsafe extern "C" fn DDS_datareader_take_instance(
 /// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_read_next_instance(
+pub unsafe extern "C" fn DDS_DataReader_read_next_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -465,7 +465,7 @@ pub unsafe extern "C" fn DDS_datareader_read_next_instance(
 /// - `previous_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 /// - `received_samples` must be a valid pointer to a `i32` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_take_next_instance(
+pub unsafe extern "C" fn DDS_DataReader_take_next_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     data_values: *mut Option<NonNull<DynamicData>>,
     sample_infos: *mut SampleInfo,
@@ -544,7 +544,7 @@ pub unsafe extern "C" fn DDS_datareader_take_next_instance(
 /// - `_data_values` must point to a valid, initialized `DynamicData` instance.
 /// - `_sample_infos` must be a valid pointer to a `SampleInfo` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_return_loan(
+pub unsafe extern "C" fn DDS_DataReader_return_loan(
     _reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     _data_values: *mut Option<NonNull<DynamicData>>,
     _sample_infos: *mut SampleInfo,
@@ -561,7 +561,7 @@ pub unsafe extern "C" fn DDS_datareader_return_loan(
 /// - `key_holder` must point to a valid, initialized `DynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_get_key_value(
+pub unsafe extern "C" fn DDS_DataReader_get_key_value(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     key_holder: Option<NonNull<DynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -594,7 +594,7 @@ pub unsafe extern "C" fn DDS_datareader_get_key_value(
 /// - `key_holder` must point to a valid, initialized `DynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_lookup_instance(
+pub unsafe extern "C" fn DDS_DataReader_lookup_instance(
     reader: Option<NonNull<crate::subscription::data_reader::DataReader>>,
     key_holder: Option<NonNull<DynamicData>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
@@ -633,7 +633,7 @@ pub unsafe extern "C" fn DDS_datareader_lookup_instance(
 /// The caller must observe the following safety invariants:
 /// - `reader` must point to a valid, initialized `DataReader` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_datareader_get_statuscondition(
+pub unsafe extern "C" fn DDS_DataReader_get_statuscondition(
     reader: Option<NonNull<DataReader>>,
 ) -> Option<NonNull<StatusCondition>> {
     let reader = reader?;

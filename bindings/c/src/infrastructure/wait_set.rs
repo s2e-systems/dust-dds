@@ -43,7 +43,7 @@ impl WaitSet {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_wait_set_new() -> Option<NonNull<WaitSet>> {
+pub unsafe extern "C" fn DDS_WaitSet_new() -> Option<NonNull<WaitSet>> {
     NonNull::new(Box::into_raw(Box::new(WaitSet(
         dust_dds::wait_set::WaitSet::new(),
     ))))
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn DDS_wait_set_new() -> Option<NonNull<WaitSet>> {
 /// The caller must observe the following safety invariants:
 /// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_wait_set_free(
+pub unsafe extern "C" fn DDS_WaitSet_free(
     wait_set: Option<NonNull<WaitSet>>,
 ) -> ReturnCode {
     if let Some(wait_set) = wait_set {
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn DDS_wait_set_free(
 /// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 /// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_wait_set_attach_condition(
+pub unsafe extern "C" fn DDS_WaitSet_attach_condition(
     wait_set: Option<NonNull<WaitSet>>,
     condition: Option<NonNull<StatusCondition>>,
 ) -> ReturnCode {
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn DDS_wait_set_attach_condition(
 /// The caller must observe the following safety invariants:
 /// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_wait_set_wait(
+pub unsafe extern "C" fn DDS_WaitSet_wait(
     wait_set: Option<NonNull<WaitSet>>,
     timeout: Duration,
 ) -> ReturnCode {

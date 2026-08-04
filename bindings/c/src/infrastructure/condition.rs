@@ -83,7 +83,7 @@ pub(crate) fn mask_to_status_kinds(
 /// The caller must observe the following safety invariants:
 /// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_status_condition_set_enabled_statuses(
+pub unsafe extern "C" fn DDS_StatusCondition_set_enabled_statuses(
     condition: Option<NonNull<StatusCondition>>,
     mask: StatusMask,
 ) -> ReturnCode {
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn DDS_status_condition_set_enabled_statuses(
 /// The caller must observe the following safety invariants:
 /// - `condition` must point to a valid, initialized `StatusCondition` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_status_condition_free(
+pub unsafe extern "C" fn DDS_StatusCondition_free(
     condition: Option<NonNull<StatusCondition>>,
 ) -> ReturnCode {
     if let Some(condition) = condition {
