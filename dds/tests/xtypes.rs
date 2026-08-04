@@ -85,9 +85,7 @@ impl DomainParticipantListener for Listener {
         _the_topic: dust_dds::dds_async::topic::TopicAsync,
         _status: dust_dds::infrastructure::status::InconsistentTopicStatus,
     ) -> impl Future<Output = ()> + Send {
-        self.sender
-            .send("on_inconsistent_topic()".to_string())
-            .ok();
+        self.sender.send("on_inconsistent_topic()".to_string()).ok();
         core::future::ready(())
     }
 }
@@ -2737,13 +2735,10 @@ fn xtypes_v2_struct_test_suite_struct_must_understand_1() {
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
-        type_xml,
-        "Test::struct_int32",
-        vec![],
-    )
-    .unwrap()
-    .build();
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_int32", vec![])
+            .unwrap()
+            .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -2812,13 +2807,10 @@ fn xtypes_v2_struct_test_suite_struct_key_1() {
         </types>
     </dds>
     "#;
-    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
-        type_xml,
-        "Test::struct_key_1",
-        vec![],
-    )
-    .unwrap()
-    .build();
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_key_1", vec![])
+            .unwrap()
+            .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -2832,13 +2824,10 @@ fn xtypes_v2_struct_test_suite_struct_key_1() {
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
-        type_xml,
-        "Test::struct_key_2",
-        vec![],
-    )
-    .unwrap()
-    .build();
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_key_2", vec![])
+            .unwrap()
+            .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -3246,13 +3235,10 @@ fn xtypes_v2_union_test_suite_union_final_5_vs_6() {
         </types>
     </dds>
     "#;
-    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
-        type_xml,
-        "Test::union_final_5",
-        vec![],
-    )
-    .unwrap()
-    .build();
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::union_final_5", vec![])
+            .unwrap()
+            .build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
             "test",
@@ -3278,13 +3264,10 @@ fn xtypes_v2_union_test_suite_union_final_5_vs_6() {
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
-        type_xml,
-        "Test::union_final_6",
-        vec![],
-    )
-    .unwrap()
-    .build();
+    let subscriber_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::union_final_6", vec![])
+            .unwrap()
+            .build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",

@@ -888,56 +888,34 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         };
         match member_type.get_kind() {
             TypeKind::NONE => Ok(()),
-            TypeKind::BOOLEAN => dynamic_data.set_boolean_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<bool>()?,
-            ),
+            TypeKind::BOOLEAN => dynamic_data
+                .set_boolean_value(member.get_id(), self.deserialize_primitive_type::<bool>()?),
             TypeKind::BYTE => dynamic_data
                 .set_byte_value(member.get_id(), self.deserialize_primitive_type::<u8>()?),
-            TypeKind::INT16 => dynamic_data.set_int16_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<i16>()?,
-            ),
-            TypeKind::INT32 => dynamic_data.set_int32_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<i32>()?,
-            ),
-            TypeKind::INT64 => dynamic_data.set_int64_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<i64>()?,
-            ),
-            TypeKind::UINT16 => dynamic_data.set_uint16_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<u16>()?,
-            ),
-            TypeKind::UINT32 => dynamic_data.set_uint32_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<u32>()?,
-            ),
-            TypeKind::UINT64 => dynamic_data.set_uint64_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<u64>()?,
-            ),
-            TypeKind::FLOAT32 => dynamic_data.set_float32_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<f32>()?,
-            ),
-            TypeKind::FLOAT64 => dynamic_data.set_float64_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<f64>()?,
-            ),
-            TypeKind::FLOAT128 => dynamic_data.set_float128_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<i128>()?,
-            ),
+            TypeKind::INT16 => dynamic_data
+                .set_int16_value(member.get_id(), self.deserialize_primitive_type::<i16>()?),
+            TypeKind::INT32 => dynamic_data
+                .set_int32_value(member.get_id(), self.deserialize_primitive_type::<i32>()?),
+            TypeKind::INT64 => dynamic_data
+                .set_int64_value(member.get_id(), self.deserialize_primitive_type::<i64>()?),
+            TypeKind::UINT16 => dynamic_data
+                .set_uint16_value(member.get_id(), self.deserialize_primitive_type::<u16>()?),
+            TypeKind::UINT32 => dynamic_data
+                .set_uint32_value(member.get_id(), self.deserialize_primitive_type::<u32>()?),
+            TypeKind::UINT64 => dynamic_data
+                .set_uint64_value(member.get_id(), self.deserialize_primitive_type::<u64>()?),
+            TypeKind::FLOAT32 => dynamic_data
+                .set_float32_value(member.get_id(), self.deserialize_primitive_type::<f32>()?),
+            TypeKind::FLOAT64 => dynamic_data
+                .set_float64_value(member.get_id(), self.deserialize_primitive_type::<f64>()?),
+            TypeKind::FLOAT128 => dynamic_data
+                .set_float128_value(member.get_id(), self.deserialize_primitive_type::<i128>()?),
             TypeKind::INT8 => dynamic_data
                 .set_int8_value(member.get_id(), self.deserialize_primitive_type::<i8>()?),
             TypeKind::UINT8 => dynamic_data
                 .set_uint8_value(member.get_id(), self.deserialize_primitive_type::<u8>()?),
-            TypeKind::CHAR8 => dynamic_data.set_char8_value(
-                member.get_id(),
-                self.deserialize_primitive_type::<char>()?,
-            ),
+            TypeKind::CHAR8 => dynamic_data
+                .set_char8_value(member.get_id(), self.deserialize_primitive_type::<char>()?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
@@ -954,10 +932,8 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::BITMASK => {
                 let bound = member_type.descriptor.bound.first().copied().unwrap_or(32);
                 match bound {
-                    1..=8 => dynamic_data.set_uint8_value(
-                        member.get_id(),
-                        self.deserialize_primitive_type::<u8>()?,
-                    ),
+                    1..=8 => dynamic_data
+                        .set_uint8_value(member.get_id(), self.deserialize_primitive_type::<u8>()?),
                     9..=16 => dynamic_data.set_uint16_value(
                         member.get_id(),
                         self.deserialize_primitive_type::<u16>()?,
@@ -2394,7 +2370,9 @@ mod tests {
         ];
 
         let mut expected = DynamicDataFactory::create_data(dynamic_type);
-        expected.from_xml("<MyBitmaskStruct><bm>3</bm></MyBitmaskStruct>").unwrap();
+        expected
+            .from_xml("<MyBitmaskStruct><bm>3</bm></MyBitmaskStruct>")
+            .unwrap();
 
         let deserialized = deserialize_top_level_type(dynamic_type, &cdr_bytes).unwrap();
         assert_eq!(deserialized, expected);
@@ -2431,7 +2409,7 @@ mod tests {
         let cdr_bytes = vec![
             0x00, 0x01, 0x00, 0x00, // CDR_LE
             0x02, 0x00, 0x00, 0x00, // Discriminator = 2
-            0x80, 0x00,             // x1 = 128 (i16)
+            0x80, 0x00, // x1 = 128 (i16)
         ];
 
         let mut expected = DynamicDataFactory::create_data(dynamic_type);

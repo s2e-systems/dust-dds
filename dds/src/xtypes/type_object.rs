@@ -2854,10 +2854,8 @@ impl CompleteTypeObject {
                     (t1.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
                 let is_t2_appendable =
                     (t2.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
-                let is_t1_mutable =
-                    (t1.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
-                let is_t2_mutable =
-                    (t2.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+                let is_t1_mutable = (t1.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+                let is_t2_mutable = (t2.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
                 if is_t1_final || is_t2_final {
                     if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
@@ -2889,10 +2887,8 @@ impl CompleteTypeObject {
                         {
                             return false;
                         }
-                        members_are_assignable &= m1
-                            .common
-                            .type_id
-                            .is_assignable_from_w_type_consistency(
+                        members_are_assignable &=
+                            m1.common.type_id.is_assignable_from_w_type_consistency(
                                 &m2.common.type_id,
                                 type_consistency,
                             );
@@ -2917,12 +2913,8 @@ impl CompleteTypeObject {
                 },
             ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             (
-                CompleteTypeObject::TkBitmask {
-                    bitmask_type: t1,
-                },
-                CompleteTypeObject::TkBitmask {
-                    bitmask_type: t2,
-                },
+                CompleteTypeObject::TkBitmask { bitmask_type: t1 },
+                CompleteTypeObject::TkBitmask { bitmask_type: t2 },
             ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             _ => false,
         }

@@ -1414,4 +1414,3 @@ fn parse_bitmask_type_and_data_from_xml() {
     assert_eq!(*data.get_uint32_value(0).unwrap(), 2);
     assert_eq!(*data.get_int16_value(1).unwrap(), 128);
 }
-
