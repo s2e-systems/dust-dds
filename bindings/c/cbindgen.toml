@@ -15,3 +15,7 @@ after_includes = """
 #define DUST_DDS_DATAWRITER_QOS_DEFAULT NULL
 #define DUST_DDS_DATAREADER_QOS_DEFAULT NULL
 """
+
+[export]
+prefix = "DDS_"
+

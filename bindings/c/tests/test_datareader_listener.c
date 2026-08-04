@@ -8,7 +8,7 @@ struct MyListenerData {
     int counter;
 };
 
-static void on_data_available(DustDdsDataReader* reader, void* listener_data) {
+static void on_data_available(DDS_DustDdsDataReader* reader, void* listener_data) {
     printf("C on_data_available callback triggered!\n");
     struct MyListenerData* data = (struct MyListenerData*)listener_data;
     data->counter++;
@@ -18,10 +18,10 @@ void setUp(void) {}
 void tearDown(void) {}
 
 void test_datareader_listener_callback(void) {
-    DustDdsDomainParticipantFactory* factory = (DustDdsDomainParticipantFactory*)dds_domain_participant_factory_get_instance();
+    DDS_DustDdsDomainParticipantFactory* factory = (DDS_DustDdsDomainParticipantFactory*)dds_domain_participant_factory_get_instance();
     TEST_ASSERT_NOT_NULL(factory);
 
-    DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
+    DDS_DustDdsDomainParticipant* participant = dds_domain_participant_factory_create_participant(
         factory,
         0,
         DUST_DDS_PARTICIPANT_QOS_DEFAULT,
@@ -31,19 +31,19 @@ void test_datareader_listener_callback(void) {
     TEST_ASSERT_NOT_NULL(participant);
 
     // Create topic
-    DustDdsTopic* topic = dds_domain_participant_create_topic(
+    DDS_DustDdsTopic* topic = dds_domain_participant_create_topic(
         participant,
         "HelloWorldTopic",
         "HelloWorld",
         DUST_DDS_TOPIC_QOS_DEFAULT,
         NULL,
         0,
-        (DustDdsDynamicType*)HelloWorld_get_type()
+        (DDS_DustDdsDynamicType*)HelloWorld_get_type()
     );
     TEST_ASSERT_NOT_NULL(topic);
 
     // Create subscriber
-    DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(
+    DDS_DustDdsSubscriber* subscriber = dds_domain_participant_create_subscriber(
         participant,
         DUST_DDS_SUBSCRIBER_QOS_DEFAULT,
         NULL,
@@ -53,7 +53,7 @@ void test_datareader_listener_callback(void) {
 
     // Set up DataReaderListener
     struct MyListenerData my_data = { 0 };
-    DustDdsDataReaderListener listener = {
+    DDS_DustDdsDataReaderListener listener = {
         .listener_data = &my_data,
         .on_data_available = on_data_available,
         .on_sample_rejected = NULL,
@@ -65,17 +65,17 @@ void test_datareader_listener_callback(void) {
     };
 
     // Create data reader with the listener
-    DustDdsDataReader* reader = dds_subscriber_create_datareader(
+    DDS_DustDdsDataReader* reader = dds_subscriber_create_datareader(
         subscriber,
         topic,
         DUST_DDS_DATAREADER_QOS_DEFAULT,
         &listener,
-        DUST_DDS_STATUS_DATA_AVAILABLE_STATUS
+        DDS_DUST_DDS_STATUS_DATA_AVAILABLE_STATUS
     );
     TEST_ASSERT_NOT_NULL(reader);
 
     // Create publisher
-    DustDdsPublisher* publisher = dds_domain_participant_create_publisher(
+    DDS_DustDdsPublisher* publisher = dds_domain_participant_create_publisher(
         participant,
         DUST_DDS_PUBLISHER_QOS_DEFAULT,
         NULL,
@@ -84,7 +84,7 @@ void test_datareader_listener_callback(void) {
     TEST_ASSERT_NOT_NULL(publisher);
 
     // Create data writer
-    DustDdsDataWriter* writer = dds_publisher_create_datawriter(
+    DDS_DustDdsDataWriter* writer = dds_publisher_create_datawriter(
         publisher,
         topic,
         DUST_DDS_DATAWRITER_QOS_DEFAULT,
@@ -100,8 +100,8 @@ void test_datareader_listener_callback(void) {
     struct HelloWorld sample;
     sample.msg = "Hello Listener!";
     sample.count = 1;
-    ReturnCode result = HelloWorld_dds_datawriter_write(writer, &sample, NULL);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    DDS_ReturnCode result = HelloWorld_dds_datawriter_write(writer, &sample, NULL);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Wait for listener to trigger
     printf("Waiting for listener to trigger...\n");
@@ -117,22 +117,22 @@ void test_datareader_listener_callback(void) {
 
     // Clean up
     result = dds_publisher_delete_datawriter(publisher, writer);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     result = dds_domain_participant_delete_publisher(participant, publisher);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     result = dds_subscriber_delete_datareader(subscriber, reader);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     result = dds_domain_participant_delete_subscriber(participant, subscriber);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     result = dds_domain_participant_delete_topic(participant, topic);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     result = dds_domain_participant_factory_delete_participant(factory, participant);
-    TEST_ASSERT_EQUAL_INT(RETCODE_OK, result);
+    TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 }
 
 int main(void) {
