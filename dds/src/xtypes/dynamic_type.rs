@@ -237,7 +237,8 @@ impl DynamicTypeBuilderFactory {
             if node.is_element()
                 && (node.tag_name().name() == "struct"
                     || node.tag_name().name() == "union"
-                    || node.tag_name().name() == "enum")
+                    || node.tag_name().name() == "enum"
+                    || node.tag_name().name() == "bitmask")
             {
                 if let Some(name) = node.attribute("name") {
                     if &name == struct_name {
@@ -271,6 +272,7 @@ impl DynamicTypeBuilderFactory {
         let target_node = target_node.ok_or(XTypesError::InvalidData)?;
         let is_union = target_node.tag_name().name() == "union";
         let is_enum = target_node.tag_name().name() == "enum";
+        let is_bitmask = target_node.tag_name().name() == "bitmask";
 
         let ext_str = target_node.attribute("extensibility").unwrap_or("final");
         let extensibility_kind = match ext_str {
@@ -375,18 +377,30 @@ impl DynamicTypeBuilderFactory {
         }
 
         let name: &'static str = Box::leak(type_name.to_string().into_boxed_str());
+        let bit_bound: u32 = target_node
+            .attribute("bitBound")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(32);
+        let bound: &'static [u32] = if is_bitmask {
+            Box::leak(vec![bit_bound].into_boxed_slice())
+        } else {
+            &[]
+        };
+
         let descriptor = TypeDescriptor {
             kind: if is_union {
                 TypeKind::UNION
             } else if is_enum {
                 TypeKind::ENUM
+            } else if is_bitmask {
+                TypeKind::BITMASK
             } else {
                 TypeKind::STRUCTURE
             },
             name,
             base_type: None,
             discriminator_type,
-            bound: &[],
+            bound,
             element_type: None,
             key_element_type: None,
             extensibility_kind,
@@ -1704,6 +1718,24 @@ impl<'a> DynamicData<'a> {
             TypeKind::CHAR16 => todo!(),
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM => todo!(),
+            TypeKind::BITMASK => {
+                let bound = self
+                    .r#type
+                    .get_member(0)?
+                    .descriptor
+                    .r#type
+                    .get_descriptor()
+                    .bound
+                    .first()
+                    .copied()
+                    .unwrap_or(32);
+                match bound {
+                    1..=8 => self.set_uint8_value(0, discriminator_label as u8),
+                    9..=16 => self.set_uint16_value(0, discriminator_label as u16),
+                    17..=32 => self.set_uint32_value(0, discriminator_label as u32),
+                    _ => self.set_uint64_value(0, discriminator_label as u64),
+                }
+            }
             _ => Err(XTypesError::InvalidType),
         }
     }
@@ -1815,6 +1847,16 @@ impl<'a> DynamicData<'a> {
             TypeKind::STRING8 | TypeKind::STRING16 => {
                 let val = node.text().unwrap_or("");
                 Ok(DataStorage::String(String::from(val)))
+            }
+            TypeKind::BITMASK => {
+                let bound = r#type.get_descriptor().bound.first().copied().unwrap_or(32);
+                let val = parse_uint(text).map_err(|_| XTypesError::InvalidData)?;
+                match bound {
+                    1..=8 => Ok(DataStorage::UInt8(val as u8)),
+                    9..=16 => Ok(DataStorage::UInt16(val as u16)),
+                    17..=32 => Ok(DataStorage::UInt32(val as u32)),
+                    _ => Ok(DataStorage::UInt64(val)),
+                }
             }
             TypeKind::ENUM => {
                 let enumerator = r#type.get_member_by_name(text)?;

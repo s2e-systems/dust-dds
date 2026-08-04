@@ -2062,6 +2062,25 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                 };
                 CompleteTypeObject::TkEnum { enumerated_type }
             }
+            TypeKind::BITMASK => {
+                let bitmask_flags = TYPE_FLAG_IS_FINAL;
+                let bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
+                let header = CompleteBitmaskHeader {
+                    common: CommonEnumeratedHeader { bit_bound: bound },
+                    detail: CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: String::from(value.descriptor.name),
+                    },
+                };
+                let flag_seq = Vec::new();
+                let bitmask_type = CompleteBitmaskType {
+                    bitmask_flags,
+                    header,
+                    flag_seq,
+                };
+                CompleteTypeObject::TkBitmask { bitmask_type }
+            }
             TypeKind::UNION => {
                 let mut union_flags = match value.descriptor.extensibility_kind {
                     ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
@@ -2176,9 +2195,8 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 }
             }
             TypeKind::ALIAS => todo!(),
-            TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM => {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
@@ -2422,15 +2440,43 @@ impl TypeIdentifier {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType => matches!(other, TypeIdentifier::TkByteType),
-            TypeIdentifier::TkInt8Type => matches!(other, TypeIdentifier::TkInt8Type),
-            TypeIdentifier::TkInt16Type => matches!(other, TypeIdentifier::TkInt16Type),
-            TypeIdentifier::TkInt32Type => matches!(other, TypeIdentifier::TkInt32Type),
-            TypeIdentifier::TkInt64Type => matches!(other, TypeIdentifier::TkInt64Type),
-            TypeIdentifier::TkUint8Type => matches!(other, TypeIdentifier::TkUint8Type),
-            TypeIdentifier::TkUint16Type => matches!(other, TypeIdentifier::TkUint16Type),
-            TypeIdentifier::TkUint32Type => matches!(other, TypeIdentifier::TkUint32Type),
-            TypeIdentifier::TkUint64Type => matches!(other, TypeIdentifier::TkUint64Type),
+            TypeIdentifier::TkByteType | TypeIdentifier::TkInt8Type | TypeIdentifier::TkUint8Type => {
+                matches!(
+                    other,
+                    TypeIdentifier::TkByteType
+                        | TypeIdentifier::TkInt8Type
+                        | TypeIdentifier::TkUint8Type
+                        | TypeIdentifier::EkComplete { .. }
+                        | TypeIdentifier::EkMinimal { .. }
+                )
+            }
+            TypeIdentifier::TkInt16Type | TypeIdentifier::TkUint16Type => {
+                matches!(
+                    other,
+                    TypeIdentifier::TkInt16Type
+                        | TypeIdentifier::TkUint16Type
+                        | TypeIdentifier::EkComplete { .. }
+                        | TypeIdentifier::EkMinimal { .. }
+                )
+            }
+            TypeIdentifier::TkInt32Type | TypeIdentifier::TkUint32Type => {
+                matches!(
+                    other,
+                    TypeIdentifier::TkInt32Type
+                        | TypeIdentifier::TkUint32Type
+                        | TypeIdentifier::EkComplete { .. }
+                        | TypeIdentifier::EkMinimal { .. }
+                )
+            }
+            TypeIdentifier::TkInt64Type | TypeIdentifier::TkUint64Type => {
+                matches!(
+                    other,
+                    TypeIdentifier::TkInt64Type
+                        | TypeIdentifier::TkUint64Type
+                        | TypeIdentifier::EkComplete { .. }
+                        | TypeIdentifier::EkMinimal { .. }
+                )
+            }
             TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
             TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
@@ -2557,8 +2603,32 @@ impl TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
-            TypeIdentifier::EkComplete { .. } => matches!(other, TypeIdentifier::EkComplete { .. }),
-            EkMinimal { .. } => matches!(other, TypeIdentifier::EkMinimal { .. }),
+            TypeIdentifier::EkComplete { .. } => matches!(
+                other,
+                TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::TkByteType
+                    | TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::TkUint64Type
+            ),
+            EkMinimal { .. } => matches!(
+                other,
+                TypeIdentifier::EkMinimal { .. }
+                    | TypeIdentifier::TkByteType
+                    | TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::TkUint64Type
+            ),
             TypeIdentifier::Default { extended_type: _ } => todo!(),
         }
     }
@@ -2617,7 +2687,18 @@ impl CompleteTypeObject {
                         {
                             return false;
                         }
+                        if !m1
+                            .common
+                            .member_type_id
+                            .is_assignable_from_w_type_consistency(
+                                &m2.common.member_type_id,
+                                type_consistency,
+                            )
+                        {
+                            return false;
+                        }
                     }
+                    return true;
                 }
 
                 // • There is at least one member "m1" of T1 and one corresponding member "m2" of T2
@@ -2774,8 +2855,10 @@ impl CompleteTypeObject {
                         {
                             return false;
                         }
-                        members_are_assignable &=
-                            m1.common.type_id.is_assignable_from_w_type_consistency(
+                        members_are_assignable &= m1
+                            .common
+                            .type_id
+                            .is_assignable_from_w_type_consistency(
                                 &m2.common.type_id,
                                 type_consistency,
                             );
@@ -2797,6 +2880,14 @@ impl CompleteTypeObject {
                 },
                 CompleteTypeObject::TkEnum {
                     enumerated_type: t2,
+                },
+            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
+            (
+                CompleteTypeObject::TkBitmask {
+                    bitmask_type: t1,
+                },
+                CompleteTypeObject::TkBitmask {
+                    bitmask_type: t2,
                 },
             ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             _ => false,

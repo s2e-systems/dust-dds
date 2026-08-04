@@ -2860,6 +2860,166 @@ fn xtypes_v2_struct_test_suite_struct_key_1() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'union_uint32_bitmask32': {
+///     'common_args': [''],
+///     'apps': ['pub-exe -P -t test --type-folder types --type-file unions         -y Test::union_uint32    --data-folder data --data-file union_uint32',
+///              'sub-exe -S -t test --type-folder types --type-file unions_bitmask -y Test::union_bitmask32 --data-folder data --data-file union_bitmask'],
+///     'expected_codes': [ReturnCode.OK, ReturnCode.OK],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between union_uint32 and union_bitmask32',
+///     'description' : 'Verifies unions with strongly-assignable discriminator types communicate:\n\n'
+///                     ' * Publisher uses `union_uint32` (appendable) from `unions`.\n'
+///                     ' * Subscriber uses `union_bitmask32` (appendable) from `unions_bitmask`.\n'
+///                     ' * Publisher discriminator is `uint32`.\n'
+///                     ' * Subscriber discriminator is `bitmask` with `bitBound=32`.\n'
+///                     ' * A 32-bit bitmask is strongly assignable from `uint32`.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xtypes_v2_union_test_suite_union_uint32_bitmask32() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let publisher_type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <union name="union_uint32" extensibility="appendable">
+                    <discriminator type="uint32"/>
+                    <case><caseDiscriminator value="2"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="1"/><member name="x2" type="int32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        publisher_type_xml,
+        "Test::union_uint32",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_uint32",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <bitmask name="B_32" bitBound="32">
+                    <flag name="B_FLAG_1" value="0"/>
+                    <flag name="B_FLAG_2" value="1"/>
+                    <flag name="B_FLAG_3" value="2"/>
+                </bitmask>
+                <union name="union_bitmask32" extensibility="appendable">
+                    <discriminator type="nonBasic" nonBasicTypeName="B_32"/>
+                    <case><caseDiscriminator value="2"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="1"/><member name="x2" type="int32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        subscriber_type_xml,
+        "Test::union_bitmask32",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_bitmask32",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<union_primitives>
+            <discriminator>0x02</discriminator>
+            <x1>128</x1>
+        </union_primitives>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<union_bitmask>
+            <discriminator>2</discriminator>
+            <x1>128</x1>
+        </union_bitmask>",
+        )
+        .unwrap();
+    let sample = reader.read_next_sample().unwrap();
+    assert!(sample.sample_info.valid_data);
+    assert_eq!(sample.data.unwrap(), expected_received);
+}
+
 /// 'tryc_enum_1' : {
 ///     'common_args' : ['--type-folder types --type-file try_construct'],
 ///     'apps' : ['pub-exe -P -t test -y Test::struct_enum_1 --data-folder data --data-file tryconstruct/enum_val3',
