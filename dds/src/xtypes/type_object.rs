@@ -2667,7 +2667,34 @@ impl CompleteTypeObject {
 
                 // • Members for which both optional is false and must_understand is true in either T1 or T2 appear
                 //   (i.e., have a corresponding member of the same member ID) in both T1 and T2.
-                // TODO
+                for m1 in &t1.member_seq {
+                    let is_optional = (m1.common.member_flags.0 & MEMBER_FLAG_IS_OPTIONAL.0) != 0;
+                    let is_must_understand =
+                        (m1.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0) != 0;
+                    if !is_optional
+                        && is_must_understand
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_optional = (m2.common.member_flags.0 & MEMBER_FLAG_IS_OPTIONAL.0) != 0;
+                    let is_must_understand =
+                        (m2.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0) != 0;
+                    if !is_optional
+                        && is_must_understand
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        return false;
+                    }
+                }
 
                 // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
                 //   member ID) in both T1 and T2.

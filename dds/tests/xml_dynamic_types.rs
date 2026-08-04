@@ -1341,3 +1341,31 @@ fn data_union_seq_int32x20_from_xml() {
         ]
     );
 }
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn parse_must_understand_attribute_from_xml() {
+    let type_xml = r#"<dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_mustUnderstand" extensibility="appendable">
+                    <member name="x1" type="int32"/>
+                    <member name="x2" mustUnderstand="true" type="int32"/>
+                </struct>
+            </module>
+        </types>
+    </dds>"#;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_mustUnderstand",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member_x1 = dynamic_type.get_member_by_name("x1").unwrap();
+    assert!(!member_x1.descriptor.is_must_understand);
+
+    let member_x2 = dynamic_type.get_member_by_name("x2").unwrap();
+    assert!(member_x2.descriptor.is_must_understand);
+}

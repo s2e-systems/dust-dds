@@ -2550,6 +2550,101 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'struct_mustUnderstand_1': {
+///     'common_args': ['--type-folder types --type-file struct_w_mustunderstand'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_mustUnderstand --data-folder data --data-file struct_num_x1_x2',
+///              'sub-exe -S -t test -y Test::struct_int32 --data-folder data --data-file struct_num_x1'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_mustUnderstand and struct_int32',
+///     'description' : 'Verifies subscriber cannot ignore a `@must_understand` member from the publisher:\n\n'
+///                     ' * Publisher uses `struct_mustUnderstand` from `struct_w_mustunderstand`.\n'
+///                     ' * Subscriber uses `struct_int32` from `struct_w_mustunderstand`.\n'
+///                     ' * Publisher\'s `struct_mustUnderstand` has member `x2` annotated with `@must_understand`.\n'
+///                     ' * Subscriber\'s `struct_int32` only has `x1`.\n'
+///                     ' * A non-optional `@must_understand` member must appear in both types.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_struct_test_suite_struct_must_understand_1() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_mustUnderstand"   extensibility="appendable">
+                    <member name="x1"                       type="int32"/>
+                    <member name="x2" mustUnderstand="true" type="int32"/>
+                </struct>
+                <struct name="struct_int32"   extensibility="appendable">
+                    <member name="x1" type="int32"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_mustUnderstand",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_mustUnderstand",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_int32",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_int32",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
+
 /// 'tryc_enum_1' : {
 ///     'common_args' : ['--type-folder types --type-file try_construct'],
 ///     'apps' : ['pub-exe -P -t test -y Test::struct_enum_1 --data-folder data --data-file tryconstruct/enum_val3',

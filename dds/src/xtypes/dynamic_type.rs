@@ -583,7 +583,8 @@ impl DynamicTypeBuilderFactory {
                         try_construct_kind,
                         is_key: child.attribute("key") == Some("true"),
                         is_optional: child.attribute("optional") == Some("true"),
-                        is_must_understand: false,
+                        is_must_understand: child.attribute("mustUnderstand") == Some("true")
+                            || child.attribute("must_understand") == Some("true"),
                         is_shared: false,
                         is_default_label: false,
                         is_external: false,
