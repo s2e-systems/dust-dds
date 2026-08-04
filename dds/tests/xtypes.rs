@@ -2871,6 +2871,175 @@ fn xtypes_v2_struct_test_suite_struct_key_1() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'struct_key_union_1': {
+///     'common_args': ['--type-folder types --type-file struct_names'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_key_union_1 --data-folder data --data-file struct_key_union',
+///              'sub-exe -S -t test -y Test::struct_key_union_2 --data-folder data --data-file struct_key_union'],
+///     'expected_codes': [ReturnCode.OK, ReturnCode.OK],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between struct_key_union_1 and struct_key_union_2',
+///     'description' : 'Verifies `@key` union member where subscriber union has additional case:\n\n'
+///                     ' * Publisher uses `struct_key_union_1` from `struct_names`.\n'
+///                     ' * Subscriber uses `struct_key_union_2` from `struct_names`.\n'
+///                     ' * Both have `@key` union member `x1`.\n'
+///                     ' * Publisher uses `u_1` (cases 1,2), subscriber uses `u_2` (cases 1,2,3).\n'
+///                     ' * Subscriber union is a superset.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xtypes_v2_struct_test_suite_struct_key_union_1() {
+    let (sender, receiver) = channel();
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::PublicationMatched],
+        )
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <union name="u_1" extensibility="mutable">
+                    <discriminator type="uint8"/>
+                    <case><caseDiscriminator value="1"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="2"/><member name="x2" type="int32"/></case>
+                </union>
+                <union name="u_2" extensibility="mutable">
+                    <discriminator type="uint8"/>
+                    <case><caseDiscriminator value="1"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="2"/><member name="x2" type="int32"/></case>
+                    <case><caseDiscriminator value="3"/><member name="x3" type="int64"/></case>
+                </union>
+                <struct name="struct_key_union_1" extensibility="mutable">
+                    <member name="x1" key="true" type="nonBasic" nonBasicTypeName="u_1"/>
+                </struct>
+                <struct name="struct_key_union_2" extensibility="mutable">
+                    <member name="x1" key="true" type="nonBasic" nonBasicTypeName="u_2"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_key_union_1",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_key_union_1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::SubscriptionMatched],
+        )
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_key_union_2",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_key_union_2",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    assert!(matches!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap()
+            .as_str(),
+        "on_publication_matched()" | "on_subscription_matched()"
+    ));
+    assert!(matches!(
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap()
+            .as_str(),
+        "on_publication_matched()" | "on_subscription_matched()"
+    ));
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct_key_union>
+            <x1>
+                <discriminator>0x01</discriminator>
+                <x1>1234</x1>
+            </x1>
+        </struct_key_union>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<struct_key_union>
+                <x1>
+                    <discriminator>0x01</discriminator>
+                    <x1>1234</x1>
+                </x1>
+            </struct_key_union>",
+        )
+        .unwrap();
+    let sample = reader.read_next_sample().unwrap();
+    assert!(sample.sample_info.valid_data);
+    assert_eq!(sample.data.unwrap(), expected_received);
+}
+
 /// 'union_uint32_bitmask32': {
 ///     'common_args': [''],
 ///     'apps': ['pub-exe -P -t test --type-folder types --type-file unions         -y Test::union_uint32    --data-folder data --data-file union_uint32',
