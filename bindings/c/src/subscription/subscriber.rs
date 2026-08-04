@@ -3,9 +3,9 @@ use std::ptr::NonNull;
 use dust_dds::xtypes::dynamic_type::DynamicData;
 
 use crate::{
-    CDataReaderListenerWrapper, DataReaderQos, DataReader, DataReaderListener,
-    StatusMask, Topic, RETCODE_BAD_PARAMETER, RETCODE_OK, RETCODE_UNSUPPORTED,
-    ReturnCode, SubscriberQos, TopicQos,
+    CDataReaderListenerWrapper, DataReader, DataReaderListener, DataReaderQos,
+    RETCODE_BAD_PARAMETER, RETCODE_OK, RETCODE_UNSUPPORTED, ReturnCode, StatusMask, SubscriberQos,
+    Topic, TopicQos,
 };
 
 /// cbindgen:opaque
@@ -327,9 +327,9 @@ pub unsafe extern "C" fn DDS_Subscriber_get_participant(
 ) -> Option<NonNull<crate::DomainParticipant>> {
     let subscriber = subscriber?;
     let participant = unsafe { subscriber.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(
-        crate::DomainParticipant::new(participant),
-    )))
+    NonNull::new(Box::into_raw(Box::new(crate::DomainParticipant::new(
+        participant,
+    ))))
 }
 
 /// Sets the default DataReaderQos.

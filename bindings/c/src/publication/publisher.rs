@@ -3,8 +3,7 @@ use std::ptr::NonNull;
 use dust_dds::xtypes::dynamic_type::DynamicData;
 
 use crate::{
-    CDataWriterListenerWrapper, DataWriter, DataWriterListener, StatusMask,
-    Topic,
+    CDataWriterListenerWrapper, DataWriter, DataWriterListener, StatusMask, Topic,
     infrastructure::{
         error::{RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode},
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -352,9 +351,9 @@ pub unsafe extern "C" fn DDS_Publisher_get_participant(
 ) -> Option<NonNull<crate::DomainParticipant>> {
     let publisher = publisher?;
     let participant = unsafe { publisher.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(
-        crate::DomainParticipant::new(participant),
-    )))
+    NonNull::new(Box::into_raw(Box::new(crate::DomainParticipant::new(
+        participant,
+    ))))
 }
 
 /// Sets the default DataWriterQos.

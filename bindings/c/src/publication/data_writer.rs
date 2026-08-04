@@ -18,7 +18,9 @@ impl DataWriter {
         Self(data_writer)
     }
 
-    pub fn inner(&self) -> &dust_dds::publication::data_writer::DataWriter<RustDynamicData<'static>> {
+    pub fn inner(
+        &self,
+    ) -> &dust_dds::publication::data_writer::DataWriter<RustDynamicData<'static>> {
         &self.0
     }
 }
@@ -418,9 +420,7 @@ pub unsafe extern "C" fn DDS_DataWriter_get_statuscondition(
 
     let writer_ref = unsafe { writer.as_ref() };
     let condition = writer_ref.inner().get_statuscondition();
-    NonNull::new(Box::into_raw(Box::new(StatusCondition::new(
-        condition,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(StatusCondition::new(condition))))
 }
 
 /// Waits for all acknowledged samples.

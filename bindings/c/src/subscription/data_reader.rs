@@ -1,6 +1,4 @@
-use crate::{
-    DynamicData, StatusCondition, RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode,
-};
+use crate::{DynamicData, RETCODE_BAD_PARAMETER, RETCODE_OK, ReturnCode, StatusCondition};
 use dust_dds::xtypes::dynamic_type::DynamicData as RustDynamicData;
 use std::ptr::NonNull;
 
@@ -16,7 +14,9 @@ impl DataReader {
         Self(data_reader)
     }
 
-    pub fn inner(&self) -> &dust_dds::subscription::data_reader::DataReader<RustDynamicData<'static>> {
+    pub fn inner(
+        &self,
+    ) -> &dust_dds::subscription::data_reader::DataReader<RustDynamicData<'static>> {
         &self.0
     }
 }
@@ -640,9 +640,7 @@ pub unsafe extern "C" fn DDS_DataReader_get_statuscondition(
 
     let reader_ref = unsafe { reader.as_ref() };
     let condition = reader_ref.inner().get_statuscondition();
-    NonNull::new(Box::into_raw(Box::new(StatusCondition::new(
-        condition,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(StatusCondition::new(condition))))
 }
 
 pub type SampleStateMask = u32;

@@ -466,9 +466,8 @@ impl<'a> CGenerator<'a> {
             ));
             self.writer.push_str("                };\n");
 
-            self.writer.push_str(
-                "                DDS_DynamicTypeBuilder_add_member(builder, &member);\n",
-            );
+            self.writer
+                .push_str("                DDS_DynamicTypeBuilder_add_member(builder, &member);\n");
             if needs_type_var {
                 self.writer
                     .push_str("                DDS_DynamicType_free(member_type);\n");

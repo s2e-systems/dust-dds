@@ -1,11 +1,10 @@
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-    LifespanQosPolicy, LivelinessQosPolicy, OctetSeq, OwnershipQosPolicy,
-    OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-    ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, StringSeq,
-    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy, DDS_octet_seq_free, DDS_String_seq_free,
+    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+    PartitionQosPolicy, PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
 
 #[repr(C)]
@@ -296,8 +295,7 @@ impl From<dust_dds::infrastructure::qos::SubscriberQos> for SubscriberQos {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DomainParticipantFactory_qos_default() -> DomainParticipantFactoryQos
-{
+pub unsafe extern "C" fn DDS_DomainParticipantFactory_qos_default() -> DomainParticipantFactoryQos {
     DomainParticipantFactoryQos::default()
 }
 /// # Safety
@@ -341,93 +339,4 @@ pub unsafe extern "C" fn DDS_DataWriter_qos_default() -> DataWriterQos {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_DataReader_qos_default() -> DataReaderQos {
     DataReaderQos::default()
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `_qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DomainParticipantFactory_qos_cleanup(
-    _qos: *mut DomainParticipantFactoryQos,
-) {
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `DomainParticipantQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DomainParticipant_qos_cleanup(qos: *mut DomainParticipantQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe { DDS_octet_seq_free(q.user_data.value) };
-        q.user_data.value = OctetSeq::default();
-    }
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `PublisherQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_Publisher_qos_cleanup(qos: *mut PublisherQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe {
-            DDS_String_seq_free(q.partition.name);
-            DDS_octet_seq_free(q.group_data.value);
-        }
-        q.partition.name = StringSeq::default();
-        q.group_data.value = OctetSeq::default();
-    }
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `SubscriberQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_Subscriber_qos_cleanup(qos: *mut SubscriberQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe {
-            DDS_String_seq_free(q.partition.name);
-            DDS_octet_seq_free(q.group_data.value);
-        }
-        q.partition.name = StringSeq::default();
-        q.group_data.value = OctetSeq::default();
-    }
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `TopicQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_Topic_qos_cleanup(qos: *mut TopicQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe { DDS_octet_seq_free(q.topic_data.value) };
-        q.topic_data.value = OctetSeq::default();
-    }
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `DataWriterQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DataWriter_qos_cleanup(qos: *mut DataWriterQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe { DDS_octet_seq_free(q.user_data.value) };
-        q.user_data.value = OctetSeq::default();
-    }
-}
-/// # Safety
-///
-/// The caller must observe the following safety invariants:
-/// - `qos` must be a valid pointer to a `DataReaderQos` instance for writing (or null).
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DataReader_qos_cleanup(qos: *mut DataReaderQos) {
-    if !qos.is_null() {
-        let q = unsafe { &mut *qos };
-        unsafe { DDS_octet_seq_free(q.user_data.value) };
-        q.user_data.value = OctetSeq::default();
-    }
 }

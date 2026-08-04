@@ -25,8 +25,7 @@ pub struct DomainParticipantFactory(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn DDS_DomainParticipantFactory_get_instance()
 -> *const DomainParticipantFactory {
-    static INSTANCE: std::sync::OnceLock<DomainParticipantFactory> =
-        std::sync::OnceLock::new();
+    static INSTANCE: std::sync::OnceLock<DomainParticipantFactory> = std::sync::OnceLock::new();
     INSTANCE.get_or_init(|| {
         DomainParticipantFactory(
             dust_dds::domain::domain_participant_factory::DomainParticipantFactory::get_instance(),
@@ -35,7 +34,7 @@ pub unsafe extern "C" fn DDS_DomainParticipantFactory_get_instance()
 }
 
 /// Creates a new DomainParticipant object.
-/// Passing NULL (`DUST_DDS_PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Passing NULL (`PARTICIPANT_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to DomainParticipant on success, or NULL on failure.
 ///
 /// # Safety
@@ -82,9 +81,9 @@ pub unsafe extern "C" fn DDS_DomainParticipantFactory_create_participant(
     };
 
     match result {
-        Ok(participant) => NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(
-            participant,
-        )))),
+        Ok(participant) => {
+            NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(participant))))
+        }
         Err(_) => None,
     }
 }
@@ -138,9 +137,9 @@ pub unsafe extern "C" fn DDS_DomainParticipantFactory_lookup_participant(
     let factory = factory?;
 
     match unsafe { factory.as_ref() }.0.lookup_participant(domain_id) {
-        Ok(Some(participant)) => NonNull::new(Box::into_raw(Box::new(
-            DomainParticipant::new(participant),
-        ))),
+        Ok(Some(participant)) => {
+            NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(participant))))
+        }
         _ => None,
     }
 }
@@ -392,9 +391,8 @@ mod tests {
         };
         assert_eq!(result, RETCODE_OK);
 
-        let result = unsafe {
-            DDS_DomainParticipantFactory_set_qos(NonNull::new(factory as *mut _), &qos)
-        };
+        let result =
+            unsafe { DDS_DomainParticipantFactory_set_qos(NonNull::new(factory as *mut _), &qos) };
         assert_eq!(result, RETCODE_OK);
 
         let default_qos = unsafe { DDS_DomainParticipantFactory_qos_default() };

@@ -36,9 +36,7 @@ pub unsafe extern "C" fn DDS_DynamicData_create(
         return None;
     }
     let dynamic_data = DynamicDataFactory::create_data(*unsafe { &*r#type }.inner());
-    NonNull::new(Box::into_raw(Box::new(DynamicData::new(
-        dynamic_data,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DynamicData::new(dynamic_data))))
 }
 
 /// Frees a DynamicData instance.

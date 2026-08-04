@@ -19,16 +19,14 @@ use crate::{
     publication::publisher::Publisher,
     subscription::subscriber::Subscriber,
     topic_definition::{
-        content_filtered_topic::ContentFilteredTopic, dynamic_type::DynamicType,
-        topic::Topic, topic_description::TopicDescription,
+        content_filtered_topic::ContentFilteredTopic, dynamic_type::DynamicType, topic::Topic,
+        topic_description::TopicDescription,
     },
 };
 use dust_dds::infrastructure::qos::QosKind;
 
 /// cbindgen:opaque
-pub struct DomainParticipant(
-    pub(crate) dust_dds::domain::domain_participant::DomainParticipant,
-);
+pub struct DomainParticipant(pub(crate) dust_dds::domain::domain_participant::DomainParticipant);
 
 impl DomainParticipant {
     pub fn new(dp: dust_dds::domain::domain_participant::DomainParticipant) -> Self {
@@ -41,7 +39,7 @@ impl DomainParticipant {
 }
 
 /// Creates a new Publisher object.
-/// Passing NULL (`DUST_DDS_PUBLISHER_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Passing NULL (`PUBLISHER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to Publisher on success, or NULL on failure.
 ///
 /// # Safety
@@ -127,7 +125,7 @@ pub unsafe extern "C" fn DDS_DomainParticipant_delete_publisher(
 }
 
 /// Creates a new Subscriber object.
-/// Passing NULL (`DUST_DDS_SUBSCRIBER_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Passing NULL (`SUBSCRIBER_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to Subscriber on success, or NULL on failure.
 ///
 /// # Safety
@@ -230,7 +228,7 @@ pub unsafe extern "C" fn DDS_DomainParticipant_get_builtin_subscriber(
 }
 
 /// Creates a new Topic object.
-/// Passing NULL (`DUST_DDS_TOPIC_QOS_DEFAULT`) for `qos` represents the default QoS.
+/// Passing NULL (`TOPIC_QOS_DEFAULT`) for `qos` represents the default QoS.
 /// Returns a raw pointer to Topic on success, or NULL on failure.
 ///
 /// # Safety
@@ -394,9 +392,7 @@ pub unsafe extern "C" fn DDS_DomainParticipant_lookup_topicdescription(
         .inner()
         .lookup_topicdescription(name_str)
     {
-        Ok(Some(td)) => NonNull::new(Box::into_raw(Box::new(TopicDescription::new(
-            Box::new(td),
-        )))),
+        Ok(Some(td)) => NonNull::new(Box::into_raw(Box::new(TopicDescription::new(Box::new(td))))),
         _ => None,
     }
 }
@@ -445,9 +441,7 @@ pub unsafe extern "C" fn DDS_DomainParticipant_create_contentfilteredtopic(
         filter_expression_str.to_string(),
         expression_parameters_vec,
     ) {
-        Ok(cft) => NonNull::new(Box::into_raw(Box::new(ContentFilteredTopic::new(
-            cft,
-        )))),
+        Ok(cft) => NonNull::new(Box::into_raw(Box::new(ContentFilteredTopic::new(cft)))),
         Err(_) => None,
     }
 }
@@ -1166,8 +1160,7 @@ mod tests {
     use super::*;
     use crate::domain::domain_participant_factory::{
         DDS_DomainParticipantFactory_create_participant,
-        DDS_DomainParticipantFactory_delete_participant,
-        DDS_DomainParticipantFactory_get_instance,
+        DDS_DomainParticipantFactory_delete_participant, DDS_DomainParticipantFactory_get_instance,
     };
     use crate::infrastructure::qos::{DDS_Publisher_qos_default, DDS_Subscriber_qos_default};
 
@@ -1262,9 +1255,9 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            MemberDescriptor, TYPE_KIND_INT32, DDS_DynamicTypeBuilder_add_member,
-            DDS_DynamicTypeBuilder_build, DDS_DynamicTypeBuilder_create_struct,
             DDS_DynamicType_free, DDS_DynamicType_get_primitive_type,
+            DDS_DynamicTypeBuilder_add_member, DDS_DynamicTypeBuilder_build,
+            DDS_DynamicTypeBuilder_create_struct, MemberDescriptor, TYPE_KIND_INT32,
         };
 
         let factory = unsafe { DDS_DomainParticipantFactory_get_instance() };

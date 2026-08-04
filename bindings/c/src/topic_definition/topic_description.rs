@@ -33,9 +33,7 @@ pub unsafe extern "C" fn DDS_TopicDescription_get_participant(
 ) -> Option<NonNull<DomainParticipant>> {
     let topic_desc = topic_desc?;
     let participant = unsafe { topic_desc.as_ref() }.inner().get_participant();
-    NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(
-        participant,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DomainParticipant::new(participant))))
 }
 
 /// Gets the type name.

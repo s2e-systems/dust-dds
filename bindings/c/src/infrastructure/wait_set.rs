@@ -56,9 +56,7 @@ pub unsafe extern "C" fn DDS_WaitSet_new() -> Option<NonNull<WaitSet>> {
 /// The caller must observe the following safety invariants:
 /// - `wait_set` must point to a valid, initialized `WaitSet` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_WaitSet_free(
-    wait_set: Option<NonNull<WaitSet>>,
-) -> ReturnCode {
+pub unsafe extern "C" fn DDS_WaitSet_free(wait_set: Option<NonNull<WaitSet>>) -> ReturnCode {
     if let Some(wait_set) = wait_set {
         unsafe {
             drop(Box::from_raw(wait_set.as_ptr()));

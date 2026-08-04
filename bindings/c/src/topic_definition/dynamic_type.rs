@@ -1,7 +1,8 @@
 use crate::infrastructure::error::{RETCODE_BAD_PARAMETER, RETCODE_ERROR, RETCODE_OK, ReturnCode};
 use dust_dds::xtypes::dynamic_type::{
-    DynamicType as RustDynamicType, DynamicTypeBuilder as RustDynamicTypeBuilder, DynamicTypeBuilderFactory, ExtensibilityKind,
-    MemberDescriptor as RustMemberDescriptor, TryConstructKind, TypeDescriptor as RustTypeDescriptor, TypeKind,
+    DynamicType as RustDynamicType, DynamicTypeBuilder as RustDynamicTypeBuilder,
+    DynamicTypeBuilderFactory, ExtensibilityKind, MemberDescriptor as RustMemberDescriptor,
+    TryConstructKind, TypeDescriptor as RustTypeDescriptor, TypeKind,
 };
 use std::ptr::NonNull;
 
@@ -219,9 +220,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilderFactory_create_type(
     };
 
     let builder = DynamicTypeBuilderFactory::create_type(type_desc);
-    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(
-        builder,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(builder))))
 }
 
 // Compile-time static instances of DynamicType for standard primitive types
@@ -280,9 +279,7 @@ pub unsafe extern "C" fn DDS_DynamicType_create_string_type(
 ) -> Option<NonNull<DynamicType>> {
     let builder = DynamicTypeBuilderFactory::create_string_type(bound);
     let dynamic_type = builder.build();
-    NonNull::new(Box::into_raw(Box::new(DynamicType::new(
-        dynamic_type,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DynamicType::new(dynamic_type))))
 }
 
 /// Frees a DynamicType object.
@@ -345,9 +342,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilder_create_struct(
         is_nested: false,
     };
     let builder = DynamicTypeBuilderFactory::create_type(descriptor);
-    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(
-        builder,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(builder))))
 }
 
 /// Adds a member described by `descriptor` to a structure being built.
@@ -417,9 +412,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilder_build(
     let builder = builder?;
     let builder_val = unsafe { *Box::from_raw(builder.as_ptr()) };
     let dynamic_type = builder_val.0.build();
-    NonNull::new(Box::into_raw(Box::new(DynamicType::new(
-        dynamic_type,
-    ))))
+    NonNull::new(Box::into_raw(Box::new(DynamicType::new(dynamic_type))))
 }
 
 /// Frees a DynamicTypeBuilder object.
@@ -429,9 +422,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilder_build(
 /// The caller must observe the following safety invariants:
 /// - `builder` must point to a valid, initialized `DynamicTypeBuilder` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn DDS_DynamicTypeBuilder_free(
-    builder: Option<NonNull<DynamicTypeBuilder>>,
-) {
+pub unsafe extern "C" fn DDS_DynamicTypeBuilder_free(builder: Option<NonNull<DynamicTypeBuilder>>) {
     if let Some(b) = builder {
         unsafe {
             drop(Box::from_raw(b.as_ptr()));
