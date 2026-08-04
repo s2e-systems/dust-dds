@@ -129,15 +129,15 @@ void test_hello_world_write_read(void) {
 
     // Test register_instance and lookup_instance
     DDS_InstanceHandle_t handle;
-    result = DDS_HelloWorldDataWriter_register_instance(writer, &sample, &handle);
+    result = HelloWorldDataWriter_register_instance(writer, &sample, &handle);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     DDS_InstanceHandle_t lookup_handle;
-    result = DDS_HelloWorldDataWriter_lookup_instance(writer, &sample, &lookup_handle);
+    result = HelloWorldDataWriter_lookup_instance(writer, &sample, &lookup_handle);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
     TEST_ASSERT_EQUAL_MEMORY(handle, lookup_handle, sizeof(DDS_InstanceHandle_t));
 
-    result = DDS_HelloWorldDataWriter_write(writer, &sample, &handle);
+    result = HelloWorldDataWriter_write(writer, &sample, &handle);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Wait for data to be available on reader
@@ -151,7 +151,7 @@ void test_hello_world_write_read(void) {
     // Read the sample
     struct HelloWorld data_values[1];
     int32_t received_samples = 0;
-    result = DDS_HelloWorldDataReader_read(reader, data_values, NULL, 1, DDS_ANY_SAMPLE_STATE, DDS_ANY_VIEW_STATE, DDS_ANY_INSTANCE_STATE, &received_samples);
+    result = HelloWorldDataReader_read(reader, data_values, NULL, 1, DDS_ANY_SAMPLE_STATE, DDS_ANY_VIEW_STATE, DDS_ANY_INSTANCE_STATE, &received_samples);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
     TEST_ASSERT_EQUAL_INT(1, received_samples);
     TEST_ASSERT_EQUAL_STRING("Hello from C bindings!", data_values[0].msg);
@@ -161,7 +161,7 @@ void test_hello_world_write_read(void) {
     HelloWorld_free_sample(&data_values[0]);
 
     // Test unregister_instance now that reading is done
-    result = DDS_HelloWorldDataWriter_unregister_instance(writer, &sample, &handle);
+    result = HelloWorldDataWriter_unregister_instance(writer, &sample, &handle);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
 
