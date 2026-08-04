@@ -126,18 +126,6 @@ fn serialize_primitive_slice<'a, E: EndiannessWrite, V: EncodingVersion>(
     }
 }
 
-fn get_discriminator_id_as_i32(v: &DynamicData) -> XTypesResult<i32> {
-    Ok(match v.get_value(0)? {
-        crate::xtypes::data_storage::DataStorage::UInt8(x) => *x as i32,
-        crate::xtypes::data_storage::DataStorage::Int8(x) => *x as i32,
-        crate::xtypes::data_storage::DataStorage::UInt16(x) => *x as i32,
-        crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
-        crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
-        crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
-        _ => return Err(XTypesError::InvalidType),
-    })
-}
-
 // Serialization of types defined in the XTypes standard.
 // The definitions follow the order and nomenclature of Table 40 – Symbols and notation used in the serialization virtual machine
 // defined in the DDS-XTypes, version 1.3 - 7.4.3.5.1 Notation used for the match criteria
@@ -352,6 +340,26 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         Ok(())
     }
 
+    /// Serialization Rule { M: FMEMBER }
+    fn serialize_fmember(&mut self, v: &DynamicData, member_id: u32) -> XTypesResult<()> {
+        let dynamic_type = v.r#type();
+        if dynamic_type.get_member(member_id)?.descriptor.is_optional {
+            V::serialize_opt_fmember(self, v, member_id)
+        } else {
+            self.serialize_nopt_fmember(v, member_id)
+        }
+    }
+
+    /// Serialization Rule { O.selected_member : MMEMBER }?
+    fn serialize_selected_member_mmember(&mut self, v: &DynamicData) -> XTypesResult<()> {
+        // In the case a a Variant without value only the discriminant is serialized
+        if let Ok(member_id) = v.get_member_id_at_index(1) {
+            V::serialize_mmember(self, v, member_id)
+        } else {
+            Ok(())
+        }
+    }
+
     /// Serialization Rule (1)
     ///
     /// XCDR << {O : TOP_LEVEL_TYPE} =
@@ -469,14 +477,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
 
         for field_index in 0..dynamic_type.get_member_count() {
             let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
-
-            if let Ok(member) = dynamic_type.get_member(member_id) {
-                if member.descriptor.is_optional {
-                    V::serialize_opt_fmember(self, v, member_id)?;
-                } else {
-                    self.serialize_nopt_fmember(v, member_id)?;
-                }
-            }
+            self.serialize_fmember(v, member_id)?;
         }
         Ok(())
     }
@@ -508,17 +509,11 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     fn serialize_funion_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
         self.serialize_nopt_fmember(v, 0)?;
 
-        // The discriminator value represents the id of a member
-        let disc_id = get_discriminator_id_as_i32(v)?;
-        let dynamic_type = v.r#type();
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            if member.descriptor.label.contains(&disc_id) {
-                let member_id = member.get_id();
-                return self.serialize_nopt_fmember(v, member_id);
-            }
+        if let Ok(member_id) = v.get_member_id_at_index(1) {
+            self.serialize_fmember(v, member_id)
+        } else {
+            Ok(())
         }
-        Err(XTypesError::InvalidType)
     }
 }
 
@@ -860,20 +855,8 @@ impl EncodingVersion for EncodingVersion1 {
         serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
     ) -> Result<(), XTypesError> {
-        // disc:
         Self::serialize_mmember(serializer, v, 0)?;
-
-        // The discriminator value represents the id of a member
-        let disc_id = get_discriminator_id_as_i32(v)?;
-        let dynamic_type = v.r#type();
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            if member.descriptor.label.contains(&disc_id) {
-                let member_id = member.get_id();
-                Self::serialize_mmember(serializer, v, member_id)?;
-                break;
-            }
-        }
+        serializer.serialize_selected_member_mmember(v)?;
         // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
         Self::align(serializer, 4);
         serializer.serialize_primitive_type(&PID_SENTINEL);
@@ -1049,20 +1032,8 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
     ) -> Result<(), XTypesError> {
         let dheader = Dheader::new(serializer);
-        // disc:
         Self::serialize_mmember(dheader.serializer, v, 0)?;
-
-        // The discriminator value represents the id of a member
-        let disc_id = get_discriminator_id_as_i32(v)?;
-        let dynamic_type = v.r#type();
-        for member_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(member_index)?;
-            if member.descriptor.label.contains(&disc_id) {
-                let member_id = member.get_id();
-                Self::serialize_mmember(dheader.serializer, v, member_id)?;
-            }
-        }
-
+        dheader.serializer.serialize_selected_member_mmember(v)?;
         dheader.write_header();
         Ok(())
     }
@@ -2420,6 +2391,88 @@ mod tests {
                 0, 0, 0, 0, // dependent_typeid_count
                 4, 0, 0, 0, // Sequence DHEADER
                 0, 0, 0, 0, // Sequence length
+            ]
+        );
+    }
+
+    #[cfg(feature = "xtypes-xml")]
+    #[test]
+    fn union_sequence() {
+        use crate::xtypes::dynamic_type;
+
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <union name="union_seq_int32x20"> <discriminator type="uint32" />
+                        <case><caseDiscriminator value="1" /><member name="x1"   type="int32" sequenceMaxLength="20" /></case>
+                    </union>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let dynamic_type = dynamic_type::DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::union_seq_int32x20",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut data = dynamic_type::DynamicDataFactory::create_data(dynamic_type);
+        data.from_xml(
+            "<struct>
+                <x1>
+                    <item>1</item>
+                    <item>2</item>
+                    <item>3</item>
+                    <item>4</item>
+                    <item>5</item>
+                    <item>6</item>
+                    <item>7</item>
+                    <item>8</item>
+                    <item>9</item>
+                    <item>10</item>
+                    <item>11</item>
+                    <item>12</item>
+                    <item>13</item>
+                    <item>14</item>
+                    <item>15</item>
+                    <item>16</item>
+                    <item>17</item>
+                    <item>18</item>
+                    <item>19</item>
+                    <item>20</item>
+                </x1>
+            </struct>",
+        )
+        .unwrap();
+        assert_eq!(
+            serialize_cdr2_be(&data).unwrap(),
+            vec![
+                0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                0, 0, 0, 1, // discriminant (u32)
+                0, 0, 0, 20, // Length
+                0, 0, 0, 1, // i32
+                0, 0, 0, 2, // i32
+                0, 0, 0, 3, // i32
+                0, 0, 0, 4, // i32
+                0, 0, 0, 5, // i32
+                0, 0, 0, 6, // i32
+                0, 0, 0, 7, // i32
+                0, 0, 0, 8, // i32
+                0, 0, 0, 9, // i32
+                0, 0, 0, 10, // i32
+                0, 0, 0, 11, // i32
+                0, 0, 0, 12, // i32
+                0, 0, 0, 13, // i32
+                0, 0, 0, 14, // i32
+                0, 0, 0, 15, // i32
+                0, 0, 0, 16, // i32
+                0, 0, 0, 17, // i32
+                0, 0, 0, 18, // i32
+                0, 0, 0, 19, // i32
+                0, 0, 0, 20, // i32
             ]
         );
     }

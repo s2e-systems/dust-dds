@@ -73,7 +73,16 @@ impl Sleep {
 
     #[tracing::instrument]
     pub fn reset(&mut self) {
-        self.deadline = Some(Instant::now() + self.duration);
+        self.deadline = Some(
+            Instant::now()
+                .checked_add(self.duration)
+                .unwrap_or_else(|| {
+                    // Fallback to a day sleep if duration is extremely large
+                    Instant::now()
+                        .checked_add(Duration::from_secs(24 * 60 * 60))
+                        .unwrap_or_else(Instant::now)
+                }),
+        );
     }
 }
 
@@ -250,5 +259,24 @@ impl TimerDriver {
         TimerHandle {
             inner: self.inner.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reset_overflow() {
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut sleep = Sleep {
+            id: 1,
+            deadline: None,
+            duration: Duration::MAX,
+            periodic_task_sender: tx,
+        };
+        // This should not panic
+        sleep.reset();
+        assert!(sleep.deadline.is_some());
     }
 }
