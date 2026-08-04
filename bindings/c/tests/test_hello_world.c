@@ -87,7 +87,7 @@ void test_hello_world_write_read(void)
     // Set up Status Conditions and Wait Sets for Discovery
     DDS_StatusCondition *writer_cond = DDS_DataWriter_get_statuscondition(writer);
     TEST_ASSERT_NOT_NULL(writer_cond);
-    DDS_ReturnCode result = DDS_StatusCondition_set_enabled_statuses(writer_cond, DDS_DDS_PUBLICATION_MATCHED_STATUS);
+    DDS_ReturnCode result = DDS_StatusCondition_set_enabled_statuses(writer_cond, DDS_PUBLICATION_MATCHED_STATUS);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     DDS_WaitSet *wait_set_pub = DDS_WaitSet_new();
@@ -97,7 +97,7 @@ void test_hello_world_write_read(void)
 
     DDS_StatusCondition *reader_cond = DDS_DataReader_get_statuscondition(reader);
     TEST_ASSERT_NOT_NULL(reader_cond);
-    result = DDS_StatusCondition_set_enabled_statuses(reader_cond, DDS_DDS_SUBSCRIPTION_MATCHED_STATUS);
+    result = DDS_StatusCondition_set_enabled_statuses(reader_cond, DDS_SUBSCRIPTION_MATCHED_STATUS);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     DDS_WaitSet *wait_set_sub = DDS_WaitSet_new();
@@ -134,7 +134,7 @@ void test_hello_world_write_read(void)
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Wait for data to be available on reader
-    result = DDS_StatusCondition_set_enabled_statuses(reader_cond, DDS_DDS_DATA_AVAILABLE_STATUS);
+    result = DDS_StatusCondition_set_enabled_statuses(reader_cond, DDS_DATA_AVAILABLE_STATUS);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     printf("Waiting for data...\n");
