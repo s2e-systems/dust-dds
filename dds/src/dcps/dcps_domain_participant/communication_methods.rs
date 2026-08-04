@@ -425,66 +425,61 @@ impl DcpsDomainParticipant {
                         }
                     }
                     RtpsSubmessageReadKind::AckNack(ack_nack_submessage) => {
-                        for publisher in self
+                        for dw in self
                             .domain_participant
                             .user_defined_publisher_list
                             .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_publisher,
-                            ))
+                            .flat_map(|p| p.data_writer_list.iter_mut())
+                            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
                         {
-                            for dw in &mut publisher.data_writer_list {
-                                match &mut dw.transport_writer {
-                                    RtpsWriterKind::Stateful(w) => {
-                                        if w.on_acknack_submessage_received(
-                                            ack_nack_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            self.transport.message_writer.as_ref(),
-                                            &runtime.clock(),
-                                        )
-                                        .is_some()
+                            match &mut dw.transport_writer {
+                                RtpsWriterKind::Stateful(w) => {
+                                    if w.on_acknack_submessage_received(
+                                        ack_nack_submessage,
+                                        message_receiver.source_guid_prefix(),
+                                        self.transport.message_writer.as_ref(),
+                                        &runtime.clock(),
+                                    )
+                                    .is_some()
+                                    {
+                                        if let Some(x) = dw.acknowledgement_notification.take()
                                         {
-                                            if let Some(x) = dw.acknowledgement_notification.take()
-                                            {
-                                                x.send(());
-                                            }
+                                            x.send(());
+                                        }
 
-                                            if w.is_change_acknowledged(
-                                                dw.last_change_sequence_number,
-                                            ) {
-                                                for n in dw
-                                                    .wait_for_acknowledgments_notification
-                                                    .drain(..)
-                                                {
-                                                    n.send(Ok(()));
-                                                }
+                                        if w.is_change_acknowledged(
+                                            dw.last_change_sequence_number,
+                                        ) {
+                                            for n in dw
+                                                .wait_for_acknowledgments_notification
+                                                .drain(..)
+                                            {
+                                                n.send(Ok(()));
                                             }
                                         }
                                     }
-                                    RtpsWriterKind::Stateless(_) => (),
                                 }
+                                RtpsWriterKind::Stateless(_) => (),
                             }
                         }
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
-                        for publisher in self
+                        for dw in self
                             .domain_participant
                             .user_defined_publisher_list
                             .iter_mut()
-                            .chain(core::iter::once(
-                                &mut self.domain_participant.builtin_publisher,
-                            ))
+                            .flat_map(|p| p.data_writer_list.iter_mut())
+                            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
                         {
-                            for dw in &mut publisher.data_writer_list {
-                                match &mut dw.transport_writer {
-                                    RtpsWriterKind::Stateful(w) => w
-                                        .on_nack_frag_submessage_received(
-                                            nack_frag_submessage,
-                                            message_receiver.source_guid_prefix(),
-                                            self.transport.message_writer.as_ref(),
-                                        ),
-                                    RtpsWriterKind::Stateless(_) => (),
+                            match &mut dw.transport_writer {
+                                RtpsWriterKind::Stateful(w) => {
+                                    w.on_nack_frag_submessage_received(
+                                        nack_frag_submessage,
+                                        message_receiver.source_guid_prefix(),
+                                        self.transport.message_writer.as_ref(),
+                                    );
                                 }
+                                RtpsWriterKind::Stateless(_) => (),
                             }
                         }
                     }
@@ -645,21 +640,18 @@ impl DcpsDomainParticipant {
     }
 
     pub fn poke(&mut self, clock: &impl Clock) {
-        for publisher in self
+        for dw in self
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
-            .chain(core::iter::once(
-                &mut self.domain_participant.builtin_publisher,
-            ))
+            .flat_map(|p| p.data_writer_list.iter_mut())
+            .chain(self.domain_participant.builtin_publisher.data_writer_list_mut())
         {
-            for dw in &mut publisher.data_writer_list {
-                match &mut dw.transport_writer {
-                    RtpsWriterKind::Stateful(writer) => {
-                        writer.write_message(self.transport.message_writer.as_ref(), clock)
-                    }
-                    RtpsWriterKind::Stateless(_writer) => {}
+            match &mut dw.transport_writer {
+                RtpsWriterKind::Stateful(writer) => {
+                    writer.write_message(self.transport.message_writer.as_ref(), clock)
                 }
+                RtpsWriterKind::Stateless(_writer) => {}
             }
         }
     }

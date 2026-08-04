@@ -678,10 +678,7 @@ impl DcpsDomainParticipant {
             for t in &mut self.domain_participant.locally_created_topic_list {
                 t.enabled = true;
             }
-            for dw in &mut self.domain_participant.builtin_publisher.data_writer_list {
-                dw.enabled = true;
-            }
-            self.domain_participant.builtin_publisher.enabled = true;
+            self.domain_participant.builtin_publisher.enable();
 
             for dr in &mut self.domain_participant.builtin_subscriber.data_reader_list {
                 dr.enabled = true;

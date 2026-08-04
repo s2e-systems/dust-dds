@@ -291,18 +291,28 @@ impl DcpsDomainParticipant {
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
         let now = runtime.clock().now();
-        let Some(publisher) = core::iter::once(&mut self.domain_participant.builtin_publisher)
-            .chain(&mut self.domain_participant.user_defined_publisher_list)
-            .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
+        let data_writer = if publisher_handle == &self.domain_participant.builtin_publisher.instance_handle {
+            self.domain_participant
+                .builtin_publisher
+                .data_writer_list_mut()
+                .into_iter()
+                .find(|x| &x.instance_handle == data_writer_handle)
+        } else {
+            let Some(publisher) = self
+                .domain_participant
+                .user_defined_publisher_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == publisher_handle)
+            else {
+                reply_sender.send(Err(DdsError::AlreadyDeleted));
+                return;
+            };
+            publisher
+                .data_writer_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == data_writer_handle)
         };
-        let Some(data_writer) = publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_writer_handle)
-        else {
+        let Some(data_writer) = data_writer else {
             reply_sender.send(Err(DdsError::AlreadyDeleted));
             return;
         };

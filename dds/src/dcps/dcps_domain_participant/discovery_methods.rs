@@ -126,13 +126,8 @@ impl DcpsDomainParticipant {
                     .collect(),
             };
 
-            if let Some(w) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
+                let w = &mut self.domain_participant.builtin_publisher.dcps_participant_writer;
                 let timestamp = runtime.clock().now();
                 let sample_instance_handle = self.domain_participant.instance_handle;
                 let serialized_data = spdp_discovered_participant_data.into_bytes();
@@ -155,13 +150,8 @@ impl DcpsDomainParticipant {
     pub fn announce_deleted_participant(&mut self, runtime: &impl DdsRuntime) {
         if self.domain_participant.enabled {
             let timestamp = runtime.clock().now();
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|x| x.topic_name == DCPS_PARTICIPANT)
             {
+                let dw = &mut self.domain_participant.builtin_publisher.dcps_participant_writer;
                 let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
                 let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
                 let topic_key_data = BuiltInTopicKey {
@@ -527,13 +517,8 @@ impl DcpsDomainParticipant {
             writer_proxy,
         };
 
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
             let now = runtime.clock().now();
             let sample_instance_handle = data_writer.transport_writer.guid().into();
             let serialized_data = discovered_writer_data.into_bytes();
@@ -558,13 +543,8 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
     ) {
         let timestamp = runtime.clock().now();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_PUBLICATION)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
@@ -672,13 +652,8 @@ impl DcpsDomainParticipant {
             reader_proxy,
         };
 
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
             let now = runtime.clock().now();
             let sample_instance_handle = data_reader.transport_reader.guid().into();
             let serialized_data = discovered_reader_data.into_bytes();
@@ -703,13 +678,8 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
     ) {
         let timestamp = runtime.clock().now();
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_SUBSCRIPTION)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
             let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_reader.transport_reader.guid().into(),
@@ -761,13 +731,8 @@ impl DcpsDomainParticipant {
             },
         };
 
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == DCPS_TOPIC)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
             let sample_instance_handle = topic.instance_handle;
             let serialized_data = discovered_topic_data.into_bytes();
             let now = runtime.clock().now();
@@ -944,15 +909,10 @@ impl DcpsDomainParticipant {
                                     }
                                 } else {
                                     let should_request = {
-                                        let Some(type_request_writer) = self
+                                        let type_request_writer = &mut self
                                             .domain_participant
                                             .builtin_publisher
-                                            .data_writer_list
-                                            .iter_mut()
-                                            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
-                                        else {
-                                            return;
-                                        };
+                                            .type_lookup_request_writer;
 
                                         let type_lookup_request = TypeLookupRequest {
                                             header: RequestHeader {
@@ -1527,15 +1487,10 @@ impl DcpsDomainParticipant {
                                     }
                                 } else {
                                     let should_request = {
-                                        let Some(type_request_writer) = self
+                                        let type_request_writer = &mut self
                                             .domain_participant
                                             .builtin_publisher
-                                            .data_writer_list
-                                            .iter_mut()
-                                            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
-                                        else {
-                                            return;
-                                        };
+                                            .type_lookup_request_writer;
 
                                         let type_lookup_request = TypeLookupRequest {
                                             header: RequestHeader {
@@ -2195,13 +2150,11 @@ impl DcpsDomainParticipant {
                                                 == type_id
                                         })
                                     {
-                                        if let Some(type_lookup_reply_writer) = self
-                                            .domain_participant
-                                            .builtin_publisher
-                                            .data_writer_list
-                                            .iter_mut()
-                                            .find(|x| x.topic_name == TYPE_LOOKUP_REPLY_TOPIC_NAME)
                                         {
+                                            let type_lookup_reply_writer = &mut self
+                                                .domain_participant
+                                                .builtin_publisher
+                                                .type_lookup_reply_writer;
                                             let type_lookup_reply = TypeLookupReply {
                                                 header: ReplyHeader {
                                                     related_request_id: type_lookup_request.header.request_id.clone(),
@@ -2510,15 +2463,10 @@ impl DcpsDomainParticipant {
                         )
                     {
                         let should_request = {
-                            let Some(type_request_writer) = self
+                            let type_request_writer = &mut self
                                 .domain_participant
                                 .builtin_publisher
-                                .data_writer_list
-                                .iter_mut()
-                                .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
-                            else {
-                                break;
-                            };
+                                .type_lookup_request_writer;
 
                             let type_lookup_request = TypeLookupRequest {
                                 header: RequestHeader {
@@ -2756,16 +2704,8 @@ impl DcpsDomainParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|dw| {
-                    dw.transport_writer.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
-                })
             {
+                let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
@@ -2776,16 +2716,8 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_publications_detector(&mut self, prefix: GuidPrefix) {
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|dw| {
-                dw.transport_writer.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER
-            })
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_publications_writer;
             if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
                 w.delete_matched_reader(guid);
@@ -2891,16 +2823,8 @@ impl DcpsDomainParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|dw| {
-                    dw.transport_writer.guid().entity_id()
-                        == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
-                })
             {
+                let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
@@ -2911,16 +2835,8 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_subscriptions_detector(&mut self, prefix: GuidPrefix) {
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|dw| {
-                dw.transport_writer.guid().entity_id()
-                    == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER
-            })
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_subscriptions_writer;
             if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
                 w.delete_matched_reader(guid);
@@ -3026,15 +2942,8 @@ impl DcpsDomainParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|dw| {
-                    dw.transport_writer.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
-                })
             {
+                let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
@@ -3045,15 +2954,8 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_topics_detector(&mut self, prefix: GuidPrefix) {
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|dw| {
-                dw.transport_writer.guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
-            })
         {
+            let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
             if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
                 w.delete_matched_reader(guid);
@@ -3157,13 +3059,8 @@ impl DcpsDomainParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REQ_WRITER)
             {
+                let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
@@ -3174,13 +3071,8 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_request_data_reader(&mut self, prefix: GuidPrefix) {
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REQ_WRITER)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
             if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
                 w.delete_matched_reader(guid);
@@ -3280,13 +3172,8 @@ impl DcpsDomainParticipant {
                     .to_vec(),
                 expects_inline_qos,
             };
-            if let Some(dw) = self
-                .domain_participant
-                .builtin_publisher
-                .data_writer_list
-                .iter_mut()
-                .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REPLY_WRITER)
             {
+                let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
                 match &mut dw.transport_writer {
                     RtpsWriterKind::Stateful(w) => w.add_matched_reader(reader_proxy),
                     RtpsWriterKind::Stateless(_) => panic!("Invalid built-in writer type"),
@@ -3297,13 +3184,8 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     fn remove_matched_service_reply_data_reader(&mut self, prefix: GuidPrefix) {
-        if let Some(dw) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|dw| dw.transport_writer.guid().entity_id() == ENTITYID_TL_SVC_REPLY_WRITER)
         {
+            let dw = &mut self.domain_participant.builtin_publisher.type_lookup_reply_writer;
             if let RtpsWriterKind::Stateful(w) = &mut dw.transport_writer {
                 let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
                 w.delete_matched_reader(guid);
@@ -3378,13 +3260,8 @@ impl DcpsDomainParticipant {
         type_ids: Vec<TypeIdentifier>,
         runtime: &impl DdsRuntime,
     ) {
-        if let Some(w) = self
-            .domain_participant
-            .builtin_publisher
-            .data_writer_list
-            .iter_mut()
-            .find(|x| x.topic_name == TYPE_LOOKUP_REQUEST_TOPIC_NAME)
         {
+            let w = &mut self.domain_participant.builtin_publisher.type_lookup_request_writer;
             let dynamic_data = TypeLookupRequest {
                 header: RequestHeader {
                     request_id: SampleIdentity {

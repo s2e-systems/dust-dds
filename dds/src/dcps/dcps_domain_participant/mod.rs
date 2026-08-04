@@ -1,3 +1,4 @@
+mod builtin_publisher;
 mod communication_methods;
 mod discovery_methods;
 mod participant_methods;
@@ -78,6 +79,7 @@ use crate::{
         type_support::{Type, TypeSupport},
     },
 };
+use builtin_publisher::BuiltinPublisher;
 use alloc::{
     boxed::Box,
     collections::{BTreeSet, VecDeque},
@@ -99,27 +101,27 @@ const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_IN_TO
 const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
 
 const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
-const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+pub(crate) const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
 
-const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+pub(crate) const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
-const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
+pub(crate) const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
-const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
+pub(crate) const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
-const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
+pub(crate) const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
@@ -127,20 +129,20 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
 
 // XTypes Table 61 – Built-in Endpoints added by the XTYPES specification
 
-const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
+pub(crate) const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
     EntityId::new([0x00, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
 
 const ENTITYID_TL_SVC_REQ_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
 
-const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
+pub(crate) const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
 
 const ENTITYID_TL_SVC_REPLY_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
-const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
-const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
+pub(crate) const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
+pub(crate) const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
 
 const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
     durability: DurabilityQosPolicy {
@@ -190,40 +192,6 @@ const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
-fn spdp_writer_qos() -> DataWriterQos {
-    DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-        },
-        representation: DataRepresentationQosPolicy::const_default(),
-        ..Default::default()
-    }
-}
-
-fn sedp_data_writer_qos() -> DataWriterQos {
-    DataWriterQos {
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepLast(1),
-        },
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(0, 0)),
-        },
-        representation: DataRepresentationQosPolicy::const_default(),
-        ..Default::default()
-    }
-}
-
 // DDS RPC default QoS as specified in DDS-RPC standard 7.10.2 Default QoS
 const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
     durability: DurabilityQosPolicy {
@@ -249,7 +217,7 @@ const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
-const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
+pub(crate) const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     durability: DurabilityQosPolicy {
         kind: DurabilityQosPolicyKind::Volatile,
     },
@@ -337,7 +305,6 @@ impl DcpsDomainParticipant {
         const NUMBER_BUILTIN_ENTITIES: usize = 6;
         let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
         let mut builtin_data_reader_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
-        let mut builtin_data_writer_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
 
         topic_list.push(TopicEntity::new(
             TopicQos::default(),
@@ -507,114 +474,7 @@ impl DcpsDomainParticipant {
             StatusMask::default(),
         );
 
-        let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
-            guid_prefix,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-        ));
-        for &discovery_locator in &transport.metatraffic_multicast_locator_list {
-            dcps_participant_transport_writer.reader_locator_add(discovery_locator);
-        }
-        let dcps_participant_writer = DataWriterEntity::new(
-            InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
-            RtpsWriterKind::Stateless(dcps_participant_transport_writer),
-            String::from(DCPS_PARTICIPANT),
-            "SpdpDiscoveredParticipantData".to_string(),
-            ParticipantBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            spdp_writer_qos(),
-        );
-        builtin_data_writer_list.push(dcps_participant_writer);
-
-        let dcps_topics_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-            transport.fragment_size,
-        );
-
-        let dcps_topics_writer = DataWriterEntity::new(
-            InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
-            RtpsWriterKind::Stateful(dcps_topics_transport_writer),
-            String::from(DCPS_TOPIC),
-            "DiscoveredTopicData".to_string(),
-            TopicBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            sedp_data_writer_qos(),
-        );
-        builtin_data_writer_list.push(dcps_topics_writer);
-
-        let dcps_publications_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-            transport.fragment_size,
-        );
-
-        let dcps_publications_writer = DataWriterEntity::new(
-            InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
-            RtpsWriterKind::Stateful(dcps_publications_transport_writer),
-            String::from(DCPS_PUBLICATION),
-            "DiscoveredWriterData".to_string(),
-            PublicationBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            sedp_data_writer_qos(),
-        );
-        builtin_data_writer_list.push(dcps_publications_writer);
-
-        let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-            transport.fragment_size,
-        );
-        let dcps_subscriptions_writer = DataWriterEntity::new(
-            InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
-            RtpsWriterKind::Stateful(dcps_subscriptions_transport_writer),
-            String::from(DCPS_SUBSCRIPTION),
-            "DiscoveredReaderData".to_string(),
-            SubscriptionBuiltinTopicData::TYPE,
-            None,
-            StatusMask::default(),
-            sedp_data_writer_qos(),
-        );
-        builtin_data_writer_list.push(dcps_subscriptions_writer);
-
-        let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
-            transport.fragment_size,
-        );
-        let type_lookup_request_writer = DataWriterEntity::new(
-            InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
-            RtpsWriterKind::Stateful(type_lookup_request_transport_writer),
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
-            String::from(TypeLookupRequest::TYPE.descriptor.name),
-            TypeLookupRequest::TYPE,
-            None,
-            StatusMask::default(),
-            TYPE_LOOKUP_WRITER_QOS,
-        );
-        builtin_data_writer_list.push(type_lookup_request_writer);
-
-        let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER),
-            transport.fragment_size,
-        );
-        let type_lookup_reply_writer = DataWriterEntity::new(
-            InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
-            RtpsWriterKind::Stateful(type_lookup_reply_transport_writer),
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
-            String::from(TypeLookupReply::TYPE.descriptor.name),
-            TypeLookupReply::TYPE,
-            None,
-            StatusMask::default(),
-            TYPE_LOOKUP_WRITER_QOS,
-        );
-        builtin_data_writer_list.push(type_lookup_reply_writer);
-
-        let builtin_publisher = PublisherEntity::new(
-            PublisherQos::default(),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into()),
-            builtin_data_writer_list,
-            None,
-            StatusMask::default(),
-        );
+        let builtin_publisher = BuiltinPublisher::new(guid_prefix, &transport);
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,
@@ -739,7 +599,7 @@ struct DomainParticipantEntity {
     instance_handle: InstanceHandle,
     qos: DomainParticipantQos,
     builtin_subscriber: SubscriberEntity,
-    builtin_publisher: PublisherEntity,
+    builtin_publisher: BuiltinPublisher,
     user_defined_subscriber_list: Vec<SubscriberEntity>,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Vec<PublisherEntity>,
@@ -769,7 +629,7 @@ impl DomainParticipantEntity {
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         instance_handle: InstanceHandle,
-        builtin_publisher: PublisherEntity,
+        builtin_publisher: BuiltinPublisher,
         builtin_subscriber: SubscriberEntity,
         locally_created_topic_list: Vec<TopicEntity>,
         domain_tag: String,
@@ -1099,7 +959,7 @@ impl PublisherEntity {
     }
 }
 
-enum RtpsWriterKind {
+pub(crate) enum RtpsWriterKind {
     Stateful(RtpsStatefulWriter),
     Stateless(RtpsStatelessWriter),
 }
@@ -1160,7 +1020,7 @@ struct IncompatibleSubscriptions {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
 }
 
-struct DataWriterEntity {
+pub(crate) struct DataWriterEntity {
     instance_handle: InstanceHandle,
     transport_writer: RtpsWriterKind,
     topic_name: String,
@@ -1187,7 +1047,7 @@ struct DataWriterEntity {
 
 impl DataWriterEntity {
     #[allow(clippy::too_many_arguments)]
-    fn new(
+    pub(crate) fn new(
         instance_handle: InstanceHandle,
         transport_writer: RtpsWriterKind,
         topic_name: String,
