@@ -32,7 +32,7 @@ impl DustDdsDataWriter {
 /// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_write(
+pub unsafe extern "C" fn DDS_datawriter_write(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn dds_datawriter_write(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_register_instance(
+pub unsafe extern "C" fn DDS_datawriter_register_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
@@ -110,7 +110,7 @@ pub unsafe extern "C" fn dds_datawriter_register_instance(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_register_instance_w_timestamp(
+pub unsafe extern "C" fn DDS_datawriter_register_instance_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     source_timestamp: crate::infrastructure::qos_policy::Time_t,
@@ -152,7 +152,7 @@ pub unsafe extern "C" fn dds_datawriter_register_instance_w_timestamp(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_unregister_instance(
+pub unsafe extern "C" fn DDS_datawriter_unregister_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -189,7 +189,7 @@ pub unsafe extern "C" fn dds_datawriter_unregister_instance(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_unregister_instance_w_timestamp(
+pub unsafe extern "C" fn DDS_datawriter_unregister_instance_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -227,7 +227,7 @@ pub unsafe extern "C" fn dds_datawriter_unregister_instance_w_timestamp(
 /// - `data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_write_w_timestamp(
+pub unsafe extern "C" fn DDS_datawriter_write_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -266,7 +266,7 @@ pub unsafe extern "C" fn dds_datawriter_write_w_timestamp(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_dispose(
+pub unsafe extern "C" fn DDS_datawriter_dispose(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -303,7 +303,7 @@ pub unsafe extern "C" fn dds_datawriter_dispose(
 /// - `instance_data` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_dispose_w_timestamp(
+pub unsafe extern "C" fn DDS_datawriter_dispose_w_timestamp(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     instance_data: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -342,7 +342,7 @@ pub unsafe extern "C" fn dds_datawriter_dispose_w_timestamp(
 /// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_get_key_value(
+pub unsafe extern "C" fn DDS_datawriter_get_key_value(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     key_holder: Option<NonNull<DustDdsDynamicData>>,
     handle: *const crate::infrastructure::status::InstanceHandle_t,
@@ -375,7 +375,7 @@ pub unsafe extern "C" fn dds_datawriter_get_key_value(
 /// - `key_holder` must point to a valid, initialized `DustDdsDynamicData` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_lookup_instance(
+pub unsafe extern "C" fn DDS_datawriter_lookup_instance(
     writer: Option<NonNull<crate::publication::data_writer::DustDdsDataWriter>>,
     key_holder: Option<NonNull<DustDdsDynamicData>>,
     handle: *mut crate::infrastructure::status::InstanceHandle_t,
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn dds_datawriter_lookup_instance(
 /// The caller must observe the following safety invariants:
 /// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
+pub unsafe extern "C" fn DDS_datawriter_get_statuscondition(
     writer: Option<NonNull<DustDdsDataWriter>>,
 ) -> Option<NonNull<DustDdsStatusCondition>> {
     let writer = writer?;
@@ -430,7 +430,7 @@ pub unsafe extern "C" fn dds_datawriter_get_statuscondition(
 /// The caller must observe the following safety invariants:
 /// - `writer` must point to a valid, initialized `DustDdsDataWriter` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
+pub unsafe extern "C" fn DDS_datawriter_wait_for_acknowledgments(
     writer: Option<NonNull<DustDdsDataWriter>>,
     max_wait: crate::infrastructure::wait_set::DustDdsDuration,
 ) -> ReturnCode {
@@ -453,7 +453,7 @@ pub unsafe extern "C" fn dds_datawriter_wait_for_acknowledgments(
 /// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 /// - `topic_name` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_publisher_lookup_datawriter(
+pub unsafe extern "C" fn DDS_publisher_lookup_datawriter(
     publisher: Option<NonNull<DustDdsPublisher>>,
     topic_name: *const std::os::raw::c_char,
 ) -> Option<NonNull<DustDdsDataWriter>> {

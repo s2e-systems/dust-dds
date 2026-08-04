@@ -23,7 +23,7 @@ pub struct DustDdsDomainParticipantFactory(
 /// There are no special safety invariants for calling this function caller must observe the following safety invariants:
 /// - The caller must observe the standard FFI safety constraints when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_get_instance()
+pub unsafe extern "C" fn DDS_domain_participant_factory_get_instance()
 -> *const DustDdsDomainParticipantFactory {
     static INSTANCE: std::sync::OnceLock<DustDdsDomainParticipantFactory> =
         std::sync::OnceLock::new();
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_get_instance()
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
 /// - `listener` must be a valid pointer to a `DustDdsDomainParticipantListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
+pub unsafe extern "C" fn DDS_domain_participant_factory_create_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     domain_id: i32,
     qos: *const DomainParticipantQos,
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_create_participant(
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
+pub unsafe extern "C" fn DDS_domain_participant_factory_delete_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> ReturnCode {
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_delete_participant(
 /// The caller must observe the following safety invariants:
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
+pub unsafe extern "C" fn DDS_domain_participant_factory_lookup_participant(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     domain_id: i32,
 ) -> Option<NonNull<DustDdsDomainParticipant>> {
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_lookup_participant(
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_qos(
+pub unsafe extern "C" fn DDS_domain_participant_factory_set_default_participant_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     qos: *const DomainParticipantQos,
 ) -> ReturnCode {
@@ -188,7 +188,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_default_participant_
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_get_default_participant_qos(
+pub unsafe extern "C" fn DDS_domain_participant_factory_get_default_participant_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     qos: *mut DomainParticipantQos,
 ) -> ReturnCode {
@@ -218,7 +218,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_get_default_participant_
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
+pub unsafe extern "C" fn DDS_domain_participant_factory_set_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     qos: *const DomainParticipantFactoryQos,
 ) -> ReturnCode {
@@ -248,7 +248,7 @@ pub unsafe extern "C" fn dds_domain_participant_factory_set_qos(
 /// - `factory` must point to a valid, initialized `DustDdsDomainParticipantFactory` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantFactoryQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_factory_get_qos(
+pub unsafe extern "C" fn DDS_domain_participant_factory_get_qos(
     factory: Option<NonNull<DustDdsDomainParticipantFactory>>,
     qos: *mut DomainParticipantFactoryQos,
 ) -> ReturnCode {
@@ -271,12 +271,12 @@ pub unsafe extern "C" fn dds_domain_participant_factory_get_qos(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::qos::dds_domain_participant_qos_default;
+    use crate::infrastructure::qos::DDS_domain_participant_qos_default;
 
     #[test]
     fn create_participant_null_factory() {
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 None,
                 0,
                 std::ptr::null(),
@@ -289,9 +289,9 @@ mod tests {
 
     #[test]
     fn create_participant_valid_factory() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
@@ -301,7 +301,7 @@ mod tests {
         };
         assert!(participant.is_some());
         let result = unsafe {
-            dds_domain_participant_factory_delete_participant(
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             )
@@ -311,10 +311,10 @@ mod tests {
 
     #[test]
     fn create_participant_with_qos() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
-        let qos = unsafe { dds_domain_participant_qos_default() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
+        let qos = unsafe { DDS_domain_participant_qos_default() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 &qos,
@@ -324,7 +324,7 @@ mod tests {
         };
         assert!(participant.is_some());
         let result = unsafe {
-            dds_domain_participant_factory_delete_participant(
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             )
@@ -334,9 +334,9 @@ mod tests {
 
     #[test]
     fn lookup_participant() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
@@ -347,12 +347,12 @@ mod tests {
         assert!(participant.is_some());
 
         let looked_up = unsafe {
-            dds_domain_participant_factory_lookup_participant(NonNull::new(factory as *mut _), 0)
+            DDS_domain_participant_factory_lookup_participant(NonNull::new(factory as *mut _), 0)
         };
         assert!(looked_up.is_some());
 
         unsafe {
-            dds_domain_participant_factory_delete_participant(
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 looked_up,
             );
@@ -362,10 +362,10 @@ mod tests {
 
     #[test]
     fn default_participant_qos() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let mut qos = DomainParticipantQos::default();
         let result = unsafe {
-            dds_domain_participant_factory_get_default_participant_qos(
+            DDS_domain_participant_factory_get_default_participant_qos(
                 NonNull::new(factory as *mut _),
                 &mut qos,
             )
@@ -373,7 +373,7 @@ mod tests {
         assert_eq!(result, RETCODE_OK);
 
         let result = unsafe {
-            dds_domain_participant_factory_set_default_participant_qos(
+            DDS_domain_participant_factory_set_default_participant_qos(
                 NonNull::new(factory as *mut _),
                 &qos,
             )
@@ -383,21 +383,21 @@ mod tests {
 
     #[test]
     fn factory_qos() {
-        use crate::infrastructure::qos::dds_domain_participant_factory_qos_default;
+        use crate::infrastructure::qos::DDS_domain_participant_factory_qos_default;
 
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let mut qos = DomainParticipantFactoryQos::default();
         let result = unsafe {
-            dds_domain_participant_factory_get_qos(NonNull::new(factory as *mut _), &mut qos)
+            DDS_domain_participant_factory_get_qos(NonNull::new(factory as *mut _), &mut qos)
         };
         assert_eq!(result, RETCODE_OK);
 
         let result = unsafe {
-            dds_domain_participant_factory_set_qos(NonNull::new(factory as *mut _), &qos)
+            DDS_domain_participant_factory_set_qos(NonNull::new(factory as *mut _), &qos)
         };
         assert_eq!(result, RETCODE_OK);
 
-        let default_qos = unsafe { dds_domain_participant_factory_qos_default() };
+        let default_qos = unsafe { DDS_domain_participant_factory_qos_default() };
         assert!(default_qos.entity_factory.autoenable_created_entities);
     }
 }

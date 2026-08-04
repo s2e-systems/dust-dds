@@ -42,53 +42,53 @@ fn basic_types() {
                 .extensibility_kind = DDS_EXTENSIBILITY_KIND_FINAL,
                 .is_nested = false
             };
-            DDS_DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);
+            DDS_DustDdsDynamicTypeBuilder* builder = DDS_dynamic_type_builder_factory_create_type(&descriptor);
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "a",
                     .id = 0,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_BOOLEAN),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_BOOLEAN),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "b",
                     .id = 1,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "c",
                     .id = 2,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "d",
                     .id = 3,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
-                DDS_DustDdsDynamicType* member_type = dds_dynamic_type_create_string_type(4294967295);
+                DDS_DustDdsDynamicType* member_type = DDS_dynamic_type_create_string_type(4294967295);
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "e",
                     .id = 4,
@@ -97,11 +97,11 @@ fn basic_types() {
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
-                dds_dynamic_type_free(member_type);
+                DDS_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_free(member_type);
             }
             {
-                DDS_DustDdsDynamicType* member_type = dds_dynamic_type_create_string_type(4294967295);
+                DDS_DustDdsDynamicType* member_type = DDS_dynamic_type_create_string_type(4294967295);
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "f",
                     .id = 5,
@@ -110,98 +110,98 @@ fn basic_types() {
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
-                dds_dynamic_type_free(member_type);
+                DDS_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_free(member_type);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "g",
                     .id = 6,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT16),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT16),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "h",
                     .id = 7,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "i",
                     .id = 8,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "j",
                     .id = 9,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT32),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "k",
                     .id = 10,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT64),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "l",
                     .id = 11,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT64),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "m",
                     .id = 12,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT32),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "n",
                     .id = 13,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
-            type = dds_dynamic_type_builder_build(builder);
+            type = DDS_dynamic_type_builder_build(builder);
         }
         return type;
     }
@@ -209,72 +209,72 @@ fn basic_types() {
     static inline struct BasicTypes BasicTypes_create_sample(DDS_DustDdsDynamicData* src) {
         struct BasicTypes sample;
         memset(&sample, 0, sizeof(sample));
-        dds_dynamic_data_get_boolean_value(src, 0, &sample.a);
-        dds_dynamic_data_get_char8_value(src, 1, &sample.b);
+        DDS_dynamic_data_get_boolean_value(src, 0, &sample.a);
+        DDS_dynamic_data_get_char8_value(src, 1, &sample.b);
         {
             char temp;
-            dds_dynamic_data_get_char8_value(src, 2, &temp);
+            DDS_dynamic_data_get_char8_value(src, 2, &temp);
             sample.c = (wchar_t)temp;
         }
-        dds_dynamic_data_get_uint8_value(src, 3, &sample.d);
-        dds_dynamic_data_get_string_value(src, 4, &sample.e);
+        DDS_dynamic_data_get_uint8_value(src, 3, &sample.d);
+        DDS_dynamic_data_get_string_value(src, 4, &sample.e);
         {
             char* temp = NULL;
-            dds_dynamic_data_get_string_value(src, 5, &temp);
+            DDS_dynamic_data_get_string_value(src, 5, &temp);
             if (temp != NULL) {
                 size_t len = mbstowcs(NULL, temp, 0);
                 if (len != (size_t)-1) {
                     sample.f = malloc((len + 1) * sizeof(wchar_t));
                     mbstowcs(sample.f, temp, len + 1);
                 }
-                dds_string_free(temp);
+                DDS_string_free(temp);
             }
         }
-        dds_dynamic_data_get_int16_value(src, 6, &sample.g);
-        dds_dynamic_data_get_uint16_value(src, 7, &sample.h);
-        dds_dynamic_data_get_int32_value(src, 8, &sample.i);
-        dds_dynamic_data_get_uint32_value(src, 9, &sample.j);
-        dds_dynamic_data_get_int64_value(src, 10, &sample.k);
-        dds_dynamic_data_get_uint64_value(src, 11, &sample.l);
-        dds_dynamic_data_get_float32_value(src, 12, &sample.m);
-        dds_dynamic_data_get_float64_value(src, 13, &sample.n);
+        DDS_dynamic_data_get_int16_value(src, 6, &sample.g);
+        DDS_dynamic_data_get_uint16_value(src, 7, &sample.h);
+        DDS_dynamic_data_get_int32_value(src, 8, &sample.i);
+        DDS_dynamic_data_get_uint32_value(src, 9, &sample.j);
+        DDS_dynamic_data_get_int64_value(src, 10, &sample.k);
+        DDS_dynamic_data_get_uint64_value(src, 11, &sample.l);
+        DDS_dynamic_data_get_float32_value(src, 12, &sample.m);
+        DDS_dynamic_data_get_float64_value(src, 13, &sample.n);
         return sample;
     }
 
     static inline DDS_DustDdsDynamicData* BasicTypes_create_dynamic_sample(const struct BasicTypes* src) {
-        DDS_DustDdsDynamicData* sample = dds_dynamic_data_create(BasicTypes_get_type());
+        DDS_DustDdsDynamicData* sample = DDS_dynamic_data_create(BasicTypes_get_type());
         if (sample != NULL) {
-            dds_dynamic_data_set_boolean_value(sample, 0, src->a);
-            dds_dynamic_data_set_char8_value(sample, 1, src->b);
-            dds_dynamic_data_set_char8_value(sample, 2, (char)src->c);
-            dds_dynamic_data_set_uint8_value(sample, 3, src->d);
-            dds_dynamic_data_set_string_value(sample, 4, src->e);
+            DDS_dynamic_data_set_boolean_value(sample, 0, src->a);
+            DDS_dynamic_data_set_char8_value(sample, 1, src->b);
+            DDS_dynamic_data_set_char8_value(sample, 2, (char)src->c);
+            DDS_dynamic_data_set_uint8_value(sample, 3, src->d);
+            DDS_dynamic_data_set_string_value(sample, 4, src->e);
             {
                 if (src->f != NULL) {
                     size_t len = wcstombs(NULL, src->f, 0);
                     if (len != (size_t)-1) {
                         char* temp = malloc(len + 1);
                         wcstombs(temp, src->f, len + 1);
-                        dds_dynamic_data_set_string_value(sample, 5, temp);
+                        DDS_dynamic_data_set_string_value(sample, 5, temp);
                         free(temp);
                     }
                 }
             }
-            dds_dynamic_data_set_int16_value(sample, 6, src->g);
-            dds_dynamic_data_set_uint16_value(sample, 7, src->h);
-            dds_dynamic_data_set_int32_value(sample, 8, src->i);
-            dds_dynamic_data_set_uint32_value(sample, 9, src->j);
-            dds_dynamic_data_set_int64_value(sample, 10, src->k);
-            dds_dynamic_data_set_uint64_value(sample, 11, src->l);
-            dds_dynamic_data_set_float32_value(sample, 12, src->m);
-            dds_dynamic_data_set_float64_value(sample, 13, src->n);
+            DDS_dynamic_data_set_int16_value(sample, 6, src->g);
+            DDS_dynamic_data_set_uint16_value(sample, 7, src->h);
+            DDS_dynamic_data_set_int32_value(sample, 8, src->i);
+            DDS_dynamic_data_set_uint32_value(sample, 9, src->j);
+            DDS_dynamic_data_set_int64_value(sample, 10, src->k);
+            DDS_dynamic_data_set_uint64_value(sample, 11, src->l);
+            DDS_dynamic_data_set_float32_value(sample, 12, src->m);
+            DDS_dynamic_data_set_float64_value(sample, 13, src->n);
         }
         return sample;
     }
 
     static inline void BasicTypes_free_sample(struct BasicTypes* sample) {
         if (sample != NULL) {
-        dds_string_free(sample->e);
+        DDS_string_free(sample->e);
         free(sample->f);
         }
     }
@@ -287,8 +287,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -300,8 +300,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -313,8 +313,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -326,8 +326,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -339,8 +339,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -352,8 +352,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -365,8 +365,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -378,8 +378,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -391,11 +391,11 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        DDS_ReturnCode result = DDS_datawriter_get_key_value(writer, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = BasicTypes_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -407,8 +407,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_lookup_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -420,12 +420,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -441,12 +441,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -459,11 +459,11 @@ fn basic_types() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_read_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = BasicTypes_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -474,11 +474,11 @@ fn basic_types() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_take_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = BasicTypes_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -492,12 +492,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -513,12 +513,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -534,12 +534,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -555,12 +555,12 @@ fn basic_types() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = BasicTypes_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -569,7 +569,7 @@ fn basic_types() {
     }
 
     static inline DDS_ReturnCode BasicTypes_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct BasicTypes* data_values, struct DDS_SampleInfo* sample_infos) {
-        return dds_datareader_return_loan(reader, NULL, sample_infos);
+        return DDS_datareader_return_loan(reader, NULL, sample_infos);
     }
 
     static inline DDS_ReturnCode BasicTypes_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct BasicTypes* key_holder, const DDS_InstanceHandle_t* handle) {
@@ -580,11 +580,11 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        DDS_ReturnCode result = DDS_datareader_get_key_value(reader, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = BasicTypes_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -596,8 +596,8 @@ fn basic_types() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datareader_lookup_instance(reader, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 "###;

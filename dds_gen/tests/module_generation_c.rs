@@ -38,30 +38,30 @@ fn module_generation() {
                 .extensibility_kind = DDS_EXTENSIBILITY_KIND_FINAL,
                 .is_nested = false
             };
-            DDS_DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);
+            DDS_DustDdsDynamicTypeBuilder* builder = DDS_dynamic_type_builder_factory_create_type(&descriptor);
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "column",
                     .id = 0,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "line",
                     .id = 1,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
-            type = dds_dynamic_type_builder_build(builder);
+            type = DDS_dynamic_type_builder_build(builder);
         }
         return type;
     }
@@ -69,16 +69,16 @@ fn module_generation() {
     static inline struct Game_Chess_ChessSquare Game_Chess_ChessSquare_create_sample(DDS_DustDdsDynamicData* src) {
         struct Game_Chess_ChessSquare sample;
         memset(&sample, 0, sizeof(sample));
-        dds_dynamic_data_get_char8_value(src, 0, &sample.column);
-        dds_dynamic_data_get_uint16_value(src, 1, &sample.line);
+        DDS_dynamic_data_get_char8_value(src, 0, &sample.column);
+        DDS_dynamic_data_get_uint16_value(src, 1, &sample.line);
         return sample;
     }
 
     static inline DDS_DustDdsDynamicData* Game_Chess_ChessSquare_create_dynamic_sample(const struct Game_Chess_ChessSquare* src) {
-        DDS_DustDdsDynamicData* sample = dds_dynamic_data_create(Game_Chess_ChessSquare_get_type());
+        DDS_DustDdsDynamicData* sample = DDS_dynamic_data_create(Game_Chess_ChessSquare_get_type());
         if (sample != NULL) {
-            dds_dynamic_data_set_char8_value(sample, 0, src->column);
-            dds_dynamic_data_set_uint16_value(sample, 1, src->line);
+            DDS_dynamic_data_set_char8_value(sample, 0, src->column);
+            DDS_dynamic_data_set_uint16_value(sample, 1, src->line);
         }
         return sample;
     }
@@ -96,8 +96,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -109,8 +109,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -122,8 +122,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -135,8 +135,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -148,8 +148,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -161,8 +161,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -174,8 +174,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -187,8 +187,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -200,11 +200,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        DDS_ReturnCode result = DDS_datawriter_get_key_value(writer, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = Game_Chess_ChessSquare_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -216,8 +216,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_lookup_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -229,12 +229,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -250,12 +250,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -268,11 +268,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_read_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = Game_Chess_ChessSquare_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -283,11 +283,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_take_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = Game_Chess_ChessSquare_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -301,12 +301,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -322,12 +322,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -343,12 +343,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -364,12 +364,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Game_Chess_ChessSquare_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -378,7 +378,7 @@ fn module_generation() {
     }
 
     static inline DDS_ReturnCode Game_Chess_ChessSquare_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct Game_Chess_ChessSquare* data_values, struct DDS_SampleInfo* sample_infos) {
-        return dds_datareader_return_loan(reader, NULL, sample_infos);
+        return DDS_datareader_return_loan(reader, NULL, sample_infos);
     }
 
     static inline DDS_ReturnCode Game_Chess_ChessSquare_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct Game_Chess_ChessSquare* key_holder, const DDS_InstanceHandle_t* handle) {
@@ -389,11 +389,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        DDS_ReturnCode result = DDS_datareader_get_key_value(reader, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = Game_Chess_ChessSquare_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -405,8 +405,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datareader_lookup_instance(reader, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
     enum Game_Cards_Suit {
@@ -434,30 +434,30 @@ fn module_generation() {
                 .extensibility_kind = DDS_EXTENSIBILITY_KIND_FINAL,
                 .is_nested = false
             };
-            DDS_DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);
+            DDS_DustDdsDynamicTypeBuilder* builder = DDS_dynamic_type_builder_factory_create_type(&descriptor);
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "x",
                     .id = 0,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "y",
                     .id = 1,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
-            type = dds_dynamic_type_builder_build(builder);
+            type = DDS_dynamic_type_builder_build(builder);
         }
         return type;
     }
@@ -465,16 +465,16 @@ fn module_generation() {
     static inline struct Point Point_create_sample(DDS_DustDdsDynamicData* src) {
         struct Point sample;
         memset(&sample, 0, sizeof(sample));
-        dds_dynamic_data_get_float64_value(src, 0, &sample.x);
-        dds_dynamic_data_get_float64_value(src, 1, &sample.y);
+        DDS_dynamic_data_get_float64_value(src, 0, &sample.x);
+        DDS_dynamic_data_get_float64_value(src, 1, &sample.y);
         return sample;
     }
 
     static inline DDS_DustDdsDynamicData* Point_create_dynamic_sample(const struct Point* src) {
-        DDS_DustDdsDynamicData* sample = dds_dynamic_data_create(Point_get_type());
+        DDS_DustDdsDynamicData* sample = DDS_dynamic_data_create(Point_get_type());
         if (sample != NULL) {
-            dds_dynamic_data_set_float64_value(sample, 0, src->x);
-            dds_dynamic_data_set_float64_value(sample, 1, src->y);
+            DDS_dynamic_data_set_float64_value(sample, 0, src->x);
+            DDS_dynamic_data_set_float64_value(sample, 1, src->y);
         }
         return sample;
     }
@@ -492,8 +492,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -505,8 +505,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -518,8 +518,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -531,8 +531,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -544,8 +544,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -557,8 +557,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -570,8 +570,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -583,8 +583,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -596,11 +596,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        DDS_ReturnCode result = DDS_datawriter_get_key_value(writer, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = Point_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -612,8 +612,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_lookup_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -625,12 +625,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -646,12 +646,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -664,11 +664,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_read_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = Point_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -679,11 +679,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_take_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = Point_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -697,12 +697,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -718,12 +718,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -739,12 +739,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -760,12 +760,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = Point_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -774,7 +774,7 @@ fn module_generation() {
     }
 
     static inline DDS_ReturnCode Point_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos) {
-        return dds_datareader_return_loan(reader, NULL, sample_infos);
+        return DDS_datareader_return_loan(reader, NULL, sample_infos);
     }
 
     static inline DDS_ReturnCode Point_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct Point* key_holder, const DDS_InstanceHandle_t* handle) {
@@ -785,11 +785,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        DDS_ReturnCode result = DDS_datareader_get_key_value(reader, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = Point_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -801,8 +801,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datareader_lookup_instance(reader, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
     typedef int32_t foo_Bar;
@@ -826,30 +826,30 @@ fn module_generation() {
                 .extensibility_kind = DDS_EXTENSIBILITY_KIND_FINAL,
                 .is_nested = false
             };
-            DDS_DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);
+            DDS_DustDdsDynamicTypeBuilder* builder = DDS_dynamic_type_builder_factory_create_type(&descriptor);
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "qux",
                     .id = 0,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
                     .is_key = true,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
             {
                 DDS_DustDdsMemberDescriptor member = {
                     .name = "qix",
                     .id = 1,
-                    .type = dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
+                    .type = DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32),
                     .is_key = false,
                     .is_optional = false,
                     .is_must_understand = true
                 };
-                dds_dynamic_type_builder_add_member(builder, &member);
+                DDS_dynamic_type_builder_add_member(builder, &member);
             }
-            type = dds_dynamic_type_builder_build(builder);
+            type = DDS_dynamic_type_builder_build(builder);
         }
         return type;
     }
@@ -857,16 +857,16 @@ fn module_generation() {
     static inline struct foo_frob_Baz foo_frob_Baz_create_sample(DDS_DustDdsDynamicData* src) {
         struct foo_frob_Baz sample;
         memset(&sample, 0, sizeof(sample));
-        dds_dynamic_data_get_int32_value(src, 0, &sample.qux);
-        dds_dynamic_data_get_int32_value(src, 1, &sample.qix);
+        DDS_dynamic_data_get_int32_value(src, 0, &sample.qux);
+        DDS_dynamic_data_get_int32_value(src, 1, &sample.qix);
         return sample;
     }
 
     static inline DDS_DustDdsDynamicData* foo_frob_Baz_create_dynamic_sample(const struct foo_frob_Baz* src) {
-        DDS_DustDdsDynamicData* sample = dds_dynamic_data_create(foo_frob_Baz_get_type());
+        DDS_DustDdsDynamicData* sample = DDS_dynamic_data_create(foo_frob_Baz_get_type());
         if (sample != NULL) {
-            dds_dynamic_data_set_int32_value(sample, 0, src->qux);
-            dds_dynamic_data_set_int32_value(sample, 1, src->qix);
+            DDS_dynamic_data_set_int32_value(sample, 0, src->qux);
+            DDS_dynamic_data_set_int32_value(sample, 1, src->qix);
         }
         return sample;
     }
@@ -884,8 +884,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -897,8 +897,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -910,8 +910,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -923,8 +923,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -936,8 +936,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -949,8 +949,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -962,8 +962,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -975,8 +975,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -988,11 +988,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);
+        DDS_ReturnCode result = DDS_datawriter_get_key_value(writer, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = foo_frob_Baz_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -1004,8 +1004,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datawriter_lookup_instance(writer, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -1017,12 +1017,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1038,12 +1038,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1056,11 +1056,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_read_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = foo_frob_Baz_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -1071,11 +1071,11 @@ fn module_generation() {
             return DDS_RETCODE_BAD_PARAMETER;
         }
         DDS_DustDdsDynamicData* sample = NULL;
-        DDS_ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);
+        DDS_ReturnCode result = DDS_datareader_take_next_sample(reader, &sample, sample_info);
         if (result == DDS_RETCODE_OK) {
             if (sample != NULL) {
                 *data_value = foo_frob_Baz_create_sample(sample);
-                dds_dynamic_data_free(sample);
+                DDS_dynamic_data_free(sample);
             }
         }
         return result;
@@ -1089,12 +1089,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1110,12 +1110,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1131,12 +1131,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1152,12 +1152,12 @@ fn module_generation() {
         if (samples == NULL) {
             return DDS_RETCODE_OUT_OF_RESOURCES;
         }
-        DDS_ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
+        DDS_ReturnCode result = DDS_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);
         if (result == DDS_RETCODE_OK) {
             for (int32_t i = 0; i < *received_samples; i++) {
                 if (samples[i] != NULL) {
                     data_values[i] = foo_frob_Baz_create_sample(samples[i]);
-                    dds_dynamic_data_free(samples[i]);
+                    DDS_dynamic_data_free(samples[i]);
                 }
             }
         }
@@ -1166,7 +1166,7 @@ fn module_generation() {
     }
 
     static inline DDS_ReturnCode foo_frob_Baz_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct foo_frob_Baz* data_values, struct DDS_SampleInfo* sample_infos) {
-        return dds_datareader_return_loan(reader, NULL, sample_infos);
+        return DDS_datareader_return_loan(reader, NULL, sample_infos);
     }
 
     static inline DDS_ReturnCode foo_frob_Baz_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct foo_frob_Baz* key_holder, const DDS_InstanceHandle_t* handle) {
@@ -1177,11 +1177,11 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);
+        DDS_ReturnCode result = DDS_datareader_get_key_value(reader, sample, handle);
         if (result == DDS_RETCODE_OK) {
             *key_holder = foo_frob_Baz_create_sample(sample);
         }
-        dds_dynamic_data_free(sample);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 
@@ -1193,8 +1193,8 @@ fn module_generation() {
         if (sample == NULL) {
             return DDS_RETCODE_ERROR;
         }
-        DDS_ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);
-        dds_dynamic_data_free(sample);
+        DDS_ReturnCode result = DDS_datareader_lookup_instance(reader, sample, handle);
+        DDS_dynamic_data_free(sample);
         return result;
     }
 "###;

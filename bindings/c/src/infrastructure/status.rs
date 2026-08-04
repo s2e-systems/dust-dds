@@ -217,7 +217,7 @@ impl From<Vec<dust_dds::infrastructure::status::QosPolicyCount>> for QosPolicyCo
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_qos_policy_count_seq_free(seq: QosPolicyCountSeq) {
+pub unsafe extern "C" fn DDS_qos_policy_count_seq_free(seq: QosPolicyCountSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
             let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
@@ -368,7 +368,7 @@ impl InstanceHandleSeq {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_instance_handle_seq_free(seq: InstanceHandleSeq) {
+pub unsafe extern "C" fn DDS_instance_handle_seq_free(seq: InstanceHandleSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
             let _ = Vec::from_raw_parts(seq.buffer, seq.length as usize, seq.length as usize);
@@ -392,11 +392,11 @@ pub struct ParticipantBuiltinTopicData {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_participant_builtin_topic_data_free(
+pub unsafe extern "C" fn DDS_participant_builtin_topic_data_free(
     data: ParticipantBuiltinTopicData,
 ) {
     unsafe {
-        crate::infrastructure::qos_policy::dds_octet_seq_free(data.user_data.value);
+        crate::infrastructure::qos_policy::DDS_octet_seq_free(data.user_data.value);
     }
 }
 
@@ -423,7 +423,7 @@ pub struct TopicBuiltinTopicData {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
+pub unsafe extern "C" fn DDS_topic_builtin_topic_data_free(data: TopicBuiltinTopicData) {
     if !data.name.is_null() {
         unsafe {
             let _ = std::ffi::CString::from_raw(data.name);

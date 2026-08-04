@@ -51,7 +51,7 @@ impl DustDdsDomainParticipant {
 /// - `qos` must be a valid pointer to a `PublisherQos` instance (or null).
 /// - `listener` must be a valid pointer to a `DustDdsPublisherListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_create_publisher(
+pub unsafe extern "C" fn DDS_domain_participant_create_publisher(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const PublisherQos,
     listener: *const DustDdsPublisherListener,
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_publisher(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `publisher` must point to a valid, initialized `DustDdsPublisher` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_delete_publisher(
+pub unsafe extern "C" fn DDS_domain_participant_delete_publisher(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     publisher: Option<NonNull<DustDdsPublisher>>,
 ) -> ReturnCode {
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn dds_domain_participant_delete_publisher(
 /// - `qos` must be a valid pointer to a `SubscriberQos` instance (or null).
 /// - `listener` must be a valid pointer to a `DustDdsSubscriberListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
+pub unsafe extern "C" fn DDS_domain_participant_create_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const SubscriberQos,
     listener: *const DustDdsSubscriberListener,
@@ -183,7 +183,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_subscriber(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `subscriber` must point to a valid, initialized `DustDdsSubscriber` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_delete_subscriber(
+pub unsafe extern "C" fn DDS_domain_participant_delete_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     subscriber: Option<NonNull<DustDdsSubscriber>>,
 ) -> ReturnCode {
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn dds_domain_participant_delete_subscriber(
 /// The caller must observe the following safety invariants:
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_builtin_subscriber(
+pub unsafe extern "C" fn DDS_domain_participant_get_builtin_subscriber(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> Option<NonNull<DustDdsSubscriber>> {
     let participant = participant?;
@@ -243,7 +243,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_builtin_subscriber(
 /// - `listener` must be a valid pointer to a `DustDdsTopicListener` instance (or null).
 /// - `dynamic_type` must point to a valid, initialized `DustDdsDynamicType` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_create_topic(
+pub unsafe extern "C" fn DDS_domain_participant_create_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_name: *const std::os::raw::c_char,
     type_name: *const std::os::raw::c_char,
@@ -313,7 +313,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_topic(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `topic` must point to a valid, initialized `DustDdsTopic` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_delete_topic(
+pub unsafe extern "C" fn DDS_domain_participant_delete_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic: Option<NonNull<DustDdsTopic>>,
 ) -> ReturnCode {
@@ -347,7 +347,7 @@ pub unsafe extern "C" fn dds_domain_participant_delete_topic(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `topic_name` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_find_topic(
+pub unsafe extern "C" fn DDS_domain_participant_find_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_name: *const std::os::raw::c_char,
     timeout: Duration_t,
@@ -380,7 +380,7 @@ pub unsafe extern "C" fn dds_domain_participant_find_topic(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `name` must be a valid pointer to a `c_char` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_lookup_topicdescription(
+pub unsafe extern "C" fn DDS_domain_participant_lookup_topicdescription(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     name: *const std::os::raw::c_char,
 ) -> Option<NonNull<DustDdsTopicDescription>> {
@@ -412,7 +412,7 @@ pub unsafe extern "C" fn dds_domain_participant_lookup_topicdescription(
 /// - `filter_expression` must be a valid pointer to a `c_char` instance (or null).
 /// - `expression_parameters` must be a valid pointer to a `StringSeq` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_create_contentfilteredtopic(
+pub unsafe extern "C" fn DDS_domain_participant_create_contentfilteredtopic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     name: *const std::os::raw::c_char,
     related_topic: Option<NonNull<DustDdsTopic>>,
@@ -460,7 +460,7 @@ pub unsafe extern "C" fn dds_domain_participant_create_contentfilteredtopic(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `contentfilteredtopic` must point to a valid, initialized `DustDdsContentFilteredTopic` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_delete_contentfilteredtopic(
+pub unsafe extern "C" fn DDS_domain_participant_delete_contentfilteredtopic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     contentfilteredtopic: Option<NonNull<DustDdsContentFilteredTopic>>,
 ) -> ReturnCode {
@@ -495,7 +495,7 @@ pub unsafe extern "C" fn dds_domain_participant_delete_contentfilteredtopic(
 /// The caller must observe the following safety invariants:
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_delete_contained_entities(
+pub unsafe extern "C" fn DDS_domain_participant_delete_contained_entities(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> ReturnCode {
     let Some(participant) = participant else {
@@ -518,7 +518,7 @@ pub unsafe extern "C" fn dds_domain_participant_delete_contained_entities(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_set_qos(
+pub unsafe extern "C" fn DDS_domain_participant_set_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const DomainParticipantQos,
 ) -> ReturnCode {
@@ -544,7 +544,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `DomainParticipantQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_qos(
+pub unsafe extern "C" fn DDS_domain_participant_get_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *mut DomainParticipantQos,
 ) -> ReturnCode {
@@ -571,7 +571,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `listener` must be a valid pointer to a `DustDdsDomainParticipantListener` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_set_listener(
+pub unsafe extern "C" fn DDS_domain_participant_set_listener(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     listener: *const DustDdsDomainParticipantListener,
     mask: DustDdsStatusMask,
@@ -606,7 +606,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_listener(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_ignore_participant(
+pub unsafe extern "C" fn DDS_domain_participant_ignore_participant(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     handle: *const InstanceHandle_t,
 ) -> ReturnCode {
@@ -634,7 +634,7 @@ pub unsafe extern "C" fn dds_domain_participant_ignore_participant(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_ignore_topic(
+pub unsafe extern "C" fn DDS_domain_participant_ignore_topic(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     handle: *const InstanceHandle_t,
 ) -> ReturnCode {
@@ -662,7 +662,7 @@ pub unsafe extern "C" fn dds_domain_participant_ignore_topic(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_ignore_publication(
+pub unsafe extern "C" fn DDS_domain_participant_ignore_publication(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     handle: *const InstanceHandle_t,
 ) -> ReturnCode {
@@ -690,7 +690,7 @@ pub unsafe extern "C" fn dds_domain_participant_ignore_publication(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_ignore_subscription(
+pub unsafe extern "C" fn DDS_domain_participant_ignore_subscription(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     handle: *const InstanceHandle_t,
 ) -> ReturnCode {
@@ -717,7 +717,7 @@ pub unsafe extern "C" fn dds_domain_participant_ignore_subscription(
 /// The caller must observe the following safety invariants:
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_domain_id(
+pub unsafe extern "C" fn DDS_domain_participant_get_domain_id(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> i32 {
     let Some(participant) = participant else {
@@ -734,7 +734,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_domain_id(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `handle` must be a valid pointer to a `InstanceHandle_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_instance_handle(
+pub unsafe extern "C" fn DDS_domain_participant_get_instance_handle(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     handle: *mut InstanceHandle_t,
 ) -> ReturnCode {
@@ -757,7 +757,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_instance_handle(
 /// The caller must observe the following safety invariants:
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_assert_liveliness(
+pub unsafe extern "C" fn DDS_domain_participant_assert_liveliness(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
 ) -> ReturnCode {
     let Some(participant) = participant else {
@@ -777,7 +777,7 @@ pub unsafe extern "C" fn dds_domain_participant_assert_liveliness(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `PublisherQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_set_default_publisher_qos(
+pub unsafe extern "C" fn DDS_domain_participant_set_default_publisher_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const PublisherQos,
 ) -> ReturnCode {
@@ -806,7 +806,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_publisher_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `PublisherQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_default_publisher_qos(
+pub unsafe extern "C" fn DDS_domain_participant_get_default_publisher_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *mut PublisherQos,
 ) -> ReturnCode {
@@ -836,7 +836,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_default_publisher_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `SubscriberQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_set_default_subscriber_qos(
+pub unsafe extern "C" fn DDS_domain_participant_set_default_subscriber_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const SubscriberQos,
 ) -> ReturnCode {
@@ -865,7 +865,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_subscriber_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `SubscriberQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_default_subscriber_qos(
+pub unsafe extern "C" fn DDS_domain_participant_get_default_subscriber_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *mut SubscriberQos,
 ) -> ReturnCode {
@@ -895,7 +895,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_default_subscriber_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `TopicQos` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_set_default_topic_qos(
+pub unsafe extern "C" fn DDS_domain_participant_set_default_topic_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *const TopicQos,
 ) -> ReturnCode {
@@ -924,7 +924,7 @@ pub unsafe extern "C" fn dds_domain_participant_set_default_topic_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `qos` must be a valid pointer to a `TopicQos` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_default_topic_qos(
+pub unsafe extern "C" fn DDS_domain_participant_get_default_topic_qos(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     qos: *mut TopicQos,
 ) -> ReturnCode {
@@ -954,7 +954,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_default_topic_qos(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `participant_handles` must be a valid pointer to a `InstanceHandleSeq` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_discovered_participants(
+pub unsafe extern "C" fn DDS_domain_participant_get_discovered_participants(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     participant_handles: *mut InstanceHandleSeq,
 ) -> ReturnCode {
@@ -985,7 +985,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_discovered_participants(
 /// - `participant_data` must be a valid pointer to a `ParticipantBuiltinTopicData` instance for writing (or null).
 /// - `participant_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_discovered_participant_data(
+pub unsafe extern "C" fn DDS_domain_participant_get_discovered_participant_data(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     participant_data: *mut ParticipantBuiltinTopicData,
     participant_handle: *const InstanceHandle_t,
@@ -1023,7 +1023,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_discovered_participant_data(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `topic_handles` must be a valid pointer to a `InstanceHandleSeq` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_discovered_topics(
+pub unsafe extern "C" fn DDS_domain_participant_get_discovered_topics(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_handles: *mut InstanceHandleSeq,
 ) -> ReturnCode {
@@ -1054,7 +1054,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_discovered_topics(
 /// - `topic_data` must be a valid pointer to a `TopicBuiltinTopicData` instance for writing (or null).
 /// - `topic_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_discovered_topic_data(
+pub unsafe extern "C" fn DDS_domain_participant_get_discovered_topic_data(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     topic_data: *mut TopicBuiltinTopicData,
     topic_handle: *const InstanceHandle_t,
@@ -1117,7 +1117,7 @@ pub unsafe extern "C" fn dds_domain_participant_get_discovered_topic_data(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `a_handle` must be a valid pointer to a `InstanceHandle_t` instance (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_contains_entity(
+pub unsafe extern "C" fn DDS_domain_participant_contains_entity(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     a_handle: *const InstanceHandle_t,
 ) -> bool {
@@ -1142,7 +1142,7 @@ pub unsafe extern "C" fn dds_domain_participant_contains_entity(
 /// - `participant` must point to a valid, initialized `DustDdsDomainParticipant` instance.
 /// - `current_time` must be a valid pointer to a `Time_t` instance for writing (or null).
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_domain_participant_get_current_time(
+pub unsafe extern "C" fn DDS_domain_participant_get_current_time(
     participant: Option<NonNull<DustDdsDomainParticipant>>,
     current_time: *mut Time_t,
 ) -> ReturnCode {
@@ -1165,17 +1165,17 @@ pub unsafe extern "C" fn dds_domain_participant_get_current_time(
 mod tests {
     use super::*;
     use crate::domain::domain_participant_factory::{
-        dds_domain_participant_factory_create_participant,
-        dds_domain_participant_factory_delete_participant,
-        dds_domain_participant_factory_get_instance,
+        DDS_domain_participant_factory_create_participant,
+        DDS_domain_participant_factory_delete_participant,
+        DDS_domain_participant_factory_get_instance,
     };
-    use crate::infrastructure::qos::{dds_publisher_qos_default, dds_subscriber_qos_default};
+    use crate::infrastructure::qos::{DDS_publisher_qos_default, DDS_subscriber_qos_default};
 
     #[test]
     fn create_delete_publisher() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
@@ -1186,7 +1186,7 @@ mod tests {
         assert!(participant.is_some());
 
         let publisher = unsafe {
-            dds_domain_participant_create_publisher(
+            DDS_domain_participant_create_publisher(
                 participant,
                 std::ptr::null(),
                 std::ptr::null(),
@@ -1195,20 +1195,20 @@ mod tests {
         };
         assert!(publisher.is_some());
 
-        let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
+        let res = unsafe { DDS_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
 
-        let qos = unsafe { dds_publisher_qos_default() };
+        let qos = unsafe { DDS_publisher_qos_default() };
         let publisher = unsafe {
-            dds_domain_participant_create_publisher(participant, &qos, std::ptr::null(), 0)
+            DDS_domain_participant_create_publisher(participant, &qos, std::ptr::null(), 0)
         };
         assert!(publisher.is_some());
 
-        let res = unsafe { dds_domain_participant_delete_publisher(participant, publisher) };
+        let res = unsafe { DDS_domain_participant_delete_publisher(participant, publisher) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dds_domain_participant_factory_delete_participant(
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );
@@ -1217,9 +1217,9 @@ mod tests {
 
     #[test]
     fn create_delete_subscriber() {
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
@@ -1230,7 +1230,7 @@ mod tests {
         assert!(participant.is_some());
 
         let subscriber = unsafe {
-            dds_domain_participant_create_subscriber(
+            DDS_domain_participant_create_subscriber(
                 participant,
                 std::ptr::null(),
                 std::ptr::null(),
@@ -1239,20 +1239,20 @@ mod tests {
         };
         assert!(subscriber.is_some());
 
-        let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
+        let res = unsafe { DDS_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
 
-        let qos = unsafe { dds_subscriber_qos_default() };
+        let qos = unsafe { DDS_subscriber_qos_default() };
         let subscriber = unsafe {
-            dds_domain_participant_create_subscriber(participant, &qos, std::ptr::null(), 0)
+            DDS_domain_participant_create_subscriber(participant, &qos, std::ptr::null(), 0)
         };
         assert!(subscriber.is_some());
 
-        let res = unsafe { dds_domain_participant_delete_subscriber(participant, subscriber) };
+        let res = unsafe { DDS_domain_participant_delete_subscriber(participant, subscriber) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dds_domain_participant_factory_delete_participant(
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );
@@ -1262,14 +1262,14 @@ mod tests {
     #[test]
     fn create_delete_topic() {
         use crate::topic_definition::dynamic_type::{
-            DustDdsMemberDescriptor, TYPE_KIND_INT32, dds_dynamic_type_builder_add_member,
-            dds_dynamic_type_builder_build, dds_dynamic_type_builder_create_struct,
-            dds_dynamic_type_free, dds_dynamic_type_get_primitive_type,
+            DustDdsMemberDescriptor, TYPE_KIND_INT32, DDS_dynamic_type_builder_add_member,
+            DDS_dynamic_type_builder_build, DDS_dynamic_type_builder_create_struct,
+            DDS_dynamic_type_free, DDS_dynamic_type_get_primitive_type,
         };
 
-        let factory = unsafe { dds_domain_participant_factory_get_instance() };
+        let factory = unsafe { DDS_domain_participant_factory_get_instance() };
         let participant = unsafe {
-            dds_domain_participant_factory_create_participant(
+            DDS_domain_participant_factory_create_participant(
                 NonNull::new(factory as *mut _),
                 0,
                 std::ptr::null(),
@@ -1280,11 +1280,11 @@ mod tests {
         assert!(participant.is_some());
 
         let struct_name = std::ffi::CString::new("MyStruct").unwrap();
-        let builder = unsafe { dds_dynamic_type_builder_create_struct(struct_name.as_ptr()) };
+        let builder = unsafe { DDS_dynamic_type_builder_create_struct(struct_name.as_ptr()) };
         assert!(builder.is_some());
 
         let field_name = std::ffi::CString::new("a").unwrap();
-        let int32_type = unsafe { dds_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
+        let int32_type = unsafe { DDS_dynamic_type_get_primitive_type(TYPE_KIND_INT32) };
         assert!(int32_type.is_some());
 
         let member_descriptor = DustDdsMemberDescriptor {
@@ -1296,17 +1296,17 @@ mod tests {
             is_must_understand: true,
         };
 
-        let res = unsafe { dds_dynamic_type_builder_add_member(builder, &member_descriptor) };
+        let res = unsafe { DDS_dynamic_type_builder_add_member(builder, &member_descriptor) };
         assert_eq!(res, RETCODE_OK);
 
-        let dynamic_type = unsafe { dds_dynamic_type_builder_build(builder) };
+        let dynamic_type = unsafe { DDS_dynamic_type_builder_build(builder) };
         assert!(dynamic_type.is_some());
 
         let topic_name = std::ffi::CString::new("MyTopic").unwrap();
         let type_name = std::ffi::CString::new("MyStruct").unwrap();
 
         let topic = unsafe {
-            dds_domain_participant_create_topic(
+            DDS_domain_participant_create_topic(
                 participant,
                 topic_name.as_ptr(),
                 type_name.as_ptr(),
@@ -1318,12 +1318,12 @@ mod tests {
         };
         assert!(topic.is_some());
 
-        let res = unsafe { dds_domain_participant_delete_topic(participant, topic) };
+        let res = unsafe { DDS_domain_participant_delete_topic(participant, topic) };
         assert_eq!(res, RETCODE_OK);
 
         unsafe {
-            dds_dynamic_type_free(dynamic_type);
-            dds_domain_participant_factory_delete_participant(
+            DDS_dynamic_type_free(dynamic_type);
+            DDS_domain_participant_factory_delete_participant(
                 NonNull::new(factory as *mut _),
                 participant,
             );

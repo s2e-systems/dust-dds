@@ -118,7 +118,7 @@ impl StringSeq {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
+pub unsafe extern "C" fn DDS_octet_seq_free(seq: OctetSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
             let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
@@ -132,7 +132,7 @@ pub unsafe extern "C" fn dds_octet_seq_free(seq: OctetSeq) {
 ///
 /// There are no special safety invariants to be observed when calling this function.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn dds_string_seq_free(seq: StringSeq) {
+pub unsafe extern "C" fn DDS_string_seq_free(seq: StringSeq) {
     if !seq.buffer.is_null() && seq.length > 0 {
         unsafe {
             let ptrs = Vec::from_raw_parts(seq.buffer, seq.length as usize, seq.length as usize);

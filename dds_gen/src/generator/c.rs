@@ -387,7 +387,7 @@ impl<'a> CGenerator<'a> {
             .push_str(&format!("                .extensibility_kind = {},\n", ext));
         self.writer.push_str("                .is_nested = false\n");
         self.writer.push_str("            };\n");
-        self.writer.push_str("            DDS_DustDdsDynamicTypeBuilder* builder = dds_dynamic_type_builder_factory_create_type(&descriptor);\n");
+        self.writer.push_str("            DDS_DustDdsDynamicTypeBuilder* builder = DDS_dynamic_type_builder_factory_create_type(&descriptor);\n");
 
         // Collect members with their types and annotation flags
         let mut members = Vec::new();
@@ -467,17 +467,17 @@ impl<'a> CGenerator<'a> {
             self.writer.push_str("                };\n");
 
             self.writer.push_str(
-                "                dds_dynamic_type_builder_add_member(builder, &member);\n",
+                "                DDS_dynamic_type_builder_add_member(builder, &member);\n",
             );
             if needs_type_var {
                 self.writer
-                    .push_str("                dds_dynamic_type_free(member_type);\n");
+                    .push_str("                DDS_dynamic_type_free(member_type);\n");
             }
             self.writer.push_str("            }\n");
         }
 
         self.writer
-            .push_str("            type = dds_dynamic_type_builder_build(builder);\n");
+            .push_str("            type = DDS_dynamic_type_builder_build(builder);\n");
         self.writer.push_str("        }\n");
         self.writer.push_str("        return type;\n");
         self.writer.push_str("    }\n");
@@ -492,131 +492,131 @@ impl<'a> CGenerator<'a> {
             match leaf_rule {
                 Rule::boolean_type => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_boolean_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_boolean_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_boolean_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_boolean_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::char_type => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_char8_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_char8_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_char8_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_char8_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::wide_char_type => {
                     create_sample_code.push_str(&format!(
-                        "        {{\n            char temp;\n            dds_dynamic_data_get_char8_value(src, {}, &temp);\n            sample.{} = (wchar_t)temp;\n        }}\n",
+                        "        {{\n            char temp;\n            DDS_dynamic_data_get_char8_value(src, {}, &temp);\n            sample.{} = (wchar_t)temp;\n        }}\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_char8_value(sample, {}, (char)src->{});\n",
+                        "            DDS_dynamic_data_set_char8_value(sample, {}, (char)src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::octet_type | Rule::unsigned_tiny_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_uint8_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_uint8_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_uint8_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_uint8_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::signed_tiny_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_int8_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_int8_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_int8_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_int8_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::signed_short_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_int16_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_int16_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_int16_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_int16_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::unsigned_short_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_uint16_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_uint16_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_uint16_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_uint16_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::signed_long_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_int32_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_int32_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_int32_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_int32_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::unsigned_long_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_uint32_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_uint32_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_uint32_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_uint32_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::signed_longlong_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_int64_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_int64_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_int64_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_int64_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::unsigned_longlong_int => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_uint64_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_uint64_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_uint64_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_uint64_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                 }
                 Rule::floating_pt_type => {
                     if leaf_str == "float" {
                         create_sample_code.push_str(&format!(
-                            "        dds_dynamic_data_get_float32_value(src, {}, &sample.{});\n",
+                            "        DDS_dynamic_data_get_float32_value(src, {}, &sample.{});\n",
                             member_id, field_name
                         ));
                         create_dynamic_sample_code.push_str(&format!(
-                            "            dds_dynamic_data_set_float32_value(sample, {}, src->{});\n",
+                            "            DDS_dynamic_data_set_float32_value(sample, {}, src->{});\n",
                             member_id, field_name
                         ));
                     } else if leaf_str == "double" {
                         create_sample_code.push_str(&format!(
-                            "        dds_dynamic_data_get_float64_value(src, {}, &sample.{});\n",
+                            "        DDS_dynamic_data_get_float64_value(src, {}, &sample.{});\n",
                             member_id, field_name
                         ));
                         create_dynamic_sample_code.push_str(&format!(
-                            "            dds_dynamic_data_set_float64_value(sample, {}, src->{});\n",
+                            "            DDS_dynamic_data_set_float64_value(sample, {}, src->{});\n",
                             member_id, field_name
                         ));
                     } else {
@@ -625,25 +625,25 @@ impl<'a> CGenerator<'a> {
                 }
                 Rule::string_type => {
                     create_sample_code.push_str(&format!(
-                        "        dds_dynamic_data_get_string_value(src, {}, &sample.{});\n",
+                        "        DDS_dynamic_data_get_string_value(src, {}, &sample.{});\n",
                         member_id, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            dds_dynamic_data_set_string_value(sample, {}, src->{});\n",
+                        "            DDS_dynamic_data_set_string_value(sample, {}, src->{});\n",
                         member_id, field_name
                     ));
                     free_sample_code.push_str(&format!(
-                        "        dds_string_free(sample->{});\n",
+                        "        DDS_string_free(sample->{});\n",
                         field_name
                     ));
                 }
                 Rule::wide_string_type => {
                     create_sample_code.push_str(&format!(
-                        "        {{\n            char* temp = NULL;\n            dds_dynamic_data_get_string_value(src, {}, &temp);\n            if (temp != NULL) {{\n                size_t len = mbstowcs(NULL, temp, 0);\n                if (len != (size_t)-1) {{\n                    sample.{} = malloc((len + 1) * sizeof(wchar_t));\n                    mbstowcs(sample.{}, temp, len + 1);\n                }}\n                dds_string_free(temp);\n            }}\n        }}\n",
+                        "        {{\n            char* temp = NULL;\n            DDS_dynamic_data_get_string_value(src, {}, &temp);\n            if (temp != NULL) {{\n                size_t len = mbstowcs(NULL, temp, 0);\n                if (len != (size_t)-1) {{\n                    sample.{} = malloc((len + 1) * sizeof(wchar_t));\n                    mbstowcs(sample.{}, temp, len + 1);\n                }}\n                DDS_string_free(temp);\n            }}\n        }}\n",
                         member_id, field_name, field_name
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            {{\n                if (src->{} != NULL) {{\n                    size_t len = wcstombs(NULL, src->{}, 0);\n                    if (len != (size_t)-1) {{\n                        char* temp = malloc(len + 1);\n                        wcstombs(temp, src->{}, len + 1);\n                        dds_dynamic_data_set_string_value(sample, {}, temp);\n                        free(temp);\n                    }}\n                }}\n            }}\n",
+                        "            {{\n                if (src->{} != NULL) {{\n                    size_t len = wcstombs(NULL, src->{}, 0);\n                    if (len != (size_t)-1) {{\n                        char* temp = malloc(len + 1);\n                        wcstombs(temp, src->{}, len + 1);\n                        DDS_dynamic_data_set_string_value(sample, {}, temp);\n                        free(temp);\n                    }}\n                }}\n            }}\n",
                         field_name, field_name, field_name, member_id
                     ));
                     free_sample_code.push_str(&format!("        free(sample->{});\n", field_name));
@@ -652,11 +652,11 @@ impl<'a> CGenerator<'a> {
                     // Custom identifier / nested struct
                     let resolved_leaf = self.resolve_type(&leaf_str);
                     create_sample_code.push_str(&format!(
-                        "        {{\n            DDS_DustDdsDynamicData* member_data = NULL;\n            dds_dynamic_data_get_complex_value(src, {}, &member_data);\n            if (member_data != NULL) {{\n                sample.{} = {}_create_sample(member_data);\n                dds_dynamic_data_free(member_data);\n            }}\n        }}\n",
+                        "        {{\n            DDS_DustDdsDynamicData* member_data = NULL;\n            DDS_dynamic_data_get_complex_value(src, {}, &member_data);\n            if (member_data != NULL) {{\n                sample.{} = {}_create_sample(member_data);\n                DDS_dynamic_data_free(member_data);\n            }}\n        }}\n",
                         member_id, field_name, resolved_leaf
                     ));
                     create_dynamic_sample_code.push_str(&format!(
-                        "            {{\n                DDS_DustDdsDynamicData* member_data = {}_create_dynamic_sample(&src->{});\n                dds_dynamic_data_set_complex_value(sample, {}, member_data);\n                dds_dynamic_data_free(member_data);\n            }}\n",
+                        "            {{\n                DDS_DustDdsDynamicData* member_data = {}_create_dynamic_sample(&src->{});\n                DDS_dynamic_data_set_complex_value(sample, {}, member_data);\n                DDS_dynamic_data_free(member_data);\n            }}\n",
                         resolved_leaf, field_name, member_id
                     ));
                     free_sample_code.push_str(&format!(
@@ -673,7 +673,7 @@ impl<'a> CGenerator<'a> {
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_DustDdsDynamicData* {}_create_dynamic_sample(const struct {}* src) {{\n        DDS_DustDdsDynamicData* sample = dds_dynamic_data_create({}_get_type());\n        if (sample != NULL) {{\n{}        }}\n        return sample;\n    }}\n",
+            "\n    static inline DDS_DustDdsDynamicData* {}_create_dynamic_sample(const struct {}* src) {{\n        DDS_DustDdsDynamicData* sample = DDS_dynamic_data_create({}_get_type());\n        if (sample != NULL) {{\n{}        }}\n        return sample;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, create_dynamic_sample_code
         ));
 
@@ -683,107 +683,107 @@ impl<'a> CGenerator<'a> {
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_write(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_write(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_write(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_write(writer, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_write_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_write_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_write_w_timestamp(writer, sample, handle, source_timestamp);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_register_instance(DDS_DustDdsDataWriter* writer, const struct {}* data, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_register_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_register_instance(DDS_DustDdsDataWriter* writer, const struct {}* data, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_register_instance(writer, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_register_instance_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_register_instance_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_register_instance_w_timestamp(writer, sample, source_timestamp, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_unregister_instance(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_unregister_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_unregister_instance(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_unregister_instance(writer, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_unregister_instance_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_unregister_instance_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_unregister_instance_w_timestamp(writer, sample, handle, source_timestamp);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_dispose(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_dispose(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_dispose(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_dispose(writer, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_dispose_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_dispose_w_timestamp(DDS_DustDdsDataWriter* writer, const struct {}* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {{\n        if (writer == NULL || data == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(data);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_dispose_w_timestamp(writer, sample, handle, source_timestamp);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_get_key_value(DDS_DustDdsDataWriter* writer, struct {}* key_holder, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_get_key_value(writer, sample, handle);\n        if (result == DDS_RETCODE_OK) {{\n            *key_holder = {}_create_sample(sample);\n        }}\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_get_key_value(DDS_DustDdsDataWriter* writer, struct {}* key_holder, const DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_get_key_value(writer, sample, handle);\n        if (result == DDS_RETCODE_OK) {{\n            *key_holder = {}_create_sample(sample);\n        }}\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datawriter_lookup_instance(DDS_DustDdsDataWriter* writer, const struct {}* key_holder, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datawriter_lookup_instance(writer, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datawriter_lookup_instance(DDS_DustDdsDataWriter* writer, const struct {}* key_holder, DDS_InstanceHandle_t* handle) {{\n        if (writer == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datawriter_lookup_instance(writer, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_read(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_read(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_read(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_take(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_take(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_take(reader, samples, sample_infos, max_samples, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_next_sample(DDS_DustDdsDataReader* reader, struct {}* data_value, struct DDS_SampleInfo* sample_info) {{\n        if (reader == NULL || data_value == NULL || sample_info == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = NULL;\n        DDS_ReturnCode result = dds_datareader_read_next_sample(reader, &sample, sample_info);\n        if (result == DDS_RETCODE_OK) {{\n            if (sample != NULL) {{\n                *data_value = {}_create_sample(sample);\n                dds_dynamic_data_free(sample);\n            }}\n        }}\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_next_sample(DDS_DustDdsDataReader* reader, struct {}* data_value, struct DDS_SampleInfo* sample_info) {{\n        if (reader == NULL || data_value == NULL || sample_info == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = NULL;\n        DDS_ReturnCode result = DDS_datareader_read_next_sample(reader, &sample, sample_info);\n        if (result == DDS_RETCODE_OK) {{\n            if (sample != NULL) {{\n                *data_value = {}_create_sample(sample);\n                DDS_dynamic_data_free(sample);\n            }}\n        }}\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_next_sample(DDS_DustDdsDataReader* reader, struct {}* data_value, struct DDS_SampleInfo* sample_info) {{\n        if (reader == NULL || data_value == NULL || sample_info == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = NULL;\n        DDS_ReturnCode result = dds_datareader_take_next_sample(reader, &sample, sample_info);\n        if (result == DDS_RETCODE_OK) {{\n            if (sample != NULL) {{\n                *data_value = {}_create_sample(sample);\n                dds_dynamic_data_free(sample);\n            }}\n        }}\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_next_sample(DDS_DustDdsDataReader* reader, struct {}* data_value, struct DDS_SampleInfo* sample_info) {{\n        if (reader == NULL || data_value == NULL || sample_info == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = NULL;\n        DDS_ReturnCode result = DDS_datareader_take_next_sample(reader, &sample, sample_info);\n        if (result == DDS_RETCODE_OK) {{\n            if (sample != NULL) {{\n                *data_value = {}_create_sample(sample);\n                DDS_dynamic_data_free(sample);\n            }}\n        }}\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_read_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_take_instance(reader, samples, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_next_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_read_next_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_read_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_next_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = dds_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    dds_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_take_next_instance(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {{\n        if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData** samples = (DDS_DustDdsDynamicData**)calloc(max_samples, sizeof(DDS_DustDdsDynamicData*));\n        if (samples == NULL) {{\n            return DDS_RETCODE_OUT_OF_RESOURCES;\n        }}\n        DDS_ReturnCode result = DDS_datareader_take_next_instance(reader, samples, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states, received_samples);\n        if (result == DDS_RETCODE_OK) {{\n            for (int32_t i = 0; i < *received_samples; i++) {{\n                if (samples[i] != NULL) {{\n                    data_values[i] = {}_create_sample(samples[i]);\n                    DDS_dynamic_data_free(samples[i]);\n                }}\n            }}\n        }}\n        free(samples);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos) {{\n        return dds_datareader_return_loan(reader, NULL, sample_infos);\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_return_loan(DDS_DustDdsDataReader* reader, struct {}* data_values, struct DDS_SampleInfo* sample_infos) {{\n        return DDS_datareader_return_loan(reader, NULL, sample_infos);\n    }}\n",
             prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct {}* key_holder, const DDS_InstanceHandle_t* handle) {{\n        if (reader == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datareader_get_key_value(reader, sample, handle);\n        if (result == DDS_RETCODE_OK) {{\n            *key_holder = {}_create_sample(sample);\n        }}\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_get_key_value(DDS_DustDdsDataReader* reader, struct {}* key_holder, const DDS_InstanceHandle_t* handle) {{\n        if (reader == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datareader_get_key_value(reader, sample, handle);\n        if (result == DDS_RETCODE_OK) {{\n            *key_holder = {}_create_sample(sample);\n        }}\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
 
         self.writer.push_str(&format!(
-            "\n    static inline DDS_ReturnCode {}_dds_datareader_lookup_instance(DDS_DustDdsDataReader* reader, const struct {}* key_holder, DDS_InstanceHandle_t* handle) {{\n        if (reader == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = dds_datareader_lookup_instance(reader, sample, handle);\n        dds_dynamic_data_free(sample);\n        return result;\n    }}\n",
+            "\n    static inline DDS_ReturnCode {}_dds_datareader_lookup_instance(DDS_DustDdsDataReader* reader, const struct {}* key_holder, DDS_InstanceHandle_t* handle) {{\n        if (reader == NULL || key_holder == NULL || handle == NULL) {{\n            return DDS_RETCODE_BAD_PARAMETER;\n        }}\n        DDS_DustDdsDynamicData* sample = {}_create_dynamic_sample(key_holder);\n        if (sample == NULL) {{\n            return DDS_RETCODE_ERROR;\n        }}\n        DDS_ReturnCode result = DDS_datareader_lookup_instance(reader, sample, handle);\n        DDS_dynamic_data_free(sample);\n        return result;\n    }}\n",
             prefixed_struct_name, prefixed_struct_name, prefixed_struct_name
         ));
     }
@@ -826,52 +826,52 @@ impl<'a> CGenerator<'a> {
                         .expect("Rule must have inner content");
                 }
                 Rule::boolean_type => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_BOOLEAN)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_BOOLEAN)".to_string();
                 }
                 Rule::char_type => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8)".to_string();
                 }
                 Rule::wide_char_type => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_CHAR8)".to_string();
                 }
                 Rule::octet_type => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8)".to_string();
                 }
                 Rule::signed_tiny_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT8)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT8)".to_string();
                 }
                 Rule::unsigned_tiny_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT8)".to_string();
                 }
                 Rule::signed_short_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT16)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT16)".to_string();
                 }
                 Rule::unsigned_short_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT16)".to_string();
                 }
                 Rule::signed_long_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT32)".to_string();
                 }
                 Rule::unsigned_long_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT32)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT32)".to_string();
                 }
                 Rule::signed_longlong_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT64)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_INT64)".to_string();
                 }
                 Rule::unsigned_longlong_int => {
-                    return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT64)".to_string();
+                    return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_UINT64)".to_string();
                 }
                 Rule::floating_pt_type => match current.as_str() {
                     "float" => {
-                        return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT32)"
+                        return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT32)"
                             .to_string();
                     }
                     "double" => {
-                        return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64)"
+                        return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT64)"
                             .to_string();
                     }
                     "long double" => {
-                        return "dds_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT128)"
+                        return "DDS_dynamic_type_get_primitive_type(DDS_TYPE_KIND_FLOAT128)"
                             .to_string();
                     }
                     _ => panic!("Invalid floating point type"),
@@ -882,7 +882,7 @@ impl<'a> CGenerator<'a> {
                         .next()
                         .map(|p| p.as_str().to_string())
                         .unwrap_or_else(|| "4294967295".to_string());
-                    return format!("dds_dynamic_type_create_string_type({})", bound);
+                    return format!("DDS_dynamic_type_create_string_type({})", bound);
                 }
                 _ => {
                     let resolved = self.resolve_type(current.as_str());
