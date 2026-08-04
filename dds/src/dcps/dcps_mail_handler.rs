@@ -51,6 +51,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos { reply_sender }) => {
                 reply_sender.send(self.get_qos())
             }
+            DcpsMail::ParticipantFactory(ParticipantFactoryMail::LookupParticipant {
+                domain_id,
+                reply_sender,
+            }) => reply_sender.send(
+                self.domain_participant_list
+                    .iter()
+                    .find(|x| x.domain_id() == domain_id)
+                    .map(|x| *x.get_instance_handle()),
+            ),
             DcpsMail::Participant(ParticipantServiceMail::CreateUserDefinedPublisher {
                 qos,
                 participant_handle,

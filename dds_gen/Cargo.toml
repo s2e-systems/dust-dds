@@ -12,6 +12,14 @@ authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lib]
+name = "dust_dds_gen"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dust_dds_gen"
+path = "src/executable/main.rs"
+
 [dependencies]
 pest = "2.7"
 pest_derive = "2.7"

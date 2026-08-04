@@ -81,19 +81,32 @@ impl From<XTypesError> for DdsError {
 /// Return code representing the different errors
 pub type ReturnCode = i32;
 
-// const RETCODE_OK: ReturnCode = 0;
-const RETCODE_ERROR: ReturnCode = 1;
-const RETCODE_UNSUPPORTED: ReturnCode = 2;
-const RETCODE_BAD_PARAMETER: ReturnCode = 3;
-const RETCODE_PRECONDITION_NOT_MET: ReturnCode = 4;
-const RETCODE_OUT_OF_RESOURCES: ReturnCode = 5;
-const RETCODE_NOT_ENABLED: ReturnCode = 6;
-const RETCODE_IMMUTABLE_POLICY: ReturnCode = 7;
-const RETCODE_INCONSISTENT_POLICY: ReturnCode = 8;
-const RETCODE_ALREADY_DELETED: ReturnCode = 9;
-const RETCODE_TIMEOUT: ReturnCode = 10;
-const RETCODE_NO_DATA: ReturnCode = 11;
-const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
+/// Successful return code.
+pub const RETCODE_OK: ReturnCode = 0;
+/// Generic, unspecified error.
+pub const RETCODE_ERROR: ReturnCode = 1;
+/// Unsupported operation.
+pub const RETCODE_UNSUPPORTED: ReturnCode = 2;
+/// Illegal parameter value.
+pub const RETCODE_BAD_PARAMETER: ReturnCode = 3;
+/// A pre-condition for the operation was not met.
+pub const RETCODE_PRECONDITION_NOT_MET: ReturnCode = 4;
+/// Service ran out of the resources needed to complete the operation.
+pub const RETCODE_OUT_OF_RESOURCES: ReturnCode = 5;
+/// Operation invoked on an Entity that is not yet enabled.
+pub const RETCODE_NOT_ENABLED: ReturnCode = 6;
+/// Application attempted to modify an immutable QosPolicy.
+pub const RETCODE_IMMUTABLE_POLICY: ReturnCode = 7;
+/// Application specified a set of policies that are not consistent with each other.
+pub const RETCODE_INCONSISTENT_POLICY: ReturnCode = 8;
+/// The object target of this operation has already been deleted.
+pub const RETCODE_ALREADY_DELETED: ReturnCode = 9;
+/// The operation timed out.
+pub const RETCODE_TIMEOUT: ReturnCode = 10;
+/// Indicates a transient situation where the operation did not return any data but there is no inherent error.
+pub const RETCODE_NO_DATA: ReturnCode = 11;
+/// An operation was invoked on an inappropriate object or at an inappropriate time.
+pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
 
 impl From<DdsError> for ReturnCode {
     fn from(e: DdsError) -> Self {
