@@ -80,7 +80,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_write(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_write(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -93,7 +93,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_write_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_write_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -106,7 +106,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_register_instance(DDS_DataWriter* writer, const struct Point* data, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_register_instance(DDS_DataWriter* writer, const struct Point* data, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -119,7 +119,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct Point* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct Point* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -132,7 +132,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_unregister_instance(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_unregister_instance(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -145,7 +145,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -158,7 +158,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_dispose(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_dispose(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -171,7 +171,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct Point* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -184,7 +184,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_get_key_value(DDS_DataWriter* writer, struct Point* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_get_key_value(DDS_DataWriter* writer, struct Point* key_holder, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -200,7 +200,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datawriter_lookup_instance(DDS_DataWriter* writer, const struct Point* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataWriter_lookup_instance(DDS_DataWriter* writer, const struct Point* key_holder, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -213,7 +213,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_read(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_read(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -234,7 +234,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_take(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_take(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -255,7 +255,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_read_next_sample(DDS_DataReader* reader, struct Point* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_PointDataReader_read_next_sample(DDS_DataReader* reader, struct Point* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -270,7 +270,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_take_next_sample(DDS_DataReader* reader, struct Point* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_PointDataReader_take_next_sample(DDS_DataReader* reader, struct Point* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -285,7 +285,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_read_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_read_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -306,7 +306,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_take_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_take_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -327,7 +327,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_read_next_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_read_next_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -348,7 +348,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_take_next_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_PointDataReader_take_next_instance(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -369,11 +369,11 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_return_loan(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos) {
+    static inline DDS_ReturnCode DDS_PointDataReader_return_loan(DDS_DataReader* reader, struct Point* data_values, struct DDS_SampleInfo* sample_infos) {
         return DDS_DataReader_return_loan(reader, NULL, sample_infos);
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_get_key_value(DDS_DataReader* reader, struct Point* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataReader_get_key_value(DDS_DataReader* reader, struct Point* key_holder, const DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -389,7 +389,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Point_dds_datareader_lookup_instance(DDS_DataReader* reader, const struct Point* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_PointDataReader_lookup_instance(DDS_DataReader* reader, const struct Point* key_holder, DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -470,7 +470,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_write(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_write(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -483,7 +483,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_write_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_write_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -496,7 +496,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_register_instance(DDS_DataWriter* writer, const struct Data* data, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_register_instance(DDS_DataWriter* writer, const struct Data* data, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -509,7 +509,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct Data* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct Data* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -522,7 +522,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_unregister_instance(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_unregister_instance(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -535,7 +535,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -548,7 +548,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_dispose(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_dispose(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -561,7 +561,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct Data* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -574,7 +574,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_get_key_value(DDS_DataWriter* writer, struct Data* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_get_key_value(DDS_DataWriter* writer, struct Data* key_holder, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -590,7 +590,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datawriter_lookup_instance(DDS_DataWriter* writer, const struct Data* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataWriter_lookup_instance(DDS_DataWriter* writer, const struct Data* key_holder, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -603,7 +603,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_read(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_read(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -624,7 +624,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_take(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_take(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -645,7 +645,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_read_next_sample(DDS_DataReader* reader, struct Data* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_DataDataReader_read_next_sample(DDS_DataReader* reader, struct Data* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -660,7 +660,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_take_next_sample(DDS_DataReader* reader, struct Data* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_DataDataReader_take_next_sample(DDS_DataReader* reader, struct Data* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -675,7 +675,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_read_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_read_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -696,7 +696,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_take_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_take_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -717,7 +717,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_read_next_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_read_next_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -738,7 +738,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_take_next_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_DataDataReader_take_next_instance(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -759,11 +759,11 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_return_loan(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos) {
+    static inline DDS_ReturnCode DDS_DataDataReader_return_loan(DDS_DataReader* reader, struct Data* data_values, struct DDS_SampleInfo* sample_infos) {
         return DDS_DataReader_return_loan(reader, NULL, sample_infos);
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_get_key_value(DDS_DataReader* reader, struct Data* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataReader_get_key_value(DDS_DataReader* reader, struct Data* key_holder, const DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -779,7 +779,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode Data_dds_datareader_lookup_instance(DDS_DataReader* reader, const struct Data* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_DataDataReader_lookup_instance(DDS_DataReader* reader, const struct Data* key_holder, DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -874,7 +874,7 @@ fn appendable_struct() {
         }
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_write(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_write(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -887,7 +887,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_write_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_write_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -900,7 +900,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_register_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_register_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -913,7 +913,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_register_instance_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, struct DDS_Time_t source_timestamp, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -926,7 +926,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_unregister_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_unregister_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -939,7 +939,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_unregister_instance_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -952,7 +952,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_dispose(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_dispose(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -965,7 +965,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_dispose_w_timestamp(DDS_DataWriter* writer, const struct MultiDimensionalPoint* data, const DDS_InstanceHandle_t* handle, struct DDS_Time_t source_timestamp) {
         if (writer == NULL || data == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -978,7 +978,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_get_key_value(DDS_DataWriter* writer, struct MultiDimensionalPoint* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_get_key_value(DDS_DataWriter* writer, struct MultiDimensionalPoint* key_holder, const DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -994,7 +994,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datawriter_lookup_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataWriter_lookup_instance(DDS_DataWriter* writer, const struct MultiDimensionalPoint* key_holder, DDS_InstanceHandle_t* handle) {
         if (writer == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1007,7 +1007,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_read(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_read(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1028,7 +1028,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_take(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_take(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1049,7 +1049,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_read_next_sample(DDS_DataReader* reader, struct MultiDimensionalPoint* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_read_next_sample(DDS_DataReader* reader, struct MultiDimensionalPoint* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1064,7 +1064,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_take_next_sample(DDS_DataReader* reader, struct MultiDimensionalPoint* data_value, struct DDS_SampleInfo* sample_info) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_take_next_sample(DDS_DataReader* reader, struct MultiDimensionalPoint* data_value, struct DDS_SampleInfo* sample_info) {
         if (reader == NULL || data_value == NULL || sample_info == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1079,7 +1079,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_read_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_read_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1100,7 +1100,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_take_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_take_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* a_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || a_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1121,7 +1121,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_read_next_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_read_next_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1142,7 +1142,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_take_next_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_take_next_instance(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos, int32_t max_samples, const DDS_InstanceHandle_t* previous_handle, DDS_SampleStateMask sample_states, DDS_ViewStateMask view_states, DDS_InstanceStateMask instance_states, int32_t* received_samples) {
         if (reader == NULL || data_values == NULL || previous_handle == NULL || received_samples == NULL || max_samples <= 0) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1163,11 +1163,11 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_return_loan(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_return_loan(DDS_DataReader* reader, struct MultiDimensionalPoint* data_values, struct DDS_SampleInfo* sample_infos) {
         return DDS_DataReader_return_loan(reader, NULL, sample_infos);
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_get_key_value(DDS_DataReader* reader, struct MultiDimensionalPoint* key_holder, const DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_get_key_value(DDS_DataReader* reader, struct MultiDimensionalPoint* key_holder, const DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }
@@ -1183,7 +1183,7 @@ fn appendable_struct() {
         return result;
     }
 
-    static inline DDS_ReturnCode MultiDimensionalPoint_dds_datareader_lookup_instance(DDS_DataReader* reader, const struct MultiDimensionalPoint* key_holder, DDS_InstanceHandle_t* handle) {
+    static inline DDS_ReturnCode DDS_MultiDimensionalPointDataReader_lookup_instance(DDS_DataReader* reader, const struct MultiDimensionalPoint* key_holder, DDS_InstanceHandle_t* handle) {
         if (reader == NULL || key_holder == NULL || handle == NULL) {
             return DDS_RETCODE_BAD_PARAMETER;
         }

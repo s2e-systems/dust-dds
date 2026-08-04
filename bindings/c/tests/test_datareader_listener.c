@@ -100,7 +100,7 @@ void test_datareader_listener_callback(void) {
     struct HelloWorld sample;
     sample.msg = "Hello Listener!";
     sample.count = 1;
-    DDS_ReturnCode result = HelloWorld_dds_datawriter_write(writer, &sample, NULL);
+    DDS_ReturnCode result = DDS_HelloWorldDataWriter_write(writer, &sample, NULL);
     TEST_ASSERT_EQUAL_INT(DDS_RETCODE_OK, result);
 
     // Wait for listener to trigger
