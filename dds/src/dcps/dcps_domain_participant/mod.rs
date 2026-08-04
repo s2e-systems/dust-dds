@@ -1039,7 +1039,7 @@ pub(crate) struct IncompatibleSubscriptions {
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
 }
 
-pub(crate) struct BuiltinDataWriter<T> {
+pub(crate) struct DataWriterEntity<T> {
     instance_handle: InstanceHandle,
     transport_writer: T,
     topic_name: String,
@@ -1051,7 +1051,7 @@ pub(crate) struct BuiltinDataWriter<T> {
     registered_instance_info: Vec<RegisteredInstanceInfo>,
 }
 
-impl<T: RtpsWriter> BuiltinDataWriter<T> {
+impl<T: RtpsWriter> DataWriterEntity<T> {
     pub(crate) fn new(
         instance_handle: InstanceHandle,
         transport_writer: T,
@@ -1316,7 +1316,7 @@ impl<T: RtpsWriter> BuiltinDataWriter<T> {
 }
 
 pub(crate) struct UserDefinedDataWriter {
-    pub(crate) rtps_writer: BuiltinDataWriter<RtpsStatefulWriter>,
+    pub(crate) rtps_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
     pub(crate) listener_mask: StatusMask,
     pub(crate) status_condition: DcpsStatusCondition,
@@ -1333,7 +1333,7 @@ pub(crate) struct UserDefinedDataWriter {
 }
 
 impl core::ops::Deref for UserDefinedDataWriter {
-    type Target = BuiltinDataWriter<RtpsStatefulWriter>;
+    type Target = DataWriterEntity<RtpsStatefulWriter>;
     fn deref(&self) -> &Self::Target {
         &self.rtps_writer
     }
@@ -1358,7 +1358,7 @@ impl UserDefinedDataWriter {
         qos: DataWriterQos,
     ) -> Self {
         Self {
-            rtps_writer: BuiltinDataWriter::new(
+            rtps_writer: DataWriterEntity::new(
                 instance_handle,
                 transport_writer,
                 topic_name,
