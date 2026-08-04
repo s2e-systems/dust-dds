@@ -15,7 +15,6 @@ impl StatusCondition {
     }
 }
 
-
 pub(crate) fn mask_to_status_kinds(
     mask: StatusMask,
 ) -> Vec<dust_dds::infrastructure::status::StatusKind> {
