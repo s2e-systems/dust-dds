@@ -1489,10 +1489,6 @@ struct ReaderSample {
     no_writers_generation_count: i32,
 }
 
-struct IndexedSample {
-    index: usize,
-    sample: (Arc<[u8]>, SampleInfo),
-}
 
 enum RtpsReaderKind {
     Stateful(RtpsStatefulReader),
@@ -1570,27 +1566,32 @@ impl DataReaderEntity {
         }
     }
 
-    fn create_indexed_sample_collection(
+    fn create_sample_collection(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<IndexedSample>> {
+        take: bool,
+    ) -> DdsResult<SampleList> {
         if let Some(h) = specific_instance_handle {
             if !self.instances.iter().any(|x| x.handle() == h) {
                 return Err(DdsError::BadParameter);
             }
         };
 
-        let mut indexed_samples = Vec::new();
+        let mut samples = Vec::new();
 
         let mut instances_in_collection = Vec::<InstanceState>::new();
-        for (index, cache_change) in self.sample_list.iter().enumerate() {
+        self.sample_list.retain_mut(|cache_change| {
+            if samples.len() as i32 == max_samples {
+                return true;
+            }
+
             if let Some(h) = specific_instance_handle {
                 if &cache_change.instance_handle != h {
-                    continue;
+                    return true;
                 }
             };
 
@@ -1599,14 +1600,14 @@ impl DataReaderEntity {
                 .iter()
                 .find(|x| x.handle == cache_change.instance_handle)
             else {
-                continue;
+                return true;
             };
 
             if !(sample_states.contains(&cache_change.sample_state)
                 && view_states.contains(&instance.view_state)
                 && instance_states.contains(&instance.instance_state))
             {
-                continue;
+                return true;
             }
 
             if !instances_in_collection
@@ -1656,53 +1657,34 @@ impl DataReaderEntity {
                 valid_data,
             };
 
-            let sample = (data, sample_info);
+            samples.push((data, sample_info));
 
-            indexed_samples.push(IndexedSample { index, sample });
-
-            if indexed_samples.len() as i32 == max_samples {
-                break;
+            if take {
+                false
+            } else {
+                cache_change.sample_state = SampleStateKind::Read;
+                true
             }
-        }
+        });
 
         // After the collection is created, update the relative generation rank values and mark the read instances as viewed
         for handle in instances_in_collection.iter().map(|x| x.handle()) {
-            let most_recent_sample_absolute_generation_rank = indexed_samples
+            let most_recent_sample_absolute_generation_rank = samples
                 .iter()
-                .filter(
-                    |IndexedSample {
-                         sample: (_, sample_info),
-                         ..
-                     }| &sample_info.instance_handle == handle,
-                )
-                .map(
-                    |IndexedSample {
-                         sample: (_, sample_info),
-                         ..
-                     }| sample_info.absolute_generation_rank,
-                )
+                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
+                .map(|(_, sample_info)| sample_info.absolute_generation_rank)
                 .next_back()
                 .expect("Instance handle must exist on collection");
 
-            let mut total_instance_samples_in_collection = indexed_samples
+            let mut total_instance_samples_in_collection = samples
                 .iter()
-                .filter(
-                    |IndexedSample {
-                         sample: (_, sample_info),
-                         ..
-                     }| &sample_info.instance_handle == handle,
-                )
+                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
                 .count();
 
-            for IndexedSample {
-                sample: (_, sample_info),
-                ..
-            } in indexed_samples.iter_mut().filter(
-                |IndexedSample {
-                     sample: (_, sample_info),
-                     ..
-                 }| &sample_info.instance_handle == handle,
-            ) {
+            for (_, sample_info) in samples
+                .iter_mut()
+                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
+            {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
 
@@ -1717,10 +1699,10 @@ impl DataReaderEntity {
                 .mark_viewed()
         }
 
-        if indexed_samples.is_empty() {
+        if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
-            Ok(indexed_samples)
+            Ok(samples)
         }
     }
 
@@ -2155,27 +2137,14 @@ impl DataReaderEntity {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let indexed_sample_list = self.create_indexed_sample_collection(
+        self.create_sample_collection(
             max_samples,
             sample_states,
             view_states,
             instance_states,
             specific_instance_handle,
-        )?;
-
-        let change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        for index in change_index_list {
-            self.sample_list[index].sample_state = SampleStateKind::Read;
-        }
-
-        Ok(samples)
+            false,
+        )
     }
 
     fn take(
@@ -2190,30 +2159,17 @@ impl DataReaderEntity {
             return Err(DdsError::NotEnabled);
         }
 
-        let indexed_sample_list = self.create_indexed_sample_collection(
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        self.create_sample_collection(
             max_samples,
             sample_states,
             view_states,
             instance_states,
             specific_instance_handle,
-        )?;
-
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let mut change_index_list: Vec<usize>;
-        let samples;
-
-        (change_index_list, samples) = indexed_sample_list
-            .into_iter()
-            .map(|IndexedSample { index, sample }| (index, sample))
-            .unzip();
-
-        while let Some(index) = change_index_list.pop() {
-            self.sample_list.remove(index);
-        }
-
-        Ok(samples)
+            true,
+        )
     }
 
     fn take_next_instance(
