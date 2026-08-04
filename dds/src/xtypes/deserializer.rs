@@ -678,19 +678,21 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
         length: usize,
     ) -> XTypesResult<()> {
-        let length = if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
-            if bound > 0 && length > bound as usize {
-                if member.descriptor.try_construct_kind == TryConstructKind::Trim {
-                    bound as usize
+        let (read_len, store_len) =
+            if let Some(&bound) = member.descriptor.r#type.descriptor.bound.first() {
+                if bound > 0 && length > bound as usize {
+                    match member.descriptor.try_construct_kind {
+                        TryConstructKind::Trim => (length, bound as usize),
+                        TryConstructKind::UseDefault => (length, 0),
+                        TryConstructKind::Discard => return Err(XTypesError::InvalidData),
+                    }
                 } else {
-                    return Err(XTypesError::InvalidData);
+                    (length, length)
                 }
             } else {
-                length
-            }
-        } else {
-            length
-        };
+                (length, length)
+            };
+
         fn deserialize_primitive_sequence_elements<
             'a,
             O: AsBytes + Align,
@@ -698,11 +700,15 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             V: EncodingVersion,
         >(
             deserializer: &mut XTypesDeserializer<'a, E, V>,
-            length: usize,
+            read_length: usize,
+            store_length: usize,
         ) -> XTypesResult<Vec<O>> {
-            let mut sequence = Vec::with_capacity(length);
-            for _ in 0..length {
-                sequence.push(deserializer.deserialize_primitive_type()?);
+            let mut sequence = Vec::with_capacity(store_length);
+            for i in 0..read_length {
+                let val = deserializer.deserialize_primitive_type()?;
+                if i < store_length {
+                    sequence.push(val);
+                }
             }
             Ok(sequence)
         }
@@ -717,70 +723,80 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::NONE => todo!(),
             TypeKind::BOOLEAN => dynamic_data.set_boolean_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
-            TypeKind::BYTE => dynamic_data
-                .set_byte_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
+            TypeKind::BYTE => {
+                let bytes = self.reader.read_bytes(read_len)?;
+                dynamic_data.set_byte_values(member.get_id(), bytes[..store_len].to_vec())
+            }
             TypeKind::INT16 => dynamic_data.set_int16_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::INT32 => dynamic_data.set_int32_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::INT64 => dynamic_data.set_int64_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::UINT16 => dynamic_data.set_uint16_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::UINT32 => dynamic_data.set_uint32_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::UINT64 => dynamic_data.set_uint64_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::FLOAT32 => dynamic_data.set_float32_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::FLOAT64 => dynamic_data.set_float64_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::FLOAT128 => dynamic_data.set_float128_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::INT8 => dynamic_data.set_int8_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
-            TypeKind::UINT8 => dynamic_data
-                .set_uint8_values(member.get_id(), self.reader.read_bytes(length)?.to_vec()),
+            TypeKind::UINT8 => {
+                let bytes = self.reader.read_bytes(read_len)?;
+                dynamic_data.set_uint8_values(member.get_id(), bytes[..store_len].to_vec())
+            }
             TypeKind::CHAR8 => dynamic_data.set_char8_values(
                 member.get_id(),
-                deserialize_primitive_sequence_elements(self, length)?,
+                deserialize_primitive_sequence_elements(self, read_len, store_len)?,
             ),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
                 let bound = element_type.descriptor.bound.first().copied().unwrap_or(0);
-                let mut values = Vec::with_capacity(length);
-                for _ in 0..length {
-                    values.push(self.deserialize_string_type(bound)?);
+                let mut values = Vec::with_capacity(store_len);
+                for i in 0..read_len {
+                    let val = self.deserialize_string_type(bound)?;
+                    if i < store_len {
+                        values.push(val);
+                    }
                 }
                 dynamic_data.set_string_values(member.get_id(), values)
             }
             TypeKind::STRING16 => {
                 let bound = element_type.descriptor.bound.first().copied().unwrap_or(0);
-                let mut values = Vec::with_capacity(length);
-                for _ in 0..length {
-                    values.push(self.deserialize_wstring_type(bound)?);
+                let mut values = Vec::with_capacity(store_len);
+                for i in 0..read_len {
+                    let val = self.deserialize_wstring_type(bound)?;
+                    if i < store_len {
+                        values.push(val);
+                    }
                 }
                 dynamic_data.set_string_values(member.get_id(), values)
             }
@@ -788,9 +804,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => {
-                let mut values = Vec::with_capacity(length);
-                for _ in 0..length {
-                    values.push(self.deserialize_as_nested(element_type)?);
+                let mut values = Vec::with_capacity(store_len);
+                for i in 0..read_len {
+                    let val = self.deserialize_as_nested(element_type)?;
+                    if i < store_len {
+                        values.push(val);
+                    }
                 }
                 dynamic_data.set_complex_values(member.get_id(), values)
             }
