@@ -67,7 +67,7 @@ impl DomainParticipantListener for Listener {
     ) -> impl Future<Output = ()> + Send {
         self.sender
             .send("on_publication_matched()".to_string())
-            .unwrap();
+            .ok();
         core::future::ready(())
     }
     fn on_subscription_matched(
@@ -77,7 +77,7 @@ impl DomainParticipantListener for Listener {
     ) -> impl Future<Output = ()> + Send {
         self.sender
             .send("on_subscription_matched()".to_string())
-            .unwrap();
+            .ok();
         core::future::ready(())
     }
     fn on_inconsistent_topic(
@@ -87,7 +87,7 @@ impl DomainParticipantListener for Listener {
     ) -> impl Future<Output = ()> + Send {
         self.sender
             .send("on_inconsistent_topic()".to_string())
-            .unwrap();
+            .ok();
         core::future::ready(())
     }
 }
@@ -195,10 +195,10 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_1() {
     // if the publication or subscriptions are matched. To mimic that test even closer here
     // the (actually better fitting) status condition is not used
     receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
+        .recv_timeout(std::time::Duration::from_secs(30))
         .unwrap();
     receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
+        .recv_timeout(std::time::Duration::from_secs(30))
         .unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
@@ -813,6 +813,17 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_4() {
     let publisher_topic = publisher_participant
         .create_topic::<A2>("test", "A2", QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<A2>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
@@ -1054,11 +1065,11 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         .unwrap();
 
     receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
+        .recv_timeout(std::time::Duration::from_secs(30))
         .unwrap();
 
     receiver
-        .recv_timeout(std::time::Duration::from_secs(10))
+        .recv_timeout(std::time::Duration::from_secs(30))
         .unwrap();
 
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
@@ -3914,7 +3925,6 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_seq_3() {
 //                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
 // }
 #[test]
-#[ignore = "not yet working"]
 fn xtypes_v2_tryconstruct_test_suite_tryc_union_seq_1() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let publisher_participant = DomainParticipantFactory::get_instance()

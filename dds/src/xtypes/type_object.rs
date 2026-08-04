@@ -2440,43 +2440,60 @@ impl TypeIdentifier {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType | TypeIdentifier::TkInt8Type | TypeIdentifier::TkUint8Type => {
-                matches!(
-                    other,
-                    TypeIdentifier::TkByteType
-                        | TypeIdentifier::TkInt8Type
-                        | TypeIdentifier::TkUint8Type
-                        | TypeIdentifier::EkComplete { .. }
-                        | TypeIdentifier::EkMinimal { .. }
-                )
-            }
-            TypeIdentifier::TkInt16Type | TypeIdentifier::TkUint16Type => {
-                matches!(
-                    other,
-                    TypeIdentifier::TkInt16Type
-                        | TypeIdentifier::TkUint16Type
-                        | TypeIdentifier::EkComplete { .. }
-                        | TypeIdentifier::EkMinimal { .. }
-                )
-            }
-            TypeIdentifier::TkInt32Type | TypeIdentifier::TkUint32Type => {
-                matches!(
-                    other,
-                    TypeIdentifier::TkInt32Type
-                        | TypeIdentifier::TkUint32Type
-                        | TypeIdentifier::EkComplete { .. }
-                        | TypeIdentifier::EkMinimal { .. }
-                )
-            }
-            TypeIdentifier::TkInt64Type | TypeIdentifier::TkUint64Type => {
-                matches!(
-                    other,
-                    TypeIdentifier::TkInt64Type
-                        | TypeIdentifier::TkUint64Type
-                        | TypeIdentifier::EkComplete { .. }
-                        | TypeIdentifier::EkMinimal { .. }
-                )
-            }
+            TypeIdentifier::TkByteType => matches!(
+                other,
+                TypeIdentifier::TkByteType
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt8Type => matches!(
+                other,
+                TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint8Type => matches!(
+                other,
+                TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt16Type => matches!(
+                other,
+                TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint16Type => matches!(
+                other,
+                TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt32Type => matches!(
+                other,
+                TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint32Type => matches!(
+                other,
+                TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt64Type => matches!(
+                other,
+                TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint64Type => matches!(
+                other,
+                TypeIdentifier::TkUint64Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
             TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
             TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
@@ -2698,7 +2715,9 @@ impl CompleteTypeObject {
                             return false;
                         }
                     }
-                    return true;
+                    if is_t1_final && is_t2_final {
+                        return true;
+                    }
                 }
 
                 // • There is at least one member "m1" of T1 and one corresponding member "m2" of T2

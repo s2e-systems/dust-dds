@@ -7,6 +7,8 @@ use crate::xtypes::{
         XTypesError::{self, PidNotFound},
         XTypesResult,
     },
+    type_object::TypeIdentifier,
+    type_support::TypeSupport,
 };
 use alloc::{string::String, vec::Vec};
 use tracing::debug;
@@ -879,7 +881,11 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         let member_descriptor = member.get_descriptor()?;
-        let member_type = member_descriptor.r#type;
+        let member_type = if member_descriptor.is_external {
+            TypeIdentifier::get_type()
+        } else {
+            member_descriptor.r#type
+        };
         match member_type.get_kind() {
             TypeKind::NONE => Ok(()),
             TypeKind::BOOLEAN => dynamic_data.set_boolean_value(
