@@ -2550,6 +2550,126 @@ fn xtypes_v2_struct_test_suite_struct_final_appendable() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'struct_appendable_mutable': {
+///     'common_args': ['--type-folder types --type-file primitives'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_primitives_appendable --data-folder data --data-file struct_primitives',
+///              'sub-exe -S -t test -y Test::struct_primitives_mutable --data-folder data --data-file struct_primitives'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_primitives_appendable and struct_primitives_mutable',
+///     'description' : 'Verifies structs with mismatched extensibility are not assignable:\n\n'
+///                     ' * Publisher uses `struct_primitives_appendable` (appendable) from `primitives`.\n'
+///                     ' * Subscriber uses `struct_primitives_mutable` (mutable) from `primitives`.\n'
+///                     ' * Publisher is `appendable`.\n'
+///                     ' * Subscriber is `mutable`.\n'
+///                     ' * Extensibility must match for assignability.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_struct_test_suite_struct_appendable_mutable() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_primitives_appendable"   extensibility="appendable">
+                    <member name="x1"   type="uint8"   />
+                    <member name="x2"   type="uint16"  />
+                    <member name="x3"   type="uint32"  />
+                    <member name="x4"   type="uint64"  />
+                    <member name="x5"   type="int8"    />
+                    <member name="x6"   type="int16"   />
+                    <member name="x7"   type="int32"   />
+                    <member name="x8"   type="int64"   />
+                    <member name="x9"   type="boolean" />
+                    <member name="x10"  type="float32" />
+                    <member name="x11"  type="float64" />
+                    <member name="x12"  type="float128"/>
+                    <member name="x13"  type="byte"    />
+                    <member name="x14"  type="char8"   />
+                </struct>
+                <struct name="struct_primitives_mutable"   extensibility="mutable">
+                    <member name="x1"   type="uint8"   />
+                    <member name="x2"   type="uint16"  />
+                    <member name="x3"   type="uint32"  />
+                    <member name="x4"   type="uint64"  />
+                    <member name="x5"   type="int8"    />
+                    <member name="x6"   type="int16"   />
+                    <member name="x7"   type="int32"   />
+                    <member name="x8"   type="int64"   />
+                    <member name="x9"   type="boolean" />
+                    <member name="x10"  type="float32" />
+                    <member name="x11"  type="float64" />
+                    <member name="x12"  type="float128"/>
+                    <member name="x13"  type="byte"    />
+                    <member name="x14"  type="char8"   />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_appendable",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_appendable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_mutable",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_mutable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
+
 /// 'struct_mustUnderstand_1': {
 ///     'common_args': ['--type-folder types --type-file struct_w_mustunderstand'],
 ///     'apps': ['pub-exe -P -t test -y Test::struct_mustUnderstand --data-folder data --data-file struct_num_x1_x2',

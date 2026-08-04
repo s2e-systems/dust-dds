@@ -2593,6 +2593,10 @@ impl CompleteTypeObject {
                 let is_t2_final = (t2.struct_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
                 let is_t1_appendable =
                     (t1.struct_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t2_appendable =
+                    (t2.struct_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t1_mutable =
+                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
                 let is_t2_mutable =
                     (t2.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
@@ -2600,12 +2604,9 @@ impl CompleteTypeObject {
                     if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
                         return false;
                     }
-                } else if is_t1_appendable && is_t2_mutable {
+                } else if is_t1_appendable != is_t2_appendable || is_t1_mutable != is_t2_mutable {
                     return false;
                 }
-
-                let is_t1_mutable =
-                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
                 if !is_t1_mutable && !is_t2_mutable {
                     for (m1, m2) in t1.member_seq.iter().zip(t2.member_seq.iter()) {
