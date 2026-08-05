@@ -1297,13 +1297,12 @@ fn create_union_seq_int32x10_trim_from_xml() {
     d.from_xml(DATA_XML_ARRAY_NUM_20).unwrap();
 
     // Discriminator:
-    assert_eq!(
-        d.get_uint32_value(0).unwrap(),
-        &1
-    );
+    assert_eq!(d.get_uint32_value(0).unwrap(), &1);
     assert_eq!(
         d.get_int32_values(1).unwrap(),
-        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        &[
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+        ]
     );
 }
 

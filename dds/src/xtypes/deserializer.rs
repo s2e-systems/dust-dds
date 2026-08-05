@@ -1133,12 +1133,14 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ///                << { O.member[i] : FMEMBER }*
     fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         let dynamic_type = dynamic_data.r#type();
-        let is_appendable = dynamic_type.descriptor.extensibility_kind == ExtensibilityKind::Appendable;
+        let is_appendable =
+            dynamic_type.descriptor.extensibility_kind == ExtensibilityKind::Appendable;
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let result = self.deserialize_fmember(member, dynamic_data);
             // Allow data to be missing if members are marked use default or if the structure is appendable
-            if (is_appendable || member.descriptor.try_construct_kind == TryConstructKind::UseDefault)
+            if (is_appendable
+                || member.descriptor.try_construct_kind == TryConstructKind::UseDefault)
                 && result == Err(XTypesError::NotEnoughData)
             {
                 break;
