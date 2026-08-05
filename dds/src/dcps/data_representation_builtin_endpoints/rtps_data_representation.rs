@@ -141,7 +141,7 @@ impl<'a> ParameterList<'a> {
                 representation_identifier,
                 pid_data,
             )?;
-            Ok(Some(T::create_sample(&mut dynamic_data)))
+            Ok(T::create_sample(&mut dynamic_data))
         } else {
             Ok(None)
         }
@@ -158,7 +158,7 @@ impl<'a> ParameterList<'a> {
                 [self.data[0], self.data[1]],
                 pid_data,
             )?;
-            Ok(T::create_sample(&mut dynamic_data))
+            Ok(T::create_sample(&mut dynamic_data).unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -174,7 +174,7 @@ impl<'a> ParameterList<'a> {
             [self.data[0], self.data[1]],
             pid_data,
         )?;
-        Ok(T::create_sample(&mut dynamic_data))
+        T::create_sample(&mut dynamic_data).ok_or(CdrError::InvalidData)
     }
 
     pub(crate) fn get_locator_list(&self, pid: ParameterId) -> CdrResult<Vec<Locator>> {

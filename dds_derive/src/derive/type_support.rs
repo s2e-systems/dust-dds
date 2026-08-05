@@ -215,9 +215,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         Some(member_ident) => {
                             if is_optional {
                                 member_sample_seq.push(quote! {
-                                    #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
-                                        dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
-                                    }),
+                                    #member_ident: src.remove_value(#member_id).ok().map_or(
+                                        Some(#member_default_value),
+                                        |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).ok()
+                                    )?,
                                 });
 
                                 member_dynamic_sample_seq
@@ -230,13 +231,14 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 member_sample_seq.push(
                                     if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
                                         quote! {
-                                            #member_ident: src.remove_value(#member_id).map_or(#member_default_value, |x| {
-                                                dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).expect("Must match")
-                                            }),
+                                            #member_ident: src.remove_value(#member_id).ok().map_or(
+                                                #member_default_value,
+                                                |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).unwrap_or(#member_default_value)
+                                            ),
                                         }
                                     } else {
                                         quote! {
-                                    #member_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),
+                                            #member_ident: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).ok()?).ok()?,
                                         }
                                     }
                                     );
@@ -250,9 +252,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             // In Mutable structs every member is optional even when not explicitly marked as such
                             if r#struct.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
-                                    src.remove_value(#member_id).map_or(#member_default_value, |x| {
-                                        DataStorageMapping::try_from_storage(x).expect("Must match")
-                                    }),
+                                    src.remove_value(#member_id).ok().map_or(
+                                        Some(#member_default_value),
+                                        |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).ok()
+                                    )?,
                                 });
                                 member_dynamic_sample_seq.push(quote! {
                                     if self.#index != #member_default_value {
@@ -262,12 +265,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             } else {
                                 member_sample_seq.push(if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
                                     quote! {
-                                        src.remove_value(#member_id).map_or(#member_default_value, |x| {
-                                            DataStorageMapping::try_from_storage(x).expect("Must match")
-                                        }),
+                                        src.remove_value(#member_id).ok().map_or(
+                                            #member_default_value,
+                                            |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).unwrap_or(#member_default_value)
+                                        ),
                                     }
                                 } else {
-                                     quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).expect("Must exist")).expect("Must match"),}
+                                     quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).ok()?).ok()?,}
                                 });
 
                                 member_dynamic_sample_seq.push(quote! {
@@ -295,9 +299,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #(#member_dynamic_sample_seq)*
             };
             let create_sample_quote = if is_tuple {
-                quote! {Self(#(#member_sample_seq)*)}
+                quote! {Some(Self(#(#member_sample_seq)*))}
             } else {
-                quote! {Self{#(#member_sample_seq)*}}
+                quote! {Some(Self{#(#member_sample_seq)*})}
             };
             Ok((
                 get_type_quote,
@@ -453,8 +457,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         let variant_sample = quote! {
                             Self::#variant_ident(<#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                              src.remove_value(#variant_index_unsuffixed as u32).expect("Must exist"),
-                            ).expect("Must match")),
+                              src.remove_value(#variant_index_unsuffixed as u32).ok()?
+                            ).ok()?),
                         };
 
                         variant_sample_seq.push(if variant_attributes.is_default {
@@ -523,7 +527,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
 
             if !has_default {
-                variant_sample_seq.push(quote! {_ => panic!("Invalid discriminator"),});
+                variant_sample_seq.push(quote! {_ => return None,});
             }
 
             let get_type_quote = quote! {
@@ -543,12 +547,12 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let create_sample_quote = quote! {
                 let disc =
                     <#discriminator_type as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                        src.remove_value(0).expect("Must exist"),
+                        src.remove_value(0).ok()?,
                     )
-                    .expect("Must match");
-                match disc {
+                    .ok()?;
+                Some(match disc {
                     #(#variant_sample_seq)*
-                }
+                })
             };
             Ok((
                 get_type_quote,
@@ -581,9 +585,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             };
 
             let discriminator_sample = match enum_type_attributes.bit_bound {
-                BitBound::I8 => quote! {src.get_int8_value(0).expect("Must exist");},
-                BitBound::I16 => quote! {src.get_int16_value(0).expect("Must exist");},
-                BitBound::I32 => quote! {src.get_int32_value(0).expect("Must exist");},
+                BitBound::I8 => quote! {*src.get_int8_value(0).ok()?},
+                BitBound::I16 => quote! {*src.get_int16_value(0).ok()?},
+                BitBound::I32 => quote! {*src.get_int32_value(0).ok()?},
             };
 
             let enum_descriptor = quote! {
@@ -618,10 +622,10 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             }
             let create_sample_quote = quote! {
                     let discriminator = #discriminator_sample;
-                    match discriminator {
+                    Some(match discriminator {
                         #(#create_sample_quote_variants)*
-                        d => panic!("Invalid discriminator {d:?}"),
-                    }
+                        _ => return None,
+                    })
             };
 
             Ok((
@@ -639,7 +643,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     Ok(quote! {
         #[automatically_derived]
         impl #impl_generics dust_dds::xtypes::type_support::TypeSupport for #ident #type_generics #where_clause {
-            fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> Self {
+            fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> ::core::option::Option<Self> {
                 #create_sample_quote
             }
 

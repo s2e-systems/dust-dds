@@ -1079,13 +1079,13 @@ impl Type for HistoryQosPolicyKind {
 }
 
 impl TypeSupport for HistoryQosPolicyKind {
-    fn create_sample(src: &mut DynamicData<'static>) -> Self {
-        let discriminant = src.get_int32_value(0).unwrap();
+    fn create_sample(src: &mut DynamicData<'static>) -> Option<Self> {
+        let discriminant = src.get_int32_value(0).ok()?;
 
         match discriminant {
-            0 => Self::KeepLast(1),
-            1 => Self::KeepAll,
-            d => panic!("Discriminant not valid: {d}"),
+            0 => Some(Self::KeepLast(1)),
+            1 => Some(Self::KeepAll),
+            _ => None,
         }
     }
 
@@ -1186,18 +1186,18 @@ impl Type for HistoryQosPolicy {
 }
 
 impl TypeSupport for HistoryQosPolicy {
-    fn create_sample(src: &mut DynamicData<'static>) -> Self {
-        let mut kind = src.get_complex_value(0).cloned().unwrap();
-        let kind = HistoryQosPolicyKind::create_sample(&mut kind);
-        let depth = src.get_int32_value(1).unwrap();
+    fn create_sample(src: &mut DynamicData<'static>) -> Option<Self> {
+        let mut kind = src.get_complex_value(0).cloned().ok()?;
+        let kind = HistoryQosPolicyKind::create_sample(&mut kind)?;
+        let depth = src.get_int32_value(1).ok()?;
 
         match kind {
-            HistoryQosPolicyKind::KeepLast(_) => Self {
+            HistoryQosPolicyKind::KeepLast(_) => Some(Self {
                 kind: HistoryQosPolicyKind::KeepLast(*depth as u32),
-            },
-            HistoryQosPolicyKind::KeepAll => Self {
+            }),
+            HistoryQosPolicyKind::KeepAll => Some(Self {
                 kind: HistoryQosPolicyKind::KeepAll,
-            },
+            }),
         }
     }
 
@@ -1260,12 +1260,12 @@ pub struct ResourceLimitsQosPolicy {
 
 #[automatically_derived]
 impl TypeSupport for ResourceLimitsQosPolicy {
-    fn create_sample(src: &mut DynamicData) -> Self {
-        Self {
-            max_samples: (*src.get_int32_value(0).expect("Must exist")).into(),
-            max_instances: (*src.get_int32_value(1).expect("Must exist")).into(),
-            max_samples_per_instance: (*src.get_int32_value(2).expect("Must exist")).into(),
-        }
+    fn create_sample(src: &mut DynamicData) -> Option<Self> {
+        Some(Self {
+            max_samples: (*src.get_int32_value(0).ok()?).into(),
+            max_instances: (*src.get_int32_value(1).ok()?).into(),
+            max_samples_per_instance: (*src.get_int32_value(2).ok()?).into(),
+        })
     }
     fn create_dynamic_sample(self) -> DynamicData<'static> {
         let mut data = DynamicDataFactory::create_data(Self::TYPE);

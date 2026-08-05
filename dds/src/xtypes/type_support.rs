@@ -22,7 +22,9 @@ pub trait TypeSupport: Type {
     }
 
     /// Create a sample of the TypeSupport’s data type with the contents of an input DynamicData object.
-    fn create_sample(src: &mut DynamicData<'static>) -> Self;
+    fn create_sample(src: &mut DynamicData<'static>) -> Option<Self>
+    where
+        Self: Sized;
 
     /// Create a 'DynamicData' object with the contents of an input sample of the TypeSupport’s data type.
     fn create_dynamic_sample(self) -> DynamicData<'static>;
@@ -254,8 +256,8 @@ impl<T: Type> Type for Box<T> {
 }
 
 impl<T: TypeSupport> TypeSupport for Box<T> {
-    fn create_sample(src: &mut DynamicData<'static>) -> Self {
-        Box::new(T::create_sample(src))
+    fn create_sample(src: &mut DynamicData<'static>) -> Option<Self> {
+        T::create_sample(src).map(Box::new)
     }
 
     fn create_dynamic_sample(self) -> DynamicData<'static> {

@@ -2161,10 +2161,11 @@ impl DcpsDomainParticipant {
                 &None,
             ) {
                 for (sample_data, _sample_info) in samples {
-                    if let Ok(mut d) =
+                    if let Some(type_lookup_request) =
                         deserialize_top_level_type(TypeLookupRequest::TYPE, &sample_data)
+                            .ok()
+                            .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
                     {
-                        let type_lookup_request = TypeLookupRequest::create_sample(&mut d);
                         match type_lookup_request.call {
                             TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
                                 for type_id in get_types.type_ids {
@@ -2256,10 +2257,11 @@ impl DcpsDomainParticipant {
                 &None,
             ) {
                 for (sample_data, _sample_info) in samples {
-                    if let Ok(mut d) =
+                    if let Some(type_lookup_reply) =
                         deserialize_top_level_type(TypeLookupReply::TYPE, &sample_data)
+                            .ok()
+                            .and_then(|mut d| TypeLookupReply::create_sample(&mut d))
                     {
-                        let type_lookup_reply = TypeLookupReply::create_sample(&mut d);
                         if let TypeLookupReturn::TypeLookupGetTypesHash { get_type } =
                             &type_lookup_reply.r#return
                         {

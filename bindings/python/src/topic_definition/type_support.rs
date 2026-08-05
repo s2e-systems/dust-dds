@@ -273,8 +273,10 @@ impl Type for PythonDdsData {
         <u8 as dust_dds::xtypes::type_support::Type>::TYPE;
 }
 impl TypeSupport for PythonDdsData {
-    fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>) -> Self {
-        Self(src.clone())
+    fn create_sample(
+        src: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>,
+    ) -> Option<Self> {
+        Some(Self(src.clone()))
     }
 
     fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData<'static> {
