@@ -2062,6 +2062,25 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                 };
                 CompleteTypeObject::TkEnum { enumerated_type }
             }
+            TypeKind::BITMASK => {
+                let bitmask_flags = TYPE_FLAG_IS_FINAL;
+                let bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
+                let header = CompleteBitmaskHeader {
+                    common: CommonEnumeratedHeader { bit_bound: bound },
+                    detail: CompleteTypeDetail {
+                        ann_builtin: None,
+                        ann_custom: None,
+                        type_name: String::from(value.descriptor.name),
+                    },
+                };
+                let flag_seq = Vec::new();
+                let bitmask_type = CompleteBitmaskType {
+                    bitmask_flags,
+                    header,
+                    flag_seq,
+                };
+                CompleteTypeObject::TkBitmask { bitmask_type }
+            }
             TypeKind::UNION => {
                 let mut union_flags = match value.descriptor.extensibility_kind {
                     ExtensibilityKind::Final => TYPE_FLAG_IS_FINAL,
@@ -2176,9 +2195,8 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 }
             }
             TypeKind::ALIAS => todo!(),
-            TypeKind::BITMASK => todo!(),
             TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM => {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
                 let complete_type_object = TypeObject::EkComplete {
                     complete: CompleteTypeObject::from(*value),
                 };
@@ -2422,15 +2440,60 @@ impl TypeIdentifier {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType => matches!(other, TypeIdentifier::TkByteType),
-            TypeIdentifier::TkInt8Type => matches!(other, TypeIdentifier::TkInt8Type),
-            TypeIdentifier::TkInt16Type => matches!(other, TypeIdentifier::TkInt16Type),
-            TypeIdentifier::TkInt32Type => matches!(other, TypeIdentifier::TkInt32Type),
-            TypeIdentifier::TkInt64Type => matches!(other, TypeIdentifier::TkInt64Type),
-            TypeIdentifier::TkUint8Type => matches!(other, TypeIdentifier::TkUint8Type),
-            TypeIdentifier::TkUint16Type => matches!(other, TypeIdentifier::TkUint16Type),
-            TypeIdentifier::TkUint32Type => matches!(other, TypeIdentifier::TkUint32Type),
-            TypeIdentifier::TkUint64Type => matches!(other, TypeIdentifier::TkUint64Type),
+            TypeIdentifier::TkByteType => matches!(
+                other,
+                TypeIdentifier::TkByteType
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt8Type => matches!(
+                other,
+                TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint8Type => matches!(
+                other,
+                TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt16Type => matches!(
+                other,
+                TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint16Type => matches!(
+                other,
+                TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt32Type => matches!(
+                other,
+                TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint32Type => matches!(
+                other,
+                TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkInt64Type => matches!(
+                other,
+                TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
+            TypeIdentifier::TkUint64Type => matches!(
+                other,
+                TypeIdentifier::TkUint64Type
+                    | TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::EkMinimal { .. }
+            ),
             TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
             TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
@@ -2557,8 +2620,32 @@ impl TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
-            TypeIdentifier::EkComplete { .. } => matches!(other, TypeIdentifier::EkComplete { .. }),
-            EkMinimal { .. } => matches!(other, TypeIdentifier::EkMinimal { .. }),
+            TypeIdentifier::EkComplete { .. } => matches!(
+                other,
+                TypeIdentifier::EkComplete { .. }
+                    | TypeIdentifier::TkByteType
+                    | TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::TkUint64Type
+            ),
+            EkMinimal { .. } => matches!(
+                other,
+                TypeIdentifier::EkMinimal { .. }
+                    | TypeIdentifier::TkByteType
+                    | TypeIdentifier::TkInt8Type
+                    | TypeIdentifier::TkUint8Type
+                    | TypeIdentifier::TkInt16Type
+                    | TypeIdentifier::TkUint16Type
+                    | TypeIdentifier::TkInt32Type
+                    | TypeIdentifier::TkUint32Type
+                    | TypeIdentifier::TkInt64Type
+                    | TypeIdentifier::TkUint64Type
+            ),
             TypeIdentifier::Default { extended_type: _ } => todo!(),
         }
     }
@@ -2593,6 +2680,10 @@ impl CompleteTypeObject {
                 let is_t2_final = (t2.struct_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
                 let is_t1_appendable =
                     (t1.struct_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t2_appendable =
+                    (t2.struct_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t1_mutable =
+                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
                 let is_t2_mutable =
                     (t2.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
@@ -2600,12 +2691,9 @@ impl CompleteTypeObject {
                     if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
                         return false;
                     }
-                } else if is_t1_appendable && is_t2_mutable {
+                } else if is_t1_appendable != is_t2_appendable || is_t1_mutable != is_t2_mutable {
                     return false;
                 }
-
-                let is_t1_mutable =
-                    (t1.struct_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
 
                 if !is_t1_mutable && !is_t2_mutable {
                     for (m1, m2) in t1.member_seq.iter().zip(t2.member_seq.iter()) {
@@ -2616,6 +2704,19 @@ impl CompleteTypeObject {
                         {
                             return false;
                         }
+                        if !m1
+                            .common
+                            .member_type_id
+                            .is_assignable_from_w_type_consistency(
+                                &m2.common.member_type_id,
+                                type_consistency,
+                            )
+                        {
+                            return false;
+                        }
+                    }
+                    if is_t1_final && is_t2_final {
+                        return true;
                     }
                 }
 
@@ -2667,11 +2768,59 @@ impl CompleteTypeObject {
 
                 // • Members for which both optional is false and must_understand is true in either T1 or T2 appear
                 //   (i.e., have a corresponding member of the same member ID) in both T1 and T2.
-                // TODO
+                for m1 in &t1.member_seq {
+                    let is_optional = (m1.common.member_flags.0 & MEMBER_FLAG_IS_OPTIONAL.0) != 0;
+                    let is_must_understand =
+                        (m1.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0) != 0;
+                    if !is_optional
+                        && is_must_understand
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_optional = (m2.common.member_flags.0 & MEMBER_FLAG_IS_OPTIONAL.0) != 0;
+                    let is_must_understand =
+                        (m2.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0) != 0;
+                    if !is_optional
+                        && is_must_understand
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        return false;
+                    }
+                }
 
                 // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
                 //   member ID) in both T1 and T2.
-                // TODO
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        return false;
+                    }
+                }
 
                 // • For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies
                 //   m1.type.length >= m2.type.length.
@@ -2699,7 +2848,20 @@ impl CompleteTypeObject {
                 CompleteTypeObject::TkUnion { union_type: t1 },
                 CompleteTypeObject::TkUnion { union_type: t2 },
             ) => {
-                if t1.union_flags != t2.union_flags {
+                let is_t1_final = (t1.union_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t2_final = (t2.union_flags & TYPE_FLAG_IS_FINAL) == TYPE_FLAG_IS_FINAL;
+                let is_t1_appendable =
+                    (t1.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t2_appendable =
+                    (t2.union_flags & TYPE_FLAG_IS_APPENDABLE) == TYPE_FLAG_IS_APPENDABLE;
+                let is_t1_mutable = (t1.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+                let is_t2_mutable = (t2.union_flags & TYPE_FLAG_IS_MUTABLE) == TYPE_FLAG_IS_MUTABLE;
+
+                if is_t1_final || is_t2_final {
+                    if !is_t1_final || !is_t2_final || t1.member_seq.len() != t2.member_seq.len() {
+                        return false;
+                    }
+                } else if is_t1_appendable != is_t2_appendable || is_t1_mutable != is_t2_mutable {
                     return false;
                 }
                 if !t1
@@ -2749,6 +2911,10 @@ impl CompleteTypeObject {
                 CompleteTypeObject::TkEnum {
                     enumerated_type: t2,
                 },
+            ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
+            (
+                CompleteTypeObject::TkBitmask { bitmask_type: t1 },
+                CompleteTypeObject::TkBitmask { bitmask_type: t2 },
             ) => t1.header.common.bit_bound == t2.header.common.bit_bound,
             _ => false,
         }
