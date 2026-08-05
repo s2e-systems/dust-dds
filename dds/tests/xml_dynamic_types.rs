@@ -1197,7 +1197,7 @@ fn create_seq_int32x10_from_xml() {
     let member = dynamic_type.get_member_by_name("x1").unwrap();
     assert_eq!(
         member.descriptor.try_construct_kind,
-        TryConstructKind::Discard
+        TryConstructKind::UseDefault
     );
 }
 
@@ -1257,7 +1257,6 @@ fn create_seq_int32x10_default_from_xml() {
 
 #[cfg(feature = "xtypes-xml")]
 #[test]
-#[ignore = "reason"]
 fn create_union_seq_int32x10_trim_from_xml() {
     use dust_dds::xtypes::dynamic_type::TryConstructKind;
 
@@ -1277,7 +1276,7 @@ fn create_union_seq_int32x10_trim_from_xml() {
             .get_kind(),
         TypeKind::UINT32
     );
-    assert_eq!(dynamic_type.get_member_count(), 1);
+    assert_eq!(dynamic_type.get_member_count(), 2);
     let member = dynamic_type.get_member_by_name("x1").unwrap();
 
     assert_eq!(member.descriptor.r#type.descriptor.kind, TypeKind::SEQUENCE);
@@ -1297,10 +1296,14 @@ fn create_union_seq_int32x10_trim_from_xml() {
     let mut d = DynamicDataFactory::create_data(dynamic_type);
     d.from_xml(DATA_XML_ARRAY_NUM_20).unwrap();
 
-    // This is the sequence
+    // Discriminator:
     assert_eq!(
-        d.get_int32_values(0).unwrap(),
-        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        d.get_uint32_value(0).unwrap(),
+        &1
+    );
+    assert_eq!(
+        d.get_int32_values(1).unwrap(),
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     );
 }
 

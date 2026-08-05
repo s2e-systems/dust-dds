@@ -408,7 +408,7 @@ impl DynamicTypeBuilderFactory {
         };
 
         let mut builder = Self::create_type(descriptor);
-        let mut try_construct_kind = TryConstructKind::Discard;
+        let mut try_construct_kind = TryConstructKind::UseDefault;
         fn parse_try_construct_kind(
             node: &roxmltree::Node,
             try_construct_kind: &mut TryConstructKind,

@@ -18,9 +18,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     wait_set::{Condition, WaitSet},
-    xtypes::dynamic_type::{
-        DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory, TryConstructKind,
-    },
+    xtypes::dynamic_type::{DynamicData, DynamicDataFactory, DynamicTypeBuilderFactory},
 };
 use std::sync::mpsc::{self, channel};
 
@@ -605,13 +603,10 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
     let subscriber_participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
-    let mut type_builder =
+    let type_builder =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_a2", vec![])
             .unwrap();
-    // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
-    for (_id, member) in type_builder.get_all_members().unwrap() {
-        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
-    }
+
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
             "test",
@@ -1030,13 +1025,10 @@ fn xtypes_v2_extensibility_test_suite_ext_mutable_struct_2() {
         )
         .unwrap();
 
-    let mut type_builder =
+    let type_builder =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_m2", vec![])
             .unwrap();
-    // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
-    for (_id, member) in type_builder.get_all_members().unwrap() {
-        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
-    }
+
     let subscriber_dynamic_type = type_builder.build();
     let subscriber_topic = subscriber_participant
         .create_dynamic_topic(
@@ -3489,13 +3481,10 @@ fn xtypes_v2_struct_test_suite_struct_different_ids_ok() {
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_1", vec![])
             .unwrap()
             .build();
-    let mut subscriber_type_builder =
+    let subscriber_type_builder =
         DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_2", vec![])
             .unwrap();
-    // Connext does have UseDefault as default, the standard says in 7.2.2.7 Try Construct behavior to use Discard by default
-    for (_id, member) in subscriber_type_builder.get_all_members().unwrap() {
-        member.descriptor.try_construct_kind = TryConstructKind::UseDefault;
-    }
+
     let subscriber_dynamic_type = subscriber_type_builder.build();
     let publisher_topic = publisher_participant
         .create_dynamic_topic(
