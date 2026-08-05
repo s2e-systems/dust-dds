@@ -4,8 +4,9 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            AddChangeResult, BuiltinDataReader, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            DiscoveredParticipantInfo, RtpsReader, TopicEntity, get_topic_type_support,
+            AddChangeResult, ContentFilteredTopicEntity, DcpsDomainParticipant,
+            DiscoveredParticipantInfo, RtpsReader, TopicEntity,
+            builtin_data_reader::BuiltinDataReader, get_topic_type_support,
             reader_methods::deserialize_topic_type,
         },
         listeners::domain_participant_listener::ListenerMail,
@@ -512,7 +513,7 @@ impl DcpsDomainParticipant {
                                     .builtin_subscriber
                                     .stateful_data_reader_list_mut()
                                     .into_iter()
-                                    .map(|dr| &mut dr.rtps_reader),
+                                    .map(|dr| &mut dr.reader),
                             )
                         {
                             let writer_guid = Guid::new(
@@ -631,7 +632,7 @@ impl DcpsDomainParticipant {
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
                     .into_iter()
-                    .map(|dr| &mut dr.rtps_reader),
+                    .map(|dr| &mut dr.reader),
             )
         {
             dr.transport_reader.on_data_submessage(
@@ -658,7 +659,7 @@ impl DcpsDomainParticipant {
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
                     .into_iter()
-                    .map(|dr| &mut dr.rtps_reader),
+                    .map(|dr| &mut dr.reader),
             )
         {
             let writer_guid = Guid::new(
@@ -692,7 +693,7 @@ impl DcpsDomainParticipant {
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
                     .into_iter()
-                    .map(|dr| &mut dr.rtps_reader),
+                    .map(|dr| &mut dr.reader),
             )
         {
             let writer_guid = Guid::new(
@@ -733,7 +734,7 @@ impl DcpsDomainParticipant {
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
                     .into_iter()
-                    .map(|dr| &mut dr.rtps_reader),
+                    .map(|dr| &mut dr.reader),
             )
         {
             dr.transport_reader.on_data_frag_submessage(

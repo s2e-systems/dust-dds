@@ -1,5 +1,8 @@
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
+    dcps::dcps_domain_participant::{
+        builtin_data_reader::BuiltinDataReader, subscriber_entity::SubscriberEntity,
+    },
     infrastructure::{instance::InstanceHandle, qos::SubscriberQos},
     rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
     transport::types::{Guid, GuidPrefix, ReliabilityKind},
@@ -8,11 +11,11 @@ use alloc::string::String;
 use core::ops::{Deref, DerefMut};
 
 use super::{
-    BuiltinDataReader, ENTITYID_BUILTIN_SUBSCRIBER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+    ENTITYID_BUILTIN_SUBSCRIBER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_TL_SVC_REPLY_READER,
-    ENTITYID_TL_SVC_REQ_READER, SEDP_DATA_READER_QOS, SPDP_READER_QOS, SubscriberEntity,
-    TYPE_LOOKUP_READER_QOS, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+    ENTITYID_TL_SVC_REQ_READER, SEDP_DATA_READER_QOS, SPDP_READER_QOS, TYPE_LOOKUP_READER_QOS,
+    TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
 };
 
 pub struct BuiltinSubscriber {

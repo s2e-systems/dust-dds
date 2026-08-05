@@ -5,7 +5,7 @@ use crate::{
     dcps::{
         dcps_domain_participant::{
             DcpsDomainParticipant, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
-            UserDefinedDataReader,
+            user_defined_data_reader::UserDefinedDataReader,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,

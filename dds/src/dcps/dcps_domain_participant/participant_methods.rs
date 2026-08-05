@@ -10,7 +10,8 @@ use crate::{
         channels::oneshot::OneshotSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            FindTopicNotification, PublisherEntity, TopicEntity, UserDefinedSubscriber,
+            FindTopicNotification, TopicEntity, user_defined_publisher::PublisherEntity,
+            user_defined_subscriber::UserDefinedSubscriber,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,

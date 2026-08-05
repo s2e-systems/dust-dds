@@ -1,3 +1,5 @@
+mod builtin_data_reader;
+mod builtin_data_writer;
 mod builtin_publisher;
 mod builtin_subscriber;
 mod communication_methods;
@@ -6,8 +8,13 @@ mod participant_methods;
 mod publisher_methods;
 mod reader_methods;
 mod status_condition_methods;
+mod subscriber_entity;
 mod subscriber_methods;
 mod topic_methods;
+mod user_defined_data_reader;
+mod user_defined_data_writer;
+mod user_defined_publisher;
+mod user_defined_subscriber;
 mod writer_methods;
 
 use crate::{
@@ -23,12 +30,12 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
+        dcps_domain_participant::{
+            builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltinSubscriber,
+        },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::{
-            KeyHolderData, get_instance_handle_from_key_holder_data,
-        },
     },
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
@@ -42,21 +49,15 @@ use crate::{
         qos_policy::{
             DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
             DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind,
-            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, Length,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
-            OwnershipStrengthQosPolicy, QosPolicyId, ReaderDataLifecycleQosPolicy,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
-            TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
-            TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
-            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
+            OwnershipStrengthQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+            TransportPriorityQosPolicy, TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy,
+            WriterDataLifecycleQosPolicy,
         },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-        status::{
-            InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
-            StatusKind, SubscriptionMatchedStatus,
-        },
+        status::{InconsistentTopicStatus, SampleRejectedStatusKind},
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     rtps::{
@@ -70,25 +71,23 @@ use crate::{
             BUILT_IN_READER_GROUP, BUILT_IN_READER_NO_KEY, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_TOPIC, BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_NO_KEY,
             BUILT_IN_WRITER_WITH_KEY, CacheChange, ChangeKind, ENTITYID_PARTICIPANT, EntityId,
-            Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_TOPIC,
+            Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC,
         },
     },
     xtypes::{
-        dynamic_type::{DynamicData, DynamicType},
-        serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
+        dynamic_type::DynamicType,
         type_object::{TypeInformation, TypeObject},
         type_support::{Type, TypeSupport},
     },
 };
 use alloc::{
     boxed::Box,
-    collections::{BTreeSet, VecDeque},
+    collections::BTreeSet,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
 };
-use builtin_publisher::BuiltinPublisher;
-use builtin_subscriber::BuiltinSubscriber;
+
 use core::{
     future::{Future, poll_fn},
     pin::{Pin, pin},
@@ -747,63 +746,6 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-pub struct SubscriberEntity {
-    instance_handle: InstanceHandle,
-    qos: SubscriberQos,
-    enabled: bool,
-}
-
-impl SubscriberEntity {
-    pub fn new(instance_handle: InstanceHandle, qos: SubscriberQos) -> Self {
-        Self {
-            instance_handle,
-            qos,
-            enabled: false,
-        }
-    }
-}
-
-pub struct UserDefinedSubscriber {
-    pub subscriber_entity: SubscriberEntity,
-    pub default_data_reader_qos: DataReaderQos,
-    pub status_condition: DcpsStatusCondition,
-    pub listener_sender: Option<MpscSender<ListenerMail>>,
-    pub listener_mask: StatusMask,
-    pub data_reader_list: Vec<UserDefinedDataReader>,
-}
-
-impl UserDefinedSubscriber {
-    pub fn new(
-        instance_handle: InstanceHandle,
-        qos: SubscriberQos,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-    ) -> Self {
-        Self {
-            subscriber_entity: SubscriberEntity::new(instance_handle, qos),
-            default_data_reader_qos: DataReaderQos::const_default(),
-            status_condition: DcpsStatusCondition::default(),
-            listener_sender,
-            listener_mask,
-            data_reader_list: Vec::new(),
-        }
-    }
-}
-
-impl core::ops::Deref for UserDefinedSubscriber {
-    type Target = SubscriberEntity;
-
-    fn deref(&self) -> &Self::Target {
-        &self.subscriber_entity
-    }
-}
-
-impl core::ops::DerefMut for UserDefinedSubscriber {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.subscriber_entity
-    }
-}
-
 #[allow(clippy::large_enum_variant)]
 pub enum DiscoveredTypeRepresentationState {
     Requested,
@@ -882,36 +824,6 @@ pub fn get_topic_type_support<'a>(
     }
 }
 
-struct PublisherEntity {
-    qos: PublisherQos,
-    instance_handle: InstanceHandle,
-    data_writer_list: Vec<UserDefinedDataWriter>,
-    enabled: bool,
-    default_datawriter_qos: DataWriterQos,
-    listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: StatusMask,
-}
-
-impl PublisherEntity {
-    const fn new(
-        qos: PublisherQos,
-        instance_handle: InstanceHandle,
-        data_writer_list: Vec<UserDefinedDataWriter>,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-    ) -> Self {
-        Self {
-            qos,
-            instance_handle,
-            data_writer_list,
-            enabled: false,
-            default_datawriter_qos: DataWriterQos::const_default(),
-            listener_sender,
-            listener_mask,
-        }
-    }
-}
-
 pub trait RtpsWriter {
     fn guid(&self) -> Guid;
     fn add_change(
@@ -965,369 +877,6 @@ impl RtpsReader for RtpsStatefulReader {
 impl RtpsReader for RtpsStatelessReader {
     fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         self.changes_mut()
-    }
-}
-
-struct RegisteredInstanceInfo {
-    instance_handle: InstanceHandle,
-    last_write_time: Option<Time>,
-    samples: VecDeque<i64>,
-}
-
-#[derive(Default)]
-pub struct IncompatibleSubscriptions {
-    incompatible_subscription_list: Vec<InstanceHandle>,
-    offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
-}
-
-pub struct DataWriterEntity<T> {
-    instance_handle: InstanceHandle,
-    transport_writer: T,
-    topic_name: String,
-    enabled: bool,
-    last_change_sequence_number: i64,
-    qos: DataWriterQos,
-    registered_instance_info: Vec<RegisteredInstanceInfo>,
-}
-
-impl<T: RtpsWriter> DataWriterEntity<T> {
-    pub fn new(
-        instance_handle: InstanceHandle,
-        transport_writer: T,
-        topic_name: String,
-        qos: DataWriterQos,
-    ) -> Self {
-        Self {
-            instance_handle,
-            transport_writer,
-            topic_name,
-            enabled: false,
-            last_change_sequence_number: 0,
-            qos,
-            registered_instance_info: Vec::new(),
-        }
-    }
-
-    fn write_w_timestamp(
-        &mut self,
-        sample_instance_handle: InstanceHandle,
-        serialized_data: Vec<u8>,
-        sample_timestamp: Time,
-        now: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
-    ) -> DdsResult<()> {
-        if !self
-            .registered_instance_info
-            .iter()
-            .any(|x| x.instance_handle == sample_instance_handle)
-        {
-            if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
-                self.registered_instance_info.push(RegisteredInstanceInfo {
-                    instance_handle: sample_instance_handle,
-                    last_write_time: None,
-                    samples: VecDeque::new(),
-                });
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        if let Length::Limited(max_samples_per_instance) =
-            self.qos.resource_limits.max_samples_per_instance
-        {
-            // If the history Qos guarantess that the number of samples
-            // is below the limit there is no need to check
-            match self.qos.history.kind {
-                HistoryQosPolicyKind::KeepLast(depth)
-                    if depth as i32 <= max_samples_per_instance => {}
-                _ => {
-                    if let Some(s) = self
-                        .registered_instance_info
-                        .iter()
-                        .find(|x| x.instance_handle == sample_instance_handle)
-                    {
-                        // Only Alive changes count towards the resource limits
-                        if s.samples.len() >= max_samples_per_instance as usize {
-                            return Err(DdsError::OutOfResources);
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Length::Limited(max_samples) = self.qos.resource_limits.max_samples {
-            let total_samples = self
-                .registered_instance_info
-                .iter()
-                .fold(0, |acc, x| acc + x.samples.len());
-
-            if total_samples >= max_samples as usize {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-
-        self.last_change_sequence_number += 1;
-        let change = CacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: self.transport_writer.guid(),
-            sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(sample_timestamp.into()),
-            instance_handle: Some(sample_instance_handle.into()),
-            data_value: serialized_data.into(),
-        };
-
-        let instance_info = self
-            .registered_instance_info
-            .iter_mut()
-            .find(|x| x.instance_handle == sample_instance_handle)
-            .expect("Instance info must exist");
-
-        match &mut instance_info.last_write_time {
-            Some(last_write_time) => {
-                if *last_write_time < sample_timestamp {
-                    *last_write_time = sample_timestamp;
-                }
-            }
-            None => {
-                instance_info.last_write_time = Some(sample_timestamp);
-            }
-        }
-
-        instance_info.samples.push_back(change.sequence_number);
-
-        if let DurationKind::Finite(lifespan_duration) = self.qos.lifespan.duration {
-            let duration_until_expired = sample_timestamp - now + lifespan_duration;
-            if duration_until_expired <= Duration::new(0, 0) {
-                return Ok(());
-            }
-        }
-
-        self.transport_writer
-            .add_change(change, message_writer, runtime);
-
-        Ok(())
-    }
-
-    fn dispose_w_timestamp(
-        &mut self,
-        dynamic_data: &DynamicData<'static>,
-        type_support: &DynamicType<'static>,
-        timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
-    ) -> DdsResult<()> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
-
-        if TopicKind::from(type_support) == TopicKind::NoKey {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
-
-        let Some(instance_info) = self
-            .registered_instance_info
-            .iter_mut()
-            .find(|x| x.instance_handle == instance_handle)
-        else {
-            return Err(DdsError::BadParameter);
-        };
-
-        instance_info.last_write_time = None;
-
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
-
-        self.last_change_sequence_number += 1;
-        let cache_change = CacheChange {
-            kind: ChangeKind::NotAliveDisposed,
-            writer_guid: self.transport_writer.guid(),
-            sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
-        };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
-
-        Ok(())
-    }
-
-    fn register_w_timestamp(
-        &mut self,
-        dynamic_data: &DynamicData<'static>,
-        type_support: &DynamicType<'static>,
-        timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
-
-        if TopicKind::from(type_support) == TopicKind::NoKey {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
-
-        if let Some(instance_info) = self
-            .registered_instance_info
-            .iter_mut()
-            .find(|x| x.instance_handle == instance_handle)
-        {
-            instance_info.last_write_time = Some(timestamp);
-        } else if self.registered_instance_info.len() < self.qos.resource_limits.max_instances {
-            self.registered_instance_info.push(RegisteredInstanceInfo {
-                instance_handle,
-                last_write_time: Some(timestamp),
-                samples: VecDeque::new(),
-            });
-        } else {
-            return Err(DdsError::OutOfResources);
-        }
-
-        Ok(Some(instance_handle))
-    }
-
-    fn unregister_w_timestamp(
-        &mut self,
-        dynamic_data: &DynamicData<'static>,
-        type_support: &DynamicType<'static>,
-        timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
-    ) -> DdsResult<()> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
-
-        if TopicKind::from(type_support) == TopicKind::NoKey {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
-        let Some(instance_info) = self
-            .registered_instance_info
-            .iter_mut()
-            .find(|x| x.instance_handle == instance_handle)
-        else {
-            return Err(DdsError::BadParameter);
-        };
-
-        instance_info.last_write_time = None;
-
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
-
-        self.last_change_sequence_number += 1;
-        let kind = if self
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
-        {
-            ChangeKind::NotAliveDisposedUnregistered
-        } else {
-            ChangeKind::NotAliveUnregistered
-        };
-        let cache_change = CacheChange {
-            kind,
-            writer_guid: self.transport_writer.guid(),
-            sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
-        };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
-        Ok(())
-    }
-}
-
-pub struct UserDefinedDataWriter {
-    pub rtps_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub listener_sender: Option<MpscSender<ListenerMail>>,
-    pub listener_mask: StatusMask,
-    pub status_condition: DcpsStatusCondition,
-    pub matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
-    pub publication_matched_status: PublicationMatchedStatus,
-    pub incompatible_subscriptions: IncompatibleSubscriptions,
-    pub offered_deadline_missed_status: OfferedDeadlineMissedStatus,
-    /// Member used for notifying reliable writers which are waiting to send
-    /// their samples without losing data
-    pub acknowledgement_notification: Option<OneshotSender<()>>,
-    /// Member used to notify the external user which called the
-    /// wait_for_acknowledgments method
-    pub wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
-}
-
-impl core::ops::Deref for UserDefinedDataWriter {
-    type Target = DataWriterEntity<RtpsStatefulWriter>;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_writer
-    }
-}
-
-impl core::ops::DerefMut for UserDefinedDataWriter {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_writer
-    }
-}
-
-impl UserDefinedDataWriter {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        instance_handle: InstanceHandle,
-        transport_writer: RtpsStatefulWriter,
-        topic_name: String,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        qos: DataWriterQos,
-    ) -> Self {
-        Self {
-            rtps_writer: DataWriterEntity::new(instance_handle, transport_writer, topic_name, qos),
-            listener_sender,
-            listener_mask,
-            status_condition: DcpsStatusCondition::default(),
-            matched_subscription_list: Vec::new(),
-            publication_matched_status: PublicationMatchedStatus::const_default(),
-            incompatible_subscriptions: IncompatibleSubscriptions::default(),
-            offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
-            acknowledgement_notification: None,
-            wait_for_acknowledgments_notification: Vec::new(),
-        }
-    }
-
-    fn remove_matched_subscription(&mut self, subscription_handle: &InstanceHandle) {
-        let Some(i) = self
-            .matched_subscription_list
-            .iter()
-            .position(|x| &x.key().value == subscription_handle.as_ref())
-        else {
-            return;
-        };
-        self.matched_subscription_list.remove(i);
-
-        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
-        self.publication_matched_status.current_count_change -= 1;
-    }
-
-    fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
-        let status = self.offered_deadline_missed_status.clone();
-        self.offered_deadline_missed_status.total_count_change = 0;
-        self.status_condition
-            .remove_communication_state(StatusKind::OfferedDeadlineMissed);
-
-        status
     }
 }
 
@@ -1960,337 +1509,6 @@ impl<T> DataReaderEntity<T> {
             true,
         )
     }
-
-    fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                &Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
-    fn read_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                &Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-}
-
-pub struct BuiltinDataReader<T> {
-    pub rtps_reader: DataReaderEntity<T>,
-}
-
-impl<T> core::ops::Deref for BuiltinDataReader<T> {
-    type Target = DataReaderEntity<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_reader
-    }
-}
-
-impl<T> core::ops::DerefMut for BuiltinDataReader<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_reader
-    }
-}
-
-impl<T> BuiltinDataReader<T> {
-    pub fn new(
-        instance_handle: InstanceHandle,
-        qos: DataReaderQos,
-        topic_name: String,
-        transport_reader: T,
-    ) -> Self {
-        Self {
-            rtps_reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
-        }
-    }
-}
-
-pub struct UserDefinedDataReader {
-    pub rtps_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub listener_sender: Option<MpscSender<ListenerMail>>,
-    pub listener_mask: StatusMask,
-    pub status_condition: DcpsStatusCondition,
-    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
-    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    pub sample_rejected_status: SampleRejectedStatus,
-    pub subscription_matched_status: SubscriptionMatchedStatus,
-    pub incompatible_writer_list: Vec<InstanceHandle>,
-}
-
-impl core::ops::Deref for UserDefinedDataReader {
-    type Target = DataReaderEntity<RtpsStatefulReader>;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_reader
-    }
-}
-
-impl core::ops::DerefMut for UserDefinedDataReader {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_reader
-    }
-}
-
-impl UserDefinedDataReader {
-    pub fn new(
-        instance_handle: InstanceHandle,
-        qos: DataReaderQos,
-        topic_name: String,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        transport_reader: RtpsStatefulReader,
-    ) -> Self {
-        Self {
-            rtps_reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
-            listener_sender,
-            listener_mask,
-            status_condition: DcpsStatusCondition::default(),
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),
-            sample_rejected_status: SampleRejectedStatus::const_default(),
-            subscription_matched_status: SubscriptionMatchedStatus::const_default(),
-            incompatible_writer_list: Vec::new(),
-        }
-    }
-
-    pub fn add_matched_publication(
-        &mut self,
-        publication_builtin_topic_data: PublicationBuiltinTopicData,
-    ) {
-        match self
-            .matched_publication_list
-            .iter_mut()
-            .find(|x| x.key() == publication_builtin_topic_data.key())
-        {
-            Some(x) => *x = publication_builtin_topic_data,
-            None => self
-                .matched_publication_list
-                .push(publication_builtin_topic_data),
-        }
-        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change += 1;
-        self.subscription_matched_status.total_count += 1;
-        self.subscription_matched_status.total_count_change += 1;
-    }
-
-    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
-        let Some(i) = self
-            .matched_publication_list
-            .iter()
-            .position(|x| &x.key().value == publication_handle.as_ref())
-        else {
-            return;
-        };
-        self.matched_publication_list.remove(i);
-
-        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change -= 1;
-        self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched);
-    }
-
-    pub fn add_requested_incompatible_qos(
-        &mut self,
-        handle: InstanceHandle,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
-        if !self.incompatible_writer_list.contains(&handle) {
-            self.incompatible_writer_list.push(handle);
-            self.requested_incompatible_qos_status.total_count += 1;
-            self.requested_incompatible_qos_status.total_count_change += 1;
-            self.requested_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
-            for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-                if let Some(policy_count) = self
-                    .requested_incompatible_qos_status
-                    .policies
-                    .iter_mut()
-                    .find(|x| x.policy_id == incompatible_qos_policy)
-                {
-                    policy_count.count += 1;
-                } else {
-                    self.requested_incompatible_qos_status
-                        .policies
-                        .push(QosPolicyCount {
-                            policy_id: incompatible_qos_policy,
-                            count: 1,
-                        })
-                }
-            }
-        }
-    }
-
-    pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
-        let status = self.requested_incompatible_qos_status.clone();
-        self.requested_incompatible_qos_status.total_count_change = 0;
-        status
-    }
-
-    pub fn increment_sample_rejected_status(
-        &mut self,
-        sample_handle: InstanceHandle,
-        sample_rejected_status_kind: SampleRejectedStatusKind,
-    ) {
-        self.sample_rejected_status.last_instance_handle = sample_handle;
-        self.sample_rejected_status.last_reason = sample_rejected_status_kind;
-        self.sample_rejected_status.total_count += 1;
-        self.sample_rejected_status.total_count_change += 1;
-    }
-
-    pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
-        let status = self.sample_rejected_status.clone();
-        self.sample_rejected_status.total_count_change = 0;
-        status
-    }
-
-    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
-        let status = self.subscription_matched_status.clone();
-        self.subscription_matched_status.total_count_change = 0;
-        self.subscription_matched_status.current_count_change = 0;
-        status
-    }
-
-    pub fn read(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<SampleList> {
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-        self.rtps_reader.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
-    }
-
-    pub fn take(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<SampleList> {
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-        self.rtps_reader.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
-    }
-
-    pub fn take_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.take(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                &Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-
-    pub fn read_next_instance(
-        &mut self,
-        max_samples: i32,
-        previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<SampleList> {
-        if !self.enabled {
-            return Err(DdsError::NotEnabled);
-        }
-
-        match self.next_instance(previous_handle) {
-            Some(next_handle) => self.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                &Some(next_handle),
-            ),
-            None => Err(DdsError::NoData),
-        }
-    }
-}
-
-fn serialize<'a>(
-    dynamic_data: &DynamicData<'a>,
-    representation: &DataRepresentationQosPolicy,
-) -> DdsResult<Vec<u8>> {
-    Ok(
-        if representation.value.is_empty() || representation.value[0] == XCDR_DATA_REPRESENTATION {
-            if cfg!(target_endian = "big") {
-                serialize_cdr1_be(dynamic_data)
-            } else {
-                serialize_cdr1_le(dynamic_data)
-            }
-        } else if representation.value[0] == XCDR2_DATA_REPRESENTATION {
-            if cfg!(target_endian = "big") {
-                serialize_cdr2_be(dynamic_data)
-            } else {
-                serialize_cdr2_le(dynamic_data)
-            }
-        } else {
-            panic!("Invalid data representation")
-        }?,
-    )
 }
 
 #[cfg(test)]
