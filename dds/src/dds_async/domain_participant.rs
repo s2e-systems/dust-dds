@@ -38,7 +38,7 @@ use alloc::{
 pub struct DomainParticipantAsync {
     dcps_sender: DcpsSender,
     domain_id: DomainId,
-    handle: InstanceHandle,
+    pub(crate) handle: InstanceHandle,
 }
 
 impl DomainParticipantAsync {
@@ -247,27 +247,22 @@ impl DomainParticipantAsync {
     }
 
     /// Async version of [`delete_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::delete_contentfilteredtopic).
-    #[tracing::instrument(skip(self, _a_contentfilteredtopic))]
+    #[tracing::instrument(skip(self, a_contentfilteredtopic))]
     pub async fn delete_contentfilteredtopic(
         &self,
-        _a_contentfilteredtopic: &ContentFilteredTopicAsync,
+        a_contentfilteredtopic: &ContentFilteredTopicAsync,
     ) -> DdsResult<()> {
-        todo!()
-        // let topic = match a_contentfilteredtopic {
-        //     TopicDescriptionAsync::Topic(_) => return Err(DdsError::BadParameter),
-        //     TopicDescriptionAsync::ContentFilteredTopic(t) => t.clone(),
-        // };
-        // let (reply_sender, reply_receiver) = oneshot();
-        // self.dcps_sender
-        //     .send(DomainParticipantMail::Participant(
-        //         ParticipantServiceMail::DeleteContentFilteredTopic {
-        //             participant_handle: topic.get_participant().handle,
-        //             name: topic.get_name(),
-        //             reply_sender,
-        //         },
-        //     ))
-        //     .await?;
-        // reply_receiver.await?
+        let (reply_sender, reply_receiver) = oneshot();
+        self.dcps_sender
+            .send(DcpsMail::Participant(
+                ParticipantServiceMail::DeleteContentFilteredTopic {
+                    participant_handle: a_contentfilteredtopic.get_participant().handle,
+                    name: a_contentfilteredtopic.get_name(),
+                    reply_sender,
+                },
+            ))
+            .await;
+        reply_receiver.await?
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).

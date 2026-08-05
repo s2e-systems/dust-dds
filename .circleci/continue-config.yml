@@ -387,10 +387,25 @@ jobs:
           name: Build
           command: cargo build --package dust_dds_shapes_demo
 
+  bindings_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Run C bindings tests
+          command: |
+            cargo build --package dust_dds_c --package dust_dds_gen
+            cmake -S bindings/c/tests -B bindings/c/tests/build
+            cmake --build bindings/c/tests/build
+            cd bindings/c/tests/build && ctest --output-on-failure
+
 workflows:
   build_and_run_tests:
     jobs:
       - tests
+      - bindings_tests
       - hello_world_on_macos
       - hello_world_on_windows
       - performance_benchmark
