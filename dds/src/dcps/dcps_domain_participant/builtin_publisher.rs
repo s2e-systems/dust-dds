@@ -19,11 +19,10 @@ use crate::{
 use alloc::string::String;
 
 use super::builtin_constants::{
-    ENTITYID_BUILTIN_PUBLISHER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, ENTITYID_TL_SVC_REPLY_WRITER,
-    ENTITYID_TL_SVC_REQ_WRITER, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
-    TYPE_LOOKUP_WRITER_QOS,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_WRITER, TYPE_LOOKUP_REPLY_TOPIC_NAME,
+    TYPE_LOOKUP_REQUEST_TOPIC_NAME, TYPE_LOOKUP_WRITER_QOS,
 };
 
 fn spdp_writer_qos() -> DataWriterQos {
@@ -65,7 +64,6 @@ pub struct BuiltinPublisher {
     pub dcps_subscriptions_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_request_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_reply_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub instance_handle: InstanceHandle,
     pub enabled: bool,
 }
 
@@ -147,9 +145,6 @@ impl BuiltinPublisher {
             dcps_subscriptions_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
-            instance_handle: InstanceHandle::new(
-                Guid::new(guid_prefix, ENTITYID_BUILTIN_PUBLISHER).into(),
-            ),
             enabled: false,
         }
     }

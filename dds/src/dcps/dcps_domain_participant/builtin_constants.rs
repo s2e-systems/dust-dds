@@ -26,7 +26,7 @@ pub const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_I
 pub const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
 
 pub const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
-pub const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+pub const _ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
