@@ -30,9 +30,6 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
-        dcps_domain_participant::{
-            builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltinSubscriber,
-        },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
@@ -87,6 +84,10 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
+use builtin_publisher::BuiltinPublisher;
+use builtin_subscriber::BuiltinSubscriber;
+use user_defined_publisher::PublisherEntity;
+use user_defined_subscriber::UserDefinedSubscriber;
 
 use core::{
     future::{Future, poll_fn},

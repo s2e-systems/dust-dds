@@ -431,7 +431,6 @@ impl DcpsDomainParticipant {
                 }
 
                 if let Some(s) = data_writer
-                    .rtps_writer
                     .registered_instance_info
                     .iter_mut()
                     .find(|x| x.instance_handle == instance_handle)

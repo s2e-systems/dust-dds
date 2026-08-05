@@ -2669,7 +2669,7 @@ impl DcpsDomainParticipant {
                     if matched_subscription.key.value[..12] == prefix {
                         // Remove readers
                         data_writer
-                            .rtps_writer
+                            .writer
                             .transport_writer
                             .delete_matched_reader(matched_subscription.key.value.into());
                     }
