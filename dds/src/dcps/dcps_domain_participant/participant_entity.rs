@@ -30,12 +30,11 @@ use crate::{
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
-        error::{DdsError, DdsResult},
+        error::{DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         time::{Duration, DurationKind, Time},
     },
-    runtime::Timer,
     transport::{
         interface::RtpsTransportParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
@@ -46,7 +45,6 @@ use crate::{
     },
 };
 use alloc::{
-    boxed::Box,
     collections::BTreeSet,
     string::{String, ToString},
     vec::Vec,

@@ -4,8 +4,7 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            builtin_data_reader::BuiltinDataReader,
-            data_reader_entity::AddChangeResult,
+            data_reader_entity::{AddChangeResult, DataReaderEntity},
             participant_entity::{DcpsDomainParticipant, DiscoveredParticipantInfo},
             reader_methods::deserialize_topic_type,
             rtps_traits::RtpsReader,
@@ -394,7 +393,7 @@ impl DcpsDomainParticipant {
         discovered_participant_list: &mut [DiscoveredParticipantInfo],
         content_filtered_topic_list: &[ContentFilteredTopicEntity],
         locally_created_topic_list: &[TopicEntity],
-        data_reader: &mut BuiltinDataReader<impl RtpsReader>,
+        data_reader: &mut DataReaderEntity<impl RtpsReader>,
         reception_timestamp: Time,
         runtime: &impl DdsRuntime,
     ) {
@@ -507,15 +506,12 @@ impl DcpsDomainParticipant {
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .flat_map(|s| {
-                                s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader)
-                            })
+                            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
                             .chain(
                                 self.domain_participant
                                     .builtin_subscriber
                                     .stateful_data_reader_list_mut()
-                                    .into_iter()
-                                    .map(|dr| &mut dr.reader),
+                                    .into_iter(),
                             )
                         {
                             let writer_guid = Guid::new(
@@ -628,13 +624,12 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
             .chain(
                 self.domain_participant
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
-                    .into_iter()
-                    .map(|dr| &mut dr.reader),
+                    .into_iter(),
             )
         {
             dr.transport_reader.on_data_submessage(
@@ -655,13 +650,12 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
             .chain(
                 self.domain_participant
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
-                    .into_iter()
-                    .map(|dr| &mut dr.reader),
+                    .into_iter(),
             )
         {
             let writer_guid = Guid::new(
@@ -729,12 +723,8 @@ impl DcpsDomainParticipant {
                 message_receiver.source_guid_prefix(),
                 heartbeat_submessage.writer_id(),
             );
-            let reader_guid = dr.reader.transport_reader.guid();
-            if let Some(writer_proxy) = dr
-                .reader
-                .transport_reader
-                .matched_writer_lookup(writer_guid)
-            {
+            let reader_guid = dr.transport_reader.guid();
+            if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
                 if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                     writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
                     writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
@@ -761,13 +751,12 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
             .chain(
                 self.domain_participant
                     .builtin_subscriber
                     .stateful_data_reader_list_mut()
-                    .into_iter()
-                    .map(|dr| &mut dr.reader),
+                    .into_iter(),
             )
         {
             dr.transport_reader.on_data_frag_submessage(

@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
-        dcps_domain_participant::builtin_data_writer::{
+        dcps_domain_participant::data_writer_entity::{
             DataWriterEntity, IncompatibleSubscriptions,
         },
         listeners::domain_participant_listener::ListenerMail,

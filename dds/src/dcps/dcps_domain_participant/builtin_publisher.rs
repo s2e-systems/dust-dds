@@ -1,6 +1,6 @@
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
-    dcps::dcps_domain_participant::builtin_data_writer::DataWriterEntity,
+    dcps::dcps_domain_participant::data_writer_entity::DataWriterEntity,
     infrastructure::{
         instance::InstanceHandle,
         qos::DataWriterQos,

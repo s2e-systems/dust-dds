@@ -1,6 +1,5 @@
 pub mod builtin_constants;
-pub mod builtin_data_reader;
-pub mod builtin_data_writer;
+pub mod data_writer_entity;
 pub mod builtin_publisher;
 pub mod builtin_subscriber;
 pub mod communication_methods;

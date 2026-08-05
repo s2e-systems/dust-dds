@@ -25,7 +25,7 @@ use core::ops::{Deref, DerefMut};
 use super::data_reader_entity::{DataReaderEntity, SampleList};
 
 pub struct UserDefinedDataReader {
-    pub rtps_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub reader: DataReaderEntity<RtpsStatefulReader>,
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
     pub status_condition: DcpsStatusCondition,
@@ -40,13 +40,13 @@ pub struct UserDefinedDataReader {
 impl Deref for UserDefinedDataReader {
     type Target = DataReaderEntity<RtpsStatefulReader>;
     fn deref(&self) -> &Self::Target {
-        &self.rtps_reader
+        &self.reader
     }
 }
 
 impl DerefMut for UserDefinedDataReader {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_reader
+        &mut self.reader
     }
 }
 
@@ -60,7 +60,7 @@ impl UserDefinedDataReader {
         transport_reader: RtpsStatefulReader,
     ) -> Self {
         Self {
-            rtps_reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
+            reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
             listener_sender,
             listener_mask,
             status_condition: DcpsStatusCondition::default(),
@@ -179,7 +179,7 @@ impl UserDefinedDataReader {
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
-        self.rtps_reader.read(
+        self.reader.read(
             max_samples,
             sample_states,
             view_states,
@@ -198,7 +198,7 @@ impl UserDefinedDataReader {
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
-        self.rtps_reader.take(
+        self.reader.take(
             max_samples,
             sample_states,
             view_states,
