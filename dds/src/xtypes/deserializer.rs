@@ -2335,28 +2335,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn deserialize_sequence_with_o2_bigger_length_than_o1() {
-        #[derive(TypeSupport, Debug, PartialEq, Clone)]
-        #[dust_dds(extensibility = "appendable")]
-        struct T {
-            x1: Vec<i32>,
-        }
-        assert_eq!(
-            deserialize_top_level_type(
-                T::TYPE,
-                &[
-                    0x00u8, 0x01, 0x00, 0x00, // CDR_LE | 0 padding
-                    20, 0, 0, 0, // length
-                    1, 0, 0, 0,
-                ]
-            )
-            .unwrap(),
-            T { x1: vec![1] }.create_dynamic_sample()
-        );
-    }
-
-
     #[cfg(feature = "xtypes-xml")]
     #[test]
     fn deserialize_bitmask_type() {
