@@ -103,28 +103,27 @@ const ENTITYID_TL_SVC_REQ_TOPIC: EntityId = EntityId::new([0, 0, 4], BUILT_IN_TO
 const ENTITYID_TL_SVC_RPL_TOPIC: EntityId = EntityId::new([0, 0, 5], BUILT_IN_TOPIC);
 
 const ENTITYID_BUILTIN_SUBSCRIBER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
-pub(crate) const ENTITYID_BUILTIN_PUBLISHER: EntityId =
-    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+pub const ENTITYID_BUILTIN_PUBLISHER: EntityId = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
 
-pub(crate) const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
-pub(crate) const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
-pub(crate) const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
-pub(crate) const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
 const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
@@ -132,20 +131,20 @@ const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
 
 // XTypes Table 61 – Built-in Endpoints added by the XTYPES specification
 
-pub(crate) const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
+pub const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
     EntityId::new([0x00, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
 
 const ENTITYID_TL_SVC_REQ_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
 
-pub(crate) const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
+pub const ENTITYID_TL_SVC_REPLY_WRITER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
 
 const ENTITYID_TL_SVC_REPLY_READER: EntityId =
     EntityId::new([0x00, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
 
-pub(crate) const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
-pub(crate) const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
+pub const TYPE_LOOKUP_REQUEST_TOPIC_NAME: &str = "TypeLookupRequest";
+pub const TYPE_LOOKUP_REPLY_TOPIC_NAME: &str = "TypeLookupReply";
 
 const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
     durability: DurabilityQosPolicy {
@@ -220,7 +219,7 @@ const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
 };
 
-pub(crate) const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
+pub const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     durability: DurabilityQosPolicy {
         kind: DurabilityQosPolicyKind::Volatile,
     },
@@ -275,7 +274,7 @@ fn poll_timeout<T>(
 #[derive(Debug, Clone, TypeSupport)]
 pub struct BuiltInKeyHolder {
     #[dust_dds(key)]
-    pub(crate) key: BuiltInTopicKey,
+    pub key: BuiltInTopicKey,
 }
 
 pub struct DcpsDomainParticipant {
@@ -725,7 +724,7 @@ impl DomainParticipantEntity {
     }
 }
 
-struct ContentFilteredTopicEntity {
+pub struct ContentFilteredTopicEntity {
     topic_name: String,
     related_topic_name: String,
     filter_expression: String,
@@ -748,14 +747,14 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-pub(crate) struct SubscriberEntity {
+pub struct SubscriberEntity {
     instance_handle: InstanceHandle,
     qos: SubscriberQos,
     enabled: bool,
 }
 
 impl SubscriberEntity {
-    pub(crate) fn new(instance_handle: InstanceHandle, qos: SubscriberQos) -> Self {
+    pub fn new(instance_handle: InstanceHandle, qos: SubscriberQos) -> Self {
         Self {
             instance_handle,
             qos,
@@ -764,17 +763,17 @@ impl SubscriberEntity {
     }
 }
 
-pub(crate) struct UserDefinedSubscriber {
-    pub(crate) subscriber_entity: SubscriberEntity,
-    pub(crate) default_data_reader_qos: DataReaderQos,
-    pub(crate) status_condition: DcpsStatusCondition,
-    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
-    pub(crate) listener_mask: StatusMask,
-    pub(crate) data_reader_list: Vec<UserDefinedDataReader>,
+pub struct UserDefinedSubscriber {
+    pub subscriber_entity: SubscriberEntity,
+    pub default_data_reader_qos: DataReaderQos,
+    pub status_condition: DcpsStatusCondition,
+    pub listener_sender: Option<MpscSender<ListenerMail>>,
+    pub listener_mask: StatusMask,
+    pub data_reader_list: Vec<UserDefinedDataReader>,
 }
 
 impl UserDefinedSubscriber {
-    pub(crate) fn new(
+    pub fn new(
         instance_handle: InstanceHandle,
         qos: SubscriberQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
@@ -811,7 +810,7 @@ pub enum DiscoveredTypeRepresentationState {
     Discovered(TypeObject),
 }
 
-struct TopicEntity {
+pub struct TopicEntity {
     qos: TopicQos,
     type_name: String,
     topic_name: String,
@@ -855,7 +854,7 @@ impl TopicEntity {
     }
 }
 
-pub(crate) fn get_topic_type_support<'a>(
+pub fn get_topic_type_support<'a>(
     topic_name: &str,
     content_filtered_topic_list: &[ContentFilteredTopicEntity],
     locally_created_topic_list: &'a [TopicEntity],
@@ -921,9 +920,6 @@ pub trait RtpsWriter {
         message_writer: &(impl WriteMessage + ?Sized),
         runtime: &impl DdsRuntime,
     );
-    fn remove_change(&mut self, sequence_number: i64);
-    fn changes(&self) -> &[CacheChange];
-    fn changes_mut(&mut self) -> &mut Vec<CacheChange>;
 }
 
 impl RtpsWriter for RtpsStatefulWriter {
@@ -938,18 +934,6 @@ impl RtpsWriter for RtpsStatefulWriter {
         runtime: &impl DdsRuntime,
     ) {
         self.add_change(cache_change, message_writer, &runtime.clock())
-    }
-
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.remove_change(sequence_number)
-    }
-
-    fn changes(&self) -> &[CacheChange] {
-        self.changes()
-    }
-
-    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        self.changes_mut()
     }
 }
 
@@ -966,40 +950,19 @@ impl RtpsWriter for RtpsStatelessWriter {
     ) {
         self.add_change(cache_change, message_writer)
     }
-
-    fn remove_change(&mut self, sequence_number: i64) {
-        self.remove_change(sequence_number)
-    }
-
-    fn changes(&self) -> &[CacheChange] {
-        self.changes()
-    }
-
-    fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        self.changes_mut()
-    }
 }
 
 pub trait RtpsReader {
-    fn guid(&self) -> Guid;
     fn changes_mut(&mut self) -> &mut Vec<CacheChange>;
 }
 
 impl RtpsReader for RtpsStatefulReader {
-    fn guid(&self) -> Guid {
-        self.guid()
-    }
-
     fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         self.changes_mut()
     }
 }
 
 impl RtpsReader for RtpsStatelessReader {
-    fn guid(&self) -> Guid {
-        self.guid()
-    }
-
     fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         self.changes_mut()
     }
@@ -1012,12 +975,12 @@ struct RegisteredInstanceInfo {
 }
 
 #[derive(Default)]
-pub(crate) struct IncompatibleSubscriptions {
+pub struct IncompatibleSubscriptions {
     incompatible_subscription_list: Vec<InstanceHandle>,
     offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
 }
 
-pub(crate) struct DataWriterEntity<T> {
+pub struct DataWriterEntity<T> {
     instance_handle: InstanceHandle,
     transport_writer: T,
     topic_name: String,
@@ -1028,7 +991,7 @@ pub(crate) struct DataWriterEntity<T> {
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
-    pub(crate) fn new(
+    pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: T,
         topic_name: String,
@@ -1290,21 +1253,21 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
     }
 }
 
-pub(crate) struct UserDefinedDataWriter {
-    pub(crate) rtps_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
-    pub(crate) listener_mask: StatusMask,
-    pub(crate) status_condition: DcpsStatusCondition,
-    pub(crate) matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
-    pub(crate) publication_matched_status: PublicationMatchedStatus,
-    pub(crate) incompatible_subscriptions: IncompatibleSubscriptions,
-    pub(crate) offered_deadline_missed_status: OfferedDeadlineMissedStatus,
+pub struct UserDefinedDataWriter {
+    pub rtps_writer: DataWriterEntity<RtpsStatefulWriter>,
+    pub listener_sender: Option<MpscSender<ListenerMail>>,
+    pub listener_mask: StatusMask,
+    pub status_condition: DcpsStatusCondition,
+    pub matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
+    pub publication_matched_status: PublicationMatchedStatus,
+    pub incompatible_subscriptions: IncompatibleSubscriptions,
+    pub offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     /// Member used for notifying reliable writers which are waiting to send
     /// their samples without losing data
-    pub(crate) acknowledgement_notification: Option<OneshotSender<()>>,
+    pub acknowledgement_notification: Option<OneshotSender<()>>,
     /// Member used to notify the external user which called the
     /// wait_for_acknowledgments method
-    pub(crate) wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
+    pub wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
 }
 
 impl core::ops::Deref for UserDefinedDataWriter {
@@ -1322,7 +1285,7 @@ impl core::ops::DerefMut for UserDefinedDataWriter {
 
 impl UserDefinedDataWriter {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: RtpsStatefulWriter,
         topic_name: String,
@@ -1376,7 +1339,7 @@ enum AddChangeResult {
     Rejected(InstanceHandle, SampleRejectedStatusKind),
 }
 
-struct InstanceState {
+pub struct InstanceState {
     handle: InstanceHandle,
     view_state: ViewStateKind,
     instance_state: InstanceStateKind,
@@ -1451,7 +1414,7 @@ impl InstanceState {
 }
 
 #[derive(Debug)]
-struct ReaderSample {
+pub struct ReaderSample {
     kind: ChangeKind,
     writer_guid: [u8; 16],
     instance_handle: InstanceHandle,
@@ -1462,22 +1425,22 @@ struct ReaderSample {
     no_writers_generation_count: i32,
 }
 
-struct InstanceOwnership {
+pub struct InstanceOwnership {
     instance_handle: InstanceHandle,
     owner_handle: [u8; 16],
     last_received_time: Time,
 }
 
-pub(crate) struct DataReaderEntity<T> {
-    pub(crate) instance_handle: InstanceHandle,
-    pub(crate) sample_list: Vec<ReaderSample>,
-    pub(crate) qos: DataReaderQos,
-    pub(crate) topic_name: String,
-    pub(crate) matched_publication_list: Vec<PublicationBuiltinTopicData>,
-    pub(crate) enabled: bool,
-    pub(crate) instances: Vec<InstanceState>,
-    pub(crate) instance_ownership: Vec<InstanceOwnership>,
-    pub(crate) transport_reader: T,
+pub struct DataReaderEntity<T> {
+    pub instance_handle: InstanceHandle,
+    pub sample_list: Vec<ReaderSample>,
+    pub qos: DataReaderQos,
+    pub topic_name: String,
+    pub matched_publication_list: Vec<PublicationBuiltinTopicData>,
+    pub enabled: bool,
+    pub instances: Vec<InstanceState>,
+    pub instance_ownership: Vec<InstanceOwnership>,
+    pub transport_reader: T,
 }
 
 impl<T> DataReaderEntity<T> {
@@ -2047,8 +2010,8 @@ impl<T> DataReaderEntity<T> {
     }
 }
 
-pub(crate) struct BuiltinDataReader<T> {
-    pub(crate) rtps_reader: DataReaderEntity<T>,
+pub struct BuiltinDataReader<T> {
+    pub rtps_reader: DataReaderEntity<T>,
 }
 
 impl<T> core::ops::Deref for BuiltinDataReader<T> {
@@ -2065,7 +2028,7 @@ impl<T> core::ops::DerefMut for BuiltinDataReader<T> {
 }
 
 impl<T> BuiltinDataReader<T> {
-    pub(crate) fn new(
+    pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
@@ -2077,16 +2040,16 @@ impl<T> BuiltinDataReader<T> {
     }
 }
 
-pub(crate) struct UserDefinedDataReader {
-    pub(crate) rtps_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
-    pub(crate) listener_mask: StatusMask,
-    pub(crate) status_condition: DcpsStatusCondition,
-    pub(crate) requested_deadline_missed_status: RequestedDeadlineMissedStatus,
-    pub(crate) requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    pub(crate) sample_rejected_status: SampleRejectedStatus,
-    pub(crate) subscription_matched_status: SubscriptionMatchedStatus,
-    pub(crate) incompatible_writer_list: Vec<InstanceHandle>,
+pub struct UserDefinedDataReader {
+    pub rtps_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub listener_sender: Option<MpscSender<ListenerMail>>,
+    pub listener_mask: StatusMask,
+    pub status_condition: DcpsStatusCondition,
+    pub requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    pub requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
+    pub sample_rejected_status: SampleRejectedStatus,
+    pub subscription_matched_status: SubscriptionMatchedStatus,
+    pub incompatible_writer_list: Vec<InstanceHandle>,
 }
 
 impl core::ops::Deref for UserDefinedDataReader {
@@ -2103,7 +2066,7 @@ impl core::ops::DerefMut for UserDefinedDataReader {
 }
 
 impl UserDefinedDataReader {
-    pub(crate) fn new(
+    pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
@@ -2124,7 +2087,7 @@ impl UserDefinedDataReader {
         }
     }
 
-    pub(crate) fn add_matched_publication(
+    pub fn add_matched_publication(
         &mut self,
         publication_builtin_topic_data: PublicationBuiltinTopicData,
     ) {
@@ -2144,7 +2107,7 @@ impl UserDefinedDataReader {
         self.subscription_matched_status.total_count_change += 1;
     }
 
-    pub(crate) fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
         let Some(i) = self
             .matched_publication_list
             .iter()
@@ -2160,7 +2123,7 @@ impl UserDefinedDataReader {
             .add_communication_state(StatusKind::SubscriptionMatched);
     }
 
-    pub(crate) fn add_requested_incompatible_qos(
+    pub fn add_requested_incompatible_qos(
         &mut self,
         handle: InstanceHandle,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -2190,15 +2153,13 @@ impl UserDefinedDataReader {
         }
     }
 
-    pub(crate) fn get_requested_incompatible_qos_status(
-        &mut self,
-    ) -> RequestedIncompatibleQosStatus {
+    pub fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
         let status = self.requested_incompatible_qos_status.clone();
         self.requested_incompatible_qos_status.total_count_change = 0;
         status
     }
 
-    pub(crate) fn increment_sample_rejected_status(
+    pub fn increment_sample_rejected_status(
         &mut self,
         sample_handle: InstanceHandle,
         sample_rejected_status_kind: SampleRejectedStatusKind,
@@ -2209,20 +2170,20 @@ impl UserDefinedDataReader {
         self.sample_rejected_status.total_count_change += 1;
     }
 
-    pub(crate) fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
+    pub fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
         let status = self.sample_rejected_status.clone();
         self.sample_rejected_status.total_count_change = 0;
         status
     }
 
-    pub(crate) fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+    pub fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
         let status = self.subscription_matched_status.clone();
         self.subscription_matched_status.total_count_change = 0;
         self.subscription_matched_status.current_count_change = 0;
         status
     }
 
-    pub(crate) fn read(
+    pub fn read(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -2241,7 +2202,7 @@ impl UserDefinedDataReader {
         )
     }
 
-    pub(crate) fn take(
+    pub fn take(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -2260,7 +2221,7 @@ impl UserDefinedDataReader {
         )
     }
 
-    pub(crate) fn take_next_instance(
+    pub fn take_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
@@ -2284,7 +2245,7 @@ impl UserDefinedDataReader {
         }
     }
 
-    pub(crate) fn read_next_instance(
+    pub fn read_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,

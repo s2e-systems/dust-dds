@@ -57,7 +57,7 @@ fn sedp_data_writer_qos() -> DataWriterQos {
     }
 }
 
-pub(crate) struct BuiltinPublisher {
+pub struct BuiltinPublisher {
     pub dcps_participant_writer: DataWriterEntity<RtpsStatelessWriter>,
     pub dcps_topics_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub dcps_publications_writer: DataWriterEntity<RtpsStatefulWriter>,

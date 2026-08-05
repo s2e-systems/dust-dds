@@ -15,7 +15,7 @@ use super::{
     TYPE_LOOKUP_READER_QOS, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
 };
 
-pub(crate) struct BuiltinSubscriber {
+pub struct BuiltinSubscriber {
     pub subscriber_entity: SubscriberEntity,
     pub dcps_participant_reader: BuiltinDataReader<RtpsStatelessReader>,
     pub dcps_topic_reader: BuiltinDataReader<RtpsStatefulReader>,

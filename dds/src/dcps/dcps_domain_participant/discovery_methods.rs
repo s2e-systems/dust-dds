@@ -56,10 +56,7 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::{
-        stateful_reader::RtpsStatefulReader,
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    },
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     runtime::{Clock, DdsRuntime},
     transport::{
         self,
