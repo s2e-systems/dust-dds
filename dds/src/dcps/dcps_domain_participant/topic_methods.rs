@@ -1,7 +1,7 @@
 use alloc::string::String;
 
 use crate::{
-    dcps::dcps_domain_participant::DcpsDomainParticipant,
+    dcps::dcps_domain_participant::participant_entity::DcpsDomainParticipant,
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},

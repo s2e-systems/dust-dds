@@ -4,10 +4,12 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            AddChangeResult, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            DiscoveredParticipantInfo, RtpsReader, TopicEntity,
-            builtin_data_reader::BuiltinDataReader, get_topic_type_support,
+            builtin_data_reader::BuiltinDataReader,
+            data_reader_entity::AddChangeResult,
+            participant_entity::{DcpsDomainParticipant, DiscoveredParticipantInfo},
             reader_methods::deserialize_topic_type,
+            rtps_traits::RtpsReader,
+            topic_entity::{ContentFilteredTopicEntity, TopicEntity, get_topic_type_support},
         },
         listeners::domain_participant_listener::ListenerMail,
         xtypes_glue::key_and_instance_handle::{

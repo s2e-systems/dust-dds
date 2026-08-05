@@ -20,7 +20,7 @@ use crate::{
 use alloc::{string::String, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
-use super::{DataReaderEntity, SampleList};
+use super::data_reader_entity::{DataReaderEntity, SampleList};
 
 pub struct UserDefinedDataReader {
     pub rtps_reader: DataReaderEntity<RtpsStatefulReader>,

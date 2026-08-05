@@ -1,6 +1,6 @@
 use crate::{
     dcps::{
-        dcps_domain_participant::DcpsDomainParticipant,
+        dcps_domain_participant::participant_entity::DcpsDomainParticipant,
         dcps_mail::{DcpsMail, DiscoveryServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,

@@ -4,7 +4,8 @@ use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
     dcps::{
         dcps_domain_participant::{
-            DcpsDomainParticipant, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
+            builtin_constants::{TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME},
+            participant_entity::DcpsDomainParticipant,
             user_defined_data_reader::UserDefinedDataReader,
         },
         listeners::{

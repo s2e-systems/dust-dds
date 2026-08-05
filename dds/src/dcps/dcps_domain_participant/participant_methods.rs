@@ -9,8 +9,11 @@ use crate::{
     dcps::{
         channels::oneshot::OneshotSender,
         dcps_domain_participant::{
-            BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            FindTopicNotification, TopicEntity, user_defined_publisher::PublisherEntity,
+            participant_entity::{
+                BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant, FindTopicNotification,
+            },
+            topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+            user_defined_publisher::PublisherEntity,
             user_defined_subscriber::UserDefinedSubscriber,
         },
         listeners::{

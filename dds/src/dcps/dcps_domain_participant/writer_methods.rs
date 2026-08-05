@@ -4,7 +4,9 @@ use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
         channels::oneshot::{OneshotSender, oneshot},
-        dcps_domain_participant::{DcpsDomainParticipant, builtin_data_writer::serialize},
+        dcps_domain_participant::{
+            builtin_data_writer::serialize, participant_entity::DcpsDomainParticipant,
+        },
         dcps_mail::{DcpsMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,

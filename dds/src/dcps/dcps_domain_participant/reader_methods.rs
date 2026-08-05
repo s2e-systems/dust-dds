@@ -14,7 +14,10 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        dcps_domain_participant::{DcpsDomainParticipant, get_topic_type_support, poll_timeout},
+        dcps_domain_participant::{
+            participant_entity::{DcpsDomainParticipant, poll_timeout},
+            topic_entity::get_topic_type_support,
+        },
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,

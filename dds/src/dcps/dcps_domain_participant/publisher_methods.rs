@@ -3,7 +3,8 @@ use alloc::string::String;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            DcpsDomainParticipant, user_defined_data_writer::UserDefinedDataWriter,
+            participant_entity::DcpsDomainParticipant,
+            user_defined_data_writer::UserDefinedDataWriter,
         },
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,

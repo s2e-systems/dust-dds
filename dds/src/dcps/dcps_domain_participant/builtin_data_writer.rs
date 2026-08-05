@@ -7,8 +7,8 @@ use crate::{
         instance::InstanceHandle,
         qos::DataWriterQos,
         qos_policy::{
-            DataRepresentationQosPolicy, HistoryQosPolicyKind, Length,
-            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+            DataRepresentationQosPolicy, HistoryQosPolicyKind, Length, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
@@ -25,7 +25,7 @@ use crate::{
 };
 use alloc::{collections::VecDeque, string::String, vec::Vec};
 
-use super::RtpsWriter;
+use super::rtps_traits::RtpsWriter;
 
 pub struct RegisteredInstanceInfo {
     pub instance_handle: InstanceHandle,

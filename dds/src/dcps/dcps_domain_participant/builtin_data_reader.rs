@@ -2,7 +2,7 @@ use crate::infrastructure::{instance::InstanceHandle, qos::DataReaderQos};
 use alloc::string::String;
 use core::ops::{Deref, DerefMut};
 
-use super::DataReaderEntity;
+use super::data_reader_entity::DataReaderEntity;
 
 pub struct BuiltinDataReader<T> {
     pub reader: DataReaderEntity<T>,
