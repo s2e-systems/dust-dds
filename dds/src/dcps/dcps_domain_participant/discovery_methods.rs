@@ -28,8 +28,8 @@ use crate::{
                 ENTITYID_TL_SVC_REPLY_READER, ENTITYID_TL_SVC_REPLY_WRITER,
                 ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
             },
-            data_writer_entity::IncompatibleSubscriptions,
             data_reader_entity::DataReaderEntity,
+            data_writer_entity::IncompatibleSubscriptions,
             participant_entity::{
                 BUILT_IN_TOPIC_NAME_LIST, BuiltInKeyHolder, DcpsDomainParticipant,
                 DiscoveredParticipantInfo,

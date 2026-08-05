@@ -30,7 +30,7 @@ use crate::{
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
-        error::{DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         time::{Duration, DurationKind, Time},
