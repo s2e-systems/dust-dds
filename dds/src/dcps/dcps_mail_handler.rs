@@ -949,26 +949,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 ),
                 Err(e) => reply_sender.send(Err(e)),
             },
-            DcpsMail::Reader(ReaderServiceMail::WaitForHistoricalData {
-                participant_handle,
-                subscriber_handle,
-                data_reader_handle,
-                max_wait,
-                reply_sender,
-            }) => reply_sender.send(
-                self.domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                    .map(|p| {
-                        p.wait_for_historical_data(
-                            subscriber_handle,
-                            data_reader_handle,
-                            max_wait,
-                            self.runtime.timer(),
-                        )
-                    }),
-            ),
             DcpsMail::Reader(ReaderServiceMail::GetMatchedPublicationData {
                 participant_handle,
                 subscriber_handle,
@@ -1081,14 +1061,16 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
                 Err(e) => reply_sender.send(Err(e)),
             },
-            DcpsMail::Message(MessageServiceMail::IsHistoricalDataReceived {
+            DcpsMail::Message(MessageServiceMail::NotifyHistoricalData {
                 participant_handle,
                 subscriber_handle,
                 data_reader_handle,
                 reply_sender,
             }) => match self.find_participant(&participant_handle) {
-                Ok(p) => reply_sender
-                    .send(p.is_historical_data_received(&subscriber_handle, &data_reader_handle)),
+                Ok(p) => {
+                    p.notify_historical_data(&subscriber_handle, &data_reader_handle, reply_sender)
+                }
+
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Message(MessageServiceMail::HandleData {

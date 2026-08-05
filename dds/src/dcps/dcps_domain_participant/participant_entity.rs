@@ -51,11 +51,6 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::{
-    future::{Future, poll_fn},
-    pin::{Pin, pin},
-    task::Poll,
-};
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -64,24 +59,6 @@ pub struct DiscoveredParticipantInfo {
     pub default_multicast_locator_list: Vec<Locator>,
     pub lease_duration: Duration,
     pub last_communication_timestamp: Time,
-}
-
-pub fn poll_timeout<T>(
-    mut timer_handle: impl Timer,
-    duration: core::time::Duration,
-    mut future: Pin<Box<dyn Future<Output = T> + Send>>,
-) -> impl Future<Output = DdsResult<T>> {
-    poll_fn(move |cx| {
-        let timeout = timer_handle.delay(duration);
-        if let Poll::Ready(t) = pin!(&mut future).poll(cx) {
-            return Poll::Ready(Ok(t));
-        }
-        if pin!(timeout).poll(cx).is_ready() {
-            return Poll::Ready(Err(DdsError::Timeout));
-        }
-
-        Poll::Pending
-    })
 }
 
 #[derive(Debug, Clone, TypeSupport)]

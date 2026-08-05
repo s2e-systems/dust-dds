@@ -5,7 +5,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
         channels::oneshot::oneshot,
-        dcps_mail::{DcpsMail, ReaderServiceMail},
+        dcps_mail::{DcpsMail, MessageServiceMail, ReaderServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::StatusConditionEntity,
     },
@@ -25,7 +25,6 @@ use crate::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
-        time::Duration,
     },
     xtypes::type_support::TypeSupport,
 };
@@ -420,19 +419,22 @@ impl<Foo> DataReaderAsync<Foo> {
     }
 
     /// Async version of [`wait_for_historical_data`](crate::subscription::data_reader::DataReader::wait_for_historical_data).
+    /// This method does not internally wait for a maximum timeout and that is expected
+    /// to be handle on the user side if needed.
     #[tracing::instrument(skip(self))]
-    pub async fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
+    pub async fn wait_for_historical_data(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::WaitForHistoricalData {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_wait,
-                reply_sender,
-            }))
+            .send(DcpsMail::Message(
+                MessageServiceMail::NotifyHistoricalData {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    reply_sender,
+                },
+            ))
             .await;
-        reply_receiver.await??.await
+        reply_receiver.await?
     }
 
     /// Async version of [`get_matched_publication_data`](crate::subscription::data_reader::DataReader::get_matched_publication_data).

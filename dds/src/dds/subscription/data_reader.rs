@@ -14,7 +14,7 @@ use crate::{
         },
         time::Duration,
     },
-    std_runtime::executor::block_on,
+    std_runtime::executor::{block_on, block_timeout},
     subscription::data_reader_listener::DataReaderListener,
     topic_definition::topic_description::TopicDescription,
     xtypes::type_support::TypeSupport,
@@ -349,7 +349,10 @@ impl<Foo> DataReader<Foo> {
     /// data is received.
     #[tracing::instrument(skip(self))]
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        block_on(self.reader_async.wait_for_historical_data(max_wait))
+        block_timeout(
+            max_wait.into(),
+            self.reader_async.wait_for_historical_data(),
+        )?
     }
 
     /// This operation retrieves information on a publication that is currently *associated* with the [`DataReader`];

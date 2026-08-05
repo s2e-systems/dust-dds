@@ -1,5 +1,4 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
-use core::pin::Pin;
+use alloc::vec::Vec;
 
 use crate::{
     builtin_topics::{
@@ -7,7 +6,7 @@ use crate::{
         PublicationBuiltinTopicData,
     },
     dcps::{
-        channels::oneshot::oneshot,
+        channels::oneshot::OneshotSender,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -15,10 +14,8 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dcps_domain_participant::{
-            participant_entity::{DcpsDomainParticipant, poll_timeout},
-            topic_entity::get_topic_type_support,
+            participant_entity::DcpsDomainParticipant, topic_entity::get_topic_type_support,
         },
-        dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
     },
@@ -29,9 +26,8 @@ use crate::{
         qos_policy::DurabilityQosPolicyKind,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{StatusKind, SubscriptionMatchedStatus},
-        time::Duration,
     },
-    runtime::{DdsRuntime, Timer},
+    runtime::DdsRuntime,
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::{DynamicData, DynamicType},
@@ -361,50 +357,6 @@ impl DcpsDomainParticipant {
         Ok(status)
     }
 
-    //#[tracing::instrument(skip(self, dcps_sender))]
-    pub fn wait_for_historical_data(
-        &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        max_wait: Duration,
-        timer: impl Timer,
-    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let participant_handle = self.domain_participant.instance_handle;
-        let dcps_sender = self.dcps_sender;
-        Box::pin(async move {
-            poll_timeout(
-                timer,
-                max_wait.into(),
-                Box::pin(async move {
-                    loop {
-                        let (reply_sender, reply_receiver) = oneshot();
-                        dcps_sender
-                            .send(DcpsMail::Message(
-                                MessageServiceMail::IsHistoricalDataReceived {
-                                    participant_handle,
-                                    subscriber_handle,
-                                    data_reader_handle,
-                                    reply_sender,
-                                },
-                            ))
-                            .await;
-
-                        let reply = reply_receiver.await;
-                        match reply {
-                            Ok(historical_data_received) => match historical_data_received {
-                                Ok(true) => return Ok(()),
-                                Ok(false) => (),
-                                Err(e) => return Err(e),
-                            },
-                            Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-                        }
-                    }
-                }),
-            )
-            .await?
-        })
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn get_matched_publication_data(
         &mut self,
@@ -560,42 +512,49 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn is_historical_data_received(
+    #[tracing::instrument(skip(self, notify_sender))]
+    pub fn notify_historical_data(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-    ) -> DdsResult<bool> {
+        notify_sender: OneshotSender<DdsResult<()>>,
+    ) {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
-            .iter()
+            .iter_mut()
             .find(|x| &x.instance_handle == subscriber_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
 
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter()
+            .iter_mut()
             .find(|x| &x.instance_handle == data_reader_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
         if !data_reader.enabled {
-            return Err(DdsError::NotEnabled);
-        };
+            return notify_sender.send(Err(DdsError::NotEnabled));
+        }
 
         match data_reader.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => {
-                return Err(DdsError::IllegalOperation);
+                return notify_sender.send(Err(DdsError::IllegalOperation));
             }
             DurabilityQosPolicyKind::TransientLocal
             | DurabilityQosPolicyKind::Transient
             | DurabilityQosPolicyKind::Persistent => (),
-        };
+        }
 
-        Ok(data_reader.transport_reader.is_historical_data_received())
+        if data_reader.transport_reader.is_historical_data_received() {
+            notify_sender.send(Ok(()));
+        } else {
+            data_reader
+                .wait_for_historical_data_notification
+                .push(notify_sender);
+        }
     }
 
     #[tracing::instrument(skip(self, runtime))]

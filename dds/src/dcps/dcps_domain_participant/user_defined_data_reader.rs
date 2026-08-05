@@ -1,8 +1,10 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
-        channels::mpsc::MpscSender, listeners::domain_participant_listener::ListenerMail,
-        status_condition::DcpsStatusCondition, status_mask::StatusMask,
+        channels::{mpsc::MpscSender, oneshot::OneshotSender},
+        listeners::domain_participant_listener::ListenerMail,
+        status_condition::DcpsStatusCondition,
+        status_mask::StatusMask,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -32,6 +34,7 @@ pub struct UserDefinedDataReader {
     pub sample_rejected_status: SampleRejectedStatus,
     pub subscription_matched_status: SubscriptionMatchedStatus,
     pub incompatible_writer_list: Vec<InstanceHandle>,
+    pub wait_for_historical_data_notification: Vec<OneshotSender<DdsResult<()>>>,
 }
 
 impl Deref for UserDefinedDataReader {
@@ -66,6 +69,7 @@ impl UserDefinedDataReader {
             sample_rejected_status: SampleRejectedStatus::const_default(),
             subscription_matched_status: SubscriptionMatchedStatus::const_default(),
             incompatible_writer_list: Vec::new(),
+            wait_for_historical_data_notification: Vec::new(),
         }
     }
 

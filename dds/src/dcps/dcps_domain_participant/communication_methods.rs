@@ -685,25 +685,56 @@ impl DcpsDomainParticipant {
         message_receiver: &MessageReceiver<'_>,
         heartbeat_submessage: &HeartbeatSubmessage,
     ) {
-        for dr in self
+        for s in self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
-            .chain(
-                self.domain_participant
-                    .builtin_subscriber
-                    .stateful_data_reader_list_mut()
-                    .into_iter()
-                    .map(|dr| &mut dr.reader),
-            )
+        {
+            for dr in s.data_reader_list.iter_mut() {
+                let writer_guid = Guid::new(
+                    message_receiver.source_guid_prefix(),
+                    heartbeat_submessage.writer_id(),
+                );
+                let reader_guid = dr.transport_reader.guid();
+                if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
+                    if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                        writer_proxy
+                            .set_last_received_heartbeat_count(heartbeat_submessage.count());
+                        writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
+                        writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
+
+                        let must_send_acknacks = !heartbeat_submessage.final_flag()
+                            || (!heartbeat_submessage.liveliness_flag()
+                                && writer_proxy.missing_changes().count() > 0);
+                        writer_proxy.set_must_send_acknacks(must_send_acknacks);
+
+                        writer_proxy
+                            .write_message(&reader_guid, self.transport.message_writer.as_ref());
+                    }
+                }
+
+                if dr.transport_reader.is_historical_data_received() {
+                    for n in dr.wait_for_historical_data_notification.drain(..) {
+                        n.send(Ok(()));
+                    }
+                }
+            }
+        }
+        for dr in self
+            .domain_participant
+            .builtin_subscriber
+            .stateful_data_reader_list_mut()
         {
             let writer_guid = Guid::new(
                 message_receiver.source_guid_prefix(),
                 heartbeat_submessage.writer_id(),
             );
-            let reader_guid = dr.transport_reader.guid();
-            if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
+            let reader_guid = dr.reader.transport_reader.guid();
+            if let Some(writer_proxy) = dr
+                .reader
+                .transport_reader
+                .matched_writer_lookup(writer_guid)
+            {
                 if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                     writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
                     writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
