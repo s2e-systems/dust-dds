@@ -502,10 +502,6 @@ impl EncodingVersion for EncodingVersion2 {
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_value(member, dynamic_data)
-        } else if !member.descriptor.is_optional
-            && member.descriptor.try_construct_kind != TryConstructKind::UseDefault
-        {
-            Err(XTypesError::PidNotFound(pid))
         } else {
             Ok(())
         };
@@ -1137,11 +1133,12 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     ///                << { O.member[i] : FMEMBER }*
     fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
         let dynamic_type = dynamic_data.r#type();
+        let is_appendable = dynamic_type.descriptor.extensibility_kind == ExtensibilityKind::Appendable;
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
             let result = self.deserialize_fmember(member, dynamic_data);
-            // Allow data to be missing if members are marked use default
-            if member.descriptor.try_construct_kind == TryConstructKind::UseDefault
+            // Allow data to be missing if members are marked use default or if the structure is appendable
+            if (is_appendable || member.descriptor.try_construct_kind == TryConstructKind::UseDefault)
                 && result == Err(XTypesError::NotEnoughData)
             {
                 break;
@@ -2337,6 +2334,28 @@ mod tests {
             A1 { x1: 1 }.create_dynamic_sample()
         );
     }
+
+    #[test]
+    fn deserialize_sequence_with_o2_bigger_length_than_o1() {
+        #[derive(TypeSupport, Debug, PartialEq, Clone)]
+        #[dust_dds(extensibility = "appendable")]
+        struct T {
+            x1: Vec<i32>,
+        }
+        assert_eq!(
+            deserialize_top_level_type(
+                T::TYPE,
+                &[
+                    0x00u8, 0x01, 0x00, 0x00, // CDR_LE | 0 padding
+                    20, 0, 0, 0, // length
+                    1, 0, 0, 0,
+                ]
+            )
+            .unwrap(),
+            T { x1: vec![1] }.create_dynamic_sample()
+        );
+    }
+
 
     #[cfg(feature = "xtypes-xml")]
     #[test]

@@ -1197,7 +1197,7 @@ fn create_seq_int32x10_from_xml() {
     let member = dynamic_type.get_member_by_name("x1").unwrap();
     assert_eq!(
         member.descriptor.try_construct_kind,
-        TryConstructKind::UseDefault
+        TryConstructKind::Discard
     );
 }
 
