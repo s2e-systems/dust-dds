@@ -5,9 +5,9 @@ use crate::{
     dcps::{
         channels::mpsc::MpscSender,
         dcps_domain_participant::{
-            AddChangeResult, ContentFilteredTopicEntity, DataReaderEntity, DcpsDomainParticipant,
-            DcpsSender, DiscoveredParticipantInfo, RtpsReader, TopicEntity,
-            reader_methods::deserialize_topic_type,
+            AddChangeResult, BuiltinDataReader, ContentFilteredTopicEntity, DcpsDomainParticipant,
+            DcpsSender, DiscoveredParticipantInfo, RtpsReader, TopicEntity, UserDefinedDataReader,
+            get_topic_type_support, reader_methods::deserialize_topic_type,
         },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
@@ -56,7 +56,7 @@ impl DcpsDomainParticipant {
                 &mut subscriber.data_reader_list,
             );
             for data_reader in data_reader_list {
-                Self::process_single_reader_cache_changes(
+                Self::process_single_user_defined_reader_cache_changes(
                     discovered_participant_list,
                     content_filtered_topic_list,
                     locally_created_topic_list,
@@ -76,42 +76,20 @@ impl DcpsDomainParticipant {
             }
         }
 
-        let subscriber_handle = self.domain_participant.builtin_subscriber.instance_handle;
-        let subscriber_listener_mask = StatusMask::default();
-        let subscriber_listener_sender = None;
-        let mut dummy_status_condition = DcpsStatusCondition::default();
         let builtin_subscriber = &mut self.domain_participant.builtin_subscriber;
-        Self::process_single_reader_cache_changes(
+        Self::process_single_builtin_reader_cache_changes(
             discovered_participant_list,
             content_filtered_topic_list,
             locally_created_topic_list,
-            dcps_sender,
-            domain_id,
-            dp_instance_handle,
-            dp_listener_mask,
-            dp_listener_sender,
-            subscriber_handle,
-            subscriber_listener_mask,
-            &subscriber_listener_sender,
-            &mut dummy_status_condition,
             &mut builtin_subscriber.dcps_participant_reader,
             reception_timestamp,
             runtime,
         );
         for data_reader in builtin_subscriber.stateful_data_reader_list_mut() {
-            Self::process_single_reader_cache_changes(
+            Self::process_single_builtin_reader_cache_changes(
                 discovered_participant_list,
                 content_filtered_topic_list,
                 locally_created_topic_list,
-                dcps_sender,
-                domain_id,
-                dp_instance_handle,
-                dp_listener_mask,
-                dp_listener_sender,
-                subscriber_handle,
-                subscriber_listener_mask,
-                &subscriber_listener_sender,
-                &mut dummy_status_condition,
                 data_reader,
                 reception_timestamp,
                 runtime,
@@ -119,328 +97,411 @@ impl DcpsDomainParticipant {
         }
     }
 
-    fn process_single_reader_cache_changes(
+    fn process_single_user_defined_reader_cache_changes(
         discovered_participant_list: &mut [DiscoveredParticipantInfo],
-    content_filtered_topic_list: &[ContentFilteredTopicEntity],
-    locally_created_topic_list: &[TopicEntity],
-    dcps_sender: DcpsSender,
-    domain_id: DomainId,
-    dp_instance_handle: InstanceHandle,
-    dp_listener_mask: StatusMask,
-    dp_listener_sender: &Option<MpscSender<ListenerMail>>,
-    subscriber_handle: InstanceHandle,
-    subscriber_listener_mask: StatusMask,
-    subscriber_listener_sender: &Option<MpscSender<ListenerMail>>,
-    subscriber_status_condition: &mut DcpsStatusCondition,
-    data_reader: &mut DataReaderEntity<impl RtpsReader>,
-    reception_timestamp: Time,
-    runtime: &impl DdsRuntime,
-) {
+        content_filtered_topic_list: &[ContentFilteredTopicEntity],
+        locally_created_topic_list: &[TopicEntity],
+        dcps_sender: DcpsSender,
+        domain_id: DomainId,
+        dp_instance_handle: InstanceHandle,
+        dp_listener_mask: StatusMask,
+        dp_listener_sender: &Option<MpscSender<ListenerMail>>,
+        subscriber_handle: InstanceHandle,
+        subscriber_listener_mask: StatusMask,
+        subscriber_listener_sender: &Option<MpscSender<ListenerMail>>,
+        subscriber_status_condition: &mut DcpsStatusCondition,
+        data_reader: &mut UserDefinedDataReader,
+        reception_timestamp: Time,
+        runtime: &impl DdsRuntime,
+    ) {
         let changes = core::mem::take(data_reader.transport_reader.changes_mut());
         let data_reader_handle = &data_reader.instance_handle.clone();
         tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
-                for cache_change in changes {
-                    if let Some(matched_participant) = discovered_participant_list
-                        .iter_mut()
-                        .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
-                    {
-                        matched_participant.last_communication_timestamp = runtime.clock().now();
+        for cache_change in changes {
+            if let Some(matched_participant) = discovered_participant_list
+                .iter_mut()
+                .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+            {
+                matched_participant.last_communication_timestamp = runtime.clock().now();
+            }
+            let Some(type_support) = get_topic_type_support(
+                &data_reader.topic_name,
+                content_filtered_topic_list,
+                locally_created_topic_list,
+            ) else {
+                tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
+                return;
+            };
+
+            let (topic_name, type_name) = if let Some(content_filtered_topic) =
+                content_filtered_topic_list
+                    .iter()
+                    .find(|t| t.topic_name == data_reader.topic_name)
+            {
+                let Some(reader_topic) = locally_created_topic_list
+                    .iter()
+                    .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
+                else {
+                    tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                    return;
+                };
+                if cache_change.kind == ChangeKind::Alive {
+                    let Some(data) = deserialize_topic_type(
+                        &data_reader.topic_name,
+                        *type_support,
+                        cache_change.data_value.as_ref(),
+                    ) else {
+                        return;
+                    };
+                    enum Operator {
+                        LessThan,
+                        Equal,
                     }
-                    let (topic_name, type_name) = if let Some(content_filtered_topic) = content_filtered_topic_list
-                        .iter()
-                        .find(|t| t.topic_name == data_reader.topic_name)
-                    {
-                        let Some(reader_topic) = locally_created_topic_list
-                            .iter()
-                            .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
-                        else {
-                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
-                            return;
-                        };
-                        if cache_change.kind == ChangeKind::Alive {
-                            let Some(data) = deserialize_topic_type(
-                                &data_reader.topic_name,
-                                data_reader.type_support,
-                                cache_change.data_value.as_ref(),
-                            ) else {
-                                return;
-                            };
-                            enum Operator {
-                                LessThan,
-                                Equal,
+
+                    impl Operator {
+                        fn to_str(&self) -> &'static str {
+                            match self {
+                                Self::Equal => "=",
+                                Self::LessThan => "<=",
                             }
-
-                            impl Operator {
-                                fn to_str(&self) -> &'static str {
-                                    match self {
-                                        Self::Equal => "=",
-                                        Self::LessThan => "<=",
-                                    }
-                                }
-
-                                fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
-                                    match self {
-                                        Self::Equal => lhs == rhs,
-                                        Self::LessThan => lhs <= rhs,
-                                    }
-                                }
-                                fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
-                                    match self {
-                                        Self::Equal => lhs == rhs,
-                                        Self::LessThan => lhs <= rhs,
-                                    }
-                                }
-                            }
-
-                            let mut operators = [Operator::LessThan, Operator::Equal].iter();
-                            let filter = loop {
-                                if let Some(operator) = operators.next() {
-                                    if let Some((variable_name, _)) = content_filtered_topic
-                                        .filter_expression
-                                        .split_once(operator.to_str())
-                                    {
-                                        break Some((variable_name, operator));
-                                    }
-                                } else {
-                                    break None;
-                                };
-                            };
-
-                            if let Some((variable_name, comparison_function)) = filter {
-                                let Some(member_id) =
-                                    data.get_member_id_by_name(variable_name.trim())
-                                else {
-                                    return;
-                                };
-                                let Ok(member_descriptor) = data.get_descriptor(member_id) else {
-                                    return;
-                                };
-                                match member_descriptor.r#type.get_kind() {
-                                    crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT32 => {
-                                        let member_value = data.get_int32_value(member_id).unwrap();
-                                        if !comparison_function.compare_int32(
-                                            member_value,
-                                            &content_filtered_topic.expression_parameters[0]
-                                                .parse()
-                                                .expect("valid number"),
-                                        ) {
-                                            return;
-                                        }
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::STRING8
-                                    | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
-                                        let member_value =
-                                            data.get_string_value(member_id).unwrap();
-                                        if !comparison_function.compare_string(
-                                            member_value,
-                                            &content_filtered_topic.expression_parameters[0],
-                                        ) {
-                                            return;
-                                        }
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
-                                        todo!()
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
-                                }
-                            } else {
-                                return;
-                            };
                         }
-                        (
-                            reader_topic.type_name.clone(),
-                            reader_topic.topic_name.clone(),
-                        )
-                    } else {
-                        let Some(reader_topic) = locally_created_topic_list
-                            .iter()
-                            .find(|t| t.topic_name == data_reader.topic_name)
-                        else {
-                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
-                            return;
+
+                        fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                        fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
+                            match self {
+                                Self::Equal => lhs == rhs,
+                                Self::LessThan => lhs <= rhs,
+                            }
+                        }
+                    }
+
+                    let mut operators = [Operator::LessThan, Operator::Equal].iter();
+                    let filter = loop {
+                        if let Some(operator) = operators.next() {
+                            if let Some((variable_name, _)) = content_filtered_topic
+                                .filter_expression
+                                .split_once(operator.to_str())
+                            {
+                                break Some((variable_name, operator));
+                            }
+                        } else {
+                            break None;
                         };
-                        (data_reader.topic_name.clone(), reader_topic.type_name.clone())
                     };
 
-                    let change_instance_handle = if let Some(i) = cache_change.instance_handle {
-                        InstanceHandle::new(i)
+                    if let Some((variable_name, comparison_function)) = filter {
+                        let Some(member_id) = data.get_member_id_by_name(variable_name.trim())
+                        else {
+                            return;
+                        };
+                        let Ok(member_descriptor) = data.get_descriptor(member_id) else {
+                            return;
+                        };
+                        match member_descriptor.r#type.get_kind() {
+                            crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT32 => {
+                                let member_value = data.get_int32_value(member_id).unwrap();
+                                if !comparison_function.compare_int32(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0]
+                                        .parse()
+                                        .expect("valid number"),
+                                ) {
+                                    return;
+                                }
+                            }
+                            crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::STRING8
+                            | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
+                                let member_value = data.get_string_value(member_id).unwrap();
+                                if !comparison_function.compare_string(
+                                    member_value,
+                                    &content_filtered_topic.expression_parameters[0],
+                                ) {
+                                    return;
+                                }
+                            }
+                            crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
+                                todo!()
+                            }
+                            crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
+                            crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
+                        }
                     } else {
-                        match cache_change.kind {
-                            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                                let Some(data_value) = deserialize_topic_type(
-                                    &data_reader.topic_name,
-                                    data_reader.type_support,
-                                    cache_change.data_value.as_ref(),
-                                ) else {
-                                    tracing::warn!("Failed to deserialize user defined data");
-                                    return;
-                                };
-                                let Ok(instance_handle) =
-                                    get_instance_handle_from_dynamic_data(&data_value)
-                                else {
-                                    tracing::warn!(
-                                        "Failed to get instance handle from dynamic_data"
-                                    );
-                                    return;
-                                };
-                                instance_handle
-                            }
-                            ChangeKind::NotAliveDisposed
-                            | ChangeKind::NotAliveUnregistered
-                            | ChangeKind::NotAliveDisposedUnregistered => {
-                                let mut dynamic_members = Vec::new();
-                                let Ok(key_holder) = KeyHolderType::from_dynamic_type(
-                                    &data_reader.type_support,
-                                    &mut dynamic_members,
-                                ) else {
-                                    tracing::warn!("Failed to create key holder");
-                                    return;
-                                };
-
-                                let Ok(data_value) = deserialize_top_level_type(
-                                    *key_holder.as_dynamic_type(),
-                                    cache_change.data_value.as_ref(),
-                                ) else {
-                                    tracing::warn!(
-                                        "Failed to deserialize disposed user defined data"
-                                    );
-                                    return;
-                                };
-
-                                let Ok(instance_handle) =
-                                    get_instance_handle_from_dynamic_data(&data_value)
-                                else {
-                                    tracing::warn!(
-                                        "Failed to deserialize disposed key user defined data"
-                                    );
-                                    return;
-                                };
-                                instance_handle
-                            }
-                        }
+                        return;
                     };
+                }
+                (
+                    reader_topic.type_name.clone(),
+                    reader_topic.topic_name.clone(),
+                )
+            } else {
+                let Some(reader_topic) = locally_created_topic_list
+                    .iter()
+                    .find(|t| t.topic_name == data_reader.topic_name)
+                else {
+                    tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
+                    return;
+                };
+                (
+                    data_reader.topic_name.clone(),
+                    reader_topic.type_name.clone(),
+                )
+            };
 
-                    let the_participant = DomainParticipantAsync::new(
-                        dcps_sender,
-                        domain_id,
-                        dp_instance_handle,
-                    );
-                    let the_subscriber =
-                        SubscriberAsync::new(subscriber_handle, the_participant.clone());
+            let change_instance_handle = if let Some(i) = cache_change.instance_handle {
+                InstanceHandle::new(i)
+            } else {
+                match cache_change.kind {
+                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                        let Some(data_value) = deserialize_topic_type(
+                            &data_reader.topic_name,
+                            *type_support,
+                            cache_change.data_value.as_ref(),
+                        ) else {
+                            tracing::warn!("Failed to deserialize user defined data");
+                            return;
+                        };
+                        let Ok(instance_handle) =
+                            get_instance_handle_from_dynamic_data(&data_value)
+                        else {
+                            tracing::warn!("Failed to get instance handle from dynamic_data");
+                            return;
+                        };
+                        instance_handle
+                    }
+                    ChangeKind::NotAliveDisposed
+                    | ChangeKind::NotAliveUnregistered
+                    | ChangeKind::NotAliveDisposedUnregistered => {
+                        let mut dynamic_members = Vec::new();
+                        let Ok(key_holder) =
+                            KeyHolderType::from_dynamic_type(type_support, &mut dynamic_members)
+                        else {
+                            tracing::warn!("Failed to create key holder");
+                            return;
+                        };
 
-                    let the_reader = DataReaderAsync::new(
-                        *data_reader_handle,
-                        the_subscriber.clone(),
-                        topic_name,
-                        type_name,
-                    );
+                        let Ok(data_value) = deserialize_top_level_type(
+                            *key_holder.as_dynamic_type(),
+                            cache_change.data_value.as_ref(),
+                        ) else {
+                            tracing::warn!("Failed to deserialize disposed user defined data");
+                            return;
+                        };
 
-                    match data_reader.add_reader_change(
-                        cache_change.writer_guid,
-                        cache_change.data_value,
-                        cache_change.kind,
-                        change_instance_handle.into(),
-                        cache_change.source_timestamp.map(Into::into),
-                        reception_timestamp,
-                    ) {
-                        Ok(AddChangeResult::Added) => {
-                            tracing::info!("New change added");
-
-                            let data_reader_on_data_available_active = data_reader
-                                .listener_mask
-                                .is_enabled(&StatusKind::DataAvailable);
-
-                            if subscriber_listener_mask
-                                .is_enabled(&StatusKind::DataOnReaders)
-                            {
-                                if let Some(l) = subscriber_listener_sender {
-                                    l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
-                                }
-                            } else if data_reader_on_data_available_active {
-                                if let Some(l) = &data_reader.listener_sender {
-                                    info!("Triggering data reader DataAvailable listener");
-                                    l.send(ListenerMail::DataAvailable { the_reader }).ok();
-                                }
-                            }
-
-                            subscriber_status_condition
-                                .add_communication_state(StatusKind::DataOnReaders);
-
-                            data_reader
-                                .status_condition
-                                .add_communication_state(StatusKind::DataAvailable);
-                        }
-                        Ok(AddChangeResult::NotAdded) => (), // Do nothing
-                        Ok(AddChangeResult::Rejected(
-                            instance_handle,
-                            sample_rejected_status_kind,
-                        )) => {
-                            tracing::info!("Change rejected");
-                            data_reader.increment_sample_rejected_status(
-                                instance_handle,
-                                sample_rejected_status_kind,
-                            );
-
-                            if data_reader
-                                .listener_mask
-                                .is_enabled(&StatusKind::SampleRejected)
-                            {
-                                let status = data_reader.get_sample_rejected_status();
-
-                                if let Some(l) = &data_reader.listener_sender {
-                                    l.send(ListenerMail::SampleRejected { the_reader, status })
-                                        .ok();
-                                };
-                            } else if subscriber_listener_mask
-                                .is_enabled(&StatusKind::SampleRejected)
-                            {
-                                let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = subscriber_listener_sender {
-                                    l.send(ListenerMail::SampleRejected { status, the_reader })
-                                        .ok();
-                                }
-                            } else if dp_listener_mask
-                                .is_enabled(&StatusKind::SampleRejected)
-                            {
-                                let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = dp_listener_sender {
-                                    l.send(ListenerMail::SampleRejected { status, the_reader })
-                                        .ok();
-                                }
-                            }
-
-                            data_reader
-                                .status_condition
-                                .add_communication_state(StatusKind::SampleRejected);
-                        }
-                        Err(_) => (),
+                        let Ok(instance_handle) =
+                            get_instance_handle_from_dynamic_data(&data_value)
+                        else {
+                            tracing::warn!("Failed to deserialize disposed key user defined data");
+                            return;
+                        };
+                        instance_handle
                     }
                 }
+            };
+
+            let the_participant =
+                DomainParticipantAsync::new(dcps_sender, domain_id, dp_instance_handle);
+            let the_subscriber = SubscriberAsync::new(subscriber_handle, the_participant.clone());
+
+            let the_reader = DataReaderAsync::new(
+                *data_reader_handle,
+                the_subscriber.clone(),
+                topic_name,
+                type_name,
+            );
+
+            match data_reader.add_reader_change(
+                cache_change.writer_guid,
+                cache_change.data_value,
+                cache_change.kind,
+                change_instance_handle.into(),
+                cache_change.source_timestamp.map(Into::into),
+                reception_timestamp,
+            ) {
+                Ok(AddChangeResult::Added) => {
+                    tracing::info!("New change added");
+
+                    let data_reader_on_data_available_active = data_reader
+                        .listener_mask
+                        .is_enabled(&StatusKind::DataAvailable);
+
+                    if subscriber_listener_mask.is_enabled(&StatusKind::DataOnReaders) {
+                        if let Some(l) = subscriber_listener_sender {
+                            l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
+                        }
+                    } else if data_reader_on_data_available_active {
+                        if let Some(l) = &data_reader.listener_sender {
+                            info!("Triggering data reader DataAvailable listener");
+                            l.send(ListenerMail::DataAvailable { the_reader }).ok();
+                        }
+                    }
+
+                    subscriber_status_condition.add_communication_state(StatusKind::DataOnReaders);
+
+                    data_reader
+                        .status_condition
+                        .add_communication_state(StatusKind::DataAvailable);
+                }
+                Ok(AddChangeResult::NotAdded) => (), // Do nothing
+                Ok(AddChangeResult::Rejected(instance_handle, sample_rejected_status_kind)) => {
+                    tracing::info!("Change rejected");
+                    data_reader.increment_sample_rejected_status(
+                        instance_handle,
+                        sample_rejected_status_kind,
+                    );
+
+                    if data_reader
+                        .listener_mask
+                        .is_enabled(&StatusKind::SampleRejected)
+                    {
+                        let status = data_reader.get_sample_rejected_status();
+
+                        if let Some(l) = &data_reader.listener_sender {
+                            l.send(ListenerMail::SampleRejected { the_reader, status })
+                                .ok();
+                        };
+                    } else if subscriber_listener_mask.is_enabled(&StatusKind::SampleRejected) {
+                        let status = data_reader.get_sample_rejected_status();
+                        if let Some(l) = subscriber_listener_sender {
+                            l.send(ListenerMail::SampleRejected { status, the_reader })
+                                .ok();
+                        }
+                    } else if dp_listener_mask.is_enabled(&StatusKind::SampleRejected) {
+                        let status = data_reader.get_sample_rejected_status();
+                        if let Some(l) = dp_listener_sender {
+                            l.send(ListenerMail::SampleRejected { status, the_reader })
+                                .ok();
+                        }
+                    }
+
+                    data_reader
+                        .status_condition
+                        .add_communication_state(StatusKind::SampleRejected);
+                }
+                Err(_) => (),
             }
+        }
+    }
+
+    fn process_single_builtin_reader_cache_changes(
+        discovered_participant_list: &mut [DiscoveredParticipantInfo],
+        content_filtered_topic_list: &[ContentFilteredTopicEntity],
+        locally_created_topic_list: &[TopicEntity],
+        data_reader: &mut BuiltinDataReader<impl RtpsReader>,
+        reception_timestamp: Time,
+        runtime: &impl DdsRuntime,
+    ) {
+        let changes = core::mem::take(data_reader.transport_reader.changes_mut());
+        let data_reader_handle = &data_reader.instance_handle.clone();
+        tracing::trace!(data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
+
+        for cache_change in changes {
+            if let Some(matched_participant) = discovered_participant_list
+                .iter_mut()
+                .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+            {
+                matched_participant.last_communication_timestamp = runtime.clock().now();
+            }
+
+            let Some(type_support) = get_topic_type_support(
+                &data_reader.topic_name,
+                content_filtered_topic_list,
+                locally_created_topic_list,
+            ) else {
+                tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
+                return;
+            };
+
+            let change_instance_handle = if let Some(i) = cache_change.instance_handle {
+                InstanceHandle::new(i)
+            } else {
+                match cache_change.kind {
+                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                        let Some(data_value) = deserialize_topic_type(
+                            &data_reader.topic_name,
+                            *type_support,
+                            cache_change.data_value.as_ref(),
+                        ) else {
+                            tracing::warn!("Failed to deserialize user defined data");
+                            return;
+                        };
+                        let Ok(instance_handle) =
+                            get_instance_handle_from_dynamic_data(&data_value)
+                        else {
+                            tracing::warn!("Failed to get instance handle from dynamic_data");
+                            return;
+                        };
+                        instance_handle
+                    }
+                    ChangeKind::NotAliveDisposed
+                    | ChangeKind::NotAliveUnregistered
+                    | ChangeKind::NotAliveDisposedUnregistered => {
+                        let mut dynamic_members = Vec::new();
+                        let Ok(key_holder) =
+                            KeyHolderType::from_dynamic_type(type_support, &mut dynamic_members)
+                        else {
+                            tracing::warn!("Failed to create key holder");
+                            return;
+                        };
+
+                        let Ok(data_value) = deserialize_top_level_type(
+                            *key_holder.as_dynamic_type(),
+                            cache_change.data_value.as_ref(),
+                        ) else {
+                            tracing::warn!("Failed to deserialize disposed user defined data");
+                            return;
+                        };
+
+                        let Ok(instance_handle) =
+                            get_instance_handle_from_dynamic_data(&data_value)
+                        else {
+                            tracing::warn!("Failed to deserialize disposed key user defined data");
+                            return;
+                        };
+                        instance_handle
+                    }
+                }
+            };
+
+            data_reader
+                .add_reader_change(
+                    cache_change.writer_guid,
+                    cache_change.data_value,
+                    cache_change.kind,
+                    change_instance_handle.into(),
+                    cache_change.source_timestamp.map(Into::into),
+                    reception_timestamp,
+                )
+                .ok();
+        }
+    }
 
     #[tracing::instrument(skip(self, data_message, runtime))]
     pub fn handle_data(&mut self, data_message: &[u8], runtime: &impl DdsRuntime) {
@@ -466,8 +527,16 @@ impl DcpsDomainParticipant {
                             .domain_participant
                             .user_defined_subscriber_list
                             .iter_mut()
-                            .flat_map(|s| s.data_reader_list.iter_mut())
-                            .chain(self.domain_participant.builtin_subscriber.stateful_data_reader_list_mut())
+                            .flat_map(|s| {
+                                s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader)
+                            })
+                            .chain(
+                                self.domain_participant
+                                    .builtin_subscriber
+                                    .stateful_data_reader_list_mut()
+                                    .into_iter()
+                                    .map(|dr| &mut dr.rtps_reader),
+                            )
                         {
                             let writer_guid = Guid::new(
                                 message_receiver.source_guid_prefix(),
@@ -479,10 +548,9 @@ impl DcpsDomainParticipant {
                                 if writer_proxy.last_received_heartbeat_count()
                                     < heartbeat_frag_submessage.count()
                                 {
-                                    writer_proxy
-                                        .set_last_received_heartbeat_frag_count(
-                                            heartbeat_frag_submessage.count(),
-                                        );
+                                    writer_proxy.set_last_received_heartbeat_frag_count(
+                                        heartbeat_frag_submessage.count(),
+                                    );
                                 }
                             }
                         }
@@ -580,8 +648,14 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut())
-            .chain(self.domain_participant.builtin_subscriber.stateful_data_reader_list_mut())
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter()
+                    .map(|dr| &mut dr.rtps_reader),
+            )
         {
             dr.transport_reader.on_data_submessage(
                 data_submessage,
@@ -601,17 +675,21 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut())
-            .chain(self.domain_participant.builtin_subscriber.stateful_data_reader_list_mut())
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter()
+                    .map(|dr| &mut dr.rtps_reader),
+            )
         {
             let writer_guid = Guid::new(
                 message_receiver.source_guid_prefix(),
                 gap_submessage.writer_id(),
             );
             if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
-                for seq_num in
-                    gap_submessage.gap_start()..gap_submessage.gap_list().base()
-                {
+                for seq_num in gap_submessage.gap_start()..gap_submessage.gap_list().base() {
                     writer_proxy.irrelevant_change_set(seq_num)
                 }
 
@@ -631,8 +709,14 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut())
-            .chain(self.domain_participant.builtin_subscriber.stateful_data_reader_list_mut())
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter()
+                    .map(|dr| &mut dr.rtps_reader),
+            )
         {
             let writer_guid = Guid::new(
                 message_receiver.source_guid_prefix(),
@@ -640,12 +724,8 @@ impl DcpsDomainParticipant {
             );
             let reader_guid = dr.transport_reader.guid();
             if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
-                if writer_proxy.last_received_heartbeat_count()
-                    < heartbeat_submessage.count()
-                {
-                    writer_proxy.set_last_received_heartbeat_count(
-                        heartbeat_submessage.count(),
-                    );
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
+                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
                     writer_proxy.missing_changes_update(heartbeat_submessage.last_sn());
                     writer_proxy.lost_changes_update(heartbeat_submessage.first_sn());
 
@@ -654,10 +734,8 @@ impl DcpsDomainParticipant {
                             && writer_proxy.missing_changes().count() > 0);
                     writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
-                    writer_proxy.write_message(
-                        &reader_guid,
-                        self.transport.message_writer.as_ref(),
-                    );
+                    writer_proxy
+                        .write_message(&reader_guid, self.transport.message_writer.as_ref());
                 }
             }
         }
@@ -672,8 +750,14 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .flat_map(|s| s.data_reader_list.iter_mut())
-            .chain(self.domain_participant.builtin_subscriber.stateful_data_reader_list_mut())
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.rtps_reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter()
+                    .map(|dr| &mut dr.rtps_reader),
+            )
         {
             dr.transport_reader.on_data_frag_submessage(
                 data_frag_submessage,

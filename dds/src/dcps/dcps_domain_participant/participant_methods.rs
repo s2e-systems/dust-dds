@@ -10,7 +10,7 @@ use crate::{
         channels::oneshot::OneshotSender,
         dcps_domain_participant::{
             BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            FindTopicNotification, PublisherEntity, UserDefinedSubscriber, TopicEntity,
+            FindTopicNotification, PublisherEntity, TopicEntity, UserDefinedSubscriber,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -328,7 +328,7 @@ impl DcpsDomainParticipant {
 
         for subscriber in self.domain_participant.user_defined_subscriber_list.iter() {
             for reader in subscriber.data_reader_list.iter() {
-                if reader.type_support == topic.type_support {
+                if reader.topic_name == topic.topic_name {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));

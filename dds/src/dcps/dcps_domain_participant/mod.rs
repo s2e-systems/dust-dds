@@ -770,7 +770,7 @@ pub(crate) struct UserDefinedSubscriber {
     pub(crate) status_condition: DcpsStatusCondition,
     pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
     pub(crate) listener_mask: StatusMask,
-    pub(crate) data_reader_list: Vec<DataReaderEntity<RtpsStatefulReader>>,
+    pub(crate) data_reader_list: Vec<UserDefinedDataReader>,
 }
 
 impl UserDefinedSubscriber {
@@ -852,6 +852,34 @@ impl TopicEntity {
             type_information: TypeInformation::from(type_support),
             discovered_type_representation: Vec::new(),
         }
+    }
+}
+
+pub(crate) fn get_topic_type_support<'a>(
+    topic_name: &str,
+    content_filtered_topic_list: &[ContentFilteredTopicEntity],
+    locally_created_topic_list: &'a [TopicEntity],
+) -> Option<&'a DynamicType<'static>> {
+    let resolved_topic_name = if let Some(cf_topic) = content_filtered_topic_list
+        .iter()
+        .find(|t| t.topic_name == topic_name)
+    {
+        cf_topic.related_topic_name.as_str()
+    } else {
+        topic_name
+    };
+
+    match resolved_topic_name {
+        DCPS_PARTICIPANT => Some(&ParticipantBuiltinTopicData::TYPE),
+        DCPS_TOPIC => Some(&TopicBuiltinTopicData::TYPE),
+        DCPS_PUBLICATION => Some(&PublicationBuiltinTopicData::TYPE),
+        DCPS_SUBSCRIPTION => Some(&SubscriptionBuiltinTopicData::TYPE),
+        TYPE_LOOKUP_REQUEST_TOPIC_NAME => Some(&TypeLookupRequest::TYPE),
+        TYPE_LOOKUP_REPLY_TOPIC_NAME => Some(&TypeLookupReply::TYPE),
+        _ => locally_created_topic_list
+            .iter()
+            .find(|t| t.topic_name == resolved_topic_name)
+            .map(|t| &t.type_support),
     }
 }
 
@@ -1441,36 +1469,22 @@ struct InstanceOwnership {
 }
 
 pub(crate) struct DataReaderEntity<T> {
-    instance_handle: InstanceHandle,
-    sample_list: Vec<ReaderSample>,
-    qos: DataReaderQos,
-    topic_name: String,
-    type_support: DynamicType<'static>,
-    requested_deadline_missed_status: RequestedDeadlineMissedStatus,
-    requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
-    sample_rejected_status: SampleRejectedStatus,
-    subscription_matched_status: SubscriptionMatchedStatus,
-    matched_publication_list: Vec<PublicationBuiltinTopicData>,
-    enabled: bool,
-    data_available_status_changed_flag: bool,
-    incompatible_writer_list: Vec<InstanceHandle>,
-    status_condition: DcpsStatusCondition,
-    listener_sender: Option<MpscSender<ListenerMail>>,
-    listener_mask: StatusMask,
-    instances: Vec<InstanceState>,
-    instance_ownership: Vec<InstanceOwnership>,
-    transport_reader: T,
+    pub(crate) instance_handle: InstanceHandle,
+    pub(crate) sample_list: Vec<ReaderSample>,
+    pub(crate) qos: DataReaderQos,
+    pub(crate) topic_name: String,
+    pub(crate) matched_publication_list: Vec<PublicationBuiltinTopicData>,
+    pub(crate) enabled: bool,
+    pub(crate) instances: Vec<InstanceState>,
+    pub(crate) instance_ownership: Vec<InstanceOwnership>,
+    pub(crate) transport_reader: T,
 }
 
 impl<T> DataReaderEntity<T> {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
         topic_name: String,
-        type_support: DynamicType<'static>,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
         transport_reader: T,
     ) -> Self {
         Self {
@@ -1478,18 +1492,8 @@ impl<T> DataReaderEntity<T> {
             sample_list: Vec::new(),
             qos,
             topic_name,
-            type_support,
-            requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
-            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),
-            sample_rejected_status: SampleRejectedStatus::const_default(),
-            subscription_matched_status: SubscriptionMatchedStatus::const_default(),
             matched_publication_list: Vec::new(),
             enabled: false,
-            data_available_status_changed_flag: false,
-            incompatible_writer_list: Vec::new(),
-            status_condition: DcpsStatusCondition::default(),
-            listener_sender,
-            listener_mask,
             instances: Vec::new(),
             instance_ownership: Vec::new(),
             transport_reader,
@@ -1924,8 +1928,6 @@ impl<T> DataReaderEntity<T> {
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => self.sample_list.push(sample),
         }
 
-        self.data_available_status_changed_flag = true;
-
         match self
             .instance_ownership
             .iter_mut()
@@ -1945,111 +1947,11 @@ impl<T> DataReaderEntity<T> {
         Ok(AddChangeResult::Added)
     }
 
-    fn add_matched_publication(
-        &mut self,
-        publication_builtin_topic_data: PublicationBuiltinTopicData,
-    ) {
-        match self
-            .matched_publication_list
-            .iter_mut()
-            .find(|x| x.key() == publication_builtin_topic_data.key())
-        {
-            Some(x) => *x = publication_builtin_topic_data,
-            None => self
-                .matched_publication_list
-                .push(publication_builtin_topic_data),
-        }
-        self.subscription_matched_status.current_count +=
-            self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change += 1;
-        self.subscription_matched_status.total_count += 1;
-        self.subscription_matched_status.total_count_change += 1;
-    }
-
-    fn add_requested_incompatible_qos(
-        &mut self,
-        handle: InstanceHandle,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
-        if !self.incompatible_writer_list.contains(&handle) {
-            self.incompatible_writer_list.push(handle);
-            self.requested_incompatible_qos_status.total_count += 1;
-            self.requested_incompatible_qos_status.total_count_change += 1;
-            self.requested_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
-            for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-                if let Some(policy_count) = self
-                    .requested_incompatible_qos_status
-                    .policies
-                    .iter_mut()
-                    .find(|x| x.policy_id == incompatible_qos_policy)
-                {
-                    policy_count.count += 1;
-                } else {
-                    self.requested_incompatible_qos_status
-                        .policies
-                        .push(QosPolicyCount {
-                            policy_id: incompatible_qos_policy,
-                            count: 1,
-                        })
-                }
-            }
-        }
-    }
-
-    fn get_requested_incompatible_qos_status(&mut self) -> RequestedIncompatibleQosStatus {
-        let status = self.requested_incompatible_qos_status.clone();
-        self.requested_incompatible_qos_status.total_count_change = 0;
-        status
-    }
-
-    fn increment_sample_rejected_status(
-        &mut self,
-        sample_handle: InstanceHandle,
-        sample_rejected_status_kind: SampleRejectedStatusKind,
-    ) {
-        self.sample_rejected_status.last_instance_handle = sample_handle;
-        self.sample_rejected_status.last_reason = sample_rejected_status_kind;
-        self.sample_rejected_status.total_count += 1;
-        self.sample_rejected_status.total_count_change += 1;
-    }
-
-    fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
-        let status = self.sample_rejected_status.clone();
-        self.sample_rejected_status.total_count_change = 0;
-
-        status
-    }
-
-    fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
-        let status = self.subscription_matched_status.clone();
-
-        self.subscription_matched_status.total_count_change = 0;
-        self.subscription_matched_status.current_count_change = 0;
-
-        status
-    }
-
     fn get_matched_publications(&self) -> Vec<InstanceHandle> {
         self.matched_publication_list
             .iter()
             .map(|x| InstanceHandle::new(x.key().value))
             .collect()
-    }
-
-    fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
-        let Some(i) = self
-            .matched_publication_list
-            .iter()
-            .position(|x| &x.key().value == publication_handle.as_ref())
-        else {
-            return;
-        };
-        self.matched_publication_list.remove(i);
-
-        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
-        self.subscription_matched_status.current_count_change -= 1;
-        self.status_condition
-            .add_communication_state(StatusKind::SubscriptionMatched);
     }
 
     fn read(
@@ -2063,9 +1965,6 @@ impl<T> DataReaderEntity<T> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
-
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
 
         self.create_sample_collection(
             max_samples,
@@ -2088,9 +1987,6 @@ impl<T> DataReaderEntity<T> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
-
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
 
         self.create_sample_collection(
             max_samples,
@@ -2127,6 +2023,268 @@ impl<T> DataReaderEntity<T> {
     }
 
     fn read_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: &Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                &Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+}
+
+pub(crate) struct BuiltinDataReader<T> {
+    pub(crate) rtps_reader: DataReaderEntity<T>,
+}
+
+impl<T> core::ops::Deref for BuiltinDataReader<T> {
+    type Target = DataReaderEntity<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_reader
+    }
+}
+
+impl<T> core::ops::DerefMut for BuiltinDataReader<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.rtps_reader
+    }
+}
+
+impl<T> BuiltinDataReader<T> {
+    pub(crate) fn new(
+        instance_handle: InstanceHandle,
+        qos: DataReaderQos,
+        topic_name: String,
+        transport_reader: T,
+    ) -> Self {
+        Self {
+            rtps_reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
+        }
+    }
+}
+
+pub(crate) struct UserDefinedDataReader {
+    pub(crate) rtps_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub(crate) listener_sender: Option<MpscSender<ListenerMail>>,
+    pub(crate) listener_mask: StatusMask,
+    pub(crate) status_condition: DcpsStatusCondition,
+    pub(crate) requested_deadline_missed_status: RequestedDeadlineMissedStatus,
+    pub(crate) requested_incompatible_qos_status: RequestedIncompatibleQosStatus,
+    pub(crate) sample_rejected_status: SampleRejectedStatus,
+    pub(crate) subscription_matched_status: SubscriptionMatchedStatus,
+    pub(crate) incompatible_writer_list: Vec<InstanceHandle>,
+}
+
+impl core::ops::Deref for UserDefinedDataReader {
+    type Target = DataReaderEntity<RtpsStatefulReader>;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_reader
+    }
+}
+
+impl core::ops::DerefMut for UserDefinedDataReader {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.rtps_reader
+    }
+}
+
+impl UserDefinedDataReader {
+    pub(crate) fn new(
+        instance_handle: InstanceHandle,
+        qos: DataReaderQos,
+        topic_name: String,
+        listener_sender: Option<MpscSender<ListenerMail>>,
+        listener_mask: StatusMask,
+        transport_reader: RtpsStatefulReader,
+    ) -> Self {
+        Self {
+            rtps_reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
+            listener_sender,
+            listener_mask,
+            status_condition: DcpsStatusCondition::default(),
+            requested_deadline_missed_status: RequestedDeadlineMissedStatus::const_default(),
+            requested_incompatible_qos_status: RequestedIncompatibleQosStatus::const_default(),
+            sample_rejected_status: SampleRejectedStatus::const_default(),
+            subscription_matched_status: SubscriptionMatchedStatus::const_default(),
+            incompatible_writer_list: Vec::new(),
+        }
+    }
+
+    pub(crate) fn add_matched_publication(
+        &mut self,
+        publication_builtin_topic_data: PublicationBuiltinTopicData,
+    ) {
+        match self
+            .matched_publication_list
+            .iter_mut()
+            .find(|x| x.key() == publication_builtin_topic_data.key())
+        {
+            Some(x) => *x = publication_builtin_topic_data,
+            None => self
+                .matched_publication_list
+                .push(publication_builtin_topic_data),
+        }
+        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change += 1;
+        self.subscription_matched_status.total_count += 1;
+        self.subscription_matched_status.total_count_change += 1;
+    }
+
+    pub(crate) fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+        let Some(i) = self
+            .matched_publication_list
+            .iter()
+            .position(|x| &x.key().value == publication_handle.as_ref())
+        else {
+            return;
+        };
+        self.matched_publication_list.remove(i);
+
+        self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
+        self.subscription_matched_status.current_count_change -= 1;
+        self.status_condition
+            .add_communication_state(StatusKind::SubscriptionMatched);
+    }
+
+    pub(crate) fn add_requested_incompatible_qos(
+        &mut self,
+        handle: InstanceHandle,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+    ) {
+        if !self.incompatible_writer_list.contains(&handle) {
+            self.incompatible_writer_list.push(handle);
+            self.requested_incompatible_qos_status.total_count += 1;
+            self.requested_incompatible_qos_status.total_count_change += 1;
+            self.requested_incompatible_qos_status.last_policy_id = incompatible_qos_policy_list[0];
+            for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+                if let Some(policy_count) = self
+                    .requested_incompatible_qos_status
+                    .policies
+                    .iter_mut()
+                    .find(|x| x.policy_id == incompatible_qos_policy)
+                {
+                    policy_count.count += 1;
+                } else {
+                    self.requested_incompatible_qos_status
+                        .policies
+                        .push(QosPolicyCount {
+                            policy_id: incompatible_qos_policy,
+                            count: 1,
+                        })
+                }
+            }
+        }
+    }
+
+    pub(crate) fn get_requested_incompatible_qos_status(
+        &mut self,
+    ) -> RequestedIncompatibleQosStatus {
+        let status = self.requested_incompatible_qos_status.clone();
+        self.requested_incompatible_qos_status.total_count_change = 0;
+        status
+    }
+
+    pub(crate) fn increment_sample_rejected_status(
+        &mut self,
+        sample_handle: InstanceHandle,
+        sample_rejected_status_kind: SampleRejectedStatusKind,
+    ) {
+        self.sample_rejected_status.last_instance_handle = sample_handle;
+        self.sample_rejected_status.last_reason = sample_rejected_status_kind;
+        self.sample_rejected_status.total_count += 1;
+        self.sample_rejected_status.total_count_change += 1;
+    }
+
+    pub(crate) fn get_sample_rejected_status(&mut self) -> SampleRejectedStatus {
+        let status = self.sample_rejected_status.clone();
+        self.sample_rejected_status.total_count_change = 0;
+        status
+    }
+
+    pub(crate) fn get_subscription_matched_status(&mut self) -> SubscriptionMatchedStatus {
+        let status = self.subscription_matched_status.clone();
+        self.subscription_matched_status.total_count_change = 0;
+        self.subscription_matched_status.current_count_change = 0;
+        status
+    }
+
+    pub(crate) fn read(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: &Option<InstanceHandle>,
+    ) -> DdsResult<SampleList> {
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
+        self.rtps_reader.read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub(crate) fn take(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: &Option<InstanceHandle>,
+    ) -> DdsResult<SampleList> {
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
+        self.rtps_reader.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub(crate) fn take_next_instance(
+        &mut self,
+        max_samples: i32,
+        previous_handle: &Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<SampleList> {
+        if !self.enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                &Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub(crate) fn read_next_instance(
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,

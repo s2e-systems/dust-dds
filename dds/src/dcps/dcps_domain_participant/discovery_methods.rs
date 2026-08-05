@@ -27,7 +27,7 @@ use crate::{
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_TL_SVC_REPLY_READER,
             ENTITYID_TL_SVC_REPLY_WRITER, ENTITYID_TL_SVC_REQ_READER, ENTITYID_TL_SVC_REQ_WRITER,
-            IncompatibleSubscriptions, RtpsReader, UserDefinedDataWriter,
+            IncompatibleSubscriptions, RtpsReader, UserDefinedDataReader, UserDefinedDataWriter,
         },
         listeners::domain_participant_listener::ListenerMail,
     },
@@ -56,7 +56,10 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::{stateful_reader::RtpsStatefulReader, types::{PROTOCOLVERSION, VENDOR_ID_S2E}},
+    rtps::{
+        stateful_reader::RtpsStatefulReader,
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    },
     runtime::{Clock, DdsRuntime},
     transport::{
         self,
@@ -236,13 +239,18 @@ impl DcpsDomainParticipant {
             let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {
                 if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-                    for change_instance_handle in data_reader.instances.iter().filter_map(|x| {
-                        if now - x.last_received_time_stamp() > deadline {
-                            Some(x.handle)
-                        } else {
-                            None
-                        }
-                    }) {
+                    let missed_instances: Vec<_> = data_reader
+                        .instances
+                        .iter()
+                        .filter_map(|x| {
+                            if now - x.last_received_time_stamp() > deadline {
+                                Some(x.handle)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    for change_instance_handle in missed_instances {
                         data_reader
                             .instance_ownership
                             .retain(|x| x.instance_handle != change_instance_handle);
@@ -703,7 +711,7 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, data_reader, runtime))]
     pub(super) fn announce_deleted_data_reader(
         &mut self,
-        data_reader: DataReaderEntity<RtpsStatefulReader>,
+        data_reader: UserDefinedDataReader,
         runtime: &impl DdsRuntime,
     ) {
         let timestamp = runtime.clock().now();
@@ -1675,7 +1683,9 @@ impl DcpsDomainParticipant {
                                         reliability_kind,
                                         durability_kind,
                                     };
-                                    data_reader.transport_reader.add_matched_writer(&writer_proxy);
+                                    data_reader
+                                        .transport_reader
+                                        .add_matched_writer(&writer_proxy);
 
                                     if data_reader
                                         .listener_mask
@@ -2640,13 +2650,16 @@ impl DcpsDomainParticipant {
                     .sample_list
                     .retain(|sample| sample.writer_guid[..12] != prefix);
 
-                for matched_publication in &data_reader.matched_publication_list {
-                    if matched_publication.key.value[0..12] == prefix {
-                        // Remove matched writers
-                        data_reader
-                            .transport_reader
-                            .delete_matched_writer(matched_publication.key.value.into());
-                    }
+                let removed_writer_guids: Vec<_> = data_reader
+                    .matched_publication_list
+                    .iter()
+                    .filter(|m| m.key.value[0..12] == prefix)
+                    .map(|m| m.key.value)
+                    .collect();
+                for key in removed_writer_guids {
+                    data_reader
+                        .transport_reader
+                        .delete_matched_writer(key.into());
                 }
             }
         }

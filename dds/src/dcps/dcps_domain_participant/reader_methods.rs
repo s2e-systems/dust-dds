@@ -14,7 +14,7 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        dcps_domain_participant::{DcpsDomainParticipant, poll_timeout},
+        dcps_domain_participant::{DcpsDomainParticipant, get_topic_type_support, poll_timeout},
         dcps_mail::{DcpsMail, MessageServiceMail},
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
@@ -71,53 +71,62 @@ impl DcpsDomainParticipant {
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let (sample_list, topic_name, type_support) = if subscriber_handle == &self.domain_participant.instance_handle {
-            let bs = &mut self.domain_participant.builtin_subscriber;
-            if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
-                let sample_list = bs.dcps_participant_reader.read(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
-                    specific_instance_handle,
-                )?;
-                (sample_list, bs.dcps_participant_reader.topic_name.clone(), bs.dcps_participant_reader.type_support)
-            } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
-                let sample_list = dr.read(
-                    max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
-                    specific_instance_handle,
-                )?;
-                (sample_list, dr.topic_name.clone(), dr.type_support)
+        let (sample_list, topic_name) =
+            if subscriber_handle == &self.domain_participant.instance_handle {
+                let bs = &mut self.domain_participant.builtin_subscriber;
+                if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
+                    let sample_list = bs.dcps_participant_reader.read(
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )?;
+                    (sample_list, bs.dcps_participant_reader.topic_name.clone())
+                } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
+                    let sample_list = dr.read(
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )?;
+                    (sample_list, dr.topic_name.clone())
+                } else {
+                    return Err(DdsError::AlreadyDeleted);
+                }
             } else {
-                return Err(DdsError::AlreadyDeleted);
-            }
-        } else {
-            let subscriber = self
-                .domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle);
-            let Some(subscriber) = subscriber else {
-                return Err(DdsError::AlreadyDeleted);
+                let subscriber = self
+                    .domain_participant
+                    .user_defined_subscriber_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == subscriber_handle);
+                let Some(subscriber) = subscriber else {
+                    return Err(DdsError::AlreadyDeleted);
+                };
+                let Some(data_reader) = subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == data_reader_handle)
+                else {
+                    return Err(DdsError::AlreadyDeleted);
+                };
+                let sample_list = data_reader.read(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )?;
+                (sample_list, data_reader.topic_name.clone())
             };
-            let Some(data_reader) = subscriber
-                .data_reader_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == data_reader_handle)
-            else {
-                return Err(DdsError::AlreadyDeleted);
-            };
-            let sample_list = data_reader.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                specific_instance_handle,
-            )?;
-            (sample_list, data_reader.topic_name.clone(), data_reader.type_support)
+
+        let Some(type_support) = get_topic_type_support(
+            &topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
         };
 
         Ok(sample_list
@@ -125,11 +134,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(
-                            &topic_name,
-                            type_support,
-                            data.as_ref(),
-                        )
+                        deserialize_topic_type(&topic_name, *type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -174,6 +179,14 @@ impl DcpsDomainParticipant {
             specific_instance_handle,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -181,7 +194,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -228,6 +241,14 @@ impl DcpsDomainParticipant {
             instance_states,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -235,7 +256,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -282,6 +303,14 @@ impl DcpsDomainParticipant {
             instance_states,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -289,7 +318,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {

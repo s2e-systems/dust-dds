@@ -370,67 +370,65 @@ impl DcpsDomainParticipant {
                     && !data_writer
                         .transport_writer
                         .is_change_acknowledged(smallest_seq_num_instance)
-                    {
-                        if data_writer.acknowledgement_notification.is_some() {
-                            reply_sender.send(Err(DdsError::Error(String::from(
-                                "Another writer already waiting for acknowledgements.",
-                            ))));
-                            return;
-                        }
-                        let max_blocking_time = data_writer.qos.reliability.max_blocking_time;
-                        let (
-                            acknowledgment_notification_sender,
-                            acknowledgment_notification_receiver,
-                        ) = oneshot::<()>();
-                        data_writer.acknowledgement_notification =
-                            Some(acknowledgment_notification_sender);
-                        let participant_handle = self.domain_participant.instance_handle;
-                        let dcps_sender = self.dcps_sender;
-                        let mut timer_handle = runtime.timer();
-                        let publisher_handle = *publisher_handle;
-                        let data_writer_handle = *data_writer_handle;
-                        let dynamic_data = dynamic_data.clone();
-                        runtime.spawner().spawn(async move {
-                            if let DurationKind::Finite(t) = max_blocking_time {
-                                let max_blocking_time_wait = timer_handle.delay(t.into());
-                                match select_future(
-                                    acknowledgment_notification_receiver,
-                                    max_blocking_time_wait,
-                                )
-                                .await
-                                {
-                                    Either::A(_) => {
-                                        dcps_sender
-                                            .send(DcpsMail::Writer(
-                                                WriterServiceMail::WriteWTimestamp {
-                                                    participant_handle,
-                                                    publisher_handle,
-                                                    data_writer_handle,
-                                                    dynamic_data,
-                                                    timestamp,
-                                                    reply_sender,
-                                                },
-                                            ))
-                                            .await;
-                                    }
-                                    Either::B(_) => reply_sender.send(Err(DdsError::Timeout)),
-                                };
-                            } else {
-                                acknowledgment_notification_receiver.await.ok();
-                                dcps_sender
-                                    .send(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
-                                        participant_handle,
-                                        publisher_handle,
-                                        data_writer_handle,
-                                        dynamic_data,
-                                        timestamp,
-                                        reply_sender,
-                                    }))
-                                    .await;
-                            }
-                        });
+                {
+                    if data_writer.acknowledgement_notification.is_some() {
+                        reply_sender.send(Err(DdsError::Error(String::from(
+                            "Another writer already waiting for acknowledgements.",
+                        ))));
                         return;
                     }
+                    let max_blocking_time = data_writer.qos.reliability.max_blocking_time;
+                    let (acknowledgment_notification_sender, acknowledgment_notification_receiver) =
+                        oneshot::<()>();
+                    data_writer.acknowledgement_notification =
+                        Some(acknowledgment_notification_sender);
+                    let participant_handle = self.domain_participant.instance_handle;
+                    let dcps_sender = self.dcps_sender;
+                    let mut timer_handle = runtime.timer();
+                    let publisher_handle = *publisher_handle;
+                    let data_writer_handle = *data_writer_handle;
+                    let dynamic_data = dynamic_data.clone();
+                    runtime.spawner().spawn(async move {
+                        if let DurationKind::Finite(t) = max_blocking_time {
+                            let max_blocking_time_wait = timer_handle.delay(t.into());
+                            match select_future(
+                                acknowledgment_notification_receiver,
+                                max_blocking_time_wait,
+                            )
+                            .await
+                            {
+                                Either::A(_) => {
+                                    dcps_sender
+                                        .send(DcpsMail::Writer(
+                                            WriterServiceMail::WriteWTimestamp {
+                                                participant_handle,
+                                                publisher_handle,
+                                                data_writer_handle,
+                                                dynamic_data,
+                                                timestamp,
+                                                reply_sender,
+                                            },
+                                        ))
+                                        .await;
+                                }
+                                Either::B(_) => reply_sender.send(Err(DdsError::Timeout)),
+                            };
+                        } else {
+                            acknowledgment_notification_receiver.await.ok();
+                            dcps_sender
+                                .send(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
+                                    participant_handle,
+                                    publisher_handle,
+                                    data_writer_handle,
+                                    dynamic_data,
+                                    timestamp,
+                                    reply_sender,
+                                }))
+                                .await;
+                        }
+                    });
+                    return;
+                }
 
                 if let Some(s) = data_writer
                     .rtps_writer
