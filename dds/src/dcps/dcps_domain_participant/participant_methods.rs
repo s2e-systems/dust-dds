@@ -9,8 +9,12 @@ use crate::{
     dcps::{
         channels::oneshot::OneshotSender,
         dcps_domain_participant::{
-            BUILT_IN_TOPIC_NAME_LIST, ContentFilteredTopicEntity, DcpsDomainParticipant,
-            FindTopicNotification, PublisherEntity, SubscriberEntity, TopicEntity,
+            participant_entity::{
+                BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant, FindTopicNotification,
+            },
+            topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+            user_defined_publisher::PublisherEntity,
+            user_defined_subscriber::UserDefinedSubscriber,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -155,13 +159,10 @@ impl DcpsDomainParticipant {
         ]);
         self.subscriber_counter += 1;
 
-        let data_reader_list = Default::default();
-
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
-        let mut subscriber = SubscriberEntity::new(
+        let mut subscriber = UserDefinedSubscriber::new(
             subscriber_handle,
             subscriber_qos,
-            data_reader_list,
             listener_sender,
             listener_mask,
         );
@@ -321,7 +322,7 @@ impl DcpsDomainParticipant {
 
         for publisher in self.domain_participant.user_defined_publisher_list.iter() {
             for writer in publisher.data_writer_list.iter() {
-                if writer.type_support == topic.type_support {
+                if writer.topic_name == topic.topic_name {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));
@@ -331,7 +332,7 @@ impl DcpsDomainParticipant {
 
         for subscriber in self.domain_participant.user_defined_subscriber_list.iter() {
             for reader in subscriber.data_reader_list.iter() {
-                if reader.type_support == topic.type_support {
+                if reader.topic_name == topic.topic_name {
                     return Err(DdsError::PreconditionNotMet(
                         "Topic still attached to some data writer or data reader".to_string(),
                     ));
@@ -508,7 +509,7 @@ impl DcpsDomainParticipant {
             }
         }
 
-        let deleted_subscriber_list: Vec<SubscriberEntity> = self
+        let deleted_subscriber_list: Vec<UserDefinedSubscriber> = self
             .domain_participant
             .user_defined_subscriber_list
             .drain(..)
@@ -678,15 +679,9 @@ impl DcpsDomainParticipant {
             for t in &mut self.domain_participant.locally_created_topic_list {
                 t.enabled = true;
             }
-            for dw in &mut self.domain_participant.builtin_publisher.data_writer_list {
-                dw.enabled = true;
-            }
-            self.domain_participant.builtin_publisher.enabled = true;
+            self.domain_participant.builtin_publisher.enable();
 
-            for dr in &mut self.domain_participant.builtin_subscriber.data_reader_list {
-                dr.enabled = true;
-            }
-            self.domain_participant.builtin_subscriber.enabled = true;
+            self.domain_participant.builtin_subscriber.enable();
             self.domain_participant.enabled = true;
 
             self.announce_participant(runtime);

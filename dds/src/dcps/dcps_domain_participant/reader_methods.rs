@@ -1,5 +1,4 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
-use core::pin::Pin;
+use alloc::vec::Vec;
 
 use crate::{
     builtin_topics::{
@@ -7,15 +6,16 @@ use crate::{
         PublicationBuiltinTopicData,
     },
     dcps::{
-        channels::oneshot::oneshot,
+        channels::oneshot::OneshotSender,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
-        dcps_domain_participant::{DcpsDomainParticipant, RtpsReaderKind, poll_timeout},
-        dcps_mail::{DcpsMail, MessageServiceMail},
+        dcps_domain_participant::{
+            participant_entity::DcpsDomainParticipant, topic_entity::get_topic_type_support,
+        },
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
     },
@@ -26,9 +26,8 @@ use crate::{
         qos_policy::DurabilityQosPolicyKind,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{StatusKind, SubscriptionMatchedStatus},
-        time::Duration,
     },
-    runtime::{DdsRuntime, Timer},
+    runtime::DdsRuntime,
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::{DynamicData, DynamicType},
@@ -71,45 +70,70 @@ impl DcpsDomainParticipant {
         instance_states: &[InstanceStateKind],
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let subscriber = if subscriber_handle == &self.domain_participant.instance_handle {
-            Some(&mut self.domain_participant.builtin_subscriber)
-        } else {
-            self.domain_participant
-                .user_defined_subscriber_list
-                .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
-        };
+        let (sample_list, topic_name) =
+            if subscriber_handle == &self.domain_participant.instance_handle {
+                let bs = &mut self.domain_participant.builtin_subscriber;
+                if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
+                    let sample_list = bs.dcps_participant_reader.read(
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )?;
+                    (sample_list, bs.dcps_participant_reader.topic_name.clone())
+                } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
+                    let sample_list = dr.read(
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        specific_instance_handle,
+                    )?;
+                    (sample_list, dr.topic_name.clone())
+                } else {
+                    return Err(DdsError::AlreadyDeleted);
+                }
+            } else {
+                let subscriber = self
+                    .domain_participant
+                    .user_defined_subscriber_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == subscriber_handle);
+                let Some(subscriber) = subscriber else {
+                    return Err(DdsError::AlreadyDeleted);
+                };
+                let Some(data_reader) = subscriber
+                    .data_reader_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == data_reader_handle)
+                else {
+                    return Err(DdsError::AlreadyDeleted);
+                };
+                let sample_list = data_reader.read(
+                    max_samples,
+                    sample_states,
+                    view_states,
+                    instance_states,
+                    specific_instance_handle,
+                )?;
+                (sample_list, data_reader.topic_name.clone())
+            };
 
-        let Some(subscriber) = subscriber else {
+        let Some(type_support) = get_topic_type_support(
+            &topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
             return Err(DdsError::AlreadyDeleted);
         };
-
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-
-        let sample_list = data_reader.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
 
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(
-                            &data_reader.topic_name,
-                            data_reader.type_support,
-                            data.as_ref(),
-                        )
+                        deserialize_topic_type(&topic_name, *type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -154,6 +178,14 @@ impl DcpsDomainParticipant {
             specific_instance_handle,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -161,7 +193,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -208,6 +240,14 @@ impl DcpsDomainParticipant {
             instance_states,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -215,7 +255,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -262,6 +302,14 @@ impl DcpsDomainParticipant {
             instance_states,
         )?;
 
+        let Some(type_support) = get_topic_type_support(
+            &data_reader.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+        ) else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
         Ok(sample_list
             .into_iter()
             .map(|(data, info)| {
@@ -269,7 +317,7 @@ impl DcpsDomainParticipant {
                     if info.valid_data {
                         deserialize_topic_type(
                             &data_reader.topic_name,
-                            data_reader.type_support,
+                            *type_support,
                             data.as_ref(),
                         )
                     } else {
@@ -307,50 +355,6 @@ impl DcpsDomainParticipant {
             .status_condition
             .remove_communication_state(StatusKind::SubscriptionMatched);
         Ok(status)
-    }
-
-    //#[tracing::instrument(skip(self, dcps_sender))]
-    pub fn wait_for_historical_data(
-        &mut self,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        max_wait: Duration,
-        timer: impl Timer,
-    ) -> Pin<Box<dyn Future<Output = DdsResult<()>> + Send>> {
-        let participant_handle = self.domain_participant.instance_handle;
-        let dcps_sender = self.dcps_sender;
-        Box::pin(async move {
-            poll_timeout(
-                timer,
-                max_wait.into(),
-                Box::pin(async move {
-                    loop {
-                        let (reply_sender, reply_receiver) = oneshot();
-                        dcps_sender
-                            .send(DcpsMail::Message(
-                                MessageServiceMail::IsHistoricalDataReceived {
-                                    participant_handle,
-                                    subscriber_handle,
-                                    data_reader_handle,
-                                    reply_sender,
-                                },
-                            ))
-                            .await;
-
-                        let reply = reply_receiver.await;
-                        match reply {
-                            Ok(historical_data_received) => match historical_data_received {
-                                Ok(true) => return Ok(()),
-                                Ok(false) => (),
-                                Err(e) => return Err(e),
-                            },
-                            Err(_) => return Err(DdsError::Error(String::from("Channel error"))),
-                        }
-                    }
-                }),
-            )
-            .await?
-        })
     }
 
     #[tracing::instrument(skip(self))]
@@ -508,45 +512,48 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn is_historical_data_received(
+    #[tracing::instrument(skip(self, notify_sender))]
+    pub fn notify_historical_data(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-    ) -> DdsResult<bool> {
+        notify_sender: OneshotSender<DdsResult<()>>,
+    ) {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
-            .iter()
+            .iter_mut()
             .find(|x| &x.instance_handle == subscriber_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
 
         let Some(data_reader) = subscriber
             .data_reader_list
-            .iter()
+            .iter_mut()
             .find(|x| &x.instance_handle == data_reader_handle)
         else {
-            return Err(DdsError::AlreadyDeleted);
+            return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
         if !data_reader.enabled {
-            return Err(DdsError::NotEnabled);
-        };
+            return notify_sender.send(Err(DdsError::NotEnabled));
+        }
 
         match data_reader.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => {
-                return Err(DdsError::IllegalOperation);
+                return notify_sender.send(Err(DdsError::IllegalOperation));
             }
             DurabilityQosPolicyKind::TransientLocal
             | DurabilityQosPolicyKind::Transient
             | DurabilityQosPolicyKind::Persistent => (),
-        };
+        }
 
-        if let RtpsReaderKind::Stateful(r) = &data_reader.transport_reader {
-            Ok(r.is_historical_data_received())
+        if data_reader.transport_reader.is_historical_data_received() {
+            notify_sender.send(Ok(()));
         } else {
-            Ok(true)
+            data_reader
+                .wait_for_historical_data_notification
+                .push(notify_sender);
         }
     }
 

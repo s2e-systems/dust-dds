@@ -1,5 +1,4 @@
-use alloc::{boxed::Box, string::String};
-use core::pin::Pin;
+use alloc::string::String;
 
 use crate::{
     builtin_topics::{
@@ -529,14 +528,6 @@ pub enum ReaderServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<SubscriptionMatchedStatus>>,
     },
-    WaitForHistoricalData {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        max_wait: Duration,
-        #[allow(clippy::type_complexity)]
-        reply_sender: OneshotSender<DdsResult<Pin<Box<dyn Future<Output = DdsResult<()>> + Send>>>>,
-    },
     GetMatchedPublicationData {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
@@ -601,11 +592,11 @@ pub enum MessageServiceMail {
         data_writer_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
-    IsHistoricalDataReceived {
+    NotifyHistoricalData {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<bool>>,
+        reply_sender: OneshotSender<DdsResult<()>>,
     },
     HandleData {
         participant_handle: InstanceHandle,
