@@ -1664,8 +1664,8 @@ impl Type for DynamicData<'static> {
     };
 }
 impl TypeSupport for DynamicData<'static> {
-    fn create_sample(src: &mut DynamicData<'static>) -> Self {
-        src.clone()
+    fn create_sample(src: &mut DynamicData<'static>) -> Option<Self> {
+        Some(src.clone())
     }
 
     fn create_dynamic_sample(self) -> DynamicData<'static> {
