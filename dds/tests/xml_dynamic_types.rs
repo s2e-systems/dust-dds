@@ -1257,7 +1257,6 @@ fn create_seq_int32x10_default_from_xml() {
 
 #[cfg(feature = "xtypes-xml")]
 #[test]
-#[ignore = "reason"]
 fn create_union_seq_int32x10_trim_from_xml() {
     use dust_dds::xtypes::dynamic_type::TryConstructKind;
 
@@ -1277,7 +1276,7 @@ fn create_union_seq_int32x10_trim_from_xml() {
             .get_kind(),
         TypeKind::UINT32
     );
-    assert_eq!(dynamic_type.get_member_count(), 1);
+    assert_eq!(dynamic_type.get_member_count(), 2);
     let member = dynamic_type.get_member_by_name("x1").unwrap();
 
     assert_eq!(member.descriptor.r#type.descriptor.kind, TypeKind::SEQUENCE);
@@ -1297,10 +1296,13 @@ fn create_union_seq_int32x10_trim_from_xml() {
     let mut d = DynamicDataFactory::create_data(dynamic_type);
     d.from_xml(DATA_XML_ARRAY_NUM_20).unwrap();
 
-    // This is the sequence
+    // Discriminator:
+    assert_eq!(d.get_uint32_value(0).unwrap(), &1);
     assert_eq!(
-        d.get_int32_values(0).unwrap(),
-        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        d.get_int32_values(1).unwrap(),
+        &[
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+        ]
     );
 }
 
@@ -1340,4 +1342,77 @@ fn data_union_seq_int32x20_from_xml() {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
         ]
     );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn parse_must_understand_attribute_from_xml() {
+    let type_xml = r#"<dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_mustUnderstand" extensibility="appendable">
+                    <member name="x1" type="int32"/>
+                    <member name="x2" mustUnderstand="true" type="int32"/>
+                </struct>
+            </module>
+        </types>
+    </dds>"#;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_mustUnderstand",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member_x1 = dynamic_type.get_member_by_name("x1").unwrap();
+    assert!(!member_x1.descriptor.is_must_understand);
+
+    let member_x2 = dynamic_type.get_member_by_name("x2").unwrap();
+    assert!(member_x2.descriptor.is_must_understand);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn parse_bitmask_type_and_data_from_xml() {
+    let type_xml = r#"<dds>
+        <types>
+            <module name="Test">
+                <bitmask name="B_32" bitBound="32">
+                    <flag name="B_FLAG_1" value="0"/>
+                    <flag name="B_FLAG_2" value="1"/>
+                </bitmask>
+                <union name="union_bitmask32" extensibility="appendable">
+                    <discriminator type="nonBasic" nonBasicTypeName="B_32"/>
+                    <case><caseDiscriminator value="2"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="1"/><member name="x2" type="int32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>"#;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_bitmask32",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    assert_eq!(dynamic_type.get_kind(), TypeKind::UNION);
+
+    let disc_member = dynamic_type.get_member(0).unwrap();
+    assert_eq!(disc_member.descriptor.r#type.get_kind(), TypeKind::BITMASK);
+    assert_eq!(
+        disc_member.descriptor.r#type.get_descriptor().bound.first(),
+        Some(&32)
+    );
+
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
+    let data_xml = r#"<union_bitmask>
+        <discriminator>2</discriminator>
+        <x1>128</x1>
+    </union_bitmask>"#;
+    data.from_xml(data_xml).unwrap();
+    assert_eq!(*data.get_uint32_value(0).unwrap(), 2);
+    assert_eq!(*data.get_int16_value(1).unwrap(), 128);
 }
