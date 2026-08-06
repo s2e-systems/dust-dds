@@ -1673,6 +1673,321 @@ impl TypeSupport for DynamicData<'static> {
     }
 }
 
+fn get_sequence_len(storage: &DataStorage) -> Option<usize> {
+    match storage {
+        DataStorage::SequenceUInt8(v) => Some(v.len()),
+        DataStorage::SequenceInt8(v) => Some(v.len()),
+        DataStorage::SequenceUInt16(v) => Some(v.len()),
+        DataStorage::SequenceInt16(v) => Some(v.len()),
+        DataStorage::SequenceInt32(v) => Some(v.len()),
+        DataStorage::SequenceUInt32(v) => Some(v.len()),
+        DataStorage::SequenceInt64(v) => Some(v.len()),
+        DataStorage::SequenceUInt64(v) => Some(v.len()),
+        DataStorage::SequenceFloat32(v) => Some(v.len()),
+        DataStorage::SequenceFloat64(v) => Some(v.len()),
+        DataStorage::SequenceFloat128(v) => Some(v.len()),
+        DataStorage::SequenceChar8(v) => Some(v.len()),
+        DataStorage::SequenceBoolean(v) => Some(v.len()),
+        DataStorage::SequenceString(v) => Some(v.len()),
+        DataStorage::SequenceComplexValue(v) => Some(v.len()),
+        _ => None,
+    }
+}
+
+fn reset_sequence_to_empty(storage: &mut DataStorage) {
+    match storage {
+        DataStorage::SequenceUInt8(v) => v.clear(),
+        DataStorage::SequenceInt8(v) => v.clear(),
+        DataStorage::SequenceUInt16(v) => v.clear(),
+        DataStorage::SequenceInt16(v) => v.clear(),
+        DataStorage::SequenceInt32(v) => v.clear(),
+        DataStorage::SequenceUInt32(v) => v.clear(),
+        DataStorage::SequenceInt64(v) => v.clear(),
+        DataStorage::SequenceUInt64(v) => v.clear(),
+        DataStorage::SequenceFloat32(v) => v.clear(),
+        DataStorage::SequenceFloat64(v) => v.clear(),
+        DataStorage::SequenceFloat128(v) => v.clear(),
+        DataStorage::SequenceChar8(v) => v.clear(),
+        DataStorage::SequenceBoolean(v) => v.clear(),
+        DataStorage::SequenceString(v) => v.clear(),
+        DataStorage::SequenceComplexValue(v) => v.clear(),
+        _ => {}
+    }
+}
+
+fn truncate_sequence(storage: &mut DataStorage, bound: usize) {
+    match storage {
+        DataStorage::SequenceUInt8(v) => v.truncate(bound),
+        DataStorage::SequenceInt8(v) => v.truncate(bound),
+        DataStorage::SequenceUInt16(v) => v.truncate(bound),
+        DataStorage::SequenceInt16(v) => v.truncate(bound),
+        DataStorage::SequenceInt32(v) => v.truncate(bound),
+        DataStorage::SequenceUInt32(v) => v.truncate(bound),
+        DataStorage::SequenceInt64(v) => v.truncate(bound),
+        DataStorage::SequenceUInt64(v) => v.truncate(bound),
+        DataStorage::SequenceFloat32(v) => v.truncate(bound),
+        DataStorage::SequenceFloat64(v) => v.truncate(bound),
+        DataStorage::SequenceFloat128(v) => v.truncate(bound),
+        DataStorage::SequenceChar8(v) => v.truncate(bound),
+        DataStorage::SequenceBoolean(v) => v.truncate(bound),
+        DataStorage::SequenceString(v) => v.truncate(bound),
+        DataStorage::SequenceComplexValue(v) => v.truncate(bound),
+        _ => {}
+    }
+}
+
+fn default_storage_for_type(t: DynamicType<'static>) -> DataStorage {
+    match t.get_kind() {
+        TypeKind::BOOLEAN => DataStorage::Boolean(false),
+        TypeKind::BYTE => DataStorage::UInt8(0),
+        TypeKind::INT8 => DataStorage::Int8(0),
+        TypeKind::UINT8 => DataStorage::UInt8(0),
+        TypeKind::INT16 => DataStorage::Int16(0),
+        TypeKind::UINT16 => DataStorage::UInt16(0),
+        TypeKind::INT32 => DataStorage::Int32(0),
+        TypeKind::UINT32 => DataStorage::UInt32(0),
+        TypeKind::INT64 => DataStorage::Int64(0),
+        TypeKind::UINT64 => DataStorage::UInt64(0),
+        TypeKind::FLOAT32 => DataStorage::Float32(0.0),
+        TypeKind::FLOAT64 => DataStorage::Float64(0.0),
+        TypeKind::FLOAT128 => DataStorage::Float128(0),
+        TypeKind::CHAR8 => DataStorage::Char8('\0'),
+        TypeKind::CHAR16 => DataStorage::Char8('\0'),
+        TypeKind::STRING8 => DataStorage::String(String::new()),
+        TypeKind::STRING16 => DataStorage::String(String::new()),
+        TypeKind::ENUM => DataStorage::Int32(0),
+        TypeKind::BITMASK => DataStorage::UInt32(0),
+        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
+            DataStorage::ComplexValue(DynamicDataFactory::create_data(t))
+        }
+        TypeKind::SEQUENCE => {
+            if let Some(elem_t) = t.descriptor.element_type {
+                match elem_t.get_kind() {
+                    TypeKind::BOOLEAN => DataStorage::SequenceBoolean(Vec::new()),
+                    TypeKind::BYTE | TypeKind::UINT8 => DataStorage::SequenceUInt8(Vec::new()),
+                    TypeKind::INT8 => DataStorage::SequenceInt8(Vec::new()),
+                    TypeKind::INT16 => DataStorage::SequenceInt16(Vec::new()),
+                    TypeKind::UINT16 => DataStorage::SequenceUInt16(Vec::new()),
+                    TypeKind::INT32 => DataStorage::SequenceInt32(Vec::new()),
+                    TypeKind::UINT32 => DataStorage::SequenceUInt32(Vec::new()),
+                    TypeKind::INT64 => DataStorage::SequenceInt64(Vec::new()),
+                    TypeKind::UINT64 => DataStorage::SequenceUInt64(Vec::new()),
+                    TypeKind::FLOAT32 => DataStorage::SequenceFloat32(Vec::new()),
+                    TypeKind::FLOAT64 => DataStorage::SequenceFloat64(Vec::new()),
+                    TypeKind::FLOAT128 => DataStorage::SequenceFloat128(Vec::new()),
+                    TypeKind::CHAR8 => DataStorage::SequenceChar8(Vec::new()),
+                    TypeKind::CHAR16 => DataStorage::SequenceChar8(Vec::new()),
+                    TypeKind::STRING8 | TypeKind::STRING16 => {
+                        DataStorage::SequenceString(Vec::new())
+                    }
+                    _ => DataStorage::SequenceComplexValue(Vec::new()),
+                }
+            } else {
+                DataStorage::SequenceComplexValue(Vec::new())
+            }
+        }
+        TypeKind::ARRAY => DataStorage::SequenceComplexValue(Vec::new()),
+        _ => DataStorage::Boolean(false),
+    }
+}
+
+fn get_discriminator_value_as_i32(data: &DynamicData) -> Option<i32> {
+    match data.abstract_data.get(&0)? {
+        DataStorage::UInt8(x) => Some(*x as i32),
+        DataStorage::Int8(x) => Some(*x as i32),
+        DataStorage::UInt16(x) => Some(*x as i32),
+        DataStorage::Int16(x) => Some(*x as i32),
+        DataStorage::Int32(x) => Some(*x),
+        DataStorage::UInt32(x) => Some(*x as i32),
+        _ => None,
+    }
+}
+
+fn get_selected_union_member<'a>(data: &DynamicData<'a>) -> Option<&'a DynamicTypeMember> {
+    let disc_id = get_discriminator_value_as_i32(data)?;
+    let mut default_member = None;
+    for member in data.r#type.member_list {
+        if member.descriptor.label.contains(&disc_id) {
+            return Some(member);
+        }
+        if member.descriptor.is_default_label {
+            default_member = Some(member);
+        }
+    }
+    default_member
+}
+
+fn validate_member_value(value: &mut DataStorage, member_descriptor: &MemberDescriptor) -> bool {
+    match member_descriptor.r#type.get_kind() {
+        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
+            if let DataStorage::ComplexValue(inner) = value {
+                inner.validate_dynamic_data()
+            } else {
+                false
+            }
+        }
+        TypeKind::SEQUENCE => {
+            if let DataStorage::SequenceComplexValue(vec) = value {
+                let element_type = member_descriptor
+                    .r#type
+                    .descriptor
+                    .element_type
+                    .expect("sequence must have element type");
+                for element in vec.iter_mut() {
+                    if !element.validate_dynamic_data() {
+                        match member_descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *element = DynamicDataFactory::create_data(element_type);
+                            }
+                            TryConstructKind::Trim => {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let bound = member_descriptor
+                .r#type
+                .descriptor
+                .bound
+                .first()
+                .copied()
+                .unwrap_or(0) as usize;
+            if bound > 0 && bound != u32::MAX as usize {
+                if let Some(len) = get_sequence_len(value) {
+                    if len > bound {
+                        match member_descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                reset_sequence_to_empty(value);
+                            }
+                            TryConstructKind::Trim => {
+                                truncate_sequence(value, bound);
+                            }
+                        }
+                    }
+                }
+            }
+            true
+        }
+        TypeKind::ARRAY => {
+            if let DataStorage::SequenceComplexValue(vec) = value {
+                let element_type = member_descriptor
+                    .r#type
+                    .descriptor
+                    .element_type
+                    .expect("array must have element type");
+                for elem in vec.iter_mut() {
+                    if !elem.validate_dynamic_data() {
+                        match member_descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *elem = DynamicDataFactory::create_data(element_type);
+                            }
+                            TryConstructKind::Trim => {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            true
+        }
+        TypeKind::STRING8 | TypeKind::STRING16 => {
+            let bound = member_descriptor
+                .r#type
+                .descriptor
+                .bound
+                .first()
+                .copied()
+                .unwrap_or(0) as usize;
+            if bound > 0 && bound != u32::MAX as usize {
+                if let DataStorage::String(s) = value {
+                    let len = s.chars().count();
+                    if len > bound {
+                        match member_descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                s.clear();
+                            }
+                            TryConstructKind::Trim => {
+                                let trim_idx =
+                                    s.char_indices().nth(bound).map_or(s.len(), |(idx, _)| idx);
+                                s.truncate(trim_idx);
+                            }
+                        }
+                    }
+                }
+            }
+            true
+        }
+        _ => true,
+    }
+}
+
+impl<'a> DynamicData<'a> {
+    pub(crate) fn validate_dynamic_data(&mut self) -> bool {
+        let kind = self.r#type.descriptor.kind;
+        let extensibility = self.r#type.descriptor.extensibility_kind;
+
+        if kind == TypeKind::UNION {
+            let Some(selected_member) = get_selected_union_member(self) else {
+                return false;
+            };
+            let Some(value) = self.abstract_data.get_mut(&selected_member.get_id()) else {
+                return false;
+            };
+            if !validate_member_value(value, &selected_member.descriptor) {
+                match selected_member.descriptor.try_construct_kind {
+                    TryConstructKind::Discard => return false,
+                    TryConstructKind::UseDefault => {
+                        *value = default_storage_for_type(selected_member.descriptor.r#type);
+                    }
+                    TryConstructKind::Trim => return false,
+                }
+            }
+        } else if kind == TypeKind::STRUCTURE {
+            for member in self.r#type.member_list {
+                let member_id = member.get_id();
+                let try_construct_kind = member.descriptor.try_construct_kind;
+                let is_required =
+                    !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
+
+                if let alloc::collections::btree_map::Entry::Vacant(e) =
+                    self.abstract_data.entry(member_id)
+                {
+                    if is_required {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                let default_val =
+                                    default_storage_for_type(member.descriptor.r#type);
+                                e.insert(default_val);
+                            }
+                            TryConstructKind::Trim => return false,
+                        }
+                    }
+                } else {
+                    let value = self.abstract_data.get_mut(&member_id).unwrap();
+                    if !validate_member_value(value, &member.descriptor) {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *value = default_storage_for_type(member.descriptor.r#type);
+                            }
+                            TryConstructKind::Trim => return false,
+                        }
+                    }
+                }
+            }
+        }
+
+        true
+    }
+}
+
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
     /// Deserializes data from an XML string into this `DynamicData` instance.
