@@ -5,7 +5,7 @@ use crate::{
     dcps::{
         dcps_domain_participant::{
             builtin_constants::{TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME},
-            participant_entity::DcpsDomainParticipant,
+            participant_entity::{BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant},
             user_defined_data_reader::UserDefinedDataReader,
         },
         listeners::{
@@ -184,11 +184,12 @@ impl DcpsDomainParticipant {
         subscriber_handle: &InstanceHandle,
         topic_name: String,
     ) -> DdsResult<Option<InstanceHandle>> {
-        if !self
-            .domain_participant
-            .locally_created_topic_list
-            .iter()
-            .any(|x| x.topic_name == topic_name)
+        if !BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str())
+            && !self
+                .domain_participant
+                .locally_created_topic_list
+                .iter()
+                .any(|x| x.topic_name == topic_name)
         {
             return Err(DdsError::BadParameter);
         }

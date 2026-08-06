@@ -1,7 +1,15 @@
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
-    dcps::dcps_domain_participant::{
-        data_reader_entity::DataReaderEntity, subscriber_entity::SubscriberEntity,
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
+    dcps::{
+        data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
+        dcps_domain_participant::{
+            builtin_data_reader::BuiltinDataReader, data_reader_entity::DataReaderEntity,
+            subscriber_entity::SubscriberEntity,
+        },
     },
     infrastructure::{instance::InstanceHandle, qos::SubscriberQos},
     rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
@@ -20,12 +28,14 @@ use super::builtin_constants::{
 
 pub struct BuiltinSubscriber {
     pub subscriber_entity: SubscriberEntity,
-    pub dcps_participant_reader: DataReaderEntity<RtpsStatelessReader>,
-    pub dcps_topic_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub dcps_publication_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub dcps_subscription_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub type_lookup_request_reader: DataReaderEntity<RtpsStatefulReader>,
-    pub type_lookup_reply_reader: DataReaderEntity<RtpsStatefulReader>,
+    pub dcps_participant_reader:
+        BuiltinDataReader<RtpsStatelessReader, ParticipantBuiltinTopicData>,
+    pub dcps_topic_reader: BuiltinDataReader<RtpsStatefulReader, TopicBuiltinTopicData>,
+    pub dcps_publication_reader: BuiltinDataReader<RtpsStatefulReader, PublicationBuiltinTopicData>,
+    pub dcps_subscription_reader:
+        BuiltinDataReader<RtpsStatefulReader, SubscriptionBuiltinTopicData>,
+    pub type_lookup_request_reader: BuiltinDataReader<RtpsStatefulReader, TypeLookupRequest>,
+    pub type_lookup_reply_reader: BuiltinDataReader<RtpsStatefulReader, TypeLookupReply>,
 }
 
 impl Deref for BuiltinSubscriber {
@@ -53,7 +63,7 @@ impl BuiltinSubscriber {
             guid_prefix,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
         ));
-        let dcps_participant_reader = DataReaderEntity::new(
+        let dcps_participant_reader = BuiltinDataReader::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             SPDP_READER_QOS,
             String::from(DCPS_PARTICIPANT),
@@ -64,7 +74,7 @@ impl BuiltinSubscriber {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
             ReliabilityKind::Reliable,
         );
-        let dcps_topic_reader = DataReaderEntity::new(
+        let dcps_topic_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_TOPIC),
@@ -75,7 +85,7 @@ impl BuiltinSubscriber {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
             ReliabilityKind::Reliable,
         );
-        let dcps_publication_reader = DataReaderEntity::new(
+        let dcps_publication_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_PUBLICATION),
@@ -86,7 +96,7 @@ impl BuiltinSubscriber {
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
             ReliabilityKind::Reliable,
         );
-        let dcps_subscription_reader = DataReaderEntity::new(
+        let dcps_subscription_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
             String::from(DCPS_SUBSCRIPTION),
@@ -97,7 +107,7 @@ impl BuiltinSubscriber {
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
             ReliabilityKind::Reliable,
         );
-        let type_lookup_request_reader = DataReaderEntity::new(
+        let type_lookup_request_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
             String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
@@ -108,7 +118,7 @@ impl BuiltinSubscriber {
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
             ReliabilityKind::Reliable,
         );
-        let type_lookup_reply_reader = DataReaderEntity::new(
+        let type_lookup_reply_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
             String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
@@ -138,11 +148,11 @@ impl BuiltinSubscriber {
         &mut self,
     ) -> [&mut DataReaderEntity<RtpsStatefulReader>; 5] {
         [
-            &mut self.dcps_topic_reader,
-            &mut self.dcps_publication_reader,
-            &mut self.dcps_subscription_reader,
-            &mut self.type_lookup_request_reader,
-            &mut self.type_lookup_reply_reader,
+            &mut *self.dcps_topic_reader,
+            &mut *self.dcps_publication_reader,
+            &mut *self.dcps_subscription_reader,
+            &mut *self.type_lookup_request_reader,
+            &mut *self.type_lookup_reply_reader,
         ]
     }
 
