@@ -1817,10 +1817,7 @@ fn get_selected_union_member<'a>(data: &DynamicData<'a>) -> Option<&'a DynamicTy
     default_member
 }
 
-fn validate_member_value(
-    value: &mut DataStorage,
-    member_descriptor: &MemberDescriptor,
-) -> bool {
+fn validate_member_value(value: &mut DataStorage, member_descriptor: &MemberDescriptor) -> bool {
     match member_descriptor.r#type.get_kind() {
         TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             if let DataStorage::ComplexValue(inner) = value {
@@ -1831,7 +1828,8 @@ fn validate_member_value(
         }
         TypeKind::SEQUENCE => {
             if let DataStorage::SequenceComplexValue(vec) = value {
-                let element_type = member_descriptor.r#type
+                let element_type = member_descriptor
+                    .r#type
                     .descriptor
                     .element_type
                     .expect("sequence must have element type");
@@ -1850,7 +1848,13 @@ fn validate_member_value(
                 }
             }
 
-            let bound = member_descriptor.r#type.descriptor.bound.first().copied().unwrap_or(0) as usize;
+            let bound = member_descriptor
+                .r#type
+                .descriptor
+                .bound
+                .first()
+                .copied()
+                .unwrap_or(0) as usize;
             if bound > 0 && bound != u32::MAX as usize {
                 if let Some(len) = get_sequence_len(value) {
                     if len > bound {
@@ -1870,7 +1874,8 @@ fn validate_member_value(
         }
         TypeKind::ARRAY => {
             if let DataStorage::SequenceComplexValue(vec) = value {
-                let element_type = member_descriptor.r#type
+                let element_type = member_descriptor
+                    .r#type
                     .descriptor
                     .element_type
                     .expect("array must have element type");
@@ -1891,7 +1896,13 @@ fn validate_member_value(
             true
         }
         TypeKind::STRING8 | TypeKind::STRING16 => {
-            let bound = member_descriptor.r#type.descriptor.bound.first().copied().unwrap_or(0) as usize;
+            let bound = member_descriptor
+                .r#type
+                .descriptor
+                .bound
+                .first()
+                .copied()
+                .unwrap_or(0) as usize;
             if bound > 0 && bound != u32::MAX as usize {
                 if let DataStorage::String(s) = value {
                     let len = s.chars().count();
@@ -1917,7 +1928,7 @@ fn validate_member_value(
 }
 
 impl<'a> DynamicData<'a> {
-  pub(crate) fn validate_dynamic_data(&mut self) -> bool {
+    pub(crate) fn validate_dynamic_data(&mut self) -> bool {
         let kind = self.r#type.descriptor.kind;
         let extensibility = self.r#type.descriptor.extensibility_kind;
 
@@ -1944,14 +1955,16 @@ impl<'a> DynamicData<'a> {
                 let is_required =
                     !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
 
-                if !self.abstract_data.contains_key(&member_id) {
+                if let std::collections::btree_map::Entry::Vacant(e) =
+                    self.abstract_data.entry(member_id)
+                {
                     if is_required {
                         match try_construct_kind {
                             TryConstructKind::Discard => return false,
                             TryConstructKind::UseDefault => {
                                 let default_val =
                                     default_storage_for_type(member.descriptor.r#type);
-                                self.abstract_data.insert(member_id, default_val);
+                                e.insert(default_val);
                             }
                             TryConstructKind::Trim => return false,
                         }
@@ -1974,7 +1987,6 @@ impl<'a> DynamicData<'a> {
         true
     }
 }
-
 
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
