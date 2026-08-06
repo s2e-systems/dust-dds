@@ -1416,3 +1416,130 @@ fn parse_bitmask_type_and_data_from_xml() {
     assert_eq!(*data.get_uint32_value(0).unwrap(), 2);
     assert_eq!(*data.get_int16_value(1).unwrap(), 128);
 }
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn convert_dynamic_type_to_complete_type_object() {
+    use dust_dds::xtypes::type_object::{CompleteTypeObject, TypeIdentifier, TYPE_FLAG_IS_FINAL};
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <enum name="E2" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                    <enumerator name="VAL3" value="3"/>
+                </enum>
+                <struct name="enum1x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+                </struct>
+                <struct name="enum2x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E2" arrayDimensions="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::enum1x10", vec![])
+            .unwrap()
+            .build();
+
+    let complete_type: CompleteTypeObject = CompleteTypeObject::from(publisher_dynamic_type);
+
+    match complete_type {
+        CompleteTypeObject::TkStructure { struct_type } => {
+            assert_eq!(struct_type.header.detail.type_name, "Test::enum1x10");
+            assert_eq!(
+                struct_type.struct_flags & TYPE_FLAG_IS_FINAL,
+                TYPE_FLAG_IS_FINAL
+            );
+            assert_eq!(struct_type.member_seq.len(), 1);
+
+            let member = &struct_type.member_seq[0];
+            assert_eq!(member.detail.name, "x1");
+            assert_eq!(member.common.member_id, 0);
+
+            match &member.common.member_type_id {
+                TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+                    assert_eq!(array_sdefn.array_bound_seq, vec![10]);
+                    assert!(matches!(
+                        *array_sdefn.element_identifier,
+                        TypeIdentifier::EkComplete { .. }
+                    ));
+                }
+                TypeIdentifier::TiPlainArrayLarge { array_ldefn } => {
+                    assert_eq!(array_ldefn.array_bound_seq, vec![10]);
+                    assert!(matches!(
+                        *array_ldefn.element_identifier,
+                        TypeIdentifier::EkComplete { .. }
+                    ));
+                }
+                _ => panic!("Expected array type identifier for member x1"),
+            }
+        }
+        _ => panic!("Expected TkStructure complete type object"),
+    }
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn convert_enum_dynamic_type_to_complete_type_object() {
+    use dust_dds::xtypes::type_object::CompleteTypeObject;
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <enum name="E2" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                    <enumerator name="VAL3" value="3"/>
+                </enum>
+                <struct name="enum1x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+                </struct>
+                <struct name="enum2x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E2" arrayDimensions="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+
+    let e1_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::E1", vec![])
+            .unwrap()
+            .build();
+
+    let complete_type = CompleteTypeObject::from(e1_dynamic_type);
+
+    match complete_type {
+        CompleteTypeObject::TkEnum { enumerated_type } => {
+            assert_eq!(enumerated_type.header.detail.type_name, "Test::E1");
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "VAL0");
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 0);
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "VAL1");
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 1);
+            assert_eq!(enumerated_type.literal_seq[2].detail.name, "VAL2");
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 2);
+        }
+        _ => panic!("Expected TkEnum complete type object"),
+    }
+}
+
+

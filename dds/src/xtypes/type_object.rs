@@ -1940,11 +1940,12 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = MinimalEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = MinimalEnumeratedType {
                     enum_flags,
@@ -2044,8 +2045,9 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = CompleteEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                     detail: CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
@@ -2053,7 +2055,7 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = CompleteEnumeratedType {
                     enum_flags,
@@ -2236,8 +2238,8 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind: EK_COMPLETE,
+                    element_flags: todo!(),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainSequenceSmall {
@@ -2268,8 +2270,8 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind: EK_COMPLETE,
+                    element_flags: todo!(),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainArraySmall {
@@ -2335,6 +2337,47 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
             ann_custom: None,
         };
         CompleteStructMember { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for MinimalEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags: Default::default(),
+        };
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalEnumeratedLiteral { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags: Default::default(),
+        };
+        let detail = CompleteMemberDetail {
+            name: String::from(value.get_name()),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteEnumeratedLiteral { common, detail }
     }
 }
 
