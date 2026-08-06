@@ -12,7 +12,7 @@ use crate::{
             participant_entity::{
                 BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant, FindTopicNotification,
             },
-            topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+            topic_entity::{ContentFilteredTopicEntity, TopicEntity, get_topic_type_support},
             user_defined_publisher::PublisherEntity,
             user_defined_subscriber::UserDefinedSubscriber,
         },
@@ -229,6 +229,10 @@ impl DcpsDomainParticipant {
         type_support: DynamicType<'static>,
         runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
+        if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+            return Err(DdsError::BadParameter);
+        }
+
         if self
             .domain_participant
             .locally_created_topic_list
@@ -446,6 +450,13 @@ impl DcpsDomainParticipant {
             .find(|x| x.topic_name == topic_name)
         {
             Ok(Some(topic.type_name.clone()))
+        } else if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
+            let type_support = get_topic_type_support(
+                &topic_name,
+                &self.domain_participant.content_filtered_topic_list,
+                &self.domain_participant.locally_created_topic_list,
+            );
+            Ok(type_support.map(|t| t.get_name().to_string()))
         } else {
             Ok(None)
         }
