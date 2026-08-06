@@ -40,7 +40,7 @@ pub fn deserialize_topic_type<'a>(
     type_support: DynamicType<'a>,
     data: &[u8],
 ) -> Option<DynamicData<'a>> {
-    match topic_name {
+    let mut dynamic_data = match topic_name {
         DCPS_PARTICIPANT => SpdpDiscoveredParticipantData::from_bytes(data)
             .map(|x| x.dds_participant_data.create_dynamic_sample())
             .ok(),
@@ -54,7 +54,9 @@ pub fn deserialize_topic_type<'a>(
             .map(|x| x.topic_builtin_topic_data.create_dynamic_sample())
             .ok(),
         _ => deserialize_top_level_type(type_support, data).ok(),
-    }
+    };
+
+    dynamic_data
 }
 
 impl DcpsDomainParticipant {
