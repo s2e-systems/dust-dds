@@ -1955,7 +1955,7 @@ impl<'a> DynamicData<'a> {
                 let is_required =
                     !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
 
-                if let std::collections::btree_map::Entry::Vacant(e) =
+                if let alloc::collections::btree_map::Entry::Vacant(e) =
                     self.abstract_data.entry(member_id)
                 {
                     if is_required {
