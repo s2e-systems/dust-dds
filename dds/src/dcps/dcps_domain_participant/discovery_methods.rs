@@ -161,34 +161,27 @@ impl DcpsDomainParticipant {
     pub fn announce_deleted_participant(&mut self, runtime: &impl DdsRuntime) {
         if self.domain_participant.enabled {
             let timestamp = runtime.clock().now();
-            {
-                let dw = &mut self
-                    .domain_participant
-                    .builtin_publisher
-                    .dcps_participant_writer;
-                let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
-                let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
-                let topic_key_data = BuiltInTopicKey {
-                    value: builtin_topic_key,
-                }
-                .create_dynamic_sample();
-                dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
-                let topic = self
-                    .domain_participant
-                    .locally_created_topic_list
-                    .iter()
-                    .find(|x| x.topic_name == dw.topic_name)
-                    .expect("Writer topic must exist");
-                dw.unregister_w_timestamp(
-                    &dynamic_data,
-                    &topic.type_support,
-                    timestamp,
-                    self.transport.message_writer.as_ref(),
-                    runtime,
-                )
-                .ok();
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .dcps_participant_writer;
+            let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
+            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
+            let topic_key_data = BuiltInTopicKey {
+                value: builtin_topic_key,
             }
+            .create_dynamic_sample();
+            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
+
+            dw.unregister_w_timestamp(
+                &dynamic_data,
+                &BuiltInKeyHolder::TYPE,
+                timestamp,
+                self.transport.message_writer.as_ref(),
+                runtime,
+            )
+            .ok();
         }
     }
 
@@ -586,15 +579,9 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
-            let topic = self
-                .domain_participant
-                .locally_created_topic_list
-                .iter()
-                .find(|x| x.topic_name == dw.topic_name)
-                .expect("Writer topic must exist");
             dw.unregister_w_timestamp(
                 &dynamic_data,
-                &topic.type_support,
+                &BuiltInKeyHolder::TYPE,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,
@@ -733,15 +720,10 @@ impl DcpsDomainParticipant {
             }
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
-            let topic = self
-                .domain_participant
-                .locally_created_topic_list
-                .iter()
-                .find(|x| x.topic_name == dw.topic_name)
-                .expect("Writer topic must exist");
+
             dw.unregister_w_timestamp(
                 &dynamic_data,
-                &topic.type_support,
+                &BuiltInKeyHolder::TYPE,
                 timestamp,
                 self.transport.message_writer.as_ref(),
                 runtime,

@@ -1,9 +1,5 @@
 use super::{
-    builtin_constants::{
-        ENTITYID_SEDP_PUBLICATIONS_TOPIC, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC,
-        ENTITYID_SEDP_TOPICS_TOPIC, ENTITYID_SPDP_TOPIC, ENTITYID_TL_SVC_REQ_TOPIC,
-        ENTITYID_TL_SVC_RPL_TOPIC, TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME,
-    },
+    builtin_constants::{TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME},
     builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltinSubscriber,
     topic_entity::{ContentFilteredTopicEntity, TopicEntity},
@@ -13,15 +9,13 @@ use super::{
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
-            type_lookup::{TypeLookupReply, TypeLookupRequest},
         },
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
@@ -39,16 +33,9 @@ use crate::{
         interface::RtpsTransportParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
-    xtypes::{
-        dynamic_type::DynamicType,
-        type_support::{Type, TypeSupport},
-    },
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
-use alloc::{
-    collections::BTreeSet,
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{collections::BTreeSet, string::String, vec::Vec};
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -92,75 +79,6 @@ impl DcpsDomainParticipant {
 
         let participant_handle = InstanceHandle::new(guid.into());
 
-        const NUMBER_BUILTIN_ENTITIES: usize = 6;
-        let mut topic_list = Vec::with_capacity(NUMBER_BUILTIN_ENTITIES);
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "SpdpDiscoveredParticipantData".to_string(),
-            String::from(DCPS_PARTICIPANT),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SPDP_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            ParticipantBuiltinTopicData::TYPE,
-        ));
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "DiscoveredTopicData".to_string(),
-            String::from(DCPS_TOPIC),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_TOPICS_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            TopicBuiltinTopicData::TYPE,
-        ));
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "DiscoveredWriterData".to_string(),
-            String::from(DCPS_PUBLICATION),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_PUBLICATIONS_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            PublicationBuiltinTopicData::TYPE,
-        ));
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "DiscoveredReaderData".to_string(),
-            String::from(DCPS_SUBSCRIPTION),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_SEDP_SUBSCRIPTIONS_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            SubscriptionBuiltinTopicData::TYPE,
-        ));
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "TypeLookup_Request".to_string(),
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            TypeLookupRequest::TYPE,
-        ));
-
-        topic_list.push(TopicEntity::new(
-            TopicQos::default(),
-            "TypeLookup_Reply".to_string(),
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
-            InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_RPL_TOPIC).into()),
-            DcpsStatusCondition::default(),
-            None,
-            StatusMask::default(),
-            TypeLookupReply::TYPE,
-        ));
-
         let builtin_subscriber = BuiltinSubscriber::new(guid_prefix);
         let builtin_publisher = BuiltinPublisher::new(guid_prefix, &transport);
 
@@ -172,7 +90,6 @@ impl DcpsDomainParticipant {
             participant_handle,
             builtin_publisher,
             builtin_subscriber,
-            topic_list,
             domain_tag,
         );
 
@@ -319,7 +236,6 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: BuiltinPublisher,
         builtin_subscriber: BuiltinSubscriber,
-        locally_created_topic_list: Vec<TopicEntity>,
         domain_tag: String,
     ) -> Self {
         Self {
@@ -333,7 +249,7 @@ impl DomainParticipantEntity {
             default_subscriber_qos: SubscriberQos::const_default(),
             user_defined_publisher_list: Vec::new(),
             default_publisher_qos: PublisherQos::const_default(),
-            locally_created_topic_list,
+            locally_created_topic_list: Vec::new(),
             content_filtered_topic_list: Vec::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
