@@ -167,6 +167,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             .min()
     }
 
+    pub(crate) fn time_until_pending_writer_sample_timeout(&self) -> Option<Duration> {
+        let now = self.runtime.clock().now();
+        self.domain_participant_list
+            .iter()
+            .filter_map(|x| x.time_until_pending_writer_sample_timeout(now))
+            .min()
+    }
+
     pub(crate) fn time_until_participant_announcement(&self) -> Option<Duration> {
         let now = self.runtime.clock().now();
         self.domain_participant_list

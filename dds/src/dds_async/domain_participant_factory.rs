@@ -293,6 +293,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     domain_participant_factory.time_until_stale_participant();
                 let time_until_stale_writer_sample =
                     domain_participant_factory.time_until_stale_writer_sample();
+                let time_until_pending_writer_sample_timeout =
+                    domain_participant_factory.time_until_pending_writer_sample_timeout();
                 let time_until_participant_announcement =
                     domain_participant_factory.time_until_participant_announcement();
                 let next_task_time = poke_time
@@ -300,6 +302,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     .min(time_until_missed_writer_deadline.unwrap_or(poke_time))
                     .min(time_until_stale_participant.unwrap_or(poke_time))
                     .min(time_until_stale_writer_sample.unwrap_or(poke_time))
+                    .min(time_until_pending_writer_sample_timeout.unwrap_or(poke_time))
                     .min(time_until_participant_announcement.unwrap_or(poke_time));
 
                 match select_future(
@@ -344,6 +347,10 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.remove_stale_writer_samples(
                         domain_participant_factory.runtime.clock().now(),
                     );
+                    dp.check_pending_writer_sample_timeout(
+                        domain_participant_factory.runtime.clock().now(),
+                    );
+                    dp.process_pending_write_samples(&domain_participant_factory.runtime);
                     dp.announce_participant_if_needed(&domain_participant_factory.runtime);
                     dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());
                     dp.poke(&domain_participant_factory.runtime.clock());

@@ -3,11 +3,11 @@ use alloc::{string::String, vec::Vec};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        channels::oneshot::{OneshotSender, oneshot},
+        channels::oneshot::OneshotSender,
         dcps_domain_participant::{
             data_writer_entity::serialize, participant_entity::DcpsDomainParticipant,
+            user_defined_data_writer::PendingWriteSample,
         },
-        dcps_mail::{DcpsMail, WriterServiceMail},
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::{
@@ -22,7 +22,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
-    runtime::{Clock, DdsRuntime, Either, Spawner, Timer, select_future},
+    runtime::{Clock, DdsRuntime},
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -373,61 +373,21 @@ impl DcpsDomainParticipant {
                         .transport_writer
                         .is_change_acknowledged(smallest_seq_num_instance)
                 {
-                    if data_writer.acknowledgement_notification.is_some() {
+                    if data_writer.pending_write_sample.is_some() {
                         reply_sender.send(Err(DdsError::Error(String::from(
                             "Another writer already waiting for acknowledgements.",
                         ))));
                         return;
                     }
-                    let max_blocking_time = data_writer.qos.reliability.max_blocking_time;
-                    let (acknowledgment_notification_sender, acknowledgment_notification_receiver) =
-                        oneshot::<()>();
-                    data_writer.acknowledgement_notification =
-                        Some(acknowledgment_notification_sender);
-                    let participant_handle = self.domain_participant.instance_handle;
-                    let dcps_sender = self.dcps_sender;
-                    let mut timer_handle = runtime.timer();
-                    let publisher_handle = *publisher_handle;
-                    let data_writer_handle = *data_writer_handle;
-                    let dynamic_data = dynamic_data.clone();
-                    runtime.spawner().spawn(async move {
-                        if let DurationKind::Finite(t) = max_blocking_time {
-                            let max_blocking_time_wait = timer_handle.delay(t.into());
-                            match select_future(
-                                acknowledgment_notification_receiver,
-                                max_blocking_time_wait,
-                            )
-                            .await
-                            {
-                                Either::A(_) => {
-                                    dcps_sender
-                                        .send(DcpsMail::Writer(
-                                            WriterServiceMail::WriteWTimestamp {
-                                                participant_handle,
-                                                publisher_handle,
-                                                data_writer_handle,
-                                                dynamic_data,
-                                                timestamp,
-                                                reply_sender,
-                                            },
-                                        ))
-                                        .await;
-                                }
-                                Either::B(_) => reply_sender.send(Err(DdsError::Timeout)),
-                            };
-                        } else {
-                            acknowledgment_notification_receiver.await.ok();
-                            dcps_sender
-                                .send(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
-                                    participant_handle,
-                                    publisher_handle,
-                                    data_writer_handle,
-                                    dynamic_data,
-                                    timestamp,
-                                    reply_sender,
-                                }))
-                                .await;
-                        }
+                    let expiration_time = match data_writer.qos.reliability.max_blocking_time {
+                        DurationKind::Finite(t) => Some(runtime.clock().now() + t.into()),
+                        DurationKind::Infinite => None,
+                    };
+                    data_writer.pending_write_sample = Some(PendingWriteSample {
+                        dynamic_data: dynamic_data.clone(),
+                        timestamp,
+                        reply_sender,
+                        expiration_time,
                     });
                     return;
                 }
@@ -633,6 +593,117 @@ impl DcpsDomainParticipant {
             data_writer
                 .wait_for_acknowledgments_notification
                 .push(notify_sender);
+        }
+    }
+
+    pub fn process_pending_write_samples(&mut self, runtime: &impl DdsRuntime) {
+        let now = runtime.clock().now();
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                if let Some(pending) = &data_writer.pending_write_sample {
+                    if !data_writer.enabled {
+                        continue;
+                    }
+                    let mut member_list = Vec::new();
+                    let Ok(key_holder_data) =
+                        KeyHolderData::from_dynamic_data(&pending.dynamic_data, &mut member_list)
+                    else {
+                        continue;
+                    };
+                    let Ok(instance_handle) =
+                        get_instance_handle_from_key_holder_data(&key_holder_data)
+                    else {
+                        continue;
+                    };
+
+                    let can_write = if let HistoryQosPolicyKind::KeepLast(depth) =
+                        data_writer.qos.history.kind
+                    {
+                        let smallest_seq_num_instance = data_writer
+                            .registered_instance_info
+                            .iter()
+                            .find(|x| x.instance_handle == instance_handle)
+                            .and_then(|s| {
+                                if s.samples.len() == depth as usize {
+                                    s.samples.front().copied()
+                                } else {
+                                    None
+                                }
+                            });
+
+                        if let Some(smallest_seq_num_instance) = smallest_seq_num_instance {
+                            !(data_writer.qos.reliability.kind
+                                == ReliabilityQosPolicyKind::Reliable
+                                && !data_writer
+                                    .transport_writer
+                                    .is_change_acknowledged(smallest_seq_num_instance))
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    };
+
+                    if can_write {
+                        let pending = data_writer.pending_write_sample.take().unwrap();
+                        let serialized_data =
+                            match serialize(&pending.dynamic_data, &data_writer.qos.representation)
+                            {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    pending.reply_sender.send(Err(e));
+                                    continue;
+                                }
+                            };
+
+                        if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind
+                        {
+                            if let Some(s) = data_writer
+                                .registered_instance_info
+                                .iter_mut()
+                                .find(|x| x.instance_handle == instance_handle)
+                            {
+                                if s.samples.len() == depth as usize {
+                                    if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
+                                        data_writer
+                                            .transport_writer
+                                            .remove_change(smallest_seq_num_instance);
+                                    }
+                                }
+                            }
+                        }
+
+                        let write_result = data_writer.write_w_timestamp(
+                            instance_handle,
+                            serialized_data,
+                            pending.timestamp,
+                            now,
+                            self.transport.message_writer.as_ref(),
+                            runtime,
+                        );
+                        if write_result.is_err() {
+                            pending.reply_sender.send(write_result);
+                        } else {
+                            pending.reply_sender.send(Ok(()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn check_pending_writer_sample_timeout(&mut self, now: Time) {
+        for publisher in &mut self.domain_participant.user_defined_publisher_list {
+            for data_writer in &mut publisher.data_writer_list {
+                if let Some(pending) = &data_writer.pending_write_sample {
+                    if let Some(expiration_time) = pending.expiration_time {
+                        if now >= expiration_time {
+                            let pending = data_writer.pending_write_sample.take().unwrap();
+                            pending.reply_sender.send(Err(DdsError::Timeout));
+                        }
+                    }
+                }
+            }
         }
     }
 }

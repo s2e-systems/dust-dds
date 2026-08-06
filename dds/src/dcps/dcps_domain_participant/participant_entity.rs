@@ -183,6 +183,29 @@ impl DcpsDomainParticipant {
             .min()
     }
 
+    pub fn time_until_pending_writer_sample_timeout(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .user_defined_publisher_list
+            .iter()
+            .flat_map(|publisher| publisher.data_writer_list.iter())
+            .filter_map(|data_writer| {
+                if let Some(pending) = &data_writer.pending_write_sample {
+                    if let Some(expiration_time) = pending.expiration_time {
+                        if expiration_time > now {
+                            Some(expiration_time - now)
+                        } else {
+                            Some(Duration::new(0, 0))
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .min()
+    }
+
     pub fn get_instance_handle(&self) -> &InstanceHandle {
         &self.domain_participant.instance_handle
     }
@@ -501,7 +524,10 @@ mod tests {
         );
 
         // Disabled entity returns None
-        assert_eq!(entity.time_until_participant_announcement(Time::new(10, 0)), None);
+        assert_eq!(
+            entity.time_until_participant_announcement(Time::new(10, 0)),
+            None
+        );
 
         entity.enabled = true;
 
