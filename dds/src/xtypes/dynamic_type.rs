@@ -1645,6 +1645,124 @@ impl<'a> DynamicData<'a> {
             .remove(&id)
             .ok_or(XTypesError::InvalidId(id))
     }
+
+    pub(crate) fn validate_dynamic_data(&mut self) -> bool {
+        let mut values_to_insert = Vec::new();
+        let kind = self.r#type.descriptor.kind;
+        let extensibility = self.r#type.descriptor.extensibility_kind;
+
+        if kind == TypeKind::UNION {
+            // Discriminator check (member 0)
+            let disc_member = match self.r#type.get_member(0) {
+                Ok(m) => m,
+                Err(_) => return false,
+            };
+            match self.abstract_data.get_mut(&0) {
+                None => return false, // Discriminator is always required
+                Some(val) => {
+                    if !validate_member_value(
+                        val,
+                        &disc_member.descriptor.r#type,
+                        disc_member.descriptor.try_construct_kind,
+                    ) {
+                        return false;
+                    }
+                }
+            }
+
+            // Active case member check
+            if let Some(active_member) = get_active_union_member(self) {
+                let member_id = active_member.get_id();
+                let try_construct_kind = active_member.descriptor.try_construct_kind;
+                match self.abstract_data.get_mut(&member_id) {
+                    None => match try_construct_kind {
+                        TryConstructKind::Discard => return false,
+                        TryConstructKind::UseDefault => {
+                            let default_val =
+                                default_storage_for_type(active_member.descriptor.r#type);
+                            values_to_insert.push((member_id, default_val));
+                        }
+                        TryConstructKind::Trim => return false,
+                    },
+                    Some(val) => {
+                        if !validate_member_value(
+                            val,
+                            &active_member.descriptor.r#type,
+                            try_construct_kind,
+                        ) {
+                            match try_construct_kind {
+                                TryConstructKind::Discard => return false,
+                                TryConstructKind::UseDefault => {
+                                    let default_val =
+                                        default_storage_for_type(active_member.descriptor.r#type);
+                                    values_to_insert.push((member_id, default_val));
+                                }
+                                TryConstructKind::Trim => return false,
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Clean up inactive union members
+            let active_id = get_active_union_member(self).map(|m| m.get_id());
+            let mut keys_to_remove = Vec::new();
+            for key in self.abstract_data.keys() {
+                if *key != 0 && Some(*key) != active_id {
+                    keys_to_remove.push(*key);
+                }
+            }
+            for k in keys_to_remove {
+                self.abstract_data.remove(&k);
+            }
+        } else if kind == TypeKind::STRUCTURE {
+            // Structure check
+            for member in self.r#type.member_list {
+                let member_id = member.get_id();
+                let try_construct_kind = member.descriptor.try_construct_kind;
+                let is_required =
+                    !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
+
+                match self.abstract_data.get_mut(&member_id) {
+                    None => {
+                        if is_required {
+                            match try_construct_kind {
+                                TryConstructKind::Discard => return false,
+                                TryConstructKind::UseDefault => {
+                                    let default_val =
+                                        default_storage_for_type(member.descriptor.r#type);
+                                    values_to_insert.push((member_id, default_val));
+                                }
+                                TryConstructKind::Trim => return false,
+                            }
+                        }
+                    }
+                    Some(val) => {
+                        if !validate_member_value(
+                            val,
+                            &member.descriptor.r#type,
+                            try_construct_kind,
+                        ) {
+                            match try_construct_kind {
+                                TryConstructKind::Discard => return false,
+                                TryConstructKind::UseDefault => {
+                                    let default_val =
+                                        default_storage_for_type(member.descriptor.r#type);
+                                    values_to_insert.push((member_id, default_val));
+                                }
+                                TryConstructKind::Trim => return false,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (k, v) in values_to_insert {
+            self.abstract_data.insert(k, v);
+        }
+        true
+    }
 }
 
 impl Type for DynamicData<'static> {
@@ -1665,12 +1783,7 @@ impl Type for DynamicData<'static> {
 }
 impl TypeSupport for DynamicData<'static> {
     fn create_sample(src: &mut DynamicData<'static>) -> Option<Self> {
-        let mut clone = src.clone();
-        if validate_dynamic_data(&mut clone) {
-            Some(clone)
-        } else {
-            None
-        }
+        Some(src.clone())
     }
 
     fn create_dynamic_sample(self) -> DynamicData<'static> {
@@ -1782,16 +1895,16 @@ fn default_storage_for_type(t: DynamicType<'static>) -> DataStorage {
                     TypeKind::FLOAT128 => DataStorage::SequenceFloat128(Vec::new()),
                     TypeKind::CHAR8 => DataStorage::SequenceChar8(Vec::new()),
                     TypeKind::CHAR16 => DataStorage::SequenceChar8(Vec::new()),
-                    TypeKind::STRING8 | TypeKind::STRING16 => DataStorage::SequenceString(Vec::new()),
+                    TypeKind::STRING8 | TypeKind::STRING16 => {
+                        DataStorage::SequenceString(Vec::new())
+                    }
                     _ => DataStorage::SequenceComplexValue(Vec::new()),
                 }
             } else {
                 DataStorage::SequenceComplexValue(Vec::new())
             }
         }
-        TypeKind::ARRAY => {
-            DataStorage::SequenceComplexValue(Vec::new())
-        }
+        TypeKind::ARRAY => DataStorage::SequenceComplexValue(Vec::new()),
         _ => DataStorage::Boolean(false),
     }
 }
@@ -1822,109 +1935,6 @@ fn get_active_union_member<'a>(data: &DynamicData<'a>) -> Option<&'a DynamicType
     default_member
 }
 
-fn validate_dynamic_data(data: &mut DynamicData<'static>) -> bool {
-    let mut values_to_insert = Vec::new();
-    let kind = data.r#type.descriptor.kind;
-    let extensibility = data.r#type.descriptor.extensibility_kind;
-
-    if kind == TypeKind::UNION {
-        // Discriminator check (member 0)
-        let disc_member = match data.r#type.get_member(0) {
-            Ok(m) => m,
-            Err(_) => return false,
-        };
-        match data.abstract_data.get_mut(&0) {
-            None => return false, // Discriminator is always required
-            Some(val) => {
-                if !validate_member_value(val, &disc_member.descriptor.r#type, disc_member.descriptor.try_construct_kind) {
-                    return false;
-                }
-            }
-        }
-
-        // Active case member check
-        if let Some(active_member) = get_active_union_member(data) {
-            let member_id = active_member.get_id();
-            let try_construct_kind = active_member.descriptor.try_construct_kind;
-            match data.abstract_data.get_mut(&member_id) {
-                None => {
-                    match try_construct_kind {
-                        TryConstructKind::Discard => return false,
-                        TryConstructKind::UseDefault => {
-                            let default_val = default_storage_for_type(active_member.descriptor.r#type);
-                            values_to_insert.push((member_id, default_val));
-                        }
-                        TryConstructKind::Trim => return false,
-                    }
-                }
-                Some(val) => {
-                    if !validate_member_value(val, &active_member.descriptor.r#type, try_construct_kind) {
-                        match try_construct_kind {
-                            TryConstructKind::Discard => return false,
-                            TryConstructKind::UseDefault => {
-                                let default_val = default_storage_for_type(active_member.descriptor.r#type);
-                                values_to_insert.push((member_id, default_val));
-                            }
-                            TryConstructKind::Trim => return false,
-                        }
-                    }
-                }
-            }
-        }
-
-        // Clean up inactive union members
-        let active_id = get_active_union_member(data).map(|m| m.get_id());
-        let mut keys_to_remove = Vec::new();
-        for key in data.abstract_data.keys() {
-            if *key != 0 && Some(*key) != active_id {
-                keys_to_remove.push(*key);
-            }
-        }
-        for k in keys_to_remove {
-            data.abstract_data.remove(&k);
-        }
-    } else {
-        // Structure check
-        for member in data.r#type.member_list {
-            let member_id = member.get_id();
-            let try_construct_kind = member.descriptor.try_construct_kind;
-            let is_required = !member.descriptor.is_optional && extensibility != ExtensibilityKind::Mutable;
-
-            match data.abstract_data.get_mut(&member_id) {
-                None => {
-                    if is_required {
-                        match try_construct_kind {
-                            TryConstructKind::Discard => return false,
-                            TryConstructKind::UseDefault => {
-                                let default_val = default_storage_for_type(member.descriptor.r#type);
-                                values_to_insert.push((member_id, default_val));
-                            }
-                            TryConstructKind::Trim => return false,
-                        }
-                    }
-                }
-                Some(val) => {
-                    if !validate_member_value(val, &member.descriptor.r#type, try_construct_kind) {
-                        match try_construct_kind {
-                            TryConstructKind::Discard => return false,
-                            TryConstructKind::UseDefault => {
-                                let default_val = default_storage_for_type(member.descriptor.r#type);
-                                values_to_insert.push((member_id, default_val));
-                            }
-                            TryConstructKind::Trim => return false,
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for (k, v) in values_to_insert {
-        data.abstract_data.insert(k, v);
-    }
-    true
-}
-
 fn validate_member_value(
     val: &mut DataStorage,
     member_type: &DynamicType<'static>,
@@ -1934,16 +1944,19 @@ fn validate_member_value(
     match kind {
         TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             if let DataStorage::ComplexValue(inner) = val {
-                validate_dynamic_data(inner)
+                inner.validate_dynamic_data()
             } else {
                 false
             }
         }
         TypeKind::SEQUENCE => {
             if let DataStorage::SequenceComplexValue(vec) = val {
-                let element_type = member_type.descriptor.element_type.expect("sequence must have element type");
+                let element_type = member_type
+                    .descriptor
+                    .element_type
+                    .expect("sequence must have element type");
                 for elem in vec.iter_mut() {
-                    if !validate_dynamic_data(elem) {
+                    if !elem.validate_dynamic_data() {
                         match try_construct_kind {
                             TryConstructKind::Discard => return false,
                             TryConstructKind::UseDefault => {
@@ -1977,9 +1990,12 @@ fn validate_member_value(
         }
         TypeKind::ARRAY => {
             if let DataStorage::SequenceComplexValue(vec) = val {
-                let element_type = member_type.descriptor.element_type.expect("array must have element type");
+                let element_type = member_type
+                    .descriptor
+                    .element_type
+                    .expect("array must have element type");
                 for elem in vec.iter_mut() {
-                    if !validate_dynamic_data(elem) {
+                    if !elem.validate_dynamic_data() {
                         match try_construct_kind {
                             TryConstructKind::Discard => return false,
                             TryConstructKind::UseDefault => {
@@ -2006,7 +2022,8 @@ fn validate_member_value(
                                 s.clear();
                             }
                             TryConstructKind::Trim => {
-                                let trim_idx = s.char_indices().nth(bound).map_or(s.len(), |(idx, _)| idx);
+                                let trim_idx =
+                                    s.char_indices().nth(bound).map_or(s.len(), |(idx, _)| idx);
                                 s.truncate(trim_idx);
                             }
                         }

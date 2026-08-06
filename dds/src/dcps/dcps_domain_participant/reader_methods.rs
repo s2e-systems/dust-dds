@@ -55,7 +55,11 @@ pub fn deserialize_topic_type<'a>(
             .ok(),
         _ => deserialize_top_level_type(type_support, data).ok(),
     };
-
+    if let Some(dynamic_data) = dynamic_data.as_mut() {
+        if !dynamic_data.validate_dynamic_data() {
+            return None;
+        }
+    }
     dynamic_data
 }
 

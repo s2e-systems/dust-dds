@@ -795,8 +795,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => {
                 let mut values = Vec::with_capacity(length);
                 for _ in 0..length {
-                        values.push(self.deserialize_as_nested(element_type)?);
-
+                    values.push(self.deserialize_as_nested(element_type)?);
                 }
                 dynamic_data.set_complex_values(member.get_id(), values)
             }
@@ -885,13 +884,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
                 .set_char8_value(member.get_id(), self.deserialize_primitive_type::<char>()?),
             TypeKind::CHAR16 => todo!(),
             TypeKind::STRING8 => {
-                let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
                 dynamic_data.set_string_value(member.get_id(), self.deserialize_string_type()?)
             }
             TypeKind::STRING16 => {
-                let bound = member_type.descriptor.bound.first().copied().unwrap_or(0);
-                dynamic_data
-                    .set_string_value(member.get_id(), self.deserialize_wstring_type()?)
+                dynamic_data.set_string_value(member.get_id(), self.deserialize_wstring_type()?)
             }
             TypeKind::ALIAS => todo!(),
             TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION => dynamic_data
