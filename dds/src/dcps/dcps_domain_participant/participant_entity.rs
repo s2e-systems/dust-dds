@@ -74,6 +74,7 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
+        participant_announcement_interval: core::time::Duration,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -91,6 +92,7 @@ impl DcpsDomainParticipant {
             builtin_publisher,
             builtin_subscriber,
             domain_tag,
+            Duration::from(participant_announcement_interval),
         );
 
         Self {
@@ -106,6 +108,11 @@ impl DcpsDomainParticipant {
 
     pub fn domain_id(&self) -> DomainId {
         self.domain_participant.domain_id
+    }
+
+    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+        self.domain_participant
+            .time_until_participant_announcement(now)
     }
 
     pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
@@ -224,6 +231,8 @@ pub struct DomainParticipantEntity {
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
     pub find_topic_sender_list: Vec<FindTopicNotification>,
+    pub last_announcement_timestamp: Option<Time>,
+    pub participant_announcement_interval: Duration,
 }
 
 impl DomainParticipantEntity {
@@ -237,6 +246,7 @@ impl DomainParticipantEntity {
         builtin_publisher: BuiltinPublisher,
         builtin_subscriber: BuiltinSubscriber,
         domain_tag: String,
+        participant_announcement_interval: Duration,
     ) -> Self {
         Self {
             domain_id,
@@ -265,6 +275,26 @@ impl DomainParticipantEntity {
             listener_mask,
             domain_tag,
             find_topic_sender_list: Vec::new(),
+            last_announcement_timestamp: None,
+            participant_announcement_interval,
+        }
+    }
+
+    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+        if self.enabled {
+            match self.last_announcement_timestamp {
+                Some(last_announcement) => {
+                    let elapsed = now - last_announcement;
+                    if elapsed >= self.participant_announcement_interval {
+                        Some(Duration::new(0, 0))
+                    } else {
+                        Some(self.participant_announcement_interval - elapsed)
+                    }
+                }
+                None => Some(Duration::new(0, 0)),
+            }
+        } else {
+            None
         }
     }
 
@@ -440,5 +470,64 @@ mod tests {
 
         let remaining = Time::from(source_timestamp) + lifespan - now;
         assert_eq!(remaining, Duration::new(5, 0));
+    }
+
+    #[test]
+    fn test_time_until_participant_announcement() {
+        struct MockWriter;
+        impl crate::transport::interface::WriteMessage for MockWriter {
+            fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
+        }
+
+        let transport = RtpsTransportParticipant {
+            message_writer: Box::new(MockWriter),
+            default_unicast_locator_list: Vec::new(),
+            metatraffic_unicast_locator_list: Vec::new(),
+            metatraffic_multicast_locator_list: Vec::new(),
+            default_multicast_locator_list: Vec::new(),
+            fragment_size: 65536,
+        };
+
+        let mut entity = DomainParticipantEntity::new(
+            0,
+            DomainParticipantQos::default(),
+            None,
+            StatusMask::default(),
+            InstanceHandle::new([0; 16]),
+            BuiltinPublisher::new(GuidPrefix::default(), &transport),
+            BuiltinSubscriber::new(GuidPrefix::default()),
+            String::new(),
+            Duration::new(5, 0),
+        );
+
+        // Disabled entity returns None
+        assert_eq!(entity.time_until_participant_announcement(Time::new(10, 0)), None);
+
+        entity.enabled = true;
+
+        // Enabled entity without previous announcement returns 0
+        assert_eq!(
+            entity.time_until_participant_announcement(Time::new(10, 0)),
+            Some(Duration::new(0, 0))
+        );
+
+        // After announcement at t=10s, remaining time at t=12s should be 3s
+        entity.last_announcement_timestamp = Some(Time::new(10, 0));
+        assert_eq!(
+            entity.time_until_participant_announcement(Time::new(12, 0)),
+            Some(Duration::new(3, 0))
+        );
+
+        // At t=15s (5s elapsed), remaining time should be 0s
+        assert_eq!(
+            entity.time_until_participant_announcement(Time::new(15, 0)),
+            Some(Duration::new(0, 0))
+        );
+
+        // Past interval (e.g. t=16s), remaining time should still be 0s
+        assert_eq!(
+            entity.time_until_participant_announcement(Time::new(16, 0)),
+            Some(Duration::new(0, 0))
+        );
     }
 }

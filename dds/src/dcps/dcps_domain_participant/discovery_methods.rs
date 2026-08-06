@@ -87,9 +87,19 @@ use alloc::{format, string::String, vec, vec::Vec};
 use regex::Regex;
 
 impl DcpsDomainParticipant {
+    pub fn announce_participant_if_needed(&mut self, runtime: &impl DdsRuntime) {
+        let now = runtime.clock().now();
+        if let Some(time_until) = self.time_until_participant_announcement(now) {
+            if time_until == Duration::new(0, 0) {
+                self.announce_participant(runtime);
+            }
+        }
+    }
+
     #[tracing::instrument(skip(self, runtime))]
     pub fn announce_participant(&mut self, runtime: &impl DdsRuntime) {
         if self.domain_participant.enabled {
+            self.domain_participant.last_announcement_timestamp = Some(runtime.clock().now());
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {

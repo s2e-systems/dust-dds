@@ -1,7 +1,6 @@
 use crate::{
     dcps::{
         dcps_domain_participant::participant_entity::DcpsDomainParticipant,
-        dcps_mail::{DcpsMail, DiscoveryServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,
     },
@@ -13,7 +12,7 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         time::Duration,
     },
-    runtime::{Clock, DdsRuntime, Spawner, Timer},
+    runtime::{Clock, DdsRuntime},
     transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
 };
 use alloc::{string::String, vec::Vec};
@@ -54,8 +53,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             QosKind::Specific(q) => q,
         };
 
-        let spawner_handle = self.runtime.spawner();
-
         let listener_sender = dcps_listener.map(|l| l.spawn(&self.runtime.spawner()));
 
         let mut dcps_participant = DcpsDomainParticipant::new(
@@ -67,26 +64,9 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             listener_mask,
             transport_participant,
             self.dcps_sender,
+            participant_announcement_interval,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
-
-        //****** Spawn the participant actor and tasks **********//
-
-        // Start the regular participant announcement task
-        let dcps_sender_clone = self.dcps_sender;
-        let mut timer_handle = self.runtime.timer().clone();
-
-        spawner_handle.spawn(async move {
-            loop {
-                dcps_sender_clone
-                    .send(DcpsMail::Discovery(
-                        DiscoveryServiceMail::AnnounceParticipant { participant_handle },
-                    ))
-                    .await;
-
-                timer_handle.delay(participant_announcement_interval).await;
-            }
-        });
 
         if self.qos.entity_factory.autoenable_created_entities {
             dcps_participant.enable_domain_participant(&self.runtime)?;
@@ -184,6 +164,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         self.domain_participant_list
             .iter()
             .filter_map(|x| x.time_until_stale_writer_sample(now))
+            .min()
+    }
+
+    pub(crate) fn time_until_participant_announcement(&self) -> Option<Duration> {
+        let now = self.runtime.clock().now();
+        self.domain_participant_list
+            .iter()
+            .filter_map(|x| x.time_until_participant_announcement(now))
             .min()
     }
 }

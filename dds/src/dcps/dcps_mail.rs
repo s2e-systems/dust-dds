@@ -47,7 +47,6 @@ pub enum DcpsMail {
     Reader(ReaderServiceMail),
     StatusCondition(StatusConditionMail),
     Message(MessageServiceMail),
-    Discovery(DiscoveryServiceMail),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -602,8 +601,4 @@ pub enum MessageServiceMail {
         participant_handle: InstanceHandle,
         data_message: Vec<u8>,
     },
-}
-
-pub enum DiscoveryServiceMail {
-    AnnounceParticipant { participant_handle: InstanceHandle },
 }
