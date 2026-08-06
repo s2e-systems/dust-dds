@@ -4,11 +4,8 @@ use tracing::info;
 use crate::{
     dcps::{
         dcps_domain_participant::{
-            data_reader_entity::{AddChangeResult, DataReaderEntity},
-            participant_entity::{DcpsDomainParticipant, DiscoveredParticipantInfo},
-            reader_methods::deserialize_topic_type,
-            rtps_traits::RtpsReader,
-            topic_entity::{ContentFilteredTopicEntity, TopicEntity, get_topic_type_support},
+            data_reader_entity::AddChangeResult, participant_entity::DcpsDomainParticipant,
+            reader_methods::deserialize_topic_type, topic_entity::get_topic_type_support,
         },
         listeners::domain_participant_listener::ListenerMail,
         xtypes_glue::key_and_instance_handle::{
@@ -19,7 +16,7 @@ use crate::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync,
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind, time::Time},
+    infrastructure::{instance::InstanceHandle, status::StatusKind},
     rtps::message_receiver::MessageReceiver,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -35,7 +32,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, runtime))]
-    pub fn process_received_cache_changes(&mut self, runtime: &impl DdsRuntime) {
+    pub fn process_user_defined_received_cache_changes(&mut self, runtime: &impl DdsRuntime) {
         let reception_timestamp = runtime.clock().now();
         let dcps_sender = self.dcps_sender;
         let domain_id = self.domain_participant.domain_id;
@@ -367,119 +364,41 @@ impl DcpsDomainParticipant {
                 }
             }
         }
-
-        let builtin_subscriber = &mut self.domain_participant.builtin_subscriber;
-        Self::process_single_builtin_reader_cache_changes(
-            discovered_participant_list,
-            content_filtered_topic_list,
-            locally_created_topic_list,
-            &mut builtin_subscriber.dcps_participant_reader,
-            reception_timestamp,
-            runtime,
-        );
-        for data_reader in builtin_subscriber.stateful_data_reader_list_mut() {
-            Self::process_single_builtin_reader_cache_changes(
-                discovered_participant_list,
-                content_filtered_topic_list,
-                locally_created_topic_list,
-                data_reader,
-                reception_timestamp,
-                runtime,
-            );
-        }
     }
 
-    fn process_single_builtin_reader_cache_changes(
-        discovered_participant_list: &mut [DiscoveredParticipantInfo],
-        content_filtered_topic_list: &[ContentFilteredTopicEntity],
-        locally_created_topic_list: &[TopicEntity],
-        data_reader: &mut DataReaderEntity<impl RtpsReader>,
-        reception_timestamp: Time,
-        runtime: &impl DdsRuntime,
-    ) {
-        let changes = core::mem::take(data_reader.transport_reader.changes_mut());
-        let data_reader_handle = &data_reader.instance_handle.clone();
-        tracing::trace!(data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
+    pub fn process_builtin_cache_changes(&mut self, runtime: &impl DdsRuntime) {
+        let reception_timestamp = runtime.clock().now();
+        let discovered_participant_list = &mut self.domain_participant.discovered_participant_list;
 
-        for cache_change in changes {
-            if let Some(matched_participant) = discovered_participant_list
-                .iter_mut()
-                .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
-            {
-                matched_participant.last_communication_timestamp = runtime.clock().now();
-            }
+        self.domain_participant
+            .builtin_subscriber
+            .dcps_participant_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
 
-            let Some(type_support) = get_topic_type_support(
-                &data_reader.topic_name,
-                content_filtered_topic_list,
-                locally_created_topic_list,
-            ) else {
-                tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
-                return;
-            };
+        self.domain_participant
+            .builtin_subscriber
+            .dcps_topic_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
 
-            let change_instance_handle = if let Some(i) = cache_change.instance_handle {
-                InstanceHandle::new(i)
-            } else {
-                match cache_change.kind {
-                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                        let Some(data_value) = deserialize_topic_type(
-                            &data_reader.topic_name,
-                            *type_support,
-                            cache_change.data_value.as_ref(),
-                        ) else {
-                            tracing::warn!("Failed to deserialize user defined data");
-                            return;
-                        };
-                        let Ok(instance_handle) =
-                            get_instance_handle_from_dynamic_data(&data_value)
-                        else {
-                            tracing::warn!("Failed to get instance handle from dynamic_data");
-                            return;
-                        };
-                        instance_handle
-                    }
-                    ChangeKind::NotAliveDisposed
-                    | ChangeKind::NotAliveUnregistered
-                    | ChangeKind::NotAliveDisposedUnregistered => {
-                        let mut dynamic_members = Vec::new();
-                        let Ok(key_holder) =
-                            KeyHolderType::from_dynamic_type(type_support, &mut dynamic_members)
-                        else {
-                            tracing::warn!("Failed to create key holder");
-                            return;
-                        };
+        self.domain_participant
+            .builtin_subscriber
+            .dcps_publication_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
 
-                        let Ok(data_value) = deserialize_top_level_type(
-                            *key_holder.as_dynamic_type(),
-                            cache_change.data_value.as_ref(),
-                        ) else {
-                            tracing::warn!("Failed to deserialize disposed user defined data");
-                            return;
-                        };
+        self.domain_participant
+            .builtin_subscriber
+            .dcps_subscription_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
 
-                        let Ok(instance_handle) =
-                            get_instance_handle_from_dynamic_data(&data_value)
-                        else {
-                            tracing::warn!("Failed to deserialize disposed key user defined data");
-                            return;
-                        };
-                        instance_handle
-                    }
-                }
-            };
+        self.domain_participant
+            .builtin_subscriber
+            .type_lookup_request_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
 
-            data_reader
-                .add_reader_change(
-                    cache_change.writer_guid,
-                    cache_change.data_value,
-                    cache_change.kind,
-                    change_instance_handle.into(),
-                    cache_change.source_timestamp.map(Into::into),
-                    reception_timestamp,
-                )
-                .ok();
-        }
+        self.domain_participant
+            .builtin_subscriber
+            .type_lookup_reply_reader
+            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
     }
 
     #[tracing::instrument(skip(self, data_message, runtime))]

@@ -27,7 +27,6 @@ pub const BUILT_IN_WRITER_GROUP: Octet = 0xc8;
 pub const USER_DEFINED_READER_GROUP: Octet = 0x09;
 pub const BUILT_IN_READER_GROUP: Octet = 0xc9;
 // Added in comparison to the RTPS standard
-pub const BUILT_IN_TOPIC: Octet = 0xca;
 pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 
 /// GUID_t
