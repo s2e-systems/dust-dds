@@ -4329,3 +4329,155 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_union_seq_1() {
 
     assert!(reader.read_next_sample().unwrap().data.is_some());
 }
+
+/// 'tryc_enum_2' : {
+///     'common_args' : ['--type-folder types --type-file try_construct'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_enum_1 --data-folder data --data-file tryconstruct/enum_val3',
+///               'sub-exe -S -t test -y Test::struct_enum_2_default --data-folder data --data-file tryconstruct/enum_val1'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between struct_enum_1 and struct_enum_2_default',
+///     'description' : 'Verifies enum with `@try_construct(use_default)` replaces unrepresentable literals with default:\n\n'
+///                     ' * Publisher uses `struct_enum_1` from `try_construct`.\n'
+///                     ' * Subscriber uses `struct_enum_2_default` from `try_construct`.\n'
+///                     ' * Publisher uses `E1` (4 literals: VAL0-VAL3).\n'
+///                     ' * Subscriber uses `E2` (3 literals: VAL0-VAL2) with `@try_construct(use_default)`.\n'
+///                     ' * Literal `VAL3` is replaced with `E2`\'s default literal (`VAL1`).\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// },
+#[test]
+#[ignore = "Enums for discriminant and defaultLiteral to be implemented"]
+fn xtypes_v2_tryconstruct_test_suite_tryc_enum_2() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                    <enumerator name="VAL3" value="3"/>
+                </enum>
+                <enum name="E2" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1" defaultLiteral="true"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <struct name="struct_enum_1"   extensibility="mutable">
+                    <member name="x1" type="nonBasic" nonBasicTypeName="E1" />
+                </struct>
+                <struct name="struct_enum_2_default"   extensibility="mutable">
+                    <member name="x1" type="nonBasic" nonBasicTypeName="E2" tryConstruct="use_default"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::struct_enum_1", vec![])
+            .unwrap()
+            .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_enum_1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_enum_2_default",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_enum_2_default",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>VAL3</x1>
+        </struct>
+        ",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<struct>
+                <x1>VAL1</x1>
+            </struct>",
+        )
+        .unwrap();
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.unwrap(),
+        expected_received
+    );
+}
