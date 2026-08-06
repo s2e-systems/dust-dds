@@ -493,6 +493,7 @@ impl DcpsDomainParticipant {
                                 &runtime.clock(),
                             );
                         }
+                        self.process_pending_write_samples(runtime);
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                         for dw in self

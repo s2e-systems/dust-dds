@@ -1,9 +1,9 @@
 use crate::{
     dcps::{
         dcps_mail::{
-            DcpsMail, DiscoveryServiceMail, MessageServiceMail, ParticipantFactoryMail,
-            ParticipantServiceMail, PublisherServiceMail, ReaderServiceMail, StatusConditionMail,
-            SubscriberServiceMail, TopicServiceMail, WriterServiceMail,
+            DcpsMail, MessageServiceMail, ParticipantFactoryMail, ParticipantServiceMail,
+            PublisherServiceMail, ReaderServiceMail, StatusConditionMail, SubscriberServiceMail,
+            TopicServiceMail, WriterServiceMail,
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
@@ -1084,19 +1084,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .ok_or(DdsError::AlreadyDeleted)
                 {
                     p.handle_data(data_message.as_slice(), &self.runtime);
-                }
-            }
-
-            DcpsMail::Discovery(DiscoveryServiceMail::AnnounceParticipant {
-                participant_handle,
-            }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.announce_participant(&self.runtime)
                 }
             }
         }

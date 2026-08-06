@@ -14,11 +14,20 @@ use crate::{
         instance::InstanceHandle,
         qos::DataWriterQos,
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
+        time::Time,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
+    xtypes::dynamic_type::DynamicData,
 };
 use alloc::{string::String, vec::Vec};
 use core::ops::{Deref, DerefMut};
+
+pub struct PendingWriteSample {
+    pub dynamic_data: DynamicData<'static>,
+    pub timestamp: Time,
+    pub reply_sender: OneshotSender<DdsResult<()>>,
+    pub expiration_time: Option<Time>,
+}
 
 pub struct UserDefinedDataWriter {
     pub writer: DataWriterEntity<RtpsStatefulWriter>,
@@ -35,6 +44,7 @@ pub struct UserDefinedDataWriter {
     /// Member used to notify the external user which called the
     /// wait_for_acknowledgments method
     pub wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
+    pub pending_write_sample: Option<PendingWriteSample>,
 }
 
 impl Deref for UserDefinedDataWriter {
@@ -71,6 +81,7 @@ impl UserDefinedDataWriter {
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),
+            pending_write_sample: None,
         }
     }
 
