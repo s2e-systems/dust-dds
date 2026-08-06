@@ -1647,7 +1647,6 @@ impl<'a> DynamicData<'a> {
     }
 
     pub(crate) fn validate_dynamic_data(&mut self) -> bool {
-        let mut values_to_insert = Vec::new();
         let kind = self.r#type.descriptor.kind;
         let extensibility = self.r#type.descriptor.extensibility_kind;
 
@@ -1657,16 +1656,16 @@ impl<'a> DynamicData<'a> {
                 Ok(m) => m,
                 Err(_) => return false,
             };
-            match self.abstract_data.get_mut(&0) {
-                None => return false, // Discriminator is always required
-                Some(val) => {
-                    if !validate_member_value(
-                        val,
-                        &disc_member.descriptor.r#type,
-                        disc_member.descriptor.try_construct_kind,
-                    ) {
-                        return false;
-                    }
+            if !self.abstract_data.contains_key(&0) {
+                return false; // Discriminator is always required
+            } else {
+                let val = self.abstract_data.get_mut(&0).unwrap();
+                if !validate_member_value(
+                    val,
+                    &disc_member.descriptor.r#type,
+                    disc_member.descriptor.try_construct_kind,
+                ) {
+                    return false;
                 }
             }
 
@@ -1674,31 +1673,29 @@ impl<'a> DynamicData<'a> {
             if let Some(active_member) = get_active_union_member(self) {
                 let member_id = active_member.get_id();
                 let try_construct_kind = active_member.descriptor.try_construct_kind;
-                match self.abstract_data.get_mut(&member_id) {
-                    None => match try_construct_kind {
+                if !self.abstract_data.contains_key(&member_id) {
+                    match try_construct_kind {
                         TryConstructKind::Discard => return false,
                         TryConstructKind::UseDefault => {
                             let default_val =
                                 default_storage_for_type(active_member.descriptor.r#type);
-                            values_to_insert.push((member_id, default_val));
+                            self.abstract_data.insert(member_id, default_val);
                         }
                         TryConstructKind::Trim => return false,
-                    },
-                    Some(val) => {
-                        if !validate_member_value(
-                            val,
-                            &active_member.descriptor.r#type,
-                            try_construct_kind,
-                        ) {
-                            match try_construct_kind {
-                                TryConstructKind::Discard => return false,
-                                TryConstructKind::UseDefault => {
-                                    let default_val =
-                                        default_storage_for_type(active_member.descriptor.r#type);
-                                    values_to_insert.push((member_id, default_val));
-                                }
-                                TryConstructKind::Trim => return false,
+                    }
+                } else {
+                    let val = self.abstract_data.get_mut(&member_id).unwrap();
+                    if !validate_member_value(
+                        val,
+                        &active_member.descriptor.r#type,
+                        try_construct_kind,
+                    ) {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *val = default_storage_for_type(active_member.descriptor.r#type);
                             }
+                            TryConstructKind::Trim => return false,
                         }
                     }
                 }
@@ -1723,44 +1720,37 @@ impl<'a> DynamicData<'a> {
                 let is_required =
                     !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
 
-                match self.abstract_data.get_mut(&member_id) {
-                    None => {
-                        if is_required {
-                            match try_construct_kind {
-                                TryConstructKind::Discard => return false,
-                                TryConstructKind::UseDefault => {
-                                    let default_val =
-                                        default_storage_for_type(member.descriptor.r#type);
-                                    values_to_insert.push((member_id, default_val));
-                                }
-                                TryConstructKind::Trim => return false,
+                if !self.abstract_data.contains_key(&member_id) {
+                    if is_required {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                let default_val =
+                                    default_storage_for_type(member.descriptor.r#type);
+                                self.abstract_data.insert(member_id, default_val);
                             }
+                            TryConstructKind::Trim => return false,
                         }
                     }
-                    Some(val) => {
-                        if !validate_member_value(
-                            val,
-                            &member.descriptor.r#type,
-                            try_construct_kind,
-                        ) {
-                            match try_construct_kind {
-                                TryConstructKind::Discard => return false,
-                                TryConstructKind::UseDefault => {
-                                    let default_val =
-                                        default_storage_for_type(member.descriptor.r#type);
-                                    values_to_insert.push((member_id, default_val));
-                                }
-                                TryConstructKind::Trim => return false,
+                } else {
+                    let val = self.abstract_data.get_mut(&member_id).unwrap();
+                    if !validate_member_value(
+                        val,
+                        &member.descriptor.r#type,
+                        try_construct_kind,
+                    ) {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *val = default_storage_for_type(member.descriptor.r#type);
                             }
+                            TryConstructKind::Trim => return false,
                         }
                     }
                 }
             }
         }
 
-        for (k, v) in values_to_insert {
-            self.abstract_data.insert(k, v);
-        }
         true
     }
 }
