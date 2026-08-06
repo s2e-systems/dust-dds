@@ -633,10 +633,10 @@ impl DcpsDomainParticipant {
 
                         if let Some(smallest_seq_num_instance) = smallest_seq_num_instance {
                             !(data_writer.qos.reliability.kind
-                                == ReliabilityQosPolicyKind::Reliable
-                                && !data_writer
+                                == ReliabilityQosPolicyKind::Reliable)
+                                || data_writer
                                     .transport_writer
-                                    .is_change_acknowledged(smallest_seq_num_instance))
+                                    .is_change_acknowledged(smallest_seq_num_instance)
                         } else {
                             true
                         }
