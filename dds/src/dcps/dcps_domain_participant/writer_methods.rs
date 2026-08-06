@@ -380,7 +380,7 @@ impl DcpsDomainParticipant {
                         return;
                     }
                     let expiration_time = match data_writer.qos.reliability.max_blocking_time {
-                        DurationKind::Finite(t) => Some(runtime.clock().now() + t.into()),
+                        DurationKind::Finite(t) => Some(runtime.clock().now() + t),
                         DurationKind::Infinite => None,
                     };
                     data_writer.pending_write_sample = Some(PendingWriteSample {
