@@ -1420,7 +1420,7 @@ fn parse_bitmask_type_and_data_from_xml() {
 #[cfg(feature = "xtypes-xml")]
 #[test]
 fn convert_dynamic_type_to_complete_type_object() {
-    use dust_dds::xtypes::type_object::{CompleteTypeObject, TypeIdentifier, TYPE_FLAG_IS_FINAL};
+    use dust_dds::xtypes::type_object::{CompleteTypeObject, TYPE_FLAG_IS_FINAL, TypeIdentifier};
 
     let type_xml = r#"
     <dds>
@@ -1541,5 +1541,3 @@ fn convert_enum_dynamic_type_to_complete_type_object() {
         _ => panic!("Expected TkEnum complete type object"),
     }
 }
-
-

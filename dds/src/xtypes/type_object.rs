@@ -2237,8 +2237,13 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_COMPLETE,
+                    equiv_kind,
                     element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
@@ -2269,8 +2274,13 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_COMPLETE,
+                    equiv_kind,
                     element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
@@ -2467,6 +2477,46 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
+    /// 7.3.4.6.1 Fully-descriptive TypeIdentifiers
+    pub fn is_fully_descriptive(&self) -> bool {
+        match self {
+            TypeIdentifier::TkBoolean
+            | TypeIdentifier::TkByteType
+            | TypeIdentifier::TkInt8Type
+            | TypeIdentifier::TkInt16Type
+            | TypeIdentifier::TkInt32Type
+            | TypeIdentifier::TkInt64Type
+            | TypeIdentifier::TkUint8Type
+            | TypeIdentifier::TkUint16Type
+            | TypeIdentifier::TkUint32Type
+            | TypeIdentifier::TkUint64Type
+            | TypeIdentifier::TkFloat32Type
+            | TypeIdentifier::TkFloat64Type
+            | TypeIdentifier::TkFloat128Type
+            | TypeIdentifier::TkChar8Type
+            | TypeIdentifier::TkChar16Type
+            | TypeIdentifier::TiString8Small { .. }
+            | TypeIdentifier::TiString8Large { .. }
+            | TypeIdentifier::TiString16Small { .. }
+            | TypeIdentifier::TiString16Large { .. } => true,
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
+                seq_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
+                seq_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+                array_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn } => {
+                array_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainMapSmall { map_sdefn } => map_sdefn.header.equiv_kind == EK_BOTH,
+            TypeIdentifier::TiPlainMapLarge { map_ldefn } => map_ldefn.header.equiv_kind == EK_BOTH,
+            _ => false,
+        }
+    }
+
     /// 7.2.4.4 Assignability Rules
     pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
         self.is_assignable_from_w_type_consistency(
@@ -3198,5 +3248,78 @@ mod tests {
         ];
 
         assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn test_sequence_and_array_type_identifier_equivalence_kind() {
+        use super::*;
+        use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
+
+        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
+            .build()
+            .unwrap();
+
+        // Sequence of primitive -> EK_BOTH
+        let seq_primitive_type = DynamicTypeBuilderFactory::create_sequence_type(int32_type, 10)
+            .build()
+            .unwrap();
+        let type_id = TypeIdentifier::from(&seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Sequence of sequence of primitive -> EK_BOTH
+        let seq_seq_primitive_type =
+            DynamicTypeBuilderFactory::create_sequence_type(seq_primitive_type, 5)
+                .build()
+                .unwrap();
+        let type_id = TypeIdentifier::from(&seq_seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Array of primitive -> EK_BOTH
+        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
+            .build()
+            .unwrap();
+        let array_primitive_type =
+            DynamicTypeBuilderFactory::create_array_type(int32_type, vec![10].leak())
+                .build()
+                .unwrap();
+        let type_id = TypeIdentifier::from(&array_primitive_type);
+        if let TypeIdentifier::TiPlainArraySmall { array_sdefn } = type_id {
+            assert_eq!(array_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainArraySmall");
+        }
+
+        // Sequence of struct -> EK_COMPLETE
+        let struct_type = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name: "MyStruct",
+            base_type: None,
+            discriminator_type: None,
+            bound: &[],
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        })
+        .build()
+        .unwrap();
+
+        let seq_struct_type = DynamicTypeBuilderFactory::create_sequence_type(struct_type, 10)
+            .build()
+            .unwrap();
+        let type_id = TypeIdentifier::from(&seq_struct_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_COMPLETE);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
     }
 }
