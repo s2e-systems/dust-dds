@@ -2239,7 +2239,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 );
                 let header = PlainCollectionHeader {
                     equiv_kind: EK_COMPLETE,
-                    element_flags: todo!(),
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainSequenceSmall {
@@ -2271,7 +2271,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                 );
                 let header = PlainCollectionHeader {
                     equiv_kind: EK_COMPLETE,
-                    element_flags: todo!(),
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainArraySmall {
