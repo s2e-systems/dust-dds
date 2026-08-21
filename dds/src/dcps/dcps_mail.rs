@@ -411,7 +411,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
-        timestamp: Time,
+        timestamp: Option<Time>,
         reply_sender: OneshotSender<DdsResult<Option<InstanceHandle>>>,
     },
     UnregisterInstance {
@@ -419,7 +419,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
-        timestamp: Time,
+        timestamp: Option<Time>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     LookupInstance {
@@ -434,7 +434,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
-        timestamp: Time,
+        timestamp: Option<Time>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
@@ -442,7 +442,7 @@ pub enum WriterServiceMail {
         publisher_handle: InstanceHandle,
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
-        timestamp: Time,
+        timestamp: Option<Time>,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
     GetOfferedDeadlineMissedStatus {

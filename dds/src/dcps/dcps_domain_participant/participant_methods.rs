@@ -30,7 +30,7 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         time::{Duration, Time},
     },
-    runtime::DdsRuntime,
+    runtime::{Clock, DdsRuntime},
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
     xtypes::dynamic_type::DynamicType,
 };
@@ -704,5 +704,9 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn is_participant_empty(&mut self) -> bool {
         self.domain_participant.is_empty()
+    }
+
+    pub fn get_current_time(&self, runtime: &impl DdsRuntime) -> Time {
+        runtime.clock().now()
     }
 }

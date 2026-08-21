@@ -593,12 +593,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.register_instance(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or_else(|| p.get_current_time(&self.runtime));
+                    reply_sender.send(p.register_instance(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
@@ -614,13 +617,16 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.unregister_instance(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or_else(|| p.get_current_time(&self.runtime));
+                    reply_sender.send(p.unregister_instance(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                        &self.runtime,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::LookupInstance {
@@ -645,14 +651,17 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => p.write_w_timestamp(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                    reply_sender,
-                ),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or_else(|| p.get_current_time(&self.runtime));
+                    p.write_w_timestamp(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                        &self.runtime,
+                        reply_sender,
+                    );
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
 
@@ -669,13 +678,16 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.dispose_w_timestamp(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or_else(|| p.get_current_time(&self.runtime));
+                    reply_sender.send(p.dispose_w_timestamp(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                        &self.runtime,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::GetOfferedDeadlineMissedStatus {
