@@ -67,7 +67,12 @@ impl DcpsDomainParticipant {
             topic
         };
 
-        let topic_kind = TopicKind::from(&topic.type_support);
+        let topic_kind = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .map(|dt| TopicKind::from(&dt))
+            .unwrap_or(TopicKind::NoKey);
 
         let Some(subscriber) = self
             .domain_participant

@@ -106,14 +106,17 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<DynamicType<'static>> {
-        let Some(topic) = self
+        let topic = self
             .domain_participant
             .locally_created_topic_list
-            .iter_mut()
+            .iter()
             .find(|x| x.topic_name.as_ref() == topic_name.as_str())
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        Ok(topic.type_support)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        self.domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet("Type not found in type register".to_string())
+            })
     }
 }

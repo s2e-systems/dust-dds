@@ -8,6 +8,7 @@ use crate::{
     dcps::{
         channels::mpsc::MpscSender,
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
+        dcps_domain_participant::type_register::TypeRegister,
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
@@ -50,7 +51,6 @@ pub struct TopicEntity {
     pub status_condition: DcpsStatusCondition,
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
-    pub type_support: DynamicType<'static>,
     pub type_information: TypeInformation,
 }
 
@@ -64,7 +64,6 @@ impl TopicEntity {
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
-        type_support: DynamicType<'static>,
         type_information: TypeInformation,
     ) -> Self {
         Self {
@@ -77,7 +76,6 @@ impl TopicEntity {
             status_condition,
             listener_sender,
             listener_mask,
-            type_support,
             type_information,
         }
     }
@@ -87,7 +85,8 @@ pub fn get_topic_type_support<'a>(
     topic_name: &str,
     content_filtered_topic_list: &[ContentFilteredTopicEntity],
     locally_created_topic_list: &'a [TopicEntity],
-) -> Option<&'a DynamicType<'static>> {
+    type_register: &'a TypeRegister,
+) -> Option<DynamicType<'static>> {
     let resolved_topic_name = if let Some(cf_topic) = content_filtered_topic_list
         .iter()
         .find(|t| t.topic_name.as_ref() == topic_name)
@@ -98,15 +97,18 @@ pub fn get_topic_type_support<'a>(
     };
 
     match resolved_topic_name {
-        DCPS_PARTICIPANT => Some(&ParticipantBuiltinTopicData::TYPE),
-        DCPS_TOPIC => Some(&TopicBuiltinTopicData::TYPE),
-        DCPS_PUBLICATION => Some(&PublicationBuiltinTopicData::TYPE),
-        DCPS_SUBSCRIPTION => Some(&SubscriptionBuiltinTopicData::TYPE),
-        TYPE_LOOKUP_REQUEST_TOPIC_NAME => Some(&TypeLookupRequest::TYPE),
-        TYPE_LOOKUP_REPLY_TOPIC_NAME => Some(&TypeLookupReply::TYPE),
+        DCPS_PARTICIPANT => Some(ParticipantBuiltinTopicData::TYPE),
+        DCPS_TOPIC => Some(TopicBuiltinTopicData::TYPE),
+        DCPS_PUBLICATION => Some(PublicationBuiltinTopicData::TYPE),
+        DCPS_SUBSCRIPTION => Some(SubscriptionBuiltinTopicData::TYPE),
+        TYPE_LOOKUP_REQUEST_TOPIC_NAME => Some(TypeLookupRequest::TYPE),
+        TYPE_LOOKUP_REPLY_TOPIC_NAME => Some(TypeLookupReply::TYPE),
         _ => locally_created_topic_list
             .iter()
             .find(|t| t.topic_name.as_ref() == resolved_topic_name)
-            .map(|t| &t.type_support),
+            .and_then(|t| {
+                type_register
+                    .get_dynamic_type(&t.type_information.complete.typeid_with_size.type_id)
+            }),
     }
 }

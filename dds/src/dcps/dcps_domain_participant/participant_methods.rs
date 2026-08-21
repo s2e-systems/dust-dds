@@ -284,7 +284,6 @@ impl DcpsDomainParticipant {
             status_condition,
             listener_sender,
             listener_mask,
-            type_support,
             type_information,
         );
 
@@ -461,6 +460,7 @@ impl DcpsDomainParticipant {
                 &topic_name,
                 &self.domain_participant.content_filtered_topic_list,
                 &self.domain_participant.locally_created_topic_list,
+                &self.domain_participant.type_register,
             );
             Ok(type_support.map(|t| t.get_name().to_string()))
         } else {

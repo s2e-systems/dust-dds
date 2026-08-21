@@ -1,24 +1,19 @@
 use crate::xtypes::{
     dynamic_type::DynamicType,
     type_object::{
-        CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierWithSize,
-        TypeInformation, TypeObject, get_type_dependencies_with_size,
+        CompleteTypeObject, TypeIdentifier, TypeIdentifierWithSize, TypeInformation, TypeObject,
+        get_type_dependencies_with_size,
     },
 };
 use alloc::{sync::Arc, vec::Vec};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum RegisteredType {
-    Local {
-        type_name: Arc<str>,
-        dynamic_type: DynamicType<'static>,
-        type_information: TypeInformation,
-    },
-    Discovered {
-        type_identifier: TypeIdentifier,
-        type_object: Option<TypeObject>,
-        dependencies: Option<Vec<TypeIdentifierWithSize>>,
-    },
+pub struct RegisteredType {
+    pub type_identifier: TypeIdentifier,
+    pub type_name: Option<Arc<str>>,
+    pub type_object: Option<TypeObject>,
+    pub dependencies: Option<Vec<TypeIdentifierWithSize>>,
+    pub dynamic_type: Option<DynamicType<'static>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,76 +45,69 @@ impl TypeRegister {
     ) -> TypeInformation {
         let type_information = TypeInformation::from(dynamic_type);
 
-        // Register the root type if not already present
-        if !self.contains_type_id(&type_information.complete.typeid_with_size.type_id) {
-            self.types.push(RegisteredType::Local {
-                type_name: type_name.clone(),
-                dynamic_type,
-                type_information: type_information.clone(),
-            });
-        }
-
-        // Recursively register all dependent types
-        for dep in dynamic_type.get_dependencies() {
+        // Collect and register all direct and indirect dependencies
+        let deps = dynamic_type.get_dependencies();
+        for dep in deps {
             let dep_type_info = TypeInformation::from(dep);
-            if !self.contains_type_id(&dep_type_info.complete.typeid_with_size.type_id) {
-                self.types.push(RegisteredType::Local {
-                    type_name: Arc::from(dep.descriptor.name),
-                    dynamic_type: dep,
-                    type_information: dep_type_info,
+            let dep_id = dep_type_info.complete.typeid_with_size.type_id;
+            let dep_obj = TypeObject::EkComplete {
+                complete: CompleteTypeObject::from(dep),
+            };
+            let dep_deps = get_type_dependencies_with_size(dep);
+
+            if let Some(existing) = self.types.iter_mut().find(|t| t.type_identifier == dep_id) {
+                existing.type_object = Some(dep_obj);
+                existing.dependencies = Some(dep_deps);
+                existing.dynamic_type = Some(dep);
+                if existing.type_name.is_none() {
+                    existing.type_name = Some(Arc::from(dep.descriptor.name));
+                }
+            } else {
+                self.types.push(RegisteredType {
+                    type_identifier: dep_id,
+                    type_name: Some(Arc::from(dep.descriptor.name)),
+                    type_object: Some(dep_obj),
+                    dependencies: Some(dep_deps),
+                    dynamic_type: Some(dep),
                 });
             }
+        }
+
+        let root_id = type_information.complete.typeid_with_size.type_id.clone();
+        let root_obj = TypeObject::EkComplete {
+            complete: CompleteTypeObject::from(dynamic_type),
+        };
+        let root_deps = get_type_dependencies_with_size(dynamic_type);
+
+        if let Some(existing) = self.types.iter_mut().find(|t| t.type_identifier == root_id) {
+            existing.type_name = Some(type_name);
+            existing.type_object = Some(root_obj);
+            existing.dependencies = Some(root_deps);
+            existing.dynamic_type = Some(dynamic_type);
+        } else {
+            self.types.push(RegisteredType {
+                type_identifier: root_id,
+                type_name: Some(type_name),
+                type_object: Some(root_obj),
+                dependencies: Some(root_deps),
+                dynamic_type: Some(dynamic_type),
+            });
         }
 
         type_information
     }
 
-    /// Checks if a type ID is present in the register (either Local or Discovered).
+    /// Checks if a type ID is present in the register.
     pub fn contains_type_id(&self, type_id: &TypeIdentifier) -> bool {
-        self.types.iter().any(|t| match t {
-            RegisteredType::Local {
-                type_information, ..
-            } => {
-                &type_information.complete.typeid_with_size.type_id == type_id
-                    || &type_information.minimal.typeid_with_size.type_id == type_id
-            }
-            RegisteredType::Discovered {
-                type_identifier, ..
-            } => type_identifier == type_id,
-        })
+        self.types.iter().any(|t| &t.type_identifier == type_id)
     }
 
     /// Gets the `TypeObject` for a given `TypeIdentifier` if available.
     pub fn get_type_object(&self, type_id: &TypeIdentifier) -> Option<TypeObject> {
-        for t in &self.types {
-            match t {
-                RegisteredType::Local {
-                    dynamic_type,
-                    type_information,
-                    ..
-                } => {
-                    if &type_information.complete.typeid_with_size.type_id == type_id {
-                        return Some(TypeObject::EkComplete {
-                            complete: CompleteTypeObject::from(*dynamic_type),
-                        });
-                    } else if &type_information.minimal.typeid_with_size.type_id == type_id {
-                        return Some(TypeObject::EkMinimal {
-                            minimal: MinimalTypeObject::from(*dynamic_type),
-                        });
-                    }
-                }
-                RegisteredType::Discovered {
-                    type_identifier,
-                    type_object,
-                    ..
-                } => {
-                    if type_identifier == type_id {
-                        return type_object.clone();
-                    }
-                }
-            }
-        }
-        None
+        self.types
+            .iter()
+            .find(|t| &t.type_identifier == type_id)
+            .and_then(|t| t.type_object.clone())
     }
 
     /// Gets the list of `TypeIdentifierWithSize` dependencies for a given `TypeIdentifier`.
@@ -127,49 +115,19 @@ impl TypeRegister {
         &self,
         type_id: &TypeIdentifier,
     ) -> Option<Vec<TypeIdentifierWithSize>> {
-        for t in &self.types {
-            match t {
-                RegisteredType::Local {
-                    dynamic_type,
-                    type_information,
-                    ..
-                } => {
-                    if &type_information.complete.typeid_with_size.type_id == type_id {
-                        return Some(get_type_dependencies_with_size(*dynamic_type));
-                    }
-                }
-                RegisteredType::Discovered {
-                    type_identifier,
-                    dependencies,
-                    ..
-                } => {
-                    if type_identifier == type_id {
-                        return dependencies.clone();
-                    }
-                }
-            }
-        }
-        None
+        self.types
+            .iter()
+            .find(|t| &t.type_identifier == type_id)
+            .and_then(|t| t.dependencies.clone())
     }
 
     /// Gets the `DynamicType` for a locally registered type if available.
     #[allow(dead_code)]
     pub fn get_dynamic_type(&self, type_id: &TypeIdentifier) -> Option<DynamicType<'static>> {
-        for t in &self.types {
-            if let RegisteredType::Local {
-                dynamic_type,
-                type_information,
-                ..
-            } = t
-            {
-                if &type_information.complete.typeid_with_size.type_id == type_id
-                    || &type_information.minimal.typeid_with_size.type_id == type_id
-                {
-                    return Some(*dynamic_type);
-                }
-            }
-        }
-        None
+        self.types
+            .iter()
+            .find(|t| &t.type_identifier == type_id)
+            .and_then(|t| t.dynamic_type)
     }
 
     /// Registers the received dependencies for a discovered type.
@@ -178,36 +136,31 @@ impl TypeRegister {
         type_id: &TypeIdentifier,
         deps: Vec<TypeIdentifierWithSize>,
     ) {
-        let mut found = false;
-        for t in &mut self.types {
-            if let RegisteredType::Discovered {
-                type_identifier,
-                dependencies,
-                ..
-            } = t
-            {
-                if type_identifier == type_id {
-                    *dependencies = Some(deps.clone());
-                    found = true;
-                    break;
-                }
-            }
-        }
-        if !found {
-            self.types.push(RegisteredType::Discovered {
+        if let Some(existing) = self
+            .types
+            .iter_mut()
+            .find(|t| &t.type_identifier == type_id)
+        {
+            existing.dependencies = Some(deps.clone());
+        } else {
+            self.types.push(RegisteredType {
                 type_identifier: type_id.clone(),
+                type_name: None,
                 type_object: None,
                 dependencies: Some(deps.clone()),
+                dynamic_type: None,
             });
         }
 
         // Also add discovered entries for each dependent type if not present
         for dep in deps {
             if !self.contains_type_id(&dep.type_id) {
-                self.types.push(RegisteredType::Discovered {
+                self.types.push(RegisteredType {
                     type_identifier: dep.type_id,
+                    type_name: None,
                     type_object: None,
                     dependencies: None,
+                    dynamic_type: None,
                 });
             }
         }
@@ -219,24 +172,17 @@ impl TypeRegister {
         type_id: TypeIdentifier,
         type_object: TypeObject,
     ) {
-        for t in &mut self.types {
-            if let RegisteredType::Discovered {
-                type_identifier,
-                type_object: existing_obj,
-                ..
-            } = t
-            {
-                if type_identifier == &type_id {
-                    *existing_obj = Some(type_object);
-                    return;
-                }
-            }
+        if let Some(existing) = self.types.iter_mut().find(|t| t.type_identifier == type_id) {
+            existing.type_object = Some(type_object);
+        } else {
+            self.types.push(RegisteredType {
+                type_identifier: type_id,
+                type_name: None,
+                type_object: Some(type_object),
+                dependencies: None,
+                dynamic_type: None,
+            });
         }
-        self.types.push(RegisteredType::Discovered {
-            type_identifier: type_id,
-            type_object: Some(type_object),
-            dependencies: None,
-        });
     }
 
     /// Returns true if the type identified by `type_id` and all its recursive dependencies have their `TypeObject` available.

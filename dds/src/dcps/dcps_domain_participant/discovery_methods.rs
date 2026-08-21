@@ -76,10 +76,7 @@ use crate::{
         deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
-        type_object::{
-            CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierTypeObjectPair,
-            TypeObject,
-        },
+        type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
         type_support::{_String, Type, TypeSupport},
     },
 };
@@ -524,7 +521,7 @@ impl DcpsDomainParticipant {
             },
             topic_name: data_writer.topic_name.to_string().into(),
             type_name: topic.type_name.to_string().into(),
-            type_information: Some(topic.type_support.into()),
+            type_information: Some(topic.type_information.clone()),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
             latency_budget: data_writer.qos.latency_budget.clone(),
@@ -665,7 +662,7 @@ impl DcpsDomainParticipant {
             type_name: _String {
                 value: topic.type_name.to_string(),
             },
-            type_information: Some(topic.type_support.into()),
+            type_information: Some(topic.type_information.clone()),
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -763,7 +760,7 @@ impl DcpsDomainParticipant {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.to_string().into(),
-                type_information: Some(topic.type_support.into()),
+                type_information: Some(topic.type_information.clone()),
                 type_name: topic.type_name.to_string().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
@@ -898,19 +895,39 @@ impl DcpsDomainParticipant {
                                 {
                                     match &type_object {
                                         TypeObject::EkComplete { complete } => {
-                                            complete.is_assignable_from_w_type_consistency(
-                                                &CompleteTypeObject::from(
-                                                    writer_associated_topic.type_support,
-                                                ),
-                                                &discovered_reader_data
-                                                    .dds_subscription_data
-                                                    .type_consistency,
-                                            )
+                                            if let Some(TypeObject::EkComplete {
+                                                complete: local_complete,
+                                            }) = type_register.get_type_object(
+                                                &writer_associated_topic
+                                                    .type_information
+                                                    .complete
+                                                    .typeid_with_size
+                                                    .type_id,
+                                            ) {
+                                                complete.is_assignable_from_w_type_consistency(
+                                                    &local_complete,
+                                                    &discovered_reader_data
+                                                        .dds_subscription_data
+                                                        .type_consistency,
+                                                )
+                                            } else {
+                                                false
+                                            }
                                         }
                                         TypeObject::EkMinimal { minimal } => {
-                                            &MinimalTypeObject::from(
-                                                writer_associated_topic.type_support,
-                                            ) == minimal
+                                            if let Some(TypeObject::EkMinimal {
+                                                minimal: local_minimal,
+                                            }) = type_register.get_type_object(
+                                                &writer_associated_topic
+                                                    .type_information
+                                                    .minimal
+                                                    .typeid_with_size
+                                                    .type_id,
+                                            ) {
+                                                &local_minimal == minimal
+                                            } else {
+                                                false
+                                            }
                                         }
                                     }
                                 } else {
@@ -1532,18 +1549,38 @@ impl DcpsDomainParticipant {
                                 {
                                     match &type_object {
                                         TypeObject::EkComplete { complete } => {
-                                            CompleteTypeObject::from(
-                                                reader_associated_topic.type_support,
-                                            )
-                                            .is_assignable_from_w_type_consistency(
-                                                complete,
-                                                &data_reader.qos.type_consistency,
-                                            )
+                                            if let Some(TypeObject::EkComplete {
+                                                complete: local_complete,
+                                            }) = type_register.get_type_object(
+                                                &reader_associated_topic
+                                                    .type_information
+                                                    .complete
+                                                    .typeid_with_size
+                                                    .type_id,
+                                            ) {
+                                                local_complete
+                                                    .is_assignable_from_w_type_consistency(
+                                                        complete,
+                                                        &data_reader.qos.type_consistency,
+                                                    )
+                                            } else {
+                                                false
+                                            }
                                         }
                                         TypeObject::EkMinimal { minimal } => {
-                                            &MinimalTypeObject::from(
-                                                reader_associated_topic.type_support,
-                                            ) == minimal
+                                            if let Some(TypeObject::EkMinimal {
+                                                minimal: local_minimal,
+                                            }) = type_register.get_type_object(
+                                                &reader_associated_topic
+                                                    .type_information
+                                                    .minimal
+                                                    .typeid_with_size
+                                                    .type_id,
+                                            ) {
+                                                &local_minimal == minimal
+                                            } else {
+                                                false
+                                            }
                                         }
                                     }
                                 } else {
@@ -2649,25 +2686,56 @@ impl DcpsDomainParticipant {
                                                 )
                                             };
 
-                                        let is_type_assignable = match &type_identifier_pair
-                                            .type_object
-                                        {
-                                            TypeObject::EkComplete { complete } => {
-                                                let local_type =
-                                                    CompleteTypeObject::from(topic.type_support);
-                                                local_type.is_assignable_from_w_type_consistency(
-                                                    complete,
-                                                    &topic_type_consistency,
-                                                ) || complete.is_assignable_from_w_type_consistency(
-                                                    &local_type,
-                                                    &topic_type_consistency,
-                                                )
-                                            }
-                                            TypeObject::EkMinimal { minimal } => {
-                                                &MinimalTypeObject::from(topic.type_support)
-                                                    == minimal
-                                            }
-                                        };
+                                        let is_type_assignable =
+                                            match &type_identifier_pair.type_object {
+                                                TypeObject::EkComplete { complete } => {
+                                                    if let Some(TypeObject::EkComplete {
+                                                        complete: local_type,
+                                                    }) = self
+                                                        .domain_participant
+                                                        .type_register
+                                                        .get_type_object(
+                                                            &topic
+                                                                .type_information
+                                                                .complete
+                                                                .typeid_with_size
+                                                                .type_id,
+                                                        )
+                                                    {
+                                                        local_type
+                                                        .is_assignable_from_w_type_consistency(
+                                                            complete,
+                                                            &topic_type_consistency,
+                                                        )
+                                                        || complete
+                                                            .is_assignable_from_w_type_consistency(
+                                                                &local_type,
+                                                                &topic_type_consistency,
+                                                            )
+                                                    } else {
+                                                        false
+                                                    }
+                                                }
+                                                TypeObject::EkMinimal { minimal } => {
+                                                    if let Some(TypeObject::EkMinimal {
+                                                        minimal: local_type,
+                                                    }) = self
+                                                        .domain_participant
+                                                        .type_register
+                                                        .get_type_object(
+                                                            &topic
+                                                                .type_information
+                                                                .minimal
+                                                                .typeid_with_size
+                                                                .type_id,
+                                                        )
+                                                    {
+                                                        &local_type == minimal
+                                                    } else {
+                                                        false
+                                                    }
+                                                }
+                                            };
 
                                         if !is_type_assignable {
                                             topic.inconsistent_topic_status.total_count += 1;

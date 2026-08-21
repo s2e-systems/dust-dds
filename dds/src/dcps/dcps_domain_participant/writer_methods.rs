@@ -201,8 +201,13 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
-        data_writer.register_w_timestamp(dynamic_data, &topic.type_support, timestamp)
+        data_writer.register_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self, runtime))]
@@ -235,10 +240,15 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
         data_writer.unregister_w_timestamp(
             dynamic_data,
-            &topic.type_support,
+            &type_support,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,
@@ -452,10 +462,15 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
         data_writer.dispose_w_timestamp(
             dynamic_data,
-            &topic.type_support,
+            &type_support,
             timestamp,
             self.transport.message_writer.as_ref(),
             runtime,

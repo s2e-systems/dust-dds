@@ -445,7 +445,6 @@ impl DomainParticipantEntity {
                 status_condition,
                 None,
                 StatusMask::default(),
-                type_support,
                 type_information,
             );
             topic.enabled = true;

@@ -41,6 +41,7 @@ impl DcpsDomainParticipant {
         let discovered_participant_list = &mut self.domain_participant.discovered_participant_list;
         let content_filtered_topic_list = &self.domain_participant.content_filtered_topic_list;
         let locally_created_topic_list = &self.domain_participant.locally_created_topic_list;
+        let type_register = &self.domain_participant.type_register;
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             let subscriber_handle = subscriber.instance_handle;
@@ -59,6 +60,7 @@ impl DcpsDomainParticipant {
                     &data_reader.topic_name,
                     content_filtered_topic_list,
                     locally_created_topic_list,
+                    type_register,
                 ) else {
                     tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
                     continue 'data_readers;
@@ -112,7 +114,7 @@ impl DcpsDomainParticipant {
                         if cache_change.kind == ChangeKind::Alive {
                             let Some(data) = deserialize_topic_type(
                                 &data_reader.topic_name,
-                                *type_support,
+                                type_support,
                                 cache_change.data_value.as_ref(),
                             ) else {
                                 continue 'data_readers;
@@ -231,7 +233,7 @@ impl DcpsDomainParticipant {
                             ChangeKind::Alive | ChangeKind::AliveFiltered => {
                                 let Some(data_value) = deserialize_topic_type(
                                     &data_reader.topic_name,
-                                    *type_support,
+                                    type_support,
                                     cache_change.data_value.as_ref(),
                                 ) else {
                                     tracing::warn!("Failed to deserialize user defined data");
@@ -252,7 +254,7 @@ impl DcpsDomainParticipant {
                             | ChangeKind::NotAliveDisposedUnregistered => {
                                 let mut dynamic_members = Vec::new();
                                 let Ok(key_holder) = KeyHolderType::from_dynamic_type(
-                                    type_support,
+                                    &type_support,
                                     &mut dynamic_members,
                                 ) else {
                                     tracing::warn!("Failed to create key holder");
