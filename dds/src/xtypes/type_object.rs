@@ -2340,52 +2340,7 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
 
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
-        fn is_dependent_type(dynamic_type: &DynamicType) -> bool {
-            match dynamic_type.get_kind() {
-                TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => true,
-                TypeKind::ARRAY | TypeKind::SEQUENCE => dynamic_type
-                    .descriptor
-                    .element_type
-                    .as_ref()
-                    .map_or(false, |elem| is_dependent_type(elem)),
-                TypeKind::ALIAS => dynamic_type
-                    .descriptor
-                    .base_type
-                    .as_ref()
-                    .map_or(false, |base| is_dependent_type(base)),
-                TypeKind::MAP => {
-                    let key_dep = dynamic_type
-                        .descriptor
-                        .key_element_type
-                        .as_ref()
-                        .map_or(false, |k| is_dependent_type(k));
-                    let val_dep = dynamic_type
-                        .descriptor
-                        .element_type
-                        .as_ref()
-                        .map_or(false, |v| is_dependent_type(v));
-                    key_dep || val_dep
-                }
-                _ => false,
-            }
-        }
-
-        fn has_dependencies(dynamic_type: &DynamicType) -> bool {
-            match dynamic_type.get_kind() {
-                TypeKind::STRUCTURE | TypeKind::UNION => dynamic_type
-                    .member_list
-                    .iter()
-                    .any(|m| is_dependent_type(&m.descriptor.r#type)),
-                TypeKind::ARRAY | TypeKind::SEQUENCE => dynamic_type
-                    .descriptor
-                    .element_type
-                    .as_ref()
-                    .map_or(false, |elem| is_dependent_type(elem)),
-                _ => false,
-            }
-        }
-
-        let dependent_typeid_count = if has_dependencies(&value) { -1 } else { 0 };
+        let dependent_typeid_count = if value.has_dependencies() { -1 } else { 0 };
 
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
@@ -2458,6 +2413,31 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
             },
         }
     }
+}
+
+/// Returns the sequence of dependent [`TypeIdentifierWithSize`] for all constructed dependencies of `dynamic_type`.
+pub fn get_type_dependencies_with_size(dynamic_type: DynamicType) -> Vec<TypeIdentifierWithSize> {
+    let deps = dynamic_type.get_dependencies();
+    deps.into_iter()
+        .map(|dep| {
+            let complete_type_object = TypeObject::EkComplete {
+                complete: CompleteTypeObject::from(dep),
+            };
+            let data = complete_type_object.create_dynamic_sample();
+            let serialized =
+                serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+            let hash = md5::compute(&serialized);
+            TypeIdentifierWithSize {
+                type_id: TypeIdentifier::EkComplete {
+                    equivalence_hash: [
+                        hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+                        hash[8], hash[9], hash[10], hash[11], hash[12], hash[13],
+                    ],
+                },
+                typeobject_serialized_size: serialized.len() as u32,
+            }
+        })
+        .collect()
 }
 
 impl From<TryConstructKind> for MemberFlag {

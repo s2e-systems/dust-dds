@@ -3,6 +3,7 @@ use super::{
     builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltinSubscriber,
     topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+    type_register::TypeRegister,
     user_defined_publisher::PublisherEntity,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -274,6 +275,7 @@ pub struct DomainParticipantEntity {
     pub default_publisher_qos: PublisherQos,
     pub locally_created_topic_list: Vec<TopicEntity>,
     pub content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
+    pub type_register: TypeRegister,
     pub default_topic_qos: TopicQos,
     pub discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     pub discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -317,6 +319,7 @@ impl DomainParticipantEntity {
             default_publisher_qos: PublisherQos::const_default(),
             locally_created_topic_list: Vec::new(),
             content_filtered_topic_list: Vec::new(),
+            type_register: TypeRegister::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -431,6 +434,9 @@ impl DomainParticipantEntity {
             ]);
             self.topic_counter += 1;
             let status_condition = DcpsStatusCondition::default();
+            let type_information = self
+                .type_register
+                .register_local_type(Arc::from(type_name.value.as_str()), type_support);
             let mut topic = TopicEntity::new(
                 qos,
                 Arc::from(type_name.value.as_str()),
@@ -440,6 +446,7 @@ impl DomainParticipantEntity {
                 None,
                 StatusMask::default(),
                 type_support,
+                type_information,
             );
             topic.enabled = true;
 

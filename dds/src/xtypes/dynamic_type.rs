@@ -876,10 +876,95 @@ impl<'a> DynamicType<'a> {
             .ok_or(XTypesError::InvalidIndex(index))
     }
 
-    // fn get_annotation_count(&self) -> u32;
-    // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
-    // unsigned long get_verbatim_text_count();
-    // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
+    /// Returns true if this type is a constructed / non-primitive dependent type.
+    pub fn is_dependent_type(&self) -> bool {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => true,
+            TypeKind::ARRAY | TypeKind::SEQUENCE => self
+                .descriptor
+                .element_type
+                .as_ref()
+                .map_or(false, |elem| elem.is_dependent_type()),
+            TypeKind::ALIAS => self
+                .descriptor
+                .base_type
+                .as_ref()
+                .map_or(false, |base| base.is_dependent_type()),
+            TypeKind::MAP => {
+                let key_dep = self
+                    .descriptor
+                    .key_element_type
+                    .as_ref()
+                    .map_or(false, |k| k.is_dependent_type());
+                let val_dep = self
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map_or(false, |v| v.is_dependent_type());
+                key_dep || val_dep
+            }
+            _ => false,
+        }
+    }
+
+    /// Returns true if this type has any direct or indirect constructed dependencies.
+    pub fn has_dependencies(&self) -> bool {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION => self
+                .member_list
+                .iter()
+                .any(|m| m.descriptor.r#type.is_dependent_type()),
+            TypeKind::ARRAY | TypeKind::SEQUENCE => self
+                .descriptor
+                .element_type
+                .as_ref()
+                .map_or(false, |elem| elem.is_dependent_type()),
+            _ => false,
+        }
+    }
+
+    /// Returns all direct and indirect constructed types that this type depends on.
+    pub fn get_dependencies(&self) -> Vec<DynamicType<'a>> {
+        let mut deps = Vec::new();
+        self.collect_dependencies(&mut deps);
+        deps
+    }
+
+    fn collect_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION => {
+                for member in self.member_list {
+                    member
+                        .descriptor
+                        .r#type
+                        .collect_type_and_nested_dependencies(out);
+                }
+            }
+            TypeKind::ARRAY | TypeKind::SEQUENCE => {
+                if let Some(element_type) = &self.descriptor.element_type {
+                    element_type.collect_type_and_nested_dependencies(out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_type_and_nested_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
+                if !out.iter().any(|existing| existing == self) {
+                    out.push(*self);
+                    self.collect_dependencies(out);
+                }
+            }
+            TypeKind::ARRAY | TypeKind::SEQUENCE => {
+                if let Some(element_type) = &self.descriptor.element_type {
+                    element_type.collect_type_and_nested_dependencies(out);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// A factory class used to instantiate [`DynamicData`] samples.

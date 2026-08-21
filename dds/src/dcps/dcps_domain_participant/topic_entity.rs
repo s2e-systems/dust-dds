@@ -13,11 +13,7 @@ use crate::{
         status_mask::StatusMask,
     },
     infrastructure::{instance::InstanceHandle, qos::TopicQos, status::InconsistentTopicStatus},
-    xtypes::{
-        dynamic_type::DynamicType,
-        type_object::{TypeInformation, TypeObject},
-        type_support::Type,
-    },
+    xtypes::{dynamic_type::DynamicType, type_object::TypeInformation, type_support::Type},
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
 
@@ -44,12 +40,6 @@ impl ContentFilteredTopicEntity {
     }
 }
 
-#[allow(clippy::large_enum_variant)]
-pub enum DiscoveredTypeRepresentationState {
-    Requested,
-    Discovered(TypeObject),
-}
-
 pub struct TopicEntity {
     pub qos: TopicQos,
     pub type_name: Arc<str>,
@@ -62,7 +52,6 @@ pub struct TopicEntity {
     pub listener_mask: StatusMask,
     pub type_support: DynamicType<'static>,
     pub type_information: TypeInformation,
-    pub discovered_type_representation: Vec<(TypeInformation, DiscoveredTypeRepresentationState)>,
 }
 
 impl TopicEntity {
@@ -76,6 +65,7 @@ impl TopicEntity {
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         type_support: DynamicType<'static>,
+        type_information: TypeInformation,
     ) -> Self {
         Self {
             qos,
@@ -88,8 +78,7 @@ impl TopicEntity {
             listener_sender,
             listener_mask,
             type_support,
-            type_information: TypeInformation::from(type_support),
-            discovered_type_representation: Vec::new(),
+            type_information,
         }
     }
 }
