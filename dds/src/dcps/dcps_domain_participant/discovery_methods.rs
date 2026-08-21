@@ -3387,8 +3387,8 @@ fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> boo
     }
     let p1_has_wildcard = p1.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
     let p2_has_wildcard = p2.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
-    if p1_has_wildcard {
-        if p1
+    if p1_has_wildcard
+        && p1
             .name
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
@@ -3397,9 +3397,8 @@ fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> boo
         {
             return true;
         }
-    }
-    if p2_has_wildcard {
-        if p2
+    if p2_has_wildcard
+        && p2
             .name
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
@@ -3408,7 +3407,6 @@ fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> boo
         {
             return true;
         }
-    }
     false
 }
 
