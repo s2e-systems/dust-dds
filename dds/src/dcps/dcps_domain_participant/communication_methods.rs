@@ -304,10 +304,8 @@ impl DcpsDomainParticipant {
                                         domain_id,
                                         dp_instance_handle,
                                     );
-                                    let the_subscriber = SubscriberAsync::new(
-                                        subscriber_handle,
-                                        the_participant,
-                                    );
+                                    let the_subscriber =
+                                        SubscriberAsync::new(subscriber_handle, the_participant);
                                     l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
                                 }
                             } else if data_reader_on_data_available_active {
@@ -318,10 +316,8 @@ impl DcpsDomainParticipant {
                                         domain_id,
                                         dp_instance_handle,
                                     );
-                                    let the_subscriber = SubscriberAsync::new(
-                                        subscriber_handle,
-                                        the_participant,
-                                    );
+                                    let the_subscriber =
+                                        SubscriberAsync::new(subscriber_handle, the_participant);
                                     let the_reader = DataReaderAsync::new(
                                         data_reader_handle,
                                         the_subscriber,
@@ -353,8 +349,7 @@ impl DcpsDomainParticipant {
                             let is_listener_enabled = data_reader
                                 .listener_mask
                                 .is_enabled(&StatusKind::SampleRejected)
-                                || subscriber_listener_mask
-                                    .is_enabled(&StatusKind::SampleRejected)
+                                || subscriber_listener_mask.is_enabled(&StatusKind::SampleRejected)
                                 || dp_listener_mask.is_enabled(&StatusKind::SampleRejected);
 
                             if is_listener_enabled {

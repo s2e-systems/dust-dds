@@ -17,7 +17,7 @@ use super::{
         INFO_TS, NACK_FRAG, PAD, ProtocolId, SubmessageFlag, SubmessageKind,
     },
 };
-use alloc::{sync::Arc, vec::Vec};
+use alloc::vec::Vec;
 
 pub enum Endianness {
     BigEndian,
@@ -112,11 +112,18 @@ impl Write for Cursor<Vec<u8>> {
     fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
         let start_pos = self.pos as usize;
         let end_pos = start_pos + buf.len();
-        if self.inner.len() < end_pos {
-            self.inner.resize(end_pos, 0);
+        if start_pos >= self.inner.len() {
+            if start_pos > self.inner.len() {
+                self.inner.resize(start_pos, 0);
+            }
+            self.inner.extend_from_slice(buf);
+        } else if end_pos <= self.inner.len() {
+            self.inner[start_pos..end_pos].copy_from_slice(buf);
+        } else {
+            let overwrite_len = self.inner.len() - start_pos;
+            self.inner[start_pos..].copy_from_slice(&buf[..overwrite_len]);
+            self.inner.extend_from_slice(&buf[overwrite_len..]);
         }
-
-        self.inner.as_mut_slice()[start_pos..end_pos].clone_from_slice(buf);
         self.pos = end_pos as u64;
 
         Ok(())
@@ -462,19 +469,19 @@ pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite {
-    data: Arc<[u8]>,
+    data: Vec<u8>,
 }
 
 impl RtpsMessageWrite {
     pub fn new(header: &RtpsMessageHeader, submessages: &[&(dyn Submessage + Send)]) -> Self {
-        let buffer = Vec::new();
+        let buffer = Vec::with_capacity(256);
         let mut cursor = Cursor::new(buffer);
         header.write_into_bytes(&mut cursor);
         for submessage in submessages {
             submessage.write_submessage_into_bytes(&mut cursor);
         }
         Self {
-            data: Arc::from(cursor.into_inner().into_boxed_slice()),
+            data: cursor.into_inner(),
         }
     }
 

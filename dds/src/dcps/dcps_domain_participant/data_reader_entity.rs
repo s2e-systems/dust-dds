@@ -259,8 +259,7 @@ impl<T> DataReaderEntity<T> {
                         .instance_state
                         .most_recent_no_writers_generation_count);
 
-            instance_in_coll.most_recent_sample_absolute_generation_rank =
-                absolute_generation_rank;
+            instance_in_coll.most_recent_sample_absolute_generation_rank = absolute_generation_rank;
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
