@@ -1461,6 +1461,40 @@ fn parse_bitmask_type_and_data_from_xml() {
 
 #[cfg(feature = "xtypes-xml")]
 #[test]
+fn union_appendable_a_default_from_xml() {
+    let type_xml = r#"<dds>
+        <types>
+            <module name="Test">
+                <union name="union_appendable_a_default" extensibility="appendable">
+                    <discriminator type="uint32" />
+                    <case><caseDiscriminator value="5"/><member name="x5" type="uint32"/></case>
+                    <case><caseDiscriminator value="default"/><member name="xd" type="uint32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>"#;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_appendable_a_default",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    assert_eq!(dynamic_type.get_kind(), TypeKind::UNION);
+
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
+    let data_xml = r#"<union_xd>
+        <discriminator>10</discriminator>
+        <xd>12345</xd>
+    </union_xd>"#;
+    data.from_xml(data_xml).unwrap();
+    assert_eq!(*data.get_uint32_value(0).unwrap(), 10);
+    assert_eq!(*data.get_uint32_value(2).unwrap(), 12345);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
 fn create_struct_hashid_1_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_EXTENSIBILITY,

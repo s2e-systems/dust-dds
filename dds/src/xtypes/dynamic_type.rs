@@ -2228,11 +2228,13 @@ impl<'a> DynamicData<'a> {
             parse_i32(node.text().ok_or(XTypesError::InvalidData)?)?
         } else {
             let variant_member = self.r#type.get_member_by_name(tag_name)?;
-            *variant_member
-                .descriptor
-                .label
-                .first()
-                .ok_or(XTypesError::InvalidType)?
+            if let Some(&label) = variant_member.descriptor.label.first() {
+                label
+            } else if variant_member.descriptor.is_default_label {
+                return Ok(());
+            } else {
+                return Err(XTypesError::InvalidType);
+            }
         };
 
         match self.r#type.get_member(0)?.descriptor.r#type.get_kind() {
