@@ -28,14 +28,14 @@ use crate::{
     },
     xtypes::type_support::TypeSupport,
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{string::String, sync::Arc, vec, vec::Vec};
 use core::marker::PhantomData;
 
 #[derive(Clone)]
 struct DataReaderAsyncTopic {
     participant: DomainParticipantAsync,
-    topic_name: String,
-    type_name: String,
+    topic_name: Arc<str>,
+    type_name: Arc<str>,
 }
 
 impl TopicDescriptionAsync for DataReaderAsyncTopic {
@@ -44,11 +44,11 @@ impl TopicDescriptionAsync for DataReaderAsyncTopic {
     }
 
     fn get_type_name(&self) -> String {
-        self.type_name.clone()
+        self.type_name.to_string()
     }
 
     fn get_name(&self) -> String {
-        self.topic_name.clone()
+        self.topic_name.to_string()
     }
 }
 
@@ -64,8 +64,8 @@ impl<Foo> DataReaderAsync<Foo> {
     pub(crate) fn new(
         handle: InstanceHandle,
         subscriber: SubscriberAsync,
-        topic_name: String,
-        type_name: String,
+        topic_name: Arc<str>,
+        type_name: Arc<str>,
     ) -> Self {
         let participant = subscriber.get_participant();
         Self {

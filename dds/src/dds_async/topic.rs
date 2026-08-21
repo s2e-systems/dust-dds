@@ -17,22 +17,22 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
 pub struct TopicAsync {
     handle: InstanceHandle,
-    type_name: String,
-    topic_name: String,
+    type_name: Arc<str>,
+    topic_name: Arc<str>,
     participant: DomainParticipantAsync,
 }
 
 impl TopicAsync {
     pub(crate) fn new(
         handle: InstanceHandle,
-        type_name: String,
-        topic_name: String,
+        type_name: Arc<str>,
+        topic_name: Arc<str>,
         participant: DomainParticipantAsync,
     ) -> Self {
         Self {
@@ -54,7 +54,7 @@ impl TopicAsync {
             .send(DcpsMail::Topic(
                 TopicServiceMail::GetInconsistentTopicStatus {
                     participant_handle: self.participant.get_instance_handle(),
-                    topic_name: self.topic_name.clone(),
+                    topic_name: self.topic_name.to_string(),
                     reply_sender,
                 },
             ))
@@ -69,11 +69,11 @@ impl TopicDescriptionAsync for TopicAsync {
     }
 
     fn get_type_name(&self) -> String {
-        self.type_name.clone()
+        self.type_name.to_string()
     }
 
     fn get_name(&self) -> String {
-        self.topic_name.clone()
+        self.topic_name.to_string()
     }
 }
 
@@ -86,7 +86,7 @@ impl TopicAsync {
             .dcps_sender()
             .send(DcpsMail::Topic(TopicServiceMail::SetQos {
                 participant_handle: self.participant.get_instance_handle(),
-                topic_name: self.topic_name.clone(),
+                topic_name: self.topic_name.to_string(),
                 topic_qos: qos,
                 reply_sender,
             }))
@@ -103,7 +103,7 @@ impl TopicAsync {
             .dcps_sender()
             .send(DcpsMail::Topic(TopicServiceMail::GetQos {
                 participant_handle: self.participant.get_instance_handle(),
-                topic_name: self.topic_name.clone(),
+                topic_name: self.topic_name.to_string(),
                 reply_sender,
             }))
             .await;
@@ -137,7 +137,7 @@ impl TopicAsync {
             .dcps_sender()
             .send(DcpsMail::Topic(TopicServiceMail::Enable {
                 participant_handle: self.participant.get_instance_handle(),
-                topic_name: self.topic_name.clone(),
+                topic_name: self.topic_name.to_string(),
                 reply_sender,
             }))
             .await;
@@ -170,7 +170,7 @@ impl TopicAsync {
             .dcps_sender()
             .send(DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
                 participant_handle: self.participant.get_instance_handle(),
-                topic_name: self.topic_name.clone(),
+                topic_name: self.topic_name.to_string(),
                 reply_sender,
             }))
             .await;

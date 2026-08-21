@@ -19,7 +19,7 @@ use crate::{
     },
     rtps::stateful_reader::RtpsStatefulReader,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
 use super::data_reader_entity::{DataReaderEntity, SampleList};
@@ -54,7 +54,7 @@ impl UserDefinedDataReader {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
-        topic_name: String,
+        topic_name: Arc<str>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         transport_reader: RtpsStatefulReader,

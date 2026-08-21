@@ -35,7 +35,7 @@ use crate::{
     },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{collections::BTreeSet, string::String, sync::Arc, vec::Vec};
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -382,9 +382,9 @@ impl DomainParticipantEntity {
         if let Some(topic) = self
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name)
         {
-            Some((topic.instance_handle, topic.type_name.clone()))
+            Some((topic.instance_handle, topic.type_name.to_string()))
         } else if let Some(discovered_topic_data) = self
             .discovered_topic_list
             .iter()
@@ -428,8 +428,8 @@ impl DomainParticipantEntity {
             let status_condition = DcpsStatusCondition::default();
             let mut topic = TopicEntity::new(
                 qos,
-                type_name.clone().into(),
-                String::from(topic_name),
+                Arc::from(type_name.value.as_str()),
+                Arc::from(topic_name),
                 topic_handle,
                 status_condition,
                 None,
@@ -447,7 +447,7 @@ impl DomainParticipantEntity {
                 None => self.locally_created_topic_list.push(topic),
             }
 
-            Some((topic_handle, type_name.into()))
+            Some((topic_handle, type_name.value))
         } else {
             None
         }
@@ -498,7 +498,7 @@ impl DomainParticipantEntity {
         let no_user_defined_topics = self
             .locally_created_topic_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_str()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_ref()))
             .count()
             == 0;
 

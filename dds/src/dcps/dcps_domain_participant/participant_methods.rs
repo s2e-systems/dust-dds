@@ -1,6 +1,7 @@
 use alloc::{
     format,
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 
@@ -237,7 +238,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name == topic_name)
+            .any(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Topic with name {topic_name} already exists.
@@ -273,8 +274,8 @@ impl DcpsDomainParticipant {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let topic = TopicEntity::new(
             qos,
-            type_name,
-            topic_name.clone(),
+            Arc::from(type_name),
+            Arc::from(topic_name.as_str()),
             topic_handle,
             status_condition,
             listener_sender,
@@ -319,7 +320,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -346,7 +347,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant
             .locally_created_topic_list
-            .retain(|x| x.topic_name != topic_name);
+            .retain(|x| x.topic_name.as_ref() != topic_name.as_str());
 
         Ok(())
     }
@@ -364,7 +365,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name == related_topic_name)
+            .any(|x| x.topic_name.as_ref() == related_topic_name.as_str())
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Related topic with name {related_topic_name} does not exist."
@@ -392,8 +393,8 @@ impl DcpsDomainParticipant {
         self.domain_participant.topic_counter += 1;
 
         let topic = ContentFilteredTopicEntity::new(
-            name,
-            related_topic_name,
+            Arc::from(name),
+            Arc::from(related_topic_name),
             filter_expression,
             expression_parameters,
         );
@@ -447,9 +448,9 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
-            Ok(Some(topic.type_name.clone()))
+            Ok(Some(topic.type_name.to_string()))
         } else if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
             let type_support = get_topic_type_support(
                 &topic_name,
@@ -533,7 +534,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant
             .locally_created_topic_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_str()));
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
 
         Ok(())
     }

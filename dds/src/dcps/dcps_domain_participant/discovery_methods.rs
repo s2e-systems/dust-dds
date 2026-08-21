@@ -209,7 +209,7 @@ impl DcpsDomainParticipant {
                         .domain_participant
                         .locally_created_topic_list
                         .iter()
-                        .any(|t| t.topic_name == x.topic_name)
+                        .any(|t| t.topic_name.as_ref() == x.topic_name.as_str())
             })
             .collect::<Vec<_>>();
         for t in found_topics {
@@ -517,8 +517,8 @@ impl DcpsDomainParticipant {
             participant_key: BuiltInTopicKey {
                 value: self.domain_participant.instance_handle.into(),
             },
-            topic_name: data_writer.topic_name.clone().into(),
-            type_name: topic.type_name.clone().into(),
+            topic_name: data_writer.topic_name.to_string().into(),
+            type_name: topic.type_name.to_string().into(),
             type_information: Some(topic.type_support.into()),
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
@@ -655,10 +655,10 @@ impl DcpsDomainParticipant {
                 value: self.domain_participant.instance_handle.into(),
             },
             topic_name: _String {
-                value: topic.topic_name.clone(),
+                value: topic.topic_name.to_string(),
             },
             type_name: _String {
-                value: topic.type_name.clone(),
+                value: topic.type_name.to_string(),
             },
             type_information: Some(topic.type_support.into()),
             durability: data_reader.qos.durability.clone(),
@@ -747,7 +747,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return;
         };
@@ -757,9 +757,9 @@ impl DcpsDomainParticipant {
                 key: BuiltInTopicKey {
                     value: topic.instance_handle.into(),
                 },
-                name: topic.topic_name.clone().into(),
+                name: topic.topic_name.to_string().into(),
                 type_information: Some(topic.type_support.into()),
-                type_name: topic.type_name.clone().into(),
+                type_name: topic.type_name.to_string().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
                 latency_budget: topic.qos.latency_budget.clone(),
@@ -834,10 +834,9 @@ impl DcpsDomainParticipant {
             for data_writer in &mut publisher.data_writer_list {
                 let writer_topic_name = data_writer.topic_name.clone();
 
-                for discovered_reader_data in discovered_reader_list
-                    .iter()
-                    .filter(|x| x.dds_subscription_data.topic_name.value == writer_topic_name)
-                {
+                for discovered_reader_data in discovered_reader_list.iter().filter(|x| {
+                    x.dds_subscription_data.topic_name.value.as_str() == writer_topic_name.as_ref()
+                }) {
                     if let Some(matched) = data_writer
                         .matched_subscription_list
                         .iter()
@@ -856,7 +855,8 @@ impl DcpsDomainParticipant {
                             .dds_subscription_data
                             .topic_name
                             .value
-                            == writer_topic_name;
+                            .as_str()
+                            == writer_topic_name.as_ref();
                         let writer_associated_topic = locally_created_topic_list
                             .iter_mut()
                             .find(|x| x.topic_name == writer_topic_name)
@@ -975,7 +975,7 @@ impl DcpsDomainParticipant {
                             }
                             _ => {
                                 discovered_reader_data.dds_subscription_data.get_type_name()
-                                    == writer_associated_topic.type_name
+                                    == writer_associated_topic.type_name.as_ref()
                             }
                         };
 
@@ -1409,7 +1409,7 @@ impl DcpsDomainParticipant {
 
                 for discovered_writer_data in discovered_writer_list
                     .iter()
-                    .filter(|x| x.dds_publication_data.topic_name() == reader_topic_name)
+                    .filter(|x| x.dds_publication_data.topic_name() == reader_topic_name.as_ref())
                 {
                     if let Some(matched) = data_reader
                         .matched_publication_list
@@ -1449,7 +1449,7 @@ impl DcpsDomainParticipant {
 
                         let is_matched_topic_name =
                             discovered_writer_data.dds_publication_data.topic_name()
-                                == reader_associated_topic.topic_name;
+                                == reader_associated_topic.topic_name.as_ref();
 
                         let is_matched_type = match &discovered_writer_data
                             .dds_publication_data
@@ -1563,7 +1563,7 @@ impl DcpsDomainParticipant {
                             }
                             _ => {
                                 discovered_writer_data.dds_publication_data.get_type_name()
-                                    == reader_associated_topic.type_name
+                                    == reader_associated_topic.type_name.as_ref()
                             }
                         };
 
@@ -2323,7 +2323,7 @@ impl DcpsDomainParticipant {
                                             .iter()
                                             .any(|dr| {
                                                 dr.dds_subscription_data.topic_name()
-                                                    == topic.topic_name
+                                                    == topic.topic_name.as_ref()
                                             });
 
                                         let ignore_sequence_bounds =
@@ -2347,7 +2347,7 @@ impl DcpsDomainParticipant {
                                                         .iter()
                                                         .all(|dr| {
                                                             dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name
+                                                                != topic.topic_name.as_ref()
                                                                 || dr
                                                                     .dds_subscription_data
                                                                     .type_consistency
@@ -2375,7 +2375,7 @@ impl DcpsDomainParticipant {
                                                         .iter()
                                                         .all(|dr| {
                                                             dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name
+                                                                != topic.topic_name.as_ref()
                                                                 || dr
                                                                     .dds_subscription_data
                                                                     .type_consistency
@@ -2403,7 +2403,7 @@ impl DcpsDomainParticipant {
                                                         .iter()
                                                         .all(|dr| {
                                                             dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name
+                                                                != topic.topic_name.as_ref()
                                                                 || dr
                                                                     .dds_subscription_data
                                                                     .type_consistency
@@ -2510,7 +2510,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .discovered_topic_list
                 .iter()
-                .filter(|t| t.name.value == topic.topic_name)
+                .filter(|t| t.name.value.as_str() == topic.topic_name.as_ref())
             {
                 if let Some(discovered_type_information) = &discovered_topic.type_information {
                     if discovered_type_information.minimal != topic.type_information.minimal

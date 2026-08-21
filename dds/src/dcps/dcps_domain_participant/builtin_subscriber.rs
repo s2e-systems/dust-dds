@@ -15,7 +15,7 @@ use crate::{
     rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
     transport::types::{Guid, GuidPrefix, ReliabilityKind},
 };
-use alloc::string::String;
+use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut};
 
 use super::builtin_constants::{
@@ -66,7 +66,7 @@ impl BuiltinSubscriber {
         let dcps_participant_reader = BuiltinDataReader::new(
             InstanceHandle::new(rtps_stateless_reader.guid().into()),
             SPDP_READER_QOS,
-            String::from(DCPS_PARTICIPANT),
+            Arc::from(DCPS_PARTICIPANT),
             rtps_stateless_reader,
         );
 
@@ -77,7 +77,7 @@ impl BuiltinSubscriber {
         let dcps_topic_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
-            String::from(DCPS_TOPIC),
+            Arc::from(DCPS_TOPIC),
             dcps_topic_transport_reader,
         );
 
@@ -88,7 +88,7 @@ impl BuiltinSubscriber {
         let dcps_publication_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
-            String::from(DCPS_PUBLICATION),
+            Arc::from(DCPS_PUBLICATION),
             dcps_publication_transport_reader,
         );
 
@@ -99,7 +99,7 @@ impl BuiltinSubscriber {
         let dcps_subscription_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
-            String::from(DCPS_SUBSCRIPTION),
+            Arc::from(DCPS_SUBSCRIPTION),
             dcps_subscription_transport_reader,
         );
 
@@ -110,7 +110,7 @@ impl BuiltinSubscriber {
         let type_lookup_request_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             type_lookup_request_transport_reader,
         );
 
@@ -121,7 +121,7 @@ impl BuiltinSubscriber {
         let type_lookup_reply_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             type_lookup_reply_transport_reader,
         );
 

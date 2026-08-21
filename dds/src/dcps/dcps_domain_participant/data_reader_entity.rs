@@ -11,11 +11,7 @@ use crate::{
     },
     transport::types::{ChangeKind, Guid},
 };
-use alloc::{
-    string::{String, ToString},
-    sync::Arc,
-    vec::Vec,
-};
+use alloc::{string::ToString, sync::Arc, vec::Vec};
 
 pub type SampleList = Vec<(Arc<[u8]>, SampleInfo)>;
 
@@ -121,7 +117,7 @@ pub struct DataReaderEntity<T> {
     pub instance_handle: InstanceHandle,
     pub sample_list: Vec<ReaderSample>,
     pub qos: DataReaderQos,
-    pub topic_name: String,
+    pub topic_name: Arc<str>,
     pub matched_publication_list: Vec<PublicationBuiltinTopicData>,
     pub enabled: bool,
     pub instances: Vec<InstanceState>,
@@ -133,7 +129,7 @@ impl<T> DataReaderEntity<T> {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
-        topic_name: String,
+        topic_name: Arc<str>,
         transport_reader: T,
     ) -> Self {
         Self {

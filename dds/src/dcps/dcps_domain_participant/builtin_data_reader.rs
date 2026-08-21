@@ -12,7 +12,7 @@ use crate::{
     transport::types::ChangeKind,
     xtypes::{deserializer::deserialize_top_level_type, type_support::Type},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use core::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -27,7 +27,7 @@ impl<R, T> BuiltinDataReader<R, T> {
     pub fn new(
         instance_handle: InstanceHandle,
         qos: DataReaderQos,
-        topic_name: String,
+        topic_name: Arc<str>,
         transport_reader: R,
     ) -> Self {
         Self {
