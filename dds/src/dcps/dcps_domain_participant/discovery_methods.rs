@@ -1039,8 +1039,12 @@ impl DcpsDomainParticipant {
                                 }
                             }
                             _ => {
-                                discovered_reader_data.dds_subscription_data.get_type_name()
-                                    == writer_associated_topic.type_name.as_ref()
+                                !discovered_reader_data
+                                    .dds_subscription_data
+                                    .type_consistency
+                                    .force_type_validation
+                                    && discovered_reader_data.dds_subscription_data.get_type_name()
+                                        == writer_associated_topic.type_name.as_ref()
                             }
                         };
 
@@ -1690,8 +1694,9 @@ impl DcpsDomainParticipant {
                                 }
                             }
                             _ => {
-                                discovered_writer_data.dds_publication_data.get_type_name()
-                                    == reader_associated_topic.type_name.as_ref()
+                                !data_reader.qos.type_consistency.force_type_validation
+                                    && discovered_writer_data.dds_publication_data.get_type_name()
+                                        == reader_associated_topic.type_name.as_ref()
                             }
                         };
 
