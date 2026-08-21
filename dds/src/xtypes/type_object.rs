@@ -3327,14 +3327,11 @@ mod tests {
         use super::*;
         use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
 
-        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
-            .build()
-            .unwrap();
+        let int32_type = DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32);
 
         // Sequence of primitive -> EK_BOTH
-        let seq_primitive_type = DynamicTypeBuilderFactory::create_sequence_type(int32_type, 10)
-            .build()
-            .unwrap();
+        let seq_primitive_type =
+            DynamicTypeBuilderFactory::create_sequence_type(int32_type, 10).build();
         let type_id = TypeIdentifier::from(&seq_primitive_type);
         if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
             assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
@@ -3344,9 +3341,7 @@ mod tests {
 
         // Sequence of sequence of primitive -> EK_BOTH
         let seq_seq_primitive_type =
-            DynamicTypeBuilderFactory::create_sequence_type(seq_primitive_type, 5)
-                .build()
-                .unwrap();
+            DynamicTypeBuilderFactory::create_sequence_type(seq_primitive_type, 5).build();
         let type_id = TypeIdentifier::from(&seq_seq_primitive_type);
         if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
             assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
@@ -3355,13 +3350,9 @@ mod tests {
         }
 
         // Array of primitive -> EK_BOTH
-        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
-            .build()
-            .unwrap();
+        let int32_type = DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32);
         let array_primitive_type =
-            DynamicTypeBuilderFactory::create_array_type(int32_type, vec![10].leak())
-                .build()
-                .unwrap();
+            DynamicTypeBuilderFactory::create_array_type(int32_type, vec![10].leak()).build();
         let type_id = TypeIdentifier::from(&array_primitive_type);
         if let TypeIdentifier::TiPlainArraySmall { array_sdefn } = type_id {
             assert_eq!(array_sdefn.header.equiv_kind, EK_BOTH);
@@ -3380,13 +3371,12 @@ mod tests {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         })
-        .build()
-        .unwrap();
+        .build();
 
-        let seq_struct_type = DynamicTypeBuilderFactory::create_sequence_type(struct_type, 10)
-            .build()
-            .unwrap();
+        let seq_struct_type =
+            DynamicTypeBuilderFactory::create_sequence_type(struct_type, 10).build();
         let type_id = TypeIdentifier::from(&seq_struct_type);
         if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
             assert_eq!(seq_sdefn.header.equiv_kind, EK_COMPLETE);
