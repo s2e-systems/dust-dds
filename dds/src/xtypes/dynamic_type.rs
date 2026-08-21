@@ -1936,16 +1936,18 @@ impl<'a> DynamicData<'a> {
             let Some(selected_member) = get_selected_union_member(self) else {
                 return false;
             };
-            let Some(value) = self.abstract_data.get_mut(&selected_member.get_id()) else {
-                return false;
-            };
-            if !validate_member_value(value, &selected_member.descriptor) {
-                match selected_member.descriptor.try_construct_kind {
-                    TryConstructKind::Discard => return false,
-                    TryConstructKind::UseDefault => {
-                        *value = default_storage_for_type(selected_member.descriptor.r#type);
+            if selected_member.descriptor.r#type.get_kind() != TypeKind::NONE {
+                let Some(value) = self.abstract_data.get_mut(&selected_member.get_id()) else {
+                    return false;
+                };
+                if !validate_member_value(value, &selected_member.descriptor) {
+                    match selected_member.descriptor.try_construct_kind {
+                        TryConstructKind::Discard => return false,
+                        TryConstructKind::UseDefault => {
+                            *value = default_storage_for_type(selected_member.descriptor.r#type);
+                        }
+                        TryConstructKind::Trim => return false,
                     }
-                    TryConstructKind::Trim => return false,
                 }
             }
         } else if kind == TypeKind::STRUCTURE {
