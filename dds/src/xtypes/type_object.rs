@@ -3014,45 +3014,140 @@ impl CompleteTypeObject {
                     return false;
                 }
 
-                if type_consistency.prevent_type_widening {
-                    for m1 in &t1.member_seq {
-                        if !t2
-                            .member_seq
-                            .iter()
-                            .any(|m2| m2.common.member_id == m1.common.member_id)
-                        {
-                            return false;
-                        }
-                    }
+                let t1_default = t1
+                    .member_seq
+                    .iter()
+                    .find(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_DEFAULT.0) != 0);
+                let t2_default = t2
+                    .member_seq
+                    .iter()
+                    .find(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_DEFAULT.0) != 0);
+
+                if (is_t1_final && is_t2_final) && (t1_default.is_some() != t2_default.is_some()) {
+                    return false;
                 }
 
-                let mut members_are_assignable = true;
-                for m2 in t2.member_seq.iter() {
-                    if let Some(m1) = t1
-                        .member_seq
-                        .iter()
-                        .find(|m1| m1.common.member_id == m2.common.member_id)
-                    {
-                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
-                        {
-                            return false;
-                        }
-                        members_are_assignable &=
-                            m1.common.type_id.is_assignable_from_w_type_consistency(
-                                &m2.common.type_id,
-                                type_consistency,
-                            );
-                    } else if !type_consistency.ignore_member_names
-                        && t1
-                            .member_seq
-                            .iter()
-                            .any(|m1| m1.detail.name == m2.detail.name)
-                    {
+                // If prevent_type_widening is true, every label in t1 must exist in t2
+                if type_consistency.prevent_type_widening {
+                    if t1_default.is_some() && t2_default.is_none() {
                         return false;
                     }
+                    for m1 in &t1.member_seq {
+                        for l1 in &m1.common.label_seq {
+                            if !t2
+                                .member_seq
+                                .iter()
+                                .any(|m2| m2.common.label_seq.contains(l1))
+                            {
+                                return false;
+                            }
+                        }
+                    }
                 }
 
-                members_are_assignable
+                // If not ignoring member names, members with the same ID must have the same name
+                if !type_consistency.ignore_member_names {
+                    for m2 in &t2.member_seq {
+                        if let Some(m1) = t1
+                            .member_seq
+                            .iter()
+                            .find(|m1| m1.common.member_id == m2.common.member_id)
+                        {
+                            if m1.detail.name != m2.detail.name {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                // Find member by label in t1
+                let find_t1_member = |label: i32| -> Option<&CompleteUnionMember> {
+                    t1.member_seq
+                        .iter()
+                        .find(|m| m.common.label_seq.contains(&label))
+                        .or(t1_default)
+                };
+
+                // Check that there is at least one common explicit label
+                let mut has_common_label = false;
+                for m2 in &t2.member_seq {
+                    for l2 in &m2.common.label_seq {
+                        if t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.label_seq.contains(l2))
+                        {
+                            has_common_label = true;
+                            break;
+                        }
+                    }
+                }
+
+                if !has_common_label {
+                    return false;
+                }
+
+                // For every explicit label in t2, the selected member in t1 must be assignable
+                for m2 in &t2.member_seq {
+                    for l2 in &m2.common.label_seq {
+                        if let Some(m1) = find_t1_member(*l2) {
+                            if !type_consistency.ignore_member_names
+                                && m1.detail.name != m2.detail.name
+                            {
+                                return false;
+                            }
+                            if !m1.common.type_id.is_assignable_from_w_type_consistency(
+                                &m2.common.type_id,
+                                type_consistency,
+                            ) {
+                                return false;
+                            }
+                        } else if is_t1_final {
+                            return false;
+                        }
+                    }
+                }
+
+                // If t2 has a default case, verify default case compatibility
+                if let Some(m2_def) = t2_default {
+                    if let Some(m1_def) = t1_default {
+                        if !type_consistency.ignore_member_names
+                            && m1_def.detail.name != m2_def.detail.name
+                        {
+                            return false;
+                        }
+                        if !m1_def.common.type_id.is_assignable_from_w_type_consistency(
+                            &m2_def.common.type_id,
+                            type_consistency,
+                        ) {
+                            return false;
+                        }
+                    }
+                    // Any explicit label in t1 not covered by t2's explicit labels falls into t2's default case
+                    for m1 in &t1.member_seq {
+                        for l1 in &m1.common.label_seq {
+                            if !t2
+                                .member_seq
+                                .iter()
+                                .any(|m2| m2.common.label_seq.contains(l1))
+                            {
+                                if !type_consistency.ignore_member_names
+                                    && m1.detail.name != m2_def.detail.name
+                                {
+                                    return false;
+                                }
+                                if !m1.common.type_id.is_assignable_from_w_type_consistency(
+                                    &m2_def.common.type_id,
+                                    type_consistency,
+                                ) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                true
             }
             (
                 CompleteTypeObject::TkEnum {
