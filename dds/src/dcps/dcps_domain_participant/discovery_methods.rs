@@ -278,7 +278,7 @@ impl DcpsDomainParticipant {
                             .last_instance_handle = change_instance_handle;
 
                         let the_participant = DomainParticipantAsync::new(
-                            self.dcps_sender,
+                            self.dcps_sender.clone(),
                             self.domain_participant.domain_id,
                             self.domain_participant.instance_handle,
                         );
@@ -389,7 +389,7 @@ impl DcpsDomainParticipant {
 
                     for instance_handle in missed_handles {
                         let the_participant = DomainParticipantAsync::new(
-                            self.dcps_sender,
+                            self.dcps_sender.clone(),
                             self.domain_participant.domain_id,
                             self.domain_participant.instance_handle,
                         );
@@ -827,7 +827,7 @@ impl DcpsDomainParticipant {
         let domain_id = *domain_id;
         let participant_instance_handle = *participant_instance_handle;
         let participant_listener_mask = *participant_listener_mask;
-        let dcps_sender = self.dcps_sender;
+        let dcps_sender = self.dcps_sender.clone();
         let message_writer = self.transport.message_writer.as_ref();
 
         for publisher in user_defined_publisher_list.iter_mut() {
@@ -1124,7 +1124,7 @@ impl DcpsDomainParticipant {
 
                                     if is_listener_enabled {
                                         let the_participant = DomainParticipantAsync::new(
-                                            dcps_sender,
+                                            dcps_sender.clone(),
                                             domain_id,
                                             participant_instance_handle,
                                         );
@@ -1204,7 +1204,7 @@ impl DcpsDomainParticipant {
 
                                     if is_listener_enabled {
                                         let the_participant = DomainParticipantAsync::new(
-                                            dcps_sender,
+                                            dcps_sender.clone(),
                                             domain_id,
                                             participant_instance_handle,
                                         );
@@ -1281,7 +1281,7 @@ impl DcpsDomainParticipant {
 
                                 if is_listener_enabled {
                                     let participant = DomainParticipantAsync::new(
-                                        dcps_sender,
+                                        dcps_sender.clone(),
                                         domain_id,
                                         participant_instance_handle,
                                     );
@@ -1394,7 +1394,7 @@ impl DcpsDomainParticipant {
         let domain_id = *domain_id;
         let participant_instance_handle = *participant_instance_handle;
         let participant_listener_mask = *participant_listener_mask;
-        let dcps_sender = self.dcps_sender;
+        let dcps_sender = self.dcps_sender.clone();
         let message_writer = self.transport.message_writer.as_ref();
 
         for subscriber in user_defined_subscriber_list.iter_mut() {
@@ -1683,7 +1683,7 @@ impl DcpsDomainParticipant {
 
                                     if is_listener_enabled {
                                         let the_participant = DomainParticipantAsync::new(
-                                            dcps_sender,
+                                            dcps_sender.clone(),
                                             domain_id,
                                             participant_instance_handle,
                                         );
@@ -1753,7 +1753,7 @@ impl DcpsDomainParticipant {
 
                                     if is_listener_enabled {
                                         let the_participant = DomainParticipantAsync::new(
-                                            dcps_sender,
+                                            dcps_sender.clone(),
                                             domain_id,
                                             participant_instance_handle,
                                         );
@@ -1823,7 +1823,7 @@ impl DcpsDomainParticipant {
 
                                 if is_listener_enabled {
                                     let participant = DomainParticipantAsync::new(
-                                        dcps_sender,
+                                        dcps_sender.clone(),
                                         domain_id,
                                         participant_instance_handle,
                                     );
@@ -2448,7 +2448,7 @@ impl DcpsDomainParticipant {
                                             topic.inconsistent_topic_status.total_count += 1;
                                             topic.inconsistent_topic_status.total_count_change += 1;
                                             let participant = DomainParticipantAsync::new(
-                                                self.dcps_sender,
+                                                self.dcps_sender.clone(),
                                                 self.domain_participant.domain_id,
                                                 self.domain_participant.instance_handle,
                                             );

@@ -1,10 +1,8 @@
 mod utils;
 
-use std::sync::{Mutex, OnceLock};
-
 use dust_dds::{
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
-    domain::domain_participant_factory::DomainParticipantFactory,
+    domain::domain_participant::DomainParticipant,
     infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS},
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
@@ -27,20 +25,14 @@ impl WriteMessage for MockWriter {
     fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
 }
 
-static DATA_RECEIVER_SEND: Mutex<Option<std::sync::mpsc::SyncSender<TransportDataReceiver>>> =
-    Mutex::new(None);
-static TEST_MUTEX: Mutex<()> = Mutex::new(());
-
-struct MockTransport;
+struct MockTransport(std::sync::mpsc::SyncSender<TransportDataReceiver>);
 impl TransportParticipantFactory for MockTransport {
     fn create_participant(
         &self,
         _domain_id: i32,
         data_receiver: TransportDataReceiver,
     ) -> RtpsTransportParticipant {
-        if let Some(sender) = DATA_RECEIVER_SEND.lock().unwrap().take() {
-            sender.send(data_receiver).unwrap();
-        }
+        self.0.send(data_receiver).unwrap();
         RtpsTransportParticipant {
             message_writer: Box::new(MockWriter),
             default_unicast_locator_list: Vec::new(),
@@ -52,34 +44,35 @@ impl TransportParticipantFactory for MockTransport {
     }
 }
 
-static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync<MockTransport>> =
-    OnceLock::new();
-
-fn get_participant_factory() -> DomainParticipantFactory<MockTransport> {
-    DomainParticipantFactory::new(PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-        let executor = dust_dds::std_runtime::executor::Executor::new();
-        let timer_driver = dust_dds::std_runtime::timer::TimerDriver::new();
-        let runtime = dust_dds::std_runtime::StdRuntime::new(executor, timer_driver);
-        let app_id = [1, 2, 3, 4];
-        let host_id = [5, 6, 7, 8];
-        let configuration = Default::default();
-
-        DomainParticipantFactoryAsync::new(runtime, app_id, host_id, MockTransport, configuration)
-    }))
-}
-
 #[test]
 fn detect_stale_participant() {
-    let _guard = TEST_MUTEX.lock().unwrap();
     let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
-    *DATA_RECEIVER_SEND.lock().unwrap() = Some(data_receiver_send);
-
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let domain_participant_factory = get_participant_factory();
 
-    let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+    let executor = dust_dds::std_runtime::executor::Executor::new();
+    let timer_driver = dust_dds::std_runtime::timer::TimerDriver::new();
+    let runtime = dust_dds::std_runtime::StdRuntime::new(executor, timer_driver);
+    let app_id = [1, 2, 3, 4];
+    let host_id = [5, 6, 7, 8];
+    let configuration = Default::default();
+
+    let domain_participant_factory = DomainParticipantFactoryAsync::new(
+        runtime,
+        app_id,
+        host_id,
+        MockTransport(data_receiver_send),
+        configuration,
+    );
+
+    let participant = DomainParticipant::from(
+        dust_dds::std_runtime::executor::block_on(domain_participant_factory.create_participant(
+            domain_id,
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        ))
+        .unwrap(),
+    );
 
     let guid_prefix = <[u8; 16]>::from(participant.get_instance_handle())[0..12]
         .try_into()
@@ -148,16 +141,33 @@ fn detect_stale_participant() {
 
 #[test]
 fn xtypes_mismatch_does_not_abort_discovery() {
-    let _guard = TEST_MUTEX.lock().unwrap();
     let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
-    *DATA_RECEIVER_SEND.lock().unwrap() = Some(data_receiver_send);
-
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let domain_participant_factory = get_participant_factory();
 
-    let participant = domain_participant_factory
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
+    let executor = dust_dds::std_runtime::executor::Executor::new();
+    let timer_driver = dust_dds::std_runtime::timer::TimerDriver::new();
+    let runtime = dust_dds::std_runtime::StdRuntime::new(executor, timer_driver);
+    let app_id = [1, 2, 3, 4];
+    let host_id = [5, 6, 7, 8];
+    let configuration = Default::default();
+
+    let domain_participant_factory = DomainParticipantFactoryAsync::new(
+        runtime,
+        app_id,
+        host_id,
+        MockTransport(data_receiver_send),
+        configuration,
+    );
+
+    let participant = DomainParticipant::from(
+        dust_dds::std_runtime::executor::block_on(domain_participant_factory.create_participant(
+            domain_id,
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        ))
+        .unwrap(),
+    );
 
     let data_receiver = data_receiver_recv.recv().unwrap();
 

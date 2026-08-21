@@ -33,7 +33,7 @@ use crate::{
 impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self))]
     pub fn process_user_defined_received_cache_changes(&mut self, reception_timestamp: Time) {
-        let dcps_sender = self.dcps_sender;
+        let dcps_sender = self.dcps_sender.clone();
         let domain_id = self.domain_participant.domain_id;
         let dp_instance_handle = self.domain_participant.instance_handle;
         let dp_listener_mask = self.domain_participant.listener_mask;
@@ -300,7 +300,7 @@ impl DcpsDomainParticipant {
                             if subscriber_listener_mask.is_enabled(&StatusKind::DataOnReaders) {
                                 if let Some(l) = &subscriber_listener_sender {
                                     let the_participant = DomainParticipantAsync::new(
-                                        dcps_sender,
+                                        dcps_sender.clone(),
                                         domain_id,
                                         dp_instance_handle,
                                     );
@@ -312,7 +312,7 @@ impl DcpsDomainParticipant {
                                 if let Some(l) = &data_reader.listener_sender {
                                     info!("Triggering data reader DataAvailable listener");
                                     let the_participant = DomainParticipantAsync::new(
-                                        dcps_sender,
+                                        dcps_sender.clone(),
                                         domain_id,
                                         dp_instance_handle,
                                     );
@@ -354,7 +354,7 @@ impl DcpsDomainParticipant {
 
                             if is_listener_enabled {
                                 let the_participant = DomainParticipantAsync::new(
-                                    dcps_sender,
+                                    dcps_sender.clone(),
                                     domain_id,
                                     dp_instance_handle,
                                 );
