@@ -156,8 +156,7 @@ impl TimerHeap {
 
     #[inline(always)]
     fn remove(&mut self, id: usize) {
-        let heap = std::mem::take(&mut self.heap);
-        self.heap = heap.into_iter().filter(|t| t.id != id).collect();
+        self.heap.retain(|t| t.id != id);
     }
 }
 
