@@ -81,6 +81,7 @@ impl DcpsDomainParticipant {
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -99,6 +100,7 @@ impl DcpsDomainParticipant {
             builtin_subscriber,
             domain_tag,
             Duration::from(participant_announcement_interval),
+            enable_type_information,
         );
 
         Self {
@@ -291,6 +293,7 @@ pub struct DomainParticipantEntity {
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
     pub participant_announcement_interval: Duration,
+    pub enable_type_information: bool,
 }
 
 impl DomainParticipantEntity {
@@ -305,6 +308,7 @@ impl DomainParticipantEntity {
         builtin_subscriber: BuiltinSubscriber,
         domain_tag: String,
         participant_announcement_interval: Duration,
+        enable_type_information: bool,
     ) -> Self {
         Self {
             domain_id,
@@ -336,6 +340,7 @@ impl DomainParticipantEntity {
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
             participant_announcement_interval,
+            enable_type_information,
         }
     }
 
@@ -560,6 +565,7 @@ mod tests {
             BuiltinSubscriber::new(GuidPrefix::default()),
             String::new(),
             Duration::new(5, 0),
+            true,
         );
 
         // Disabled entity returns None

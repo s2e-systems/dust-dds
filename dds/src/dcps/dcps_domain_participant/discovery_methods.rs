@@ -512,6 +512,10 @@ impl DcpsDomainParticipant {
 
         let topic_data = topic.qos.topic_data.clone();
 
+        let type_information = self
+            .domain_participant
+            .enable_type_information
+            .then(|| topic.type_information.clone());
         let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
@@ -521,7 +525,7 @@ impl DcpsDomainParticipant {
             },
             topic_name: data_writer.topic_name.to_string().into(),
             type_name: topic.type_name.to_string().into(),
-            type_information: Some(topic.type_information.clone()),
+            type_information,
             durability: data_writer.qos.durability.clone(),
             deadline: data_writer.qos.deadline.clone(),
             latency_budget: data_writer.qos.latency_budget.clone(),
@@ -651,6 +655,10 @@ impl DcpsDomainParticipant {
             t
         };
         let guid = data_reader.transport_reader.guid();
+        let type_information = self
+            .domain_participant
+            .enable_type_information
+            .then(|| topic.type_information.clone());
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey {
@@ -662,7 +670,7 @@ impl DcpsDomainParticipant {
             type_name: _String {
                 value: topic.type_name.to_string(),
             },
-            type_information: Some(topic.type_information.clone()),
+            type_information,
             durability: data_reader.qos.durability.clone(),
             deadline: data_reader.qos.deadline.clone(),
             latency_budget: data_reader.qos.latency_budget.clone(),
@@ -754,13 +762,17 @@ impl DcpsDomainParticipant {
             return;
         };
 
+        let type_information = self
+            .domain_participant
+            .enable_type_information
+            .then(|| topic.type_information.clone());
         let discovered_topic_data = DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: topic.instance_handle.into(),
                 },
                 name: topic.topic_name.to_string().into(),
-                type_information: Some(topic.type_information.clone()),
+                type_information,
                 type_name: topic.type_name.to_string().into(),
                 durability: topic.qos.durability.clone(),
                 deadline: topic.qos.deadline.clone(),
