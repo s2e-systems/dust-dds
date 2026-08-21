@@ -200,8 +200,8 @@ impl RtpsReaderProxy {
         self.next_unsent_change(writer_history_cache).is_some()
     }
 
-    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
-        self.requested_changes.clone()
+    pub fn requested_changes(&self) -> &[SequenceNumber] {
+        &self.requested_changes
     }
 
     pub fn requested_changes_set(&mut self, req_seq_num_set: impl Iterator<Item = SequenceNumber>) {

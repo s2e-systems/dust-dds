@@ -119,7 +119,14 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .discovered_participant_list
             .iter()
-            .map(|dp| dp.lease_duration - (now - dp.last_communication_timestamp))
+            .map(|dp| {
+                let elapsed = now - dp.last_communication_timestamp;
+                if dp.lease_duration > elapsed {
+                    dp.lease_duration - elapsed
+                } else {
+                    Duration::new(0, 0)
+                }
+            })
             .min()
     }
 
@@ -133,7 +140,14 @@ impl DcpsDomainParticipant {
                     data_reader
                         .instance_ownership
                         .iter()
-                        .map(|instance| deadline - (now - instance.last_received_time))
+                        .map(|instance| {
+                            let elapsed = now - instance.last_received_time;
+                            if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None
@@ -153,7 +167,14 @@ impl DcpsDomainParticipant {
                         .registered_instance_info
                         .iter()
                         .filter_map(|instance| instance.last_write_time)
-                        .map(|last_write_time| deadline - (now - last_write_time))
+                        .map(|last_write_time| {
+                            let elapsed = now - last_write_time;
+                            if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None
@@ -174,7 +195,14 @@ impl DcpsDomainParticipant {
                         .changes()
                         .iter()
                         .filter_map(|cc| cc.source_timestamp)
-                        .map(|source_timestamp| Time::from(source_timestamp) + lifespan - now)
+                        .map(|source_timestamp| {
+                            let expiry = Time::from(source_timestamp) + lifespan;
+                            if expiry > now {
+                                expiry - now
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None

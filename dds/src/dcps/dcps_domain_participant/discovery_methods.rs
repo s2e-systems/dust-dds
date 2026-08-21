@@ -87,8 +87,7 @@ use alloc::{format, string::String, vec, vec::Vec};
 use regex::Regex;
 
 impl DcpsDomainParticipant {
-    pub fn announce_participant_if_needed(&mut self, runtime: &impl DdsRuntime) {
-        let now = runtime.clock().now();
+    pub fn announce_participant_if_needed(&mut self, runtime: &impl DdsRuntime, now: Time) {
         if let Some(time_until) = self.time_until_participant_announcement(now) {
             if time_until == Duration::new(0, 0) {
                 self.announce_participant(runtime);

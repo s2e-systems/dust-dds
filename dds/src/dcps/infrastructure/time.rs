@@ -161,7 +161,7 @@ impl From<core::time::Duration> for Duration {
 
 impl From<Duration> for core::time::Duration {
     fn from(x: Duration) -> Self {
-        core::time::Duration::new(x.sec as u64, x.nanosec)
+        core::time::Duration::new(x.sec.max(0) as u64, x.nanosec)
     }
 }
 
