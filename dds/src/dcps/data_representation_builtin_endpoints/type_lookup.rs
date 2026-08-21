@@ -72,7 +72,7 @@ pub struct TypeLookupGetTypeDependenciesOut {
 }
 
 #[derive(DdsType)]
-#[dust_dds(switch(i32))]
+#[dust_dds(extensibility = "appendable", switch(i32))]
 pub enum TypeLookupGetTypeDependenciesResult {
     #[dust_dds(case = 0)]
     Ok {
@@ -101,7 +101,7 @@ pub struct TypeLookupRequest {
 
 // Service Reply
 #[derive(DdsType)]
-#[dust_dds(switch(i32))]
+#[dust_dds(switch(i32), extensibility = "appendable")]
 pub enum TypeLookupReturn {
     #[dust_dds(case=TYPE_LOOKUP_GET_TYPES_HASH_ID)]
     TypeLookupGetTypesHash { get_type: TypeLookupGetTypesResult },

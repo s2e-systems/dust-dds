@@ -1323,8 +1323,9 @@ mod tests {
     use crate::{
         dcps::{
             data_representation_builtin_endpoints::type_lookup::{
-                RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn,
-                TypeLookupRequest,
+                RemoteExceptionCode, ReplyHeader, RequestHeader, SampleIdentity, TypeLookupCall,
+                TypeLookupGetTypesIn, TypeLookupGetTypesOut, TypeLookupGetTypesResult,
+                TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
             },
             xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
         },
@@ -2202,6 +2203,56 @@ mod tests {
                     // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
                     4, 0, 0, 0, // type_ids: DHEADER
                     0, 0, 0, 0, // type_ids: Length
+                ]
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_type_lookup_reply() {
+        let expected = TypeLookupReply {
+            header: ReplyHeader {
+                related_request_id: SampleIdentity {
+                    writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
+                    sequence_number: 5.into(),
+                },
+                remote_ex: RemoteExceptionCode::Ok,
+            },
+            r#return: TypeLookupReturn::TypeLookupGetTypesHash {
+                get_type: TypeLookupGetTypesResult::Ok {
+                    result: TypeLookupGetTypesOut {
+                        types: vec![],
+                        complete_to_minimal: vec![],
+                    },
+                },
+            },
+        }
+        .create_dynamic_sample();
+
+        assert_eq!(
+            deserialize_top_level_type(
+                TypeLookupReply::TYPE,
+                &[
+                    0x00u8, 0x07, 0x00, 0x00, // CDR2_LE + padding
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
+                    0, 0, 0, 0, // sequence_number: high
+                    5, 0, 0, 0, // sequence_number: low
+                    0, 0, 0, 0, // remote_ex: RemoteExceptionCode::Ok
+                    40, 0, 0, 0, // TypeLookupReturn DHEADER
+                    211, 82, 130, 1, // TypeLookupGetTypesHash Discriminator (0x018252d3)
+                    32, 0, 0, 0, // TypeLookupGetTypesResult DHEADER
+                    0, 0, 0, 0, // Result Discriminator (0 = Ok)
+                    // TypeLookupGetTypesOut DHEADER (mutable struct)
+                    24, 0, 0, 0, // types field EMHEADER + DHEADER + length
+                    209, 74, 128, 82, // types hashid EMHEADER
+                    4, 0, 0, 0, // types Vec DHEADER
+                    0, 0, 0, 0, // types length 0
+                    // complete_to_minimal field EMHEADER + DHEADER + length
+                    119, 101, 142, 91, // complete_to_minimal hashid EMHEADER
+                    4, 0, 0, 0, // complete_to_minimal Vec DHEADER
+                    0, 0, 0, 0, // complete_to_minimal length 0
                 ]
             )
             .unwrap(),
