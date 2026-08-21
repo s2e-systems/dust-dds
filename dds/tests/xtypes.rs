@@ -4482,3 +4482,161 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_enum_2() {
         expected_received
     );
 }
+
+/// 'ext_autoid_1' : {
+///     'common_args' : ['--type-folder types --type-file extensibility'],
+///     'apps' : ['pub-exe -P -t test -y Test::struct_hashid_1 --data-folder data --data-file struct_num_x1',
+///               'sub-exe -S -t test -y Test::struct_hashid_2 --data-folder data --data-file struct_num_x2'],
+///     'expected_codes' : [ReturnCode.OK, ReturnCode.OK],
+///     'check_function' : tsf.data_is_correct,
+///     'title' : 'Communication between struct_hashid_1 and struct_hashid_2',
+///     'description' : 'Verifies structs using `hashid` can communicate when hash IDs match:\n\n'
+///                     ' * Publisher uses `struct_hashid_1` (final) from `extensibility`.\n'
+///                     ' * Subscriber uses `struct_hashid_2` (final) from `extensibility`.\n'
+///                     ' * Publisher\'s `struct_hashid_1` has member `x1` with `autoid=hash`.\n'
+///                     ' * Subscriber\'s `struct_hashid_2` has member `x2` with `hashid="x1"`, resolving to the same hash ID.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xtypes_v2_extensibility_test_suite_ext_autoid_1() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_hashid_1" extensibility="final" autoid="hash">
+                    <member name="x1" type="int32"/>
+                </struct>
+                <struct name="struct_hashid_2" extensibility="final" autoid="hash">
+                    <member name="x2" type="int32" hashid="x1"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_hashid_1",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_hashid_1",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_hashid_2",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_hashid_2",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let hash = md5::compute(b"x1");
+    let expected_id = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF;
+    assert_eq!(
+        publisher_dynamic_type
+            .get_member_by_name("x1")
+            .unwrap()
+            .get_id(),
+        expected_id
+    );
+    assert_eq!(
+        subscriber_dynamic_type
+            .get_member_by_name("x2")
+            .unwrap()
+            .get_id(),
+        expected_id
+    );
+
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct>
+            <x1>1</x1>
+        </struct>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<struct>
+                <x2>1</x2>
+            </struct>",
+        )
+        .unwrap();
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.unwrap(),
+        expected_received
+    );
+}

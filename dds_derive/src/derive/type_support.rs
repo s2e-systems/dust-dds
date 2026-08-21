@@ -34,6 +34,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 Some(t) => quote! {Some(<#t as dust_dds::xtypes::type_support::Type>::TYPE)},
                 None => quote! {None},
             };
+            let is_autoid_hash = r#struct.is_autoid_hash;
 
             let struct_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
@@ -46,6 +47,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     key_element_type: None,
                     extensibility_kind: #extensibility_kind,
                     is_nested: #is_nested,
+                    is_autoid_hash: #is_autoid_hash,
                 }
             };
 
@@ -64,14 +66,28 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     .map(|i| i.to_string())
                     .unwrap_or(member_index.to_string());
 
-                let member_id = if struct_member_attributes.hashid {
+                let member_id = if let Some(ref hashid_name) = struct_member_attributes.hashid {
+                    let target = if hashid_name.is_empty() {
+                        &member_name
+                    } else {
+                        hashid_name
+                    };
+                    let member_hash = <[u8; 16]>::from(md5::compute(target.as_bytes()));
+                    let member_hash_int = u32::from_le_bytes([
+                        member_hash[0],
+                        member_hash[1],
+                        member_hash[2],
+                        member_hash[3],
+                    ]) & 0x0FFF_FFFF;
+                    syn::parse_str(&member_hash_int.to_string())?
+                } else if r#struct.is_autoid_hash {
                     let member_hash = <[u8; 16]>::from(md5::compute(member_name.as_bytes()));
                     let member_hash_int = u32::from_le_bytes([
                         member_hash[0],
                         member_hash[1],
                         member_hash[2],
                         member_hash[3],
-                    ]);
+                    ]) & 0x0FFF_FFFF;
                     syn::parse_str(&member_hash_int.to_string())?
                 } else {
                     match r#struct.extensibility {
@@ -88,7 +104,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     }?
                 };
 
-                if !struct_member_attributes.hashid {
+                if struct_member_attributes.hashid.is_none() && !r#struct.is_autoid_hash {
                     if let syn::Expr::Lit(syn::ExprLit {
                         lit: syn::Lit::Int(lit_int),
                         ..
@@ -166,6 +182,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 key_element_type: None,
                                 extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
                                 is_nested: false,
+                                is_autoid_hash: false,
                             },
                             member_list: &[]
                         }
@@ -345,6 +362,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     key_element_type: None,
                     extensibility_kind: #extensibility_kind,
                     is_nested: #is_nested,
+                    is_autoid_hash: false,
                 }
             };
 
@@ -488,6 +506,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                         key_element_type: None,
                                         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
                                         is_nested: false,
+                                        is_autoid_hash: false,
                                     },
                                     member_list: &[],
                                 },
@@ -601,6 +620,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     key_element_type: None,
                     extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
                     is_nested: #is_nested,
+                    is_autoid_hash: false,
                 }
             };
             let get_type_quote = quote! {

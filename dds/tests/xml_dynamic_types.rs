@@ -1416,3 +1416,33 @@ fn parse_bitmask_type_and_data_from_xml() {
     assert_eq!(*data.get_uint32_value(0).unwrap(), 2);
     assert_eq!(*data.get_int16_value(1).unwrap(), 128);
 }
+
+#[test]
+fn create_struct_hashid_1_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_hashid_1",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    let hash = md5::compute(b"x1");
+    let expected_id = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF;
+    assert_eq!(member.get_id(), expected_id);
+}
+
+#[test]
+fn create_struct_hashid_2_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_hashid_2",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x2").unwrap();
+    let hash = md5::compute(b"x1");
+    let expected_id = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF;
+    assert_eq!(member.get_id(), expected_id);
+}

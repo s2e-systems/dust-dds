@@ -1915,8 +1915,11 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
                 };
                 if value.descriptor.is_nested {
-                    struct_flags |= TYPE_FLAG_IS_NESTED
-                };
+                    struct_flags |= TYPE_FLAG_IS_NESTED;
+                }
+                if value.descriptor.is_autoid_hash {
+                    struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
+                }
 
                 let header = MinimalStructHeader {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type
@@ -2005,8 +2008,8 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
     }
 }
 
-impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
-    fn from(value: DynamicType<'a>) -> Self {
+impl From<DynamicType<'_>> for CompleteTypeObject {
+    fn from(value: DynamicType) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -2015,8 +2018,11 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
                 };
                 if value.descriptor.is_nested {
-                    struct_flags |= TYPE_FLAG_IS_NESTED
-                };
+                    struct_flags |= TYPE_FLAG_IS_NESTED;
+                }
+                if value.descriptor.is_autoid_hash {
+                    struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
+                }
 
                 let header = CompleteStructHeader {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type

@@ -96,6 +96,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             })),
             member_list: &[],
         }
@@ -132,6 +133,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -150,6 +152,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -171,6 +174,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -192,6 +196,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -387,6 +392,8 @@ impl DynamicTypeBuilderFactory {
             &[]
         };
 
+        let is_autoid_hash = target_node.attribute("autoid") == Some("hash");
+
         let descriptor = TypeDescriptor {
             kind: if is_union {
                 TypeKind::UNION
@@ -405,6 +412,7 @@ impl DynamicTypeBuilderFactory {
             key_element_type: None,
             extensibility_kind,
             is_nested: target_node.attribute("nested") == Some("true"),
+            is_autoid_hash,
         };
 
         let mut builder = Self::create_type(descriptor);
@@ -453,55 +461,50 @@ impl DynamicTypeBuilderFactory {
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
                     let mut sequence_max_length = None;
-                    let mut label = Vec::new();
+                    let mut label: Vec<i32> = Vec::new();
                     let mut is_default_label = false;
 
-                    for case_child in child.children() {
-                        if case_child.is_element()
-                            && case_child.tag_name().name() == "caseDiscriminator"
-                        {
-                            let value_str = case_child
-                                .attribute("value")
-                                .ok_or(XTypesError::InvalidData)?;
-                            if value_str == "default" {
-                                is_default_label = true;
-                            } else if let Some(hex) = value_str.strip_prefix("0x") {
-                                label.push(
-                                    i32::from_str_radix(hex, 16)
-                                        .map_err(|_| XTypesError::InvalidData)?,
-                                );
-                            } else {
-                                label.push(
-                                    value_str
-                                        .parse::<i32>()
-                                        .map_err(|_| XTypesError::InvalidData)?,
-                                );
+                    for c in child.children() {
+                        if c.is_element() && c.tag_name().name() == "caseDiscriminator" {
+                            if let Some(val) = c.attribute("value") {
+                                if val == "default" {
+                                    is_default_label = true;
+                                } else if let Some(hex) = val.strip_prefix("0x") {
+                                    label.push(
+                                        i32::from_str_radix(hex, 16)
+                                            .map_err(|_| XTypesError::InvalidData)?,
+                                    );
+                                } else {
+                                    label.push(val.parse().map_err(|_| XTypesError::InvalidData)?);
+                                }
                             }
-                        } else if case_child.is_element()
-                            && case_child.tag_name().name() == "member"
-                        {
-                            m_name = case_child.attribute("name");
-                            m_type = case_child.attribute("type");
-                            non_basic_type_name = case_child.attribute("nonBasicTypeName");
-                            string_max_length = case_child.attribute("stringMaxLength");
-                            array_dimensions = case_child.attribute("arrayDimensions");
-                            sequence_max_length = case_child.attribute("sequenceMaxLength");
-                            parse_try_construct_kind(&case_child, &mut try_construct_kind);
+                        }
+                        if c.is_element() && c.tag_name().name() == "member" {
+                            m_name = c.attribute("name");
+                            m_type = c.attribute("type");
+                            non_basic_type_name = c.attribute("nonBasicTypeName");
+                            string_max_length = c.attribute("stringMaxLength");
+                            array_dimensions = c.attribute("arrayDimensions");
+                            sequence_max_length = c.attribute("sequenceMaxLength");
+                            parse_try_construct_kind(&c, &mut try_construct_kind);
                         }
                     }
 
-                    let m_name = m_name.ok_or(XTypesError::InvalidData)?;
-                    let m_type = m_type.ok_or(XTypesError::InvalidData)?;
+                    let label = label.leak();
 
                     let type_ptr = resolve_member_type(
-                        m_type,
+                        m_type.ok_or(XTypesError::InvalidData)?,
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
                         sequence_max_length,
                     )?;
-                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
-                    let label = Vec::leak(label);
+                    let m_name_static = Box::leak(
+                        m_name
+                            .ok_or(XTypesError::InvalidData)?
+                            .to_string()
+                            .into_boxed_str(),
+                    );
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
                         id: member_id,
@@ -582,6 +585,17 @@ impl DynamicTypeBuilderFactory {
                                 .parse::<u32>()
                                 .map_err(|_| XTypesError::InvalidData)?
                         }
+                    } else if let Some(hashid_name) = child.attribute("hashid") {
+                        let target = if hashid_name.is_empty() {
+                            m_name
+                        } else {
+                            hashid_name
+                        };
+                        let hash = md5::compute(target.as_bytes());
+                        u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
+                    } else if is_autoid_hash {
+                        let hash = md5::compute(m_name.as_bytes());
+                        u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
                     } else {
                         member_id
                     };
@@ -660,6 +674,8 @@ pub struct TypeDescriptor {
     pub extensibility_kind: ExtensibilityKind,
     /// Indicates whether this is a nested type.
     pub is_nested: bool,
+    /// Indicates whether member IDs are calculated using autoid hash.
+    pub is_autoid_hash: bool,
 }
 
 /// Represents the unique identifier of a member.
@@ -1744,6 +1760,7 @@ impl Type for DynamicData<'static> {
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };

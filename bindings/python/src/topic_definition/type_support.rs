@@ -40,6 +40,7 @@ pub fn convert_python_type_to_dynamic_type(
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
     );
 
