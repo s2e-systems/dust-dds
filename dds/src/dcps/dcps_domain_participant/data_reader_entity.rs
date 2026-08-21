@@ -158,15 +158,33 @@ impl<T> DataReaderEntity<T> {
         specific_instance_handle: &Option<InstanceHandle>,
         take: bool,
     ) -> DdsResult<SampleList> {
+        if self.sample_list.is_empty() || max_samples <= 0 {
+            return Err(DdsError::NoData);
+        }
+
         if let Some(h) = specific_instance_handle {
             if !self.instances.iter().any(|x| x.handle() == h) {
                 return Err(DdsError::BadParameter);
             }
         };
 
-        let mut samples = Vec::new();
+        struct InstanceInCollection {
+            handle: InstanceHandle,
+            instance_index: usize,
+            instance_state: InstanceState,
+            most_recent_sample_absolute_generation_rank: i32,
+            sample_rank_counter: i32,
+        }
 
-        let mut instances_in_collection = Vec::<InstanceState>::new();
+        let match_all_sample_states = sample_states.len() >= 2;
+        let match_all_view_states = view_states.len() >= 2;
+        let match_all_instance_states = instance_states.len() >= 3;
+
+        let estimated_capacity = (max_samples as usize).min(self.sample_list.len());
+        let mut samples = Vec::with_capacity(estimated_capacity);
+        let mut instances_in_collection: Vec<InstanceInCollection> =
+            Vec::with_capacity(self.instances.len().min(4));
+
         self.sample_list.retain_mut(|cache_change| {
             if samples.len() as i32 == max_samples {
                 return true;
@@ -178,41 +196,71 @@ impl<T> DataReaderEntity<T> {
                 }
             };
 
-            let Some(instance) = self
-                .instances
-                .iter()
-                .find(|x| x.handle == cache_change.instance_handle)
-            else {
-                return true;
+            let (instance_idx, instance) = if self.instances.len() == 1
+                && self.instances[0].handle == cache_change.instance_handle
+            {
+                (0, &self.instances[0])
+            } else {
+                match self
+                    .instances
+                    .iter()
+                    .enumerate()
+                    .find(|(_, x)| x.handle == cache_change.instance_handle)
+                {
+                    Some(entry) => entry,
+                    None => return true,
+                }
             };
 
-            if !(sample_states.contains(&cache_change.sample_state)
-                && view_states.contains(&instance.view_state)
-                && instance_states.contains(&instance.instance_state))
+            if (!match_all_sample_states && !sample_states.contains(&cache_change.sample_state))
+                || (!match_all_view_states && !view_states.contains(&instance.view_state))
+                || (!match_all_instance_states
+                    && !instance_states.contains(&instance.instance_state))
             {
                 return true;
             }
 
-            if !instances_in_collection
-                .iter()
-                .any(|x| x.handle() == &cache_change.instance_handle)
+            let instance_in_coll = if instances_in_collection.len() == 1
+                && instances_in_collection[0].handle == cache_change.instance_handle
             {
-                instances_in_collection.push(InstanceState::new(cache_change.instance_handle));
-            }
+                &mut instances_in_collection[0]
+            } else {
+                match instances_in_collection
+                    .iter_mut()
+                    .find(|x| x.handle == cache_change.instance_handle)
+                {
+                    Some(entry) => entry,
+                    None => {
+                        instances_in_collection.push(InstanceInCollection {
+                            handle: cache_change.instance_handle,
+                            instance_index: instance_idx,
+                            instance_state: InstanceState::new(cache_change.instance_handle),
+                            most_recent_sample_absolute_generation_rank: 0,
+                            sample_rank_counter: 0,
+                        });
+                        instances_in_collection.last_mut().unwrap()
+                    }
+                }
+            };
 
-            let instance_from_collection = instances_in_collection
-                .iter_mut()
-                .find(|x| x.handle() == &cache_change.instance_handle)
-                .expect("Instance must exist");
-            instance_from_collection.update_state(cache_change.kind, None);
+            instance_in_coll
+                .instance_state
+                .update_state(cache_change.kind, None);
             let sample_state = cache_change.sample_state;
             let view_state = instance.view_state;
             let instance_state = instance.instance_state;
 
             let absolute_generation_rank = (instance.most_recent_disposed_generation_count
                 + instance.most_recent_no_writers_generation_count)
-                - (instance_from_collection.most_recent_disposed_generation_count
-                    + instance_from_collection.most_recent_no_writers_generation_count);
+                - (instance_in_coll
+                    .instance_state
+                    .most_recent_disposed_generation_count
+                    + instance_in_coll
+                        .instance_state
+                        .most_recent_no_writers_generation_count);
+
+            instance_in_coll.most_recent_sample_absolute_generation_rank =
+                absolute_generation_rank;
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
@@ -250,36 +298,33 @@ impl<T> DataReaderEntity<T> {
             }
         });
 
-        // After the collection is created, update the relative generation rank values and mark the read instances as viewed
-        for handle in instances_in_collection.iter().map(|x| x.handle()) {
-            let most_recent_sample_absolute_generation_rank = samples
-                .iter()
-                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
-                .map(|(_, sample_info)| sample_info.absolute_generation_rank)
-                .next_back()
-                .expect("Instance handle must exist on collection");
+        // After the collection is created, update relative generation rank and sample rank in a single reverse pass
+        if instances_in_collection.len() == 1 {
+            let inst = &mut instances_in_collection[0];
+            let most_recent_rank = inst.most_recent_sample_absolute_generation_rank;
+            for (i, (_, sample_info)) in samples.iter_mut().rev().enumerate() {
+                sample_info.generation_rank =
+                    sample_info.absolute_generation_rank - most_recent_rank;
+                sample_info.sample_rank = i as i32;
+            }
+            self.instances[inst.instance_index].mark_viewed();
+        } else {
+            for (_, sample_info) in samples.iter_mut().rev() {
+                let instance_in_coll = instances_in_collection
+                    .iter_mut()
+                    .find(|x| x.handle == sample_info.instance_handle)
+                    .expect("Instance handle must exist on collection");
 
-            let mut total_instance_samples_in_collection = samples
-                .iter()
-                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
-                .count();
-
-            for (_, sample_info) in samples
-                .iter_mut()
-                .filter(|(_, sample_info)| &sample_info.instance_handle == handle)
-            {
                 sample_info.generation_rank = sample_info.absolute_generation_rank
-                    - most_recent_sample_absolute_generation_rank;
+                    - instance_in_coll.most_recent_sample_absolute_generation_rank;
 
-                total_instance_samples_in_collection -= 1;
-                sample_info.sample_rank = total_instance_samples_in_collection as i32;
+                sample_info.sample_rank = instance_in_coll.sample_rank_counter;
+                instance_in_coll.sample_rank_counter += 1;
             }
 
-            self.instances
-                .iter_mut()
-                .find(|x| x.handle() == handle)
-                .expect("Sample must exist")
-                .mark_viewed()
+            for inst in &instances_in_collection {
+                self.instances[inst.instance_index].mark_viewed();
+            }
         }
 
         if samples.is_empty() {
