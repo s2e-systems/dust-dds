@@ -2093,6 +2093,116 @@ impl<'a> DynamicData<'a> {
 }
 
 #[cfg(feature = "xtypes-xml")]
+fn parse_f128_str(s: &str) -> Result<i128, ()> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err(());
+    }
+
+    let (is_negative, s) = if let Some(stripped) = s.strip_prefix('-') {
+        (true, stripped)
+    } else if let Some(stripped) = s.strip_prefix('+') {
+        (false, stripped)
+    } else {
+        (false, s)
+    };
+
+    let sign = if is_negative { 1_u128 } else { 0_u128 };
+
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        let val = u128::from_str_radix(hex, 16).map_err(|_| ())?;
+        return Ok(if is_negative {
+            ((1_u128 << 127) | val) as i128
+        } else {
+            val as i128
+        });
+    }
+
+    if s.eq_ignore_ascii_case("inf") || s.eq_ignore_ascii_case("infinity") {
+        return Ok(((sign << 127) | (0x7FFF_u128 << 112)) as i128);
+    }
+    if s.eq_ignore_ascii_case("nan") {
+        return Ok(((sign << 127) | (0x7FFF_u128 << 112) | (1_u128 << 111)) as i128);
+    }
+
+    let (int_s, frac_s_raw) = s.split_once('.').unwrap_or((s, ""));
+    let frac_s = frac_s_raw.trim_end_matches('0');
+
+    let int_val: u128 = if int_s.is_empty() {
+        0
+    } else {
+        int_s.parse().map_err(|_| ())?
+    };
+    let frac_val: u128 = if frac_s.is_empty() {
+        0
+    } else {
+        frac_s.parse().map_err(|_| ())?
+    };
+
+    if int_val == 0 && frac_val == 0 {
+        return Ok((sign << 127) as i128);
+    }
+
+    let denom: u128 = if frac_s.is_empty() {
+        1
+    } else {
+        10_u128.checked_pow(frac_s.len() as u32).ok_or(())?
+    };
+
+    let div_shift = |val: u128, shift: u32, denom: u128| -> (u128, u128) {
+        let s1 = shift.min(60);
+        let s2 = (shift - s1).min(60);
+        let s3 = shift - s1 - s2;
+        let q1 = (val << s1) / denom;
+        let r1 = (val << s1) % denom;
+        let q2 = (r1 << s2) / denom;
+        let r2 = (r1 << s2) % denom;
+        let q3 = (r2 << s3) / denom;
+        let r3 = (r2 << s3) % denom;
+        let q = (((q1 << s2) + q2) << s3) + q3;
+        (q, r3)
+    };
+
+    let (mut k, mut mantissa, rem) = if int_val > 0 {
+        let k = 127 - int_val.leading_zeros() as i32;
+        let shift = (112 - k) as u32;
+        let int_mantissa = int_val << shift;
+        let (frac_mantissa, rem) = if frac_val > 0 {
+            div_shift(frac_val, shift, denom)
+        } else {
+            (0, 0)
+        };
+        (k, int_mantissa + frac_mantissa, rem)
+    } else {
+        let q1 = (frac_val << 60) / denom;
+        let lz = if q1 > 0 {
+            q1.leading_zeros() as i32 - 68
+        } else {
+            let r1 = (frac_val << 60) % denom;
+            let q2 = (r1 << 60) / denom;
+            60 + (q2.leading_zeros() as i32 - 68)
+        };
+        let k = -(lz + 1);
+        let shift = (112 - k) as u32;
+        let (mantissa, rem) = div_shift(frac_val, shift, denom);
+        (k, mantissa, rem)
+    };
+
+    if rem * 2 > denom || (rem * 2 == denom && (mantissa & 1 == 1)) {
+        mantissa += 1;
+    }
+    if mantissa == (1_u128 << 113) {
+        mantissa = 1_u128 << 112;
+        k += 1;
+    }
+
+    let biased_exp = (k + 16383) as u128;
+    let frac = mantissa & ((1_u128 << 112) - 1);
+    let val = (sign << 127) | (biased_exp << 112) | frac;
+    Ok(val as i128)
+}
+
+#[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
     /// Deserializes data from an XML string into this `DynamicData` instance.
     pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
@@ -2203,6 +2313,8 @@ impl<'a> DynamicData<'a> {
             }
         };
 
+        let parse_float128 = parse_f128_str;
+
         match kind {
             TypeKind::BOOLEAN => {
                 let val = text == "true" || text == "1";
@@ -2249,13 +2361,8 @@ impl<'a> DynamicData<'a> {
                 Ok(DataStorage::Float64(val))
             }
             TypeKind::FLOAT128 => {
-                let val = text
-                    .parse::<f32>()
-                    .map_err(|_| XTypesError::InvalidData)?
-                    .to_be_bytes();
-                Ok(DataStorage::Float128(i128::from_be_bytes([
-                    val[3], val[2], val[1], val[0], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                ])))
+                let val = parse_float128(text).map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float128(val))
             }
             TypeKind::CHAR8 => {
                 let val = parse_uint(text)
@@ -2348,6 +2455,16 @@ impl<'a> DynamicData<'a> {
                             );
                         }
                         Ok(DataStorage::SequenceFloat64(vec))
+                    }
+                    TypeKind::FLOAT128 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            let val =
+                                parse_float128(item_text).map_err(|_| XTypesError::InvalidData)?;
+                            vec.push(val);
+                        }
+                        Ok(DataStorage::SequenceFloat128(vec))
                     }
                     TypeKind::BOOLEAN => {
                         let mut vec = Vec::new();

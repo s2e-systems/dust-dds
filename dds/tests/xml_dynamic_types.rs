@@ -505,6 +505,44 @@ fn struct_primitives_final_data_from_xml() {
 
 #[cfg(feature = "xtypes-xml")]
 #[test]
+fn struct_primitive_float128_data_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_PRIMITIVES,
+        "Test::struct_primitive_float128",
+        vec![],
+    )
+    .unwrap();
+
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty.clone());
+    d.from_xml("<struct_primitive_float128><x1>0.5</x1></struct_primitive_float128>")
+        .unwrap();
+
+    let expected_f128_half: i128 = 0x3ffe_0000_0000_0000_0000_0000_0000_0000_u128 as i128;
+    assert_eq!(d.get_float128_value(0).unwrap(), &expected_f128_half);
+    assert_eq!(
+        expected_f128_half.to_le_bytes(),
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xfe, 0x3f]
+    );
+
+    let mut d2 = DynamicDataFactory::create_data(ty);
+    d2.from_xml("<struct_primitive_float128><x1>12.300000</x1></struct_primitive_float128>")
+        .unwrap();
+
+    let expected_f128_12_3: i128 = 0x4002_8999_9999_9999_9999_9999_9999_999a_u128 as i128;
+    assert_eq!(d2.get_float128_value(0).unwrap(), &expected_f128_12_3);
+    assert_eq!(
+        expected_f128_12_3.to_le_bytes(),
+        [
+            0x9a, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x89,
+            0x02, 0x40
+        ]
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
 fn create_struct_primitives_appendable_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
