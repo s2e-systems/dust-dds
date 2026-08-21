@@ -220,6 +220,13 @@ impl TypeRegister {
         }
     }
 
+    pub fn get_pending_dependencies_type_id(&self) -> Option<TypeIdentifier> {
+        self.pending_lookups.iter().find_map(|p| match p {
+            TypeLookupPendingState::PendingDependencies(id) => Some(id.clone()),
+            _ => None,
+        })
+    }
+
     /// Pending lookups management
     pub fn is_dependencies_lookup_pending(&self, type_id: &TypeIdentifier) -> bool {
         self.pending_lookups.iter().any(|p| match p {

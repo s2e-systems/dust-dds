@@ -2093,7 +2093,9 @@ impl DcpsDomainParticipant {
                                     key: BuiltInTopicKey::default(),
                                     name: publication_builtin_topic_data.topic_name.clone(),
                                     type_name: publication_builtin_topic_data.type_name.clone(),
-                                    type_information: None,
+                                    type_information: publication_builtin_topic_data
+                                        .type_information
+                                        .clone(),
                                     durability: publication_builtin_topic_data.durability().clone(),
                                     deadline: publication_builtin_topic_data.deadline().clone(),
                                     latency_budget: publication_builtin_topic_data
@@ -2456,16 +2458,8 @@ impl DcpsDomainParticipant {
                             } => {
                                 let pending_id = self
                                     .domain_participant
-                                    .discovered_topic_list
-                                    .iter()
-                                    .filter_map(|t| t.type_information.as_ref())
-                                    .map(|ti| &ti.complete.typeid_with_size.type_id)
-                                    .find(|id| {
-                                        self.domain_participant
-                                            .type_register
-                                            .is_dependencies_lookup_pending(id)
-                                    })
-                                    .cloned();
+                                    .type_register
+                                    .get_pending_dependencies_type_id();
 
                                 if let Some(type_id) = pending_id {
                                     self.domain_participant
