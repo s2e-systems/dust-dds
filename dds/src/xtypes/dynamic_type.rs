@@ -884,23 +884,23 @@ impl<'a> DynamicType<'a> {
                 .descriptor
                 .element_type
                 .as_ref()
-                .map_or(false, |elem| elem.is_dependent_type()),
+                .is_some_and(|elem| elem.is_dependent_type()),
             TypeKind::ALIAS => self
                 .descriptor
                 .base_type
                 .as_ref()
-                .map_or(false, |base| base.is_dependent_type()),
+                .is_some_and(|base| base.is_dependent_type()),
             TypeKind::MAP => {
                 let key_dep = self
                     .descriptor
                     .key_element_type
                     .as_ref()
-                    .map_or(false, |k| k.is_dependent_type());
+                    .is_some_and(|k| k.is_dependent_type());
                 let val_dep = self
                     .descriptor
                     .element_type
                     .as_ref()
-                    .map_or(false, |v| v.is_dependent_type());
+                    .is_some_and(|v| v.is_dependent_type());
                 key_dep || val_dep
             }
             _ => false,
@@ -918,7 +918,7 @@ impl<'a> DynamicType<'a> {
                 .descriptor
                 .element_type
                 .as_ref()
-                .map_or(false, |elem| elem.is_dependent_type()),
+                .is_some_and(|elem| elem.is_dependent_type()),
             _ => false,
         }
     }

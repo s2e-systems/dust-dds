@@ -116,7 +116,7 @@ impl DcpsDomainParticipant {
             .type_register
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .ok_or_else(|| {
-                DdsError::PreconditionNotMet("Type not found in type register".to_string())
+                DdsError::PreconditionNotMet(String::from("Type not found in type register"))
             })
     }
 }

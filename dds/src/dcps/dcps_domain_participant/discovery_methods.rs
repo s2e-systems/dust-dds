@@ -989,9 +989,7 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(&[
-                                        discovered_type_id.clone(),
-                                    ]) {
+                                    } else if !type_register.is_types_lookup_pending(core::slice::from_ref(discovered_type_id)) {
                                         let type_request_writer = &mut builtin_publisher
                                             .type_lookup_request_writer;
 
@@ -1642,9 +1640,7 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(&[
-                                        discovered_type_id.clone(),
-                                    ]) {
+                                    } else if !type_register.is_types_lookup_pending(core::slice::from_ref(discovered_type_id)) {
                                         let type_request_writer = &mut builtin_publisher
                                             .type_lookup_request_writer;
 
@@ -2564,8 +2560,7 @@ impl DcpsDomainParticipant {
                                             .iter()
                                             .any(|dt| {
                                                 dt.name.value.as_str() == topic.topic_name.as_ref()
-                                                    && dt.type_information.as_ref().map_or(
-                                                        false,
+                                                    && dt.type_information.as_ref().is_some_and(
                                                         |ti| {
                                                             ti.complete.typeid_with_size.type_id
                                                                 == type_identifier_pair
@@ -2880,7 +2875,7 @@ impl DcpsDomainParticipant {
                         } else if !self
                             .domain_participant
                             .type_register
-                            .is_types_lookup_pending(&[discovered_type_id.clone()])
+                            .is_types_lookup_pending(core::slice::from_ref(discovered_type_id))
                         {
                             let type_request_writer = &mut self
                                 .domain_participant
