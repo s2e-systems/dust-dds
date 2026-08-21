@@ -3394,9 +3394,9 @@ fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> boo
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| p2.name.iter().any(|n| regex.is_match(n)))
-        {
-            return true;
-        }
+    {
+        return true;
+    }
     if p2_has_wildcard
         && p2
             .name
@@ -3404,9 +3404,9 @@ fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> boo
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
             .any(|regex| p1.name.iter().any(|n| regex.is_match(n)))
-        {
-            return true;
-        }
+    {
+        return true;
+    }
     false
 }
 
