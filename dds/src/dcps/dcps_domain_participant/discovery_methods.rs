@@ -896,7 +896,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => return,
+                                        DiscoveredTypeRepresentationState::Requested => continue,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -975,7 +975,7 @@ impl DcpsDomainParticipant {
                                             DiscoveredTypeRepresentationState::Requested,
                                         ));
                                     }
-                                    return;
+                                    continue;
                                 }
                             }
                             _ => {
@@ -1485,7 +1485,7 @@ impl DcpsDomainParticipant {
                                         .find(|(x, _)| x == discovered_type_information)
                                 {
                                     match &discovered_type_information.1 {
-                                        DiscoveredTypeRepresentationState::Requested => return,
+                                        DiscoveredTypeRepresentationState::Requested => continue,
                                         DiscoveredTypeRepresentationState::Discovered(
                                             type_object,
                                         ) => match &type_object {
@@ -1563,7 +1563,7 @@ impl DcpsDomainParticipant {
                                             DiscoveredTypeRepresentationState::Requested,
                                         ));
                                     }
-                                    return;
+                                    continue;
                                 }
                             }
                             _ => {

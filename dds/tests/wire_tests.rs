@@ -207,16 +207,13 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID
-            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1,
-            0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION
-            0x02, 0x04, 0x00, 0x00,
-            0x16, 0x00, 4, 0x00, // PID_VENDORID
-            73, 74, 0x00, 0x00,
-            0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
-            0x3f, 0x00, 0x00, 0x00,
-            0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
-            100, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1, 0x15, 0x00, 4,
+            0x00, // PID_PROTOCOL_VERSION
+            0x02, 0x04, 0x00, 0x00, 0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, 0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x3f, 0x00, 0x00, 0x00, 0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            100, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0x00, // PID_SENTINEL
         ]
         .into(),
     );
@@ -246,28 +243,29 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0x00, // PID_ENDPOINT_GUID
-            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0x04,
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID
-            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1,
-            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME (Topic1)
-            7, 0x00, 0x00, 0x00, b'T', b'o', b'p', b'i', b'c', b'1', 0, 0,
-            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME (LocalType1)
+            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0x04, 0x50, 0x00, 16,
+            0x00, // PID_PARTICIPANT_GUID
+            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1, 0x05, 0x00, 12,
+            0x00, // PID_TOPIC_NAME (Topic1)
+            7, 0x00, 0x00, 0x00, b'T', b'o', b'p', b'i', b'c', b'1', 0, 0, 0x07, 0x00, 16,
+            0x00, // PID_TYPE_NAME (LocalType1)
             11, 0x00, 0x00, 0x00, b'L', b'o', b'c', b'a', b'l', b'T', b'y', b'p', b'e', b'1', 0, 0,
             // PID_TYPE_INFORMATION: XCDR2 mutable struct TypeInformation with serialized_size > 0
-            0x75, 0x00, 76, 0x00,
-            72, 0x00, 0x00, 0x00, // DHEADER (72 bytes)
+            0x75, 0x00, 76, 0x00, 72, 0x00, 0x00, 0x00, // DHEADER (72 bytes)
             // minimal (id 0x1001, lc 4)
             0x01, 0x10, 0x00, 0x40, // emheader
             28, 0x00, 0x00, 0x00, // length
             100, 0x00, 0x00, 0x00, // typeobject_serialized_size = 100 > 0
-            0xf1, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, // type_id (EK_MINIMAL + 14-byte hash + pad)
+            0xf1, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+            0, // type_id (EK_MINIMAL + 14-byte hash + pad)
             0, 0, 0, 0, // dependent_typeid_count
             0, 0, 0, 0, // dependent_typeids len
             // complete (id 0x1002, lc 4)
             0x02, 0x10, 0x00, 0x40, // emheader
             28, 0x00, 0x00, 0x00, // length
             100, 0x00, 0x00, 0x00, // typeobject_serialized_size = 100 > 0
-            0xf2, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, // type_id (EK_COMPLETE + 14-byte hash + pad)
+            0xf2, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+            0, // type_id (EK_COMPLETE + 14-byte hash + pad)
             0, 0, 0, 0, // dependent_typeid_count
             0, 0, 0, 0, // dependent_typeids len
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
@@ -291,12 +289,12 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x5a, 0x00, 16, 0x00, // PID_ENDPOINT_GUID
-            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 2, 0x04,
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID
-            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1,
-            0x05, 0x00, 12, 0x00, // PID_TOPIC_NAME (Topic2)
-            7, 0x00, 0x00, 0x00, b'T', b'o', b'p', b'i', b'c', b'2', 0, 0,
-            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME (LocalType2)
+            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 2, 0x04, 0x50, 0x00, 16,
+            0x00, // PID_PARTICIPANT_GUID
+            8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1, 0x05, 0x00, 12,
+            0x00, // PID_TOPIC_NAME (Topic2)
+            7, 0x00, 0x00, 0x00, b'T', b'o', b'p', b'i', b'c', b'2', 0, 0, 0x07, 0x00, 16,
+            0x00, // PID_TYPE_NAME (LocalType2)
             11, 0x00, 0x00, 0x00, b'L', b'o', b'c', b'a', b'l', b'T', b'y', b'p', b'e', b'2', 0, 0,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ]
