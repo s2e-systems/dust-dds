@@ -2862,6 +2862,18 @@ impl CompleteTypeObject {
                     return false;
                 }
 
+                if type_consistency.prevent_type_widening {
+                    for m1 in &t1.member_seq {
+                        if !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
                 // • For any member "m2" in T2, if there is a member "m1" in T1 with the same member ID, then the type
                 //   KeyErased(m1.type) is-assignable-from the type KeyErased(m2.type).
                 let mut members_are_assignable = true;
@@ -3000,6 +3012,18 @@ impl CompleteTypeObject {
                     )
                 {
                     return false;
+                }
+
+                if type_consistency.prevent_type_widening {
+                    for m1 in &t1.member_seq {
+                        if !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                        {
+                            return false;
+                        }
+                    }
                 }
 
                 let mut members_are_assignable = true;

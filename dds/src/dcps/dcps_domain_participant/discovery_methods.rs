@@ -2683,11 +2683,40 @@ impl DcpsDomainParticipant {
                                                                     .ignore_member_names
                                                         })
                                             };
+                                        let prevent_type_widening =
+                                            if !local_has_readers && !discovered_has_readers {
+                                                false
+                                            } else {
+                                                self.domain_participant
+                                                    .user_defined_subscriber_list
+                                                    .iter()
+                                                    .flat_map(|s| s.data_reader_list.iter())
+                                                    .any(|dr| {
+                                                        dr.topic_name == topic.topic_name
+                                                            && dr
+                                                                .qos
+                                                                .type_consistency
+                                                                .prevent_type_widening
+                                                    })
+                                                    || self
+                                                        .domain_participant
+                                                        .discovered_reader_list
+                                                        .iter()
+                                                        .any(|dr| {
+                                                            dr.dds_subscription_data.topic_name()
+                                                                == topic.topic_name.as_ref()
+                                                                && dr
+                                                                    .dds_subscription_data
+                                                                    .type_consistency
+                                                                    .prevent_type_widening
+                                                        })
+                                            };
                                         let topic_type_consistency =
                                             TypeConsistencyEnforcementQosPolicy {
                                                 ignore_member_names,
                                                 ignore_sequence_bounds,
                                                 ignore_string_bounds,
+                                                prevent_type_widening,
                                                 ..TypeConsistencyEnforcementQosPolicy::const_default(
                                                 )
                                             };
