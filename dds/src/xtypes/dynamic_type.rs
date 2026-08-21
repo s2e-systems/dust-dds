@@ -386,7 +386,7 @@ impl DynamicTypeBuilderFactory {
             .attribute("bitBound")
             .and_then(|s| s.parse().ok())
             .unwrap_or(32);
-        let bound: &'static [u32] = if is_bitmask {
+        let bound: &'static [u32] = if is_bitmask || is_enum {
             Box::leak(vec![bit_bound].into_boxed_slice())
         } else {
             &[]

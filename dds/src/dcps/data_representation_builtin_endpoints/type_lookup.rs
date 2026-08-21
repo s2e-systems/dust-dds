@@ -72,7 +72,7 @@ pub struct TypeLookupGetTypeDependenciesOut {
 }
 
 #[derive(DdsType)]
-#[dust_dds(extensibility = "appendable", switch(i32))]
+#[dust_dds(switch(i32), extensibility = "appendable")]
 pub enum TypeLookupGetTypeDependenciesResult {
     #[dust_dds(case = 0)]
     Ok {

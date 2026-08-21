@@ -1943,11 +1943,12 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = MinimalEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = MinimalEnumeratedType {
                     enum_flags,
@@ -2050,8 +2051,9 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = CompleteEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                     detail: CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
@@ -2059,7 +2061,7 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                     },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = CompleteEnumeratedType {
                     enum_flags,
@@ -2241,9 +2243,14 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind,
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainSequenceSmall {
@@ -2273,9 +2280,14 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind,
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainArraySmall {
@@ -2341,6 +2353,47 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
             ann_custom: None,
         };
         CompleteStructMember { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for MinimalEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags: Default::default(),
+        };
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalEnumeratedLiteral { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags: Default::default(),
+        };
+        let detail = CompleteMemberDetail {
+            name: String::from(value.get_name()),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteEnumeratedLiteral { common, detail }
     }
 }
 
@@ -2457,6 +2510,46 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
+    /// 7.3.4.6.1 Fully-descriptive TypeIdentifiers
+    pub fn is_fully_descriptive(&self) -> bool {
+        match self {
+            TypeIdentifier::TkBoolean
+            | TypeIdentifier::TkByteType
+            | TypeIdentifier::TkInt8Type
+            | TypeIdentifier::TkInt16Type
+            | TypeIdentifier::TkInt32Type
+            | TypeIdentifier::TkInt64Type
+            | TypeIdentifier::TkUint8Type
+            | TypeIdentifier::TkUint16Type
+            | TypeIdentifier::TkUint32Type
+            | TypeIdentifier::TkUint64Type
+            | TypeIdentifier::TkFloat32Type
+            | TypeIdentifier::TkFloat64Type
+            | TypeIdentifier::TkFloat128Type
+            | TypeIdentifier::TkChar8Type
+            | TypeIdentifier::TkChar16Type
+            | TypeIdentifier::TiString8Small { .. }
+            | TypeIdentifier::TiString8Large { .. }
+            | TypeIdentifier::TiString16Small { .. }
+            | TypeIdentifier::TiString16Large { .. } => true,
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
+                seq_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
+                seq_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+                array_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn } => {
+                array_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainMapSmall { map_sdefn } => map_sdefn.header.equiv_kind == EK_BOTH,
+            TypeIdentifier::TiPlainMapLarge { map_ldefn } => map_ldefn.header.equiv_kind == EK_BOTH,
+            _ => false,
+        }
+    }
+
     /// 7.2.4.4 Assignability Rules
     pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
         self.is_assignable_from_w_type_consistency(
@@ -2957,8 +3050,8 @@ impl CompleteTypeObject {
 #[cfg(test)]
 mod tests {
     use crate::xtypes::{
-        deserializer::deserialize_top_level_type, serializer::serialize_without_header_cdr2_le,
-        type_support::BoundedString,
+        deserializer::deserialize_top_level_type, dynamic_type::TypeDescriptor,
+        serializer::serialize_without_header_cdr2_le, type_support::BoundedString,
     };
 
     use super::*;
@@ -3227,5 +3320,78 @@ mod tests {
         ];
 
         assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn test_sequence_and_array_type_identifier_equivalence_kind() {
+        use super::*;
+        use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
+
+        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
+            .build()
+            .unwrap();
+
+        // Sequence of primitive -> EK_BOTH
+        let seq_primitive_type = DynamicTypeBuilderFactory::create_sequence_type(int32_type, 10)
+            .build()
+            .unwrap();
+        let type_id = TypeIdentifier::from(&seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Sequence of sequence of primitive -> EK_BOTH
+        let seq_seq_primitive_type =
+            DynamicTypeBuilderFactory::create_sequence_type(seq_primitive_type, 5)
+                .build()
+                .unwrap();
+        let type_id = TypeIdentifier::from(&seq_seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Array of primitive -> EK_BOTH
+        let int32_type = DynamicTypeBuilderFactory::create_primitive_type(TypeKind::INT32)
+            .build()
+            .unwrap();
+        let array_primitive_type =
+            DynamicTypeBuilderFactory::create_array_type(int32_type, vec![10].leak())
+                .build()
+                .unwrap();
+        let type_id = TypeIdentifier::from(&array_primitive_type);
+        if let TypeIdentifier::TiPlainArraySmall { array_sdefn } = type_id {
+            assert_eq!(array_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainArraySmall");
+        }
+
+        // Sequence of struct -> EK_COMPLETE
+        let struct_type = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name: "MyStruct",
+            base_type: None,
+            discriminator_type: None,
+            bound: &[],
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+        })
+        .build()
+        .unwrap();
+
+        let seq_struct_type = DynamicTypeBuilderFactory::create_sequence_type(struct_type, 10)
+            .build()
+            .unwrap();
+        let type_id = TypeIdentifier::from(&seq_struct_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_COMPLETE);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
     }
 }
