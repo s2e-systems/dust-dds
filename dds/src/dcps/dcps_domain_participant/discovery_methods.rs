@@ -950,12 +950,13 @@ impl DcpsDomainParticipant {
                                             &type_lookup_request.create_dynamic_sample(),
                                         )
                                         .unwrap();
+                                        let now = runtime.clock().now();
                                         type_request_writer
                                             .write_w_timestamp(
                                                 sample_instance_handle,
                                                 serialized_data,
-                                                runtime.clock().now(),
-                                                runtime.clock().now(),
+                                                now,
+                                                now,
                                                 message_writer,
                                                 runtime,
                                             )
@@ -1537,12 +1538,13 @@ impl DcpsDomainParticipant {
                                             &type_lookup_request.create_dynamic_sample(),
                                         )
                                         .unwrap();
+                                        let now = runtime.clock().now();
                                         type_request_writer
                                             .write_w_timestamp(
                                                 sample_instance_handle,
                                                 serialized_data,
-                                                runtime.clock().now(),
-                                                runtime.clock().now(),
+                                                now,
+                                                now,
                                                 message_writer,
                                                 runtime,
                                             )
@@ -2237,12 +2239,13 @@ impl DcpsDomainParticipant {
                                             )
                                             .unwrap();
 
+                                            let now = runtime.clock().now();
                                             type_lookup_reply_writer
                                                 .write_w_timestamp(
                                                     InstanceHandle::default(),
                                                     serialized_data,
-                                                    runtime.clock().now(),
-                                                    runtime.clock().now(),
+                                                    now,
+                                                    now,
                                                     self.transport.message_writer.as_ref(),
                                                     runtime,
                                                 )
@@ -2551,12 +2554,13 @@ impl DcpsDomainParticipant {
                             let serialized_data =
                                 serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                     .unwrap();
+                            let now = runtime.clock().now();
                             type_request_writer
                                 .write_w_timestamp(
                                     sample_instance_handle,
                                     serialized_data,
-                                    runtime.clock().now(),
-                                    runtime.clock().now(),
+                                    now,
+                                    now,
                                     self.transport.message_writer.as_ref(),
                                     runtime,
                                 )

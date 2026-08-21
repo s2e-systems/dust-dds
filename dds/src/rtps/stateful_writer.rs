@@ -578,7 +578,6 @@ impl RtpsReaderProxy {
                 // Also the post-condition:
                 // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
                 // should be full-filled by next_requested_change()
-                let now = clock.now();
                 let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
                 let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
                 if let Some(cache_change) = changes.iter().find(|cc| {

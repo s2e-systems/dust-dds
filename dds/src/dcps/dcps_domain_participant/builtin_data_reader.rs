@@ -9,7 +9,6 @@ use crate::{
         },
     },
     infrastructure::{instance::InstanceHandle, qos::DataReaderQos, time::Time},
-    runtime::{Clock, DdsRuntime},
     transport::types::ChangeKind,
     xtypes::{deserializer::deserialize_top_level_type, type_support::Type},
 };
@@ -57,8 +56,11 @@ impl<R: RtpsReader, T: Type> BuiltinDataReader<R, T> {
         &mut self,
         discovered_participant_list: &mut [DiscoveredParticipantInfo],
         reception_timestamp: Time,
-        runtime: &impl DdsRuntime,
     ) {
+        if self.reader.transport_reader.changes_mut().is_empty() {
+            return;
+        }
+
         let changes = core::mem::take(self.reader.transport_reader.changes_mut());
         let data_reader_handle = &self.reader.instance_handle.clone();
         tracing::trace!(data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
@@ -68,7 +70,7 @@ impl<R: RtpsReader, T: Type> BuiltinDataReader<R, T> {
                 .iter_mut()
                 .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
             {
-                matched_participant.last_communication_timestamp = runtime.clock().now();
+                matched_participant.last_communication_timestamp = reception_timestamp;
             }
 
             let change_instance_handle = if let Some(i) = cache_change.instance_handle {

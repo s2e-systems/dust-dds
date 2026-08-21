@@ -320,10 +320,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
                 let now = domain_participant_factory.runtime.clock().now();
                 for dp in &mut domain_participant_factory.domain_participant_list {
-                    dp.process_builtin_cache_changes(&domain_participant_factory.runtime);
-                    dp.process_user_defined_received_cache_changes(
-                        &domain_participant_factory.runtime,
-                    );
+                    dp.process_builtin_cache_changes(now);
+                    dp.process_user_defined_received_cache_changes(now);
                     dp.process_discovered_participants_detector_cache_change(
                         &domain_participant_factory.runtime,
                     );
