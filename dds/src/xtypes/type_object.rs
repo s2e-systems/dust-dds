@@ -2340,6 +2340,53 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
 
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
+        fn is_dependent_type(dynamic_type: &DynamicType) -> bool {
+            match dynamic_type.get_kind() {
+                TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => true,
+                TypeKind::ARRAY | TypeKind::SEQUENCE => dynamic_type
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map_or(false, |elem| is_dependent_type(elem)),
+                TypeKind::ALIAS => dynamic_type
+                    .descriptor
+                    .base_type
+                    .as_ref()
+                    .map_or(false, |base| is_dependent_type(base)),
+                TypeKind::MAP => {
+                    let key_dep = dynamic_type
+                        .descriptor
+                        .key_element_type
+                        .as_ref()
+                        .map_or(false, |k| is_dependent_type(k));
+                    let val_dep = dynamic_type
+                        .descriptor
+                        .element_type
+                        .as_ref()
+                        .map_or(false, |v| is_dependent_type(v));
+                    key_dep || val_dep
+                }
+                _ => false,
+            }
+        }
+
+        fn has_dependencies(dynamic_type: &DynamicType) -> bool {
+            match dynamic_type.get_kind() {
+                TypeKind::STRUCTURE | TypeKind::UNION => dynamic_type
+                    .member_list
+                    .iter()
+                    .any(|m| is_dependent_type(&m.descriptor.r#type)),
+                TypeKind::ARRAY | TypeKind::SEQUENCE => dynamic_type
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map_or(false, |elem| is_dependent_type(elem)),
+                _ => false,
+            }
+        }
+
+        let dependent_typeid_count = if has_dependencies(&value) { -1 } else { 0 };
+
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
@@ -2381,7 +2428,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count: 0,
+                dependent_typeid_count,
                 dependent_typeids: Vec::new(),
             },
             complete: TypeIdentifierWithDependencies {
@@ -2406,7 +2453,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_complete_type_object.len() as u32,
                 },
-                dependent_typeid_count: 0,
+                dependent_typeid_count,
                 dependent_typeids: Vec::new(),
             },
         }
@@ -2942,6 +2989,8 @@ mod tests {
         }
 
         let type_information = TypeInformation::from(ShapeType::get_type());
+        assert_eq!(type_information.complete.dependent_typeid_count, 0);
+        assert_eq!(type_information.minimal.dependent_typeid_count, 0);
         assert_eq!(
             type_information
                 .complete
@@ -2958,6 +3007,43 @@ mod tests {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn type_information_with_dependencies() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        enum Status {
+            Active,
+            Inactive,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct StructWithEnum {
+            id: u32,
+            status: Status,
+        }
+
+        let type_info = TypeInformation::from(StructWithEnum::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct StructWithArrayOfEnum {
+            statuses: [Status; 3],
+        }
+
+        let type_info = TypeInformation::from(StructWithArrayOfEnum::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct NestedStruct {
+            nested: StructWithEnum,
+        }
+
+        let type_info = TypeInformation::from(NestedStruct::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
     }
 
     #[test]
