@@ -279,12 +279,14 @@ impl DynamicTypeBuilderFactory {
         let is_enum = target_node.tag_name().name() == "enum";
         let is_bitmask = target_node.tag_name().name() == "bitmask";
 
-        let ext_str = target_node.attribute("extensibility").unwrap_or("final");
+        let ext_str = target_node
+            .attribute("extensibility")
+            .unwrap_or("appendable");
         let extensibility_kind = match ext_str {
             "final" => ExtensibilityKind::Final,
             "appendable" => ExtensibilityKind::Appendable,
             "mutable" => ExtensibilityKind::Mutable,
-            _ => ExtensibilityKind::Final,
+            _ => ExtensibilityKind::Appendable,
         };
 
         let parse_type_kind = |m_type: &str| -> XTypesResult<TypeKind> {

@@ -616,6 +616,10 @@ fn create_union_primitives_final_from_xml() {
 
     assert_eq!(ty.get_kind(), TypeKind::UNION);
     assert_eq!(
+        ty.get_descriptor().extensibility_kind,
+        ExtensibilityKind::Appendable
+    );
+    assert_eq!(
         ty.get_descriptor().discriminator_type.unwrap().get_kind(),
         TypeKind::UINT8
     );

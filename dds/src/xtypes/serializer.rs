@@ -2498,7 +2498,8 @@ mod tests {
         assert_eq!(
             serialize_cdr2_be(&data).unwrap(),
             vec![
-                0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                0x00, 0x08, 0x00, 0x00, // CDR2_BE DELIMITED
+                0, 0, 0, 88, // DHEADER
                 0, 0, 0, 1, // discriminant (u32)
                 0, 0, 0, 20, // Length
                 0, 0, 0, 1, // i32

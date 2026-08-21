@@ -214,7 +214,7 @@ pub const MEMBER_FLAG_IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructM
 /// Flag indicating the member is optional.
 pub const MEMBER_FLAG_IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
 /// Flag indicating the member must be understood by the reader.
-pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
+pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember, UnionDiscriminator
 /// Flag indicating the member is part of the type's key.
 pub const MEMBER_FLAG_IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
 /// Flag indicating the member is the default member (e.g. for unions).
@@ -228,7 +228,7 @@ pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
 /// Flags that apply to union members.
 pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
 /// Flags that apply to union discriminator.
-pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
+pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K, M
 /// Flags that apply to enumerated literals.
 pub type EnumeratedLiteralFlag = MemberFlag; // D
 /// Flags that apply to annotation parameters.
@@ -1978,6 +1978,9 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                         if d.descriptor.is_key {
                             member_flags |= MEMBER_FLAG_IS_KEY;
                         }
+                        if d.descriptor.is_must_understand {
+                            member_flags |= MEMBER_FLAG_IS_MUST_UNDERSTAND;
+                        }
                         MinimalDiscriminatorMember {
                             common: CommonDiscriminatorMember {
                                 member_flags,
@@ -2113,6 +2116,9 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                         let mut member_flags = MemberFlag::from(d.descriptor.try_construct_kind);
                         if d.descriptor.is_key {
                             member_flags |= MEMBER_FLAG_IS_KEY;
+                        }
+                        if d.descriptor.is_must_understand {
+                            member_flags |= MEMBER_FLAG_IS_MUST_UNDERSTAND;
                         }
                         CompleteDiscriminatorMember {
                             common: CommonDiscriminatorMember {
@@ -3501,6 +3507,39 @@ mod tests {
             assert_eq!(seq_sdefn.header.equiv_kind, EK_COMPLETE);
         } else {
             panic!("Expected TiPlainSequenceSmall");
+        }
+    }
+
+    #[test]
+    fn test_union_discriminator_is_must_understand() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        #[dust_dds(switch(i32))]
+        enum TestUnion {
+            #[dust_dds(case = 1)]
+            A(i32),
+        }
+
+        let minimal_obj = MinimalTypeObject::from(TestUnion::TYPE);
+        if let MinimalTypeObject::TkUnion { union_type } = minimal_obj {
+            assert_ne!(
+                union_type.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0,
+                0
+            );
+        } else {
+            panic!("Expected TkUnion");
+        }
+
+        let complete_obj = CompleteTypeObject::from(TestUnion::TYPE);
+        if let CompleteTypeObject::TkUnion { union_type } = complete_obj {
+            assert_ne!(
+                union_type.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0,
+                0
+            );
+        } else {
+            panic!("Expected TkUnion");
         }
     }
 }
