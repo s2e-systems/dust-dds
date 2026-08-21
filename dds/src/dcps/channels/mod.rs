@@ -1,3 +1,4 @@
+pub mod async_mutex;
 pub mod mpsc;
 pub mod notification;
-pub mod oneshot;
+pub mod shared_reply;

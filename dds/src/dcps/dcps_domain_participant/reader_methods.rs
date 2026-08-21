@@ -6,7 +6,7 @@ use crate::{
         PublicationBuiltinTopicData,
     },
     dcps::{
-        channels::oneshot::OneshotSender,
+        channels::notification::NotificationSender,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
@@ -523,31 +523,27 @@ impl DcpsDomainParticipant {
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-        notify_sender: OneshotSender<DdsResult<()>>,
-    ) {
-        let Some(subscriber) = self
+        notify_sender: NotificationSender,
+    ) -> DdsResult<()> {
+        let subscriber = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
             .find(|x| &x.instance_handle == subscriber_handle)
-        else {
-            return notify_sender.send(Err(DdsError::AlreadyDeleted));
-        };
+            .ok_or(DdsError::AlreadyDeleted)?;
 
-        let Some(data_reader) = subscriber
+        let data_reader = subscriber
             .data_reader_list
             .iter_mut()
             .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return notify_sender.send(Err(DdsError::AlreadyDeleted));
-        };
+            .ok_or(DdsError::AlreadyDeleted)?;
         if !data_reader.enabled {
-            return notify_sender.send(Err(DdsError::NotEnabled));
+            return Err(DdsError::NotEnabled);
         }
 
         match data_reader.qos.durability.kind {
             DurabilityQosPolicyKind::Volatile => {
-                return notify_sender.send(Err(DdsError::IllegalOperation));
+                return Err(DdsError::IllegalOperation);
             }
             DurabilityQosPolicyKind::TransientLocal
             | DurabilityQosPolicyKind::Transient
@@ -555,12 +551,13 @@ impl DcpsDomainParticipant {
         }
 
         if data_reader.transport_reader.is_historical_data_received() {
-            notify_sender.send(Ok(()));
+            notify_sender.notify();
         } else {
             data_reader
                 .wait_for_historical_data_notification
                 .push(notify_sender);
         }
+        Ok(())
     }
 
     #[tracing::instrument(skip(self, runtime))]

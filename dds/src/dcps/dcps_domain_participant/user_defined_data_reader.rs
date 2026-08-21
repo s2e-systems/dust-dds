@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::OneshotSender},
+        channels::{mpsc::MpscSender, notification::NotificationSender},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
@@ -34,7 +34,7 @@ pub struct UserDefinedDataReader {
     pub sample_rejected_status: SampleRejectedStatus,
     pub subscription_matched_status: SubscriptionMatchedStatus,
     pub incompatible_writer_list: Vec<InstanceHandle>,
-    pub wait_for_historical_data_notification: Vec<OneshotSender<DdsResult<()>>>,
+    pub wait_for_historical_data_notification: Vec<NotificationSender>,
 }
 
 impl Deref for UserDefinedDataReader {

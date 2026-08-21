@@ -5,7 +5,6 @@ use super::{
 };
 use crate::{
     dcps::{
-        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, SubscriberServiceMail},
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -54,9 +53,9 @@ impl SubscriberAsync {
         mask: &[StatusKind],
     ) -> DdsResult<DataReaderAsync<Foo>> {
         let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Subscriber(
+        let reply = self
+            .dcps_sender()
+            .request(DcpsMail::Subscriber(
                 SubscriberServiceMail::CreateDataReader {
                     participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
@@ -64,11 +63,10 @@ impl SubscriberAsync {
                     qos,
                     dcps_listener,
                     listener_mask: mask.iter().collect(),
-                    reply_sender,
                 },
             ))
-            .await;
-        let guid = reply_receiver.await??;
+            .await?;
+        let guid = reply.into_instance_handle()?;
 
         Ok(DataReaderAsync::new(
             guid,
@@ -84,18 +82,16 @@ impl SubscriberAsync {
         &self,
         a_datareader: &DataReaderAsync<Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Subscriber(
+            .request(DcpsMail::Subscriber(
                 SubscriberServiceMail::DeleteDataReader {
                     participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     datareader_handle: a_datareader.get_instance_handle(),
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .into_unit()
     }
 
     /// Async version of [`lookup_datareader`](crate::subscription::subscriber::Subscriber::lookup_datareader).
@@ -105,18 +101,17 @@ impl SubscriberAsync {
         topic_name: &str,
     ) -> DdsResult<Option<DataReaderAsync<Foo>>> {
         if let Some(topic) = self.participant.lookup_topicdescription(topic_name).await? {
-            let (reply_sender, reply_receiver) = oneshot();
-            self.dcps_sender()
-                .send(DcpsMail::Subscriber(
+            let reply = self
+                .dcps_sender()
+                .request(DcpsMail::Subscriber(
                     SubscriberServiceMail::LookupDataReader {
                         participant_handle: self.participant.get_instance_handle(),
                         subscriber_handle: self.handle,
                         topic_name: String::from(topic_name),
-                        reply_sender,
                     },
                 ))
-                .await;
-            if let Some(reader_handle) = reply_receiver.await?? {
+                .await?;
+            if let Some(reader_handle) = reply.into_instance_handle_dds_opt()? {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
                     self.clone(),
@@ -158,35 +153,31 @@ impl SubscriberAsync {
     /// Async version of [`set_default_datareader_qos`](crate::subscription::subscriber::Subscriber::set_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Subscriber(
+            .request(DcpsMail::Subscriber(
                 SubscriberServiceMail::SetDefaultDataReaderQos {
                     participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
                     qos,
-                    reply_sender,
                 },
             ))
-            .await;
-
-        reply_receiver.await?
+            .await?
+            .into_unit()
     }
 
     /// Async version of [`get_default_datareader_qos`](crate::subscription::subscriber::Subscriber::get_default_datareader_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Subscriber(
+        let reply = self
+            .dcps_sender()
+            .request(DcpsMail::Subscriber(
                 SubscriberServiceMail::GetDefaultDataReaderQos {
                     participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?;
+        reply.into_data_reader_qos()
     }
 
     /// Async version of [`copy_from_topic_qos`](crate::subscription::subscriber::Subscriber::copy_from_topic_qos).
@@ -197,36 +188,35 @@ impl SubscriberAsync {
     ) -> DdsResult<()> {
         todo!()
     }
+}
 
+impl SubscriberAsync {
     /// Async version of [`set_qos`](crate::subscription::subscriber::Subscriber::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Subscriber(SubscriberServiceMail::SetQos {
+            .request(DcpsMail::Subscriber(SubscriberServiceMail::SetQos {
                 participant_handle: self.participant.get_instance_handle(),
                 subscriber_handle: self.handle,
                 qos,
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .into_unit()
     }
 
     /// Async version of [`get_qos`](crate::subscription::subscriber::Subscriber::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Subscriber(
+        let reply = self
+            .dcps_sender()
+            .request(DcpsMail::Subscriber(
                 SubscriberServiceMail::GetSubscriberQos {
                     participant_handle: self.participant.get_instance_handle(),
                     subscriber_handle: self.handle,
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?;
+        reply.into_subscriber_qos()
     }
 
     /// Async version of [`set_listener`](crate::subscription::subscriber::Subscriber::set_listener).
@@ -236,18 +226,16 @@ impl SubscriberAsync {
         a_listener: Option<impl SubscriberListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(|l| DcpsSubscriberListener::new(l));
         self.dcps_sender()
-            .send(DcpsMail::Subscriber(SubscriberServiceMail::SetListener {
+            .request(DcpsMail::Subscriber(SubscriberServiceMail::SetListener {
                 participant_handle: self.participant.get_instance_handle(),
                 subscriber_handle: self.handle,
                 dcps_listener,
                 listener_mask: mask.iter().collect(),
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .into_unit()
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).

@@ -503,7 +503,7 @@ impl DcpsDomainParticipant {
                                 .is_some()
                             {
                                 if let Some(x) = dw.acknowledgement_notification.take() {
-                                    x.send(());
+                                    x.notify();
                                 }
 
                                 if dw
@@ -511,7 +511,7 @@ impl DcpsDomainParticipant {
                                     .is_change_acknowledged(dw.last_change_sequence_number)
                                 {
                                     for n in dw.wait_for_acknowledgments_notification.drain(..) {
-                                        n.send(Ok(()));
+                                        n.notify();
                                     }
                                 }
                             }
@@ -662,7 +662,7 @@ impl DcpsDomainParticipant {
 
                 if dr.transport_reader.is_historical_data_received() {
                     for n in dr.wait_for_historical_data_notification.drain(..) {
-                        n.send(Ok(()));
+                        n.notify();
                     }
                 }
             }

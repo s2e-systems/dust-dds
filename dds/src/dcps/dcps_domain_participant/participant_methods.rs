@@ -8,11 +8,8 @@ use alloc::{
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps::{
-        channels::oneshot::OneshotSender,
         dcps_domain_participant::{
-            participant_entity::{
-                BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant, FindTopicNotification,
-            },
+            participant_entity::{BUILT_IN_TOPIC_NAME_LIST, DcpsDomainParticipant},
             topic_entity::{ContentFilteredTopicEntity, TopicEntity, get_topic_type_support},
             user_defined_publisher::PublisherEntity,
             user_defined_subscriber::UserDefinedSubscriber,
@@ -414,32 +411,16 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, type_support, reply_sender))]
+    #[tracing::instrument(skip(self, type_support))]
     pub fn find_topic(
         &mut self,
         topic_name: String,
         type_support: DynamicType<'static>,
-        timeout: Duration,
-        now: Time,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
-    ) {
-        let found_topic = self
-            .domain_participant
-            .find_topic(&topic_name, type_support);
-        if let Some(t) = found_topic {
-            reply_sender.send(Ok(t));
-        } else if timeout > Duration::new(0, 0) {
-            self.domain_participant
-                .find_topic_sender_list
-                .push(FindTopicNotification {
-                    topic_name,
-                    deadline: now + timeout,
-                    type_support,
-                    reply_sender,
-                });
-        } else {
-            reply_sender.send(Err(DdsError::Timeout));
-        }
+        _timeout: Duration,
+    ) -> DdsResult<(InstanceHandle, String)> {
+        self.domain_participant
+            .find_topic(&topic_name, type_support)
+            .ok_or(DdsError::Timeout)
     }
 
     #[tracing::instrument(skip(self))]

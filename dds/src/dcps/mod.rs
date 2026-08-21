@@ -3,6 +3,7 @@ pub mod dcps_domain_participant;
 pub mod dcps_mail;
 pub mod dcps_mail_handler;
 pub mod dcps_participant_factory;
+pub mod dcps_reply;
 pub mod listeners;
 pub mod status_condition;
 pub mod status_mask;

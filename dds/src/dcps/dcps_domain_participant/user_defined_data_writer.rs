@@ -1,19 +1,18 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::OneshotSender},
-        dcps_domain_participant::data_writer_entity::{
-            DataWriterEntity, IncompatibleSubscriptions,
-        },
+        channels::{mpsc::MpscSender, notification::NotificationSender},
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
     },
     infrastructure::{
-        error::DdsResult,
         instance::InstanceHandle,
         qos::DataWriterQos,
-        status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
+        status::{
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            StatusKind,
+        },
         time::Time,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
@@ -22,10 +21,12 @@ use crate::{
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
+use super::data_writer_entity::{DataWriterEntity, IncompatibleSubscriptions};
+
 pub struct PendingWriteSample {
     pub dynamic_data: DynamicData<'static>,
     pub timestamp: Time,
-    pub reply_sender: OneshotSender<DdsResult<()>>,
+    pub reply_sender: NotificationSender,
     pub expiration_time: Option<Time>,
 }
 
@@ -37,18 +38,20 @@ pub struct UserDefinedDataWriter {
     pub matched_subscription_list: Vec<SubscriptionBuiltinTopicData>,
     pub publication_matched_status: PublicationMatchedStatus,
     pub incompatible_subscriptions: IncompatibleSubscriptions,
+    pub _offered_incompatible_qos_status: OfferedIncompatibleQosStatus,
     pub offered_deadline_missed_status: OfferedDeadlineMissedStatus,
     /// Member used for notifying reliable writers which are waiting to send
     /// their samples without losing data
-    pub acknowledgement_notification: Option<OneshotSender<()>>,
+    pub acknowledgement_notification: Option<NotificationSender>,
     /// Member used to notify the external user which called the
     /// wait_for_acknowledgments method
-    pub wait_for_acknowledgments_notification: Vec<OneshotSender<DdsResult<()>>>,
+    pub wait_for_acknowledgments_notification: Vec<NotificationSender>,
     pub pending_write_sample: Option<PendingWriteSample>,
 }
 
 impl Deref for UserDefinedDataWriter {
     type Target = DataWriterEntity<RtpsStatefulWriter>;
+
     fn deref(&self) -> &Self::Target {
         &self.writer
     }
@@ -78,6 +81,7 @@ impl UserDefinedDataWriter {
             matched_subscription_list: Vec::new(),
             publication_matched_status: PublicationMatchedStatus::const_default(),
             incompatible_subscriptions: IncompatibleSubscriptions::default(),
+            _offered_incompatible_qos_status: OfferedIncompatibleQosStatus::default(),
             offered_deadline_missed_status: OfferedDeadlineMissedStatus::const_default(),
             acknowledgement_notification: None,
             wait_for_acknowledgments_notification: Vec::new(),

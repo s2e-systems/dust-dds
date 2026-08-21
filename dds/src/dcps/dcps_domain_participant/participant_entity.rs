@@ -12,7 +12,7 @@ use crate::{
         ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
-        channels::{mpsc::MpscSender, oneshot::OneshotSender},
+        channels::mpsc::MpscSender,
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_writer_data::DiscoveredWriterData,
@@ -24,7 +24,6 @@ use crate::{
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
-        error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         time::{Duration, DurationKind, Time},
@@ -253,13 +252,6 @@ pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
     TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];
 
-pub struct FindTopicNotification {
-    pub topic_name: String,
-    pub deadline: Time,
-    pub type_support: DynamicType<'static>,
-    pub reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
-}
-
 pub struct DomainParticipantEntity {
     pub domain_id: DomainId,
     pub domain_tag: String,
@@ -286,7 +278,6 @@ pub struct DomainParticipantEntity {
     pub _ignored_topic_list: BTreeSet<InstanceHandle>,
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
-    pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
     pub participant_announcement_interval: Duration,
 }
@@ -330,7 +321,6 @@ impl DomainParticipantEntity {
             listener_sender,
             listener_mask,
             domain_tag,
-            find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
             participant_announcement_interval,
         }

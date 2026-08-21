@@ -3,7 +3,7 @@ use alloc::{string::String, vec::Vec};
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps::{
-        channels::oneshot::OneshotSender,
+        channels::notification::{NotificationReceiver, NotificationSender, notification},
         dcps_domain_participant::{
             data_writer_entity::serialize, participant_entity::DcpsDomainParticipant,
             user_defined_data_writer::PendingWriteSample,
@@ -295,7 +295,7 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, reply_sender, runtime))]
+    #[tracing::instrument(skip(self, runtime))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -303,56 +303,29 @@ impl DcpsDomainParticipant {
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         runtime: &impl DdsRuntime,
-        reply_sender: OneshotSender<DdsResult<()>>,
-    ) {
+    ) -> DdsResult<Option<NotificationReceiver>> {
         let now = runtime.clock().now();
-        let Some(publisher) = self
+        let publisher = self
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
             .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
-        let Some(data_writer) = publisher
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let data_writer = publisher
             .data_writer_list
             .iter_mut()
             .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            reply_sender.send(Err(DdsError::AlreadyDeleted));
-            return;
-        };
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         if !data_writer.enabled {
-            reply_sender.send(Err(DdsError::NotEnabled));
-            return;
+            return Err(DdsError::NotEnabled);
         }
 
-        let serialized_data = match serialize(dynamic_data, &data_writer.qos.representation) {
-            Ok(s) => s,
-            Err(e) => {
-                reply_sender.send(Err(e));
-                return;
-            }
-        };
+        let serialized_data = serialize(dynamic_data, &data_writer.qos.representation)?;
 
         let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
-        {
-            Ok(h) => h,
-            Err(e) => {
-                reply_sender.send(Err(e.into()));
-                return;
-            }
-        };
-        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
-            Ok(h) => h,
-            Err(e) => {
-                reply_sender.send(Err(e.into()));
-                return;
-            }
-        };
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
 
         if let HistoryQosPolicyKind::KeepLast(depth) = data_writer.qos.history.kind {
             let smallest_seq_num_instance = data_writer
@@ -374,22 +347,22 @@ impl DcpsDomainParticipant {
                         .is_change_acknowledged(smallest_seq_num_instance)
                 {
                     if data_writer.pending_write_sample.is_some() {
-                        reply_sender.send(Err(DdsError::Error(String::from(
+                        return Err(DdsError::Error(String::from(
                             "Another writer already waiting for acknowledgements.",
-                        ))));
-                        return;
+                        )));
                     }
                     let expiration_time = match data_writer.qos.reliability.max_blocking_time {
                         DurationKind::Finite(t) => Some(now + t),
                         DurationKind::Infinite => None,
                     };
+                    let (notification_sender, notification_receiver) = notification();
                     data_writer.pending_write_sample = Some(PendingWriteSample {
                         dynamic_data: dynamic_data.clone(),
                         timestamp,
-                        reply_sender,
+                        reply_sender: notification_sender,
                         expiration_time,
                     });
-                    return;
+                    return Ok(Some(notification_receiver));
                 }
 
                 if let Some(s) = data_writer
@@ -406,20 +379,16 @@ impl DcpsDomainParticipant {
             }
         }
 
-        let write_result = data_writer.write_w_timestamp(
+        data_writer.write_w_timestamp(
             instance_handle,
             serialized_data,
             timestamp,
             now,
             self.transport.message_writer.as_ref(),
             runtime,
-        );
-        if write_result.is_err() {
-            reply_sender.send(write_result);
-            return;
-        }
+        )?;
 
-        reply_sender.send(Ok(()));
+        Ok(None)
     }
 
     #[tracing::instrument(skip(self, runtime))]
@@ -565,35 +534,32 @@ impl DcpsDomainParticipant {
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        notify_sender: OneshotSender<DdsResult<()>>,
-    ) {
-        let Some(publisher) = self
+        notify_sender: NotificationSender,
+    ) -> DdsResult<()> {
+        let publisher = self
             .domain_participant
             .user_defined_publisher_list
             .iter_mut()
             .find(|x| &x.instance_handle == publisher_handle)
-        else {
-            return notify_sender.send(Err(DdsError::AlreadyDeleted));
-        };
+            .ok_or(DdsError::AlreadyDeleted)?;
 
-        let Some(data_writer) = publisher
+        let data_writer = publisher
             .data_writer_list
             .iter_mut()
             .find(|x| &x.instance_handle == data_writer_handle)
-        else {
-            return notify_sender.send(Err(DdsError::AlreadyDeleted));
-        };
+            .ok_or(DdsError::AlreadyDeleted)?;
 
         if data_writer
             .transport_writer
             .is_change_acknowledged(data_writer.last_change_sequence_number)
         {
-            notify_sender.send(Ok(()));
+            notify_sender.notify();
         } else {
             data_writer
                 .wait_for_acknowledgments_notification
                 .push(notify_sender);
         }
+        Ok(())
     }
 
     pub fn process_pending_write_samples(&mut self, runtime: &impl DdsRuntime) {
@@ -650,8 +616,8 @@ impl DcpsDomainParticipant {
                             match serialize(&pending.dynamic_data, &data_writer.qos.representation)
                             {
                                 Ok(s) => s,
-                                Err(e) => {
-                                    pending.reply_sender.send(Err(e));
+                                Err(_) => {
+                                    pending.reply_sender.notify();
                                     continue;
                                 }
                             };
@@ -673,7 +639,7 @@ impl DcpsDomainParticipant {
                             }
                         }
 
-                        let write_result = data_writer.write_w_timestamp(
+                        let _ = data_writer.write_w_timestamp(
                             instance_handle,
                             serialized_data,
                             pending.timestamp,
@@ -681,11 +647,7 @@ impl DcpsDomainParticipant {
                             self.transport.message_writer.as_ref(),
                             runtime,
                         );
-                        if write_result.is_err() {
-                            pending.reply_sender.send(write_result);
-                        } else {
-                            pending.reply_sender.send(Ok(()));
-                        }
+                        pending.reply_sender.notify();
                     }
                 }
             }
@@ -699,7 +661,7 @@ impl DcpsDomainParticipant {
                     if let Some(expiration_time) = pending.expiration_time {
                         if now >= expiration_time {
                             let pending = data_writer.pending_write_sample.take().unwrap();
-                            pending.reply_sender.send(Err(DdsError::Timeout));
+                            pending.reply_sender.notify();
                         }
                     }
                 }
