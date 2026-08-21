@@ -2417,7 +2417,7 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
     let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
     data.from_xml(
         "<wstring_unbounded>
-            <x1>Hello world</x1>
+            <x1>ҥėŀľｏ ｔһｅⲅȇ.</x1>
         </wstring_unbounded>",
     )
     .unwrap();
@@ -2428,7 +2428,7 @@ fn xtypes_v2_string_test_suite_wstring_wstring() {
         .unwrap();
 
     let sample = reader.read_next_sample().unwrap().data.unwrap();
-    assert_eq!(sample.get_string_value(0).unwrap(), "Hello world");
+    assert_eq!(sample.get_string_value(0).unwrap(), "ҥėŀľｏ ｔһｅⲅȇ.");
 }
 
 /// 'struct_final_appendable': {

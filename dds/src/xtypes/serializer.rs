@@ -403,13 +403,18 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.writer.write_byte(0);
     }
 
+    /// Serialization Rule (4)
+    ///
+    /// XCDR << {O : WSTRING_TYPE} =
+    ///            XCDR
+    ///              << { O.ssize : UInt32 }
+    ///              << { O[i] : Wchar }*
     fn serialize_wstring_type(&mut self, v: &str) {
         let utf16_units: Vec<u16> = v.encode_utf16().collect();
-        self.serialize_primitive_type(&(utf16_units.len() as u32 + 1));
+        self.serialize_primitive_type(&((utf16_units.len() * 2) as u32));
         for unit in utf16_units {
             self.serialize_primitive_type(&unit);
         }
-        self.serialize_primitive_type(&0u16);
     }
 
     /// Serialization Rule (5)
@@ -2522,6 +2527,58 @@ mod tests {
                 0, 0, 0, 18, // i32
                 0, 0, 0, 19, // i32
                 0, 0, 0, 20, // i32
+            ]
+        );
+    }
+
+    #[cfg(feature = "xtypes-xml")]
+    #[test]
+    fn serialize_wstring() {
+        use crate::xtypes::dynamic_type;
+
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <struct name="wstring_unbounded" extensibility="final">
+                        <member name="x1" type="wstring" />
+                    </struct>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let dynamic_type = dynamic_type::DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::wstring_unbounded",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut data = dynamic_type::DynamicDataFactory::create_data(dynamic_type);
+        data.from_xml(
+            "<wstring_unbounded>
+                <x1>ҥėŀľｏ ｔһｅⲅȇ.</x1>
+            </wstring_unbounded>",
+        )
+        .unwrap();
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x07, 0x00, 0x00, // CDR2_LE PLAIN
+                24, 0, 0, 0, // length in octets (24 = 12 UTF-16 units * 2)
+                0xA5, 0x04, // ҥ
+                0x17, 0x01, // ė
+                0x40, 0x01, // ŀ
+                0x3E, 0x01, // ľ
+                0x4F, 0xFF, // ｏ
+                0x20, 0x00, // ' '
+                0x54, 0xFF, // ｔ
+                0xBB, 0x04, // һ
+                0x45, 0xFF, // ｅ
+                0x85, 0x2C, // ⲅ
+                0x07, 0x02, // ȇ
+                0x2E, 0x00, // .
             ]
         );
     }

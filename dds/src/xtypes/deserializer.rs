@@ -966,20 +966,23 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         String::from_utf8(values).map_err(|_| XTypesError::InvalidData)
     }
 
+    /// (4) XCDR << {O : WSTRING_TYPE} =
+    ///              XCDR
+    ///                << { O.ssize : UInt32 }
+    ///                << { O[i] : Wchar }*
     fn deserialize_wstring_type(&mut self) -> XTypesResult<String> {
         let length = self.deserialize_primitive_type::<u32>()?;
         if length == 0 {
             return Ok(String::new());
         }
-        let num_units = length.saturating_sub(1) as usize;
+        if length % 2 != 0 {
+            return Err(XTypesError::InvalidData);
+        }
+        let num_units = (length / 2) as usize;
         let mut units = Vec::with_capacity(num_units);
         for _ in 0..num_units {
             let unit = self.deserialize_primitive_type::<u16>()?;
             units.push(unit);
-        }
-        let nul_unit = self.deserialize_primitive_type::<u16>()?;
-        if nul_unit != 0 {
-            return Err(XTypesError::InvalidData);
         }
         String::from_utf16(&units).map_err(|_| XTypesError::InvalidData)
     }
@@ -2435,5 +2438,48 @@ mod tests {
 
         let deserialized = deserialize_top_level_type(dynamic_type, &cdr_bytes).unwrap();
         assert_eq!(deserialized, expected);
+    }
+
+    #[cfg(feature = "xtypes-xml")]
+    #[test]
+    fn deserialize_wstring() {
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <struct name="wstring_unbounded" extensibility="final">
+                        <member name="x1" type="wstring" />
+                    </struct>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::wstring_unbounded",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let cdr_bytes = vec![
+            0x00, 0x01, 0x00, 0x00, // CDR_LE
+            24, 0, 0, 0, // length in octets (24 = 12 UTF-16 units * 2)
+            0xA5, 0x04, // ҥ
+            0x17, 0x01, // ė
+            0x40, 0x01, // ŀ
+            0x3E, 0x01, // ľ
+            0x4F, 0xFF, // ｏ
+            0x20, 0x00, // ' '
+            0x54, 0xFF, // ｔ
+            0xBB, 0x04, // һ
+            0x45, 0xFF, // ｅ
+            0x85, 0x2C, // ⲅ
+            0x07, 0x02, // ȇ
+            0x2E, 0x00, // .
+        ];
+
+        let deserialized = deserialize_top_level_type(dynamic_type, &cdr_bytes).unwrap();
+        assert_eq!(deserialized.get_string_value(0).unwrap(), "ҥėŀľｏ ｔһｅⲅȇ.");
     }
 }
