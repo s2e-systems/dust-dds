@@ -28,7 +28,12 @@ use crate::{
     },
     xtypes::type_support::TypeSupport,
 };
-use alloc::{string::String, sync::Arc, vec, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 use core::marker::PhantomData;
 
 #[derive(Clone)]

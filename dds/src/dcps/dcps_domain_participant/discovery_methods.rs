@@ -83,7 +83,12 @@ use crate::{
         type_support::{_String, Type, TypeSupport},
     },
 };
-use alloc::{format, string::String, vec, vec::Vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use regex::Regex;
 
 impl DcpsDomainParticipant {

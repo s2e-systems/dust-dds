@@ -17,7 +17,11 @@ use crate::{
     },
     xtypes::dynamic_type::DynamicType,
 };
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 
 /// Async version of [`Topic`](crate::topic_definition::topic::Topic).
 #[derive(Clone)]
