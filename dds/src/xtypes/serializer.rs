@@ -603,6 +603,26 @@ impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
             && !is_element_type_kind_primitive(member_descriptor)?);
         let lc = if is_next_member_having_dheader {
             5
+        } else if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE
+            && is_element_type_kind_primitive(member_descriptor)?
+        {
+            let elem_kind = member_descriptor
+                .r#type
+                .descriptor
+                .element_type
+                .as_ref()
+                .unwrap()
+                .get_kind();
+            match elem_kind {
+                TypeKind::BOOLEAN
+                | TypeKind::BYTE
+                | TypeKind::INT8
+                | TypeKind::UINT8
+                | TypeKind::CHAR8 => 5,
+                TypeKind::INT32 | TypeKind::UINT32 | TypeKind::FLOAT32 => 6,
+                TypeKind::INT64 | TypeKind::UINT64 | TypeKind::FLOAT64 => 7,
+                _ => 4,
+            }
         } else {
             match ssize {
                 1 => 0,
@@ -1024,7 +1044,7 @@ impl EncodingVersion for EncodingVersion2 {
         member_id: u32,
     ) -> Result<(), XTypesError> {
         let emheader = EMheader1::new(serializer);
-        emheader.serializer.serialize_value(v, member_id).unwrap();
+        emheader.serializer.serialize_value(v, member_id)?;
         emheader.write_header(member_id, v)?;
         Ok(())
     }
@@ -2239,10 +2259,9 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x0b, 0x00, 0x00, // PL_CDR2_LE
-                24, 0, 0, 0, // Struct DHEADER (24 bytes payload)
-                0, 0, 0, 64, // my_sequence EMHEADER (LC=4, member_id=0)
-                16, 0, 0, 0, // NEXTINT: 16 bytes
-                3, 0, 0, 0, // Vec length
+                20, 0, 0, 0, // Struct DHEADER (20 bytes payload)
+                0, 0, 0, 96, // my_sequence EMHEADER (LC=6, member_id=0)
+                3, 0, 0, 0, // NEXTINT: 3
                 1, 0, 0, 0, // Vec[0]
                 2, 0, 0, 0, // Vec[1]
                 3, 0, 0, 0, // Vec[2]
@@ -2276,12 +2295,11 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                32, 0, 0, 0, // AppendableUnion DHEADER (32 bytes payload)
+                28, 0, 0, 0, // AppendableUnion DHEADER (28 bytes payload)
                 10, 0, 0, 0, // MyVariant discriminator
-                24, 0, 0, 0, // MutableTypeWithSequence DHEADER (24 bytes)
-                0, 0, 0, 64, // my_sequence EMHEADER (LC=4, member_id=0)
-                16, 0, 0, 0, // NEXTINT: 16 bytes
-                3, 0, 0, 0, // Vec length
+                20, 0, 0, 0, // MutableTypeWithSequence DHEADER (20 bytes)
+                0, 0, 0, 96, // my_sequence EMHEADER (LC=6, member_id=0)
+                3, 0, 0, 0, // NEXTINT: 3
                 1, 0, 0, 0, // Vec[0]
                 2, 0, 0, 0, // Vec[1]
                 3, 0, 0, 0, // Vec[2]
@@ -2343,7 +2361,7 @@ mod tests {
                 242, // EK_COMPLETE
                 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
                 0, // padding
-                210, 227, 8, 37, // continuation_point EMHEADER (LC=2 | 0x0508e3d2)
+                210, 227, 8, 85, // continuation_point EMHEADER (LC=5 | 0x0508e3d2)
                 0, 0, 0, 0, // continuation_point length 0
             ]
         );
@@ -2433,14 +2451,40 @@ mod tests {
 
     #[test]
     fn serialize_type_lookup_get_dependencies_reply() {
+        let type_information = TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [
+                            0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11,
+                            0x2a, 0x5c,
+                        ],
+                    },
+                    typeobject_serialized_size: 151,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        };
+
         let data = TypeLookupReply {
             header: ReplyHeader {
                 related_request_id: SampleIdentity {
                     writer_guid: Guid::new(
                         [
-                            0x01, 0x01, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d,
+                            1, 1, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d,
                         ],
-                        EntityId::new([0x00, 0x03, 0x00], 0xc3),
+                        EntityId::new([0, 3, 0], 195),
                     ),
                     sequence_number: 1.into(),
                 },
@@ -2449,15 +2493,7 @@ mod tests {
             r#return: TypeLookupReturn::TypeLookupGetDependenciesHash {
                 get_type_dependencies: TypeLookupGetTypeDependenciesResult::Ok {
                     result: TypeLookupGetTypeDependenciesOut {
-                        dependent_typeids: vec![TypeIdentifierWithSize {
-                            type_id: TypeIdentifier::EkComplete {
-                                equivalence_hash: [
-                                    0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96,
-                                    0x6b, 0x11, 0x2a, 0x5c,
-                                ],
-                            },
-                            typeobject_serialized_size: 151,
-                        }],
+                        dependent_typeids: vec![type_information.complete.typeid_with_size.clone()],
                         continuation_point: vec![],
                     },
                 },
@@ -2466,13 +2502,14 @@ mod tests {
         .create_dynamic_sample();
 
         let serialized = serialize_cdr2_le(&data).unwrap();
+
         let expected = vec![
-            0x00u8, 0x07, 0x00, 0x00, // CDR2_LE encapsulation header
-            0x01, 0x01, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d, 0x00, 0x03,
-            0x00, 0xc3, // writer_guid
-            0x00, 0x00, 0x00, 0x00, // sequence_number: high
-            0x01, 0x00, 0x00, 0x00, // sequence_number: low
-            0x00, 0x00, 0x00, 0x00, // remote_ex: RemoteExceptionCode::Ok
+            0x00, 0x07, 0x00, 0x00, // CDR2_LE header
+            1, 1, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d, 0, 3, 0,
+            195, // writer_guid
+            0, 0, 0, 0, // sequence_number: high
+            1, 0, 0, 0, // sequence_number: low
+            0, 0, 0, 0, // remote_ex: RemoteExceptionCode::Ok
             60, 0, 0, 0, // TypeLookupReturn DHEADER
             0x31, 0xfb, 0xaa,
             0x05, // TypeLookupGetDependenciesHash Discriminator (0x05aafb31)
@@ -2486,7 +2523,7 @@ mod tests {
             0xf2, 0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11, 0x2a,
             0x5c, 0x00, // type_id (EK_COMPLETE + hash + 1 byte pad)
             0x97, 0x00, 0x00, 0x00, // typeobject_serialized_size: 151
-            210, 227, 8, 37, // EMHEADER for continuation_point (LC=2 | 0x0508e3d2)
+            210, 227, 8, 85, // EMHEADER for continuation_point (LC=5 | 0x0508e3d2)
             0x00, 0x00, 0x00, 0x00, // Sequence length: 0
         ];
         assert_eq!(serialized, expected);
@@ -2701,7 +2738,22 @@ mod tests {
                 </types>
             </dds>
         "#;
-        let data_xml = include_str!("../../../../dds-xtypes/data/xml/array_array_num_10_20.xml");
+        let data_xml = r#"
+            <struct>
+              <x1>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+              </x1>
+            </struct>
+        "#;
         let dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
             type_xml,
             "Test::F_S__seq10_M_S__seq20_uint32",
@@ -2713,8 +2765,23 @@ mod tests {
         data.from_xml(data_xml).unwrap();
         let serialized = serialize_cdr2_le(&data).unwrap();
 
-        // Let's verify each element's bytes and total length
-        println!("Serialized length: {}", serialized.len());
-        println!("Serialized bytes: {:?}", serialized);
+        // Baseline Connext bytes
+        let mut expected = vec![
+            0x00u8, 0x07, 0x00, 0x00, // CDR2_LE header
+            0x9c, 0x03, 0x00, 0x00, // Outer DHEADER = 924
+            0x0a, 0x00, 0x00, 0x00, // Outer Sequence length = 10
+        ];
+        for _ in 0..10 {
+            expected.extend_from_slice(&[
+                0x58, 0x00, 0x00, 0x00, // Inner struct DHEADER = 88
+                0x00, 0x00, 0x00, 0x60, // EMHEADER: LC=6, Member ID=0
+                0x14, 0x00, 0x00, 0x00, // NEXTINT: 20
+            ]);
+            for i in 1..=20u32 {
+                expected.extend_from_slice(&i.to_le_bytes());
+            }
+        }
+
+        assert_eq!(serialized, expected);
     }
 }
