@@ -463,6 +463,7 @@ impl DynamicTypeBuilderFactory {
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
                     let mut sequence_max_length = None;
+                    let mut m_id = None;
                     let mut label: Vec<i32> = Vec::new();
                     let mut is_default_label = false;
 
@@ -489,10 +490,41 @@ impl DynamicTypeBuilderFactory {
                             array_dimensions = c.attribute("arrayDimensions");
                             sequence_max_length = c.attribute("sequenceMaxLength");
                             parse_try_construct_kind(&c, &mut try_construct_kind);
+                            if let Some(id_str) = c.attribute("id") {
+                                m_id = Some(if let Some(hex) = id_str.strip_prefix("0x") {
+                                    u32::from_str_radix(hex, 16)
+                                        .map_err(|_| XTypesError::InvalidData)?
+                                } else {
+                                    id_str
+                                        .parse::<u32>()
+                                        .map_err(|_| XTypesError::InvalidData)?
+                                });
+                            } else if let Some(hashid_name) = c.attribute("hashid") {
+                                let target = if hashid_name.is_empty() {
+                                    m_name.ok_or(XTypesError::InvalidData)?
+                                } else {
+                                    hashid_name
+                                };
+                                let hash = md5::compute(target.as_bytes());
+                                m_id = Some(
+                                    u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]])
+                                        & 0x0FFF_FFFF,
+                                );
+                            }
                         }
                     }
 
                     let label = label.leak();
+
+                    let m_name_unwrapped = m_name.ok_or(XTypesError::InvalidData)?;
+                    let m_id = m_id.unwrap_or_else(|| {
+                        if is_autoid_hash {
+                            let hash = md5::compute(m_name_unwrapped.as_bytes());
+                            u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
+                        } else {
+                            member_id
+                        }
+                    });
 
                     let type_ptr = resolve_member_type(
                         m_type.ok_or(XTypesError::InvalidData)?,
@@ -501,15 +533,10 @@ impl DynamicTypeBuilderFactory {
                         array_dimensions,
                         sequence_max_length,
                     )?;
-                    let m_name_static = Box::leak(
-                        m_name
-                            .ok_or(XTypesError::InvalidData)?
-                            .to_string()
-                            .into_boxed_str(),
-                    );
+                    let m_name_static = Box::leak(m_name_unwrapped.to_string().into_boxed_str());
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
-                        id: member_id,
+                        id: m_id,
                         r#type: type_ptr,
                         default_value: None,
                         index,
