@@ -4785,3 +4785,147 @@ fn xtypes_v2_union_test_suite_union_different_ids_1() {
         expected_received
     );
 }
+
+#[test]
+fn seq_s_mutable_10_seq_s_mutable_alt_10() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <struct name="M_S__seq20_uint32" extensibility="mutable">
+                        <member name="x1" type="uint32" sequenceMaxLength="20" />
+                    </struct>
+                    <struct name="M_S__seq20_uint32_alt" extensibility="mutable">
+                        <member name="altx1" type="uint32" sequenceMaxLength="20" />
+                    </struct>
+                    <struct name="F_S__seq10_M_S__seq20_uint32" extensibility="final">
+                        <member name="x1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32" sequenceMaxLength="10" />
+                    </struct>
+                    <struct name="F_S__seq10_M_S__seq20_uint32_alt" extensibility="final">
+                        <member name="altx1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32_alt" sequenceMaxLength="10" />
+                    </struct>
+                </module>
+            </types>
+        </dds>
+    "#;
+
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::F_S__seq10_M_S__seq20_uint32",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::F_S__seq10_M_S__seq20_uint32",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type.clone(),
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::F_S__seq10_M_S__seq20_uint32_alt",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::F_S__seq10_M_S__seq20_uint32_alt",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type.clone(),
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_condition = writer.get_statuscondition();
+    writer_condition
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut writer_wait_set = WaitSet::new();
+    writer_wait_set
+        .attach_condition(Condition::StatusCondition(writer_condition))
+        .unwrap();
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    writer_wait_set.wait(Duration::new(10, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<F_S__seq10_M_S__seq20_uint32>
+            <x1>
+                <M_S__seq20_uint32>
+                    <x1>10</x1>
+                    <x1>20</x1>
+                </M_S__seq20_uint32>
+            </x1>
+        </F_S__seq10_M_S__seq20_uint32>",
+    )
+    .unwrap();
+
+    writer.write(data, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let mut expected_received = DynamicDataFactory::create_data(subscriber_dynamic_type);
+    expected_received
+        .from_xml(
+            "<F_S__seq10_M_S__seq20_uint32_alt>
+                <altx1>
+                    <M_S__seq20_uint32_alt>
+                        <altx1>10</altx1>
+                        <altx1>20</altx1>
+                    </M_S__seq20_uint32_alt>
+                </altx1>
+            </F_S__seq10_M_S__seq20_uint32_alt>",
+        )
+        .unwrap();
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.unwrap(),
+        expected_received
+    );
+}

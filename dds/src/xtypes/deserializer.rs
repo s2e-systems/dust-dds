@@ -115,8 +115,8 @@ trait EncodingVersion: Sized {
 
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        pid: u16,
-    ) -> XTypesResult<u16>;
+        pid: u32,
+    ) -> XTypesResult<usize>;
 
     /// Serialization Rule (9) & (10)
     fn deserialize_array_type<'a, E: EndiannessRead>(
@@ -195,20 +195,20 @@ impl EncodingVersion for EncodingVersion1 {
 
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        pid: u16,
-    ) -> XTypesResult<u16> {
+        pid: u32,
+    ) -> XTypesResult<usize> {
         loop {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let current_pid_without_flags = current_pid & 0b00111111_11111111;
             let length: u16 = deserializer.deserialize_primitive_type()?;
             if current_pid_without_flags == PID_SENTINEL && length == 0 {
-                if pid == PID_SENTINEL {
+                if pid == PID_SENTINEL as u32 {
                     return Ok(0);
                 } else {
-                    return Err(PidNotFound(pid));
+                    return Err(PidNotFound(pid as u16));
                 }
-            } else if current_pid_without_flags == pid {
-                return Ok(length);
+            } else if current_pid_without_flags == pid as u16 {
+                return Ok(length as usize);
             } else {
                 deserializer.reader.seek(length as usize)?;
                 Self::align(deserializer, 4)?;
@@ -277,7 +277,7 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         deserializer.deserialize_members(dynamic_data)?;
-        Self::seek_to_pid(deserializer, PID_SENTINEL)?;
+        Self::seek_to_pid(deserializer, PID_SENTINEL as u32)?;
         Ok(())
     }
 
@@ -297,7 +297,7 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         Self::align(deserializer, 4)?;
-        let pid = member.get_id() as u16;
+        let pid = member.get_id();
         let orig_pos = deserializer.reader.pos;
         let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
             if length > 0 {
@@ -381,21 +381,21 @@ impl EncodingVersion for EncodingVersion2 {
 
     fn seek_to_pid<'a, E: EndiannessRead>(
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
-        pid: u16,
-    ) -> XTypesResult<u16> {
+        pid: u32,
+    ) -> XTypesResult<usize> {
         loop {
             let emheader: u32 = deserializer.deserialize_primitive_type()?;
-            let current_pid = (emheader & 0x0fffffff) as u16;
+            let current_pid = emheader & 0x0fffffff;
             let lc = (emheader & 0b01110000_00000000_00000000_00000000) >> 28;
             let length = match lc {
                 0 => 1,
                 1 => 2,
                 2 => 4,
                 3 => 8,
-                4 => deserializer.deserialize_primitive_type::<u32>()?,
-                5 => deserializer.deserialize_primitive_type::<u32>()?,
-                6 => 4 * deserializer.deserialize_primitive_type::<u32>()?,
-                7 => 8 * deserializer.deserialize_primitive_type::<u32>()?,
+                4 => deserializer.deserialize_primitive_type::<u32>()? as usize,
+                5 => deserializer.deserialize_primitive_type::<u32>()? as usize,
+                6 => 4 * deserializer.deserialize_primitive_type::<u32>()? as usize,
+                7 => 8 * deserializer.deserialize_primitive_type::<u32>()? as usize,
                 _ => unimplemented!("LC not possible"),
             };
 
@@ -403,9 +403,9 @@ impl EncodingVersion for EncodingVersion2 {
                 if lc == 5 {
                     deserializer.reader.pos -= 4;
                 }
-                return Ok(length as u16);
+                return Ok(length);
             } else {
-                deserializer.reader.seek(length as usize)?;
+                deserializer.reader.seek(length)?;
                 Self::align(deserializer, 4)?;
             }
         }
@@ -477,8 +477,10 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
+        let dheader = deserializer.deserialize_primitive_type::<u32>()? as usize;
+        let start_pos = deserializer.reader.pos;
         deserializer.deserialize_members(dynamic_data)?;
+        deserializer.reader.pos = start_pos + dheader;
         Ok(())
     }
 
@@ -498,7 +500,7 @@ impl EncodingVersion for EncodingVersion2 {
         Self::align(deserializer, 4)?;
         // TODO: If LC(C)>=4
         //let _next_int = deserializer.deserialize_primitive_type::<u32>();
-        let pid: u16 = member.get_id() as u16;
+        let pid = member.get_id();
         let orig_pos = deserializer.reader.pos;
         let result = if Self::seek_to_pid(deserializer, pid).is_ok() {
             deserializer.deserialize_value(member, dynamic_data)
@@ -1327,14 +1329,15 @@ mod tests {
         dcps::{
             data_representation_builtin_endpoints::type_lookup::{
                 RemoteExceptionCode, ReplyHeader, RequestHeader, SampleIdentity, TypeLookupCall,
-                TypeLookupGetTypesIn, TypeLookupGetTypesOut, TypeLookupGetTypesResult,
-                TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
+                TypeLookupGetTypeDependenciesIn, TypeLookupGetTypeDependenciesOut,
+                TypeLookupGetTypeDependenciesResult, TypeLookupGetTypesIn, TypeLookupGetTypesOut,
+                TypeLookupGetTypesResult, TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
             },
             xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data,
         },
         transport::types::{EntityId, Guid},
         xtypes::{
-            dynamic_type::DynamicTypeBuilderFactory,
+            dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory},
             type_object::{
                 TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
                 TypeInformation,
@@ -2173,6 +2176,43 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_type_lookup_get_dependencies_in() {
+        let expected = TypeLookupCall::TypeLookupGetDependenciesHash {
+            get_type_dependencies: TypeLookupGetTypeDependenciesIn {
+                type_ids: vec![TypeIdentifier::EkComplete {
+                    equivalence_hash: [5; 14],
+                }],
+                continuation_point: vec![],
+            },
+        }
+        .create_dynamic_sample();
+
+        let mut dynamic_data = deserialize_top_level_type(
+            TypeLookupCall::TYPE,
+            &[
+                0x00u8, 0x09, 0x00, 0x01, // D_CDR2_LE + padding
+                43, 0, 0, 0, // TypeLookupCall DHEADER
+                0x31, 0xfb, 0xaa,
+                0x05, // TypeLookupGetDependenciesHash DISCRIMINATOR (0x05aafb31)
+                35, 0, 0, 0, // TypeLookupGetTypeDependenciesIn DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER (LC=5 | 0x0c536065)
+                19, 0, 0, 0, // type_ids: DHEADER
+                1, 0, 0, 0,   // type_ids: Length
+                242, // EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+                210, 227, 8, 85, // continuation_point EMHEADER (LC=5 | 0x0508e3d2)
+                0, 0, 0, 0, // continuation_point length 0
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(dynamic_data, expected);
+        let sample = TypeLookupCall::create_sample(&mut dynamic_data);
+        assert!(sample.is_some());
+    }
+
+    #[test]
     fn deserialize_type_lookup_request() {
         let expected = TypeLookupRequest {
             header: RequestHeader {
@@ -2261,6 +2301,125 @@ mod tests {
             .unwrap(),
             expected
         );
+    }
+
+    #[test]
+    fn deserialize_type_lookup_get_dependencies_reply() {
+        let expected = TypeLookupReply {
+            header: ReplyHeader {
+                related_request_id: SampleIdentity {
+                    writer_guid: Guid::new(
+                        [
+                            0x01, 0x01, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d,
+                        ],
+                        EntityId::new([0x00, 0x03, 0x00], 0xc3),
+                    ),
+                    sequence_number: 1.into(),
+                },
+                remote_ex: RemoteExceptionCode::Ok,
+            },
+            r#return: TypeLookupReturn::TypeLookupGetDependenciesHash {
+                get_type_dependencies: TypeLookupGetTypeDependenciesResult::Ok {
+                    result: TypeLookupGetTypeDependenciesOut {
+                        dependent_typeids: vec![TypeIdentifierWithSize {
+                            type_id: TypeIdentifier::EkComplete {
+                                equivalence_hash: [
+                                    0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96,
+                                    0x6b, 0x11, 0x2a, 0x5c,
+                                ],
+                            },
+                            typeobject_serialized_size: 151,
+                        }],
+                        continuation_point: vec![],
+                    },
+                },
+            },
+        }
+        .create_dynamic_sample();
+
+        let data = [
+            0x00u8, 0x07, 0x00, 0x00, // CDR2_LE encapsulation header
+            0x01, 0x01, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d, 0x00, 0x03,
+            0x00, 0xc3, // writer_guid
+            0x00, 0x00, 0x00, 0x00, // sequence_number: high
+            0x01, 0x00, 0x00, 0x00, // sequence_number: low
+            0x00, 0x00, 0x00, 0x00, // remote_ex: RemoteExceptionCode::Ok
+            0x3c, 0x00, 0x00, 0x00, // TypeLookupReturn DHEADER
+            0x31, 0xfb, 0xaa,
+            0x05, // TypeLookupGetDependenciesHash Discriminator (0x05aafb31)
+            0x34, 0x00, 0x00, 0x00, // TypeLookupGetTypeDependenciesResult DHEADER
+            0x00, 0x00, 0x00, 0x00, // Result Discriminator: 0 (Ok)
+            0x2c, 0x00, 0x00, 0x00, // TypeLookupGetTypeDependenciesOut DHEADER
+            0xc9, 0xdf, 0xa4, 0x5b, // EMHEADER for dependent_typeids (LC=5 | 0x0ba4dfc9)
+            0x1c, 0x00, 0x00, 0x00, // NEXTINT: 28 bytes
+            0x01, 0x00, 0x00, 0x00, // Sequence length: 1
+            0x14, 0x00, 0x00, 0x00, // TypeIdentifierWithSize DHEADER: 20 bytes
+            0xf2, 0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11, 0x2a,
+            0x5c, 0x00, // type_id (EK_COMPLETE + hash + 1 byte pad)
+            0x97, 0x00, 0x00, 0x00, // typeobject_serialized_size: 151
+            0xd2, 0xe3, 0x08, 0x55, // EMHEADER for continuation_point (LC=5 | 0x0508e3d2)
+            0x00, 0x00, 0x00, 0x00, // Sequence length: 0
+        ];
+        let mut dynamic_data = deserialize_top_level_type(TypeLookupReply::TYPE, &data).unwrap();
+        assert_eq!(dynamic_data, expected);
+        let sample = TypeLookupReply::create_sample(&mut dynamic_data);
+        assert!(sample.is_some());
+    }
+
+    #[test]
+    fn deserialize_connext_type_lookup_reply_get_types() {
+        let data = [
+            0x00u8, 0x07, 0x00, 0x00, // CDR2_LE encapsulation header
+            0x01, 0x01, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d, 0x00, 0x03, 0x00, 0xc3, // writer_guid
+            0x00, 0x00, 0x00, 0x00, // sequence_number: high
+            0x03, 0x00, 0x00, 0x00, // sequence_number: low (3)
+            0x00, 0x00, 0x00, 0x00, // remote_ex: RemoteExceptionCode::Ok
+            0x38, 0x01, 0x00, 0x00, // TypeLookupReturn DHEADER (312)
+            0xd3, 0x52, 0x82, 0x01, // TypeLookupGetTypesHash Discriminator
+            0x30, 0x01, 0x00, 0x00, // TypeLookupGetTypesResult DHEADER (304)
+            0x00, 0x00, 0x00, 0x00, // Result Discriminator: 0 (Ok)
+            0x28, 0x01, 0x00, 0x00, // TypeLookupGetTypesOut DHEADER (296)
+            0xd1, 0x4a, 0x80, 0x52, // EMHEADER for types (LC=5 | 0x02804ad1)
+            0x13, 0x01, 0x00, 0x00, // types DHEADER (275 bytes)
+            0x02, 0x00, 0x00, 0x00, // Sequence length: 2
+            // Type 1:
+            0xf2, 0x07, 0x41, 0x1f, 0x47, 0xde, 0xf3, 0xda, 0x30, 0x4f, 0x17, 0x22, 0x1a, 0x22, 0x8b, 0x00, // type_identifier
+            0x55, 0x00, 0x00, 0x00, // TypeObject DHEADER: 85 bytes
+            0xf2, 0x51, 0x01, 0x00, // TypeObject discriminator (Complete Struct)
+            0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // struct_flags, header
+            0x0f, 0x00, 0x00, 0x00, 0x54, 0x65, 0x73, 0x74, 0x3a, 0x3a, 0x65, 0x6e, 0x75, 0x6d, 0x32, 0x78, 0x31, 0x30, 0x00, 0x00, // type_name "Test::enum2x10" + pad
+            0x31, 0x00, 0x00, 0x00, // member_seq DHEADER: 49 bytes
+            0x01, 0x00, 0x00, 0x00, // member_seq length: 1
+            0x29, 0x00, 0x00, 0x00, // CompleteStructMember DHEADER: 41 bytes
+            0x00, 0x00, 0x00, 0x00, // member_id: 0
+            0x01, 0x00, // member_flags
+            0x90, 0xf2, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0a, 0xf2, 0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11, 0x2a, 0x5c, // member_type_id
+            0x03, 0x00, 0x00, 0x00, 0x78, 0x31, 0x00, // name: "x1"
+            0x00, 0x00, // pad
+            // Type 2:
+            0xf2, 0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11, 0x2a, 0x5c, // type_identifier (15 bytes)
+            0x93, 0x00, 0x00, 0x00, // TypeObject DHEADER: 147 bytes
+            0xf2, // TypeObject discriminator (EK_COMPLETE)
+            0x40, // CompleteTypeObject discriminator (TK_ENUM = 0x40)
+            0x02, 0x00, // enum_flags: 2
+            0x11, 0x00, 0x00, 0x00, // CompleteEnumeratedHeader DHEADER: 17 bytes
+            0x20, 0x00, // bit_bound: 32 (u16)
+            0x00, // ann_builtin: None (1 byte)
+            0x00, // ann_custom: None (1 byte)
+            0x09, 0x00, 0x00, 0x00, 0x54, 0x65, 0x73, 0x74, 0x3a, 0x3a, 0x45, 0x32, 0x00, // "Test::E2\0"
+            0x00, 0x00, 0x00, // pad
+            0x73, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+            0x17, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x56, 0x41, 0x4c, 0x30, 0x00, 0x00, 0x00, 0x00,
+            0x17, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x56, 0x41, 0x4c, 0x31, 0x00, 0x00, 0x00, 0x00,
+            0x17, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x56, 0x41, 0x4c, 0x32, 0x00, 0x00, 0x00, 0x00,
+            0x17, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x56, 0x41, 0x4c, 0x33, 0x00, 0x00, 0x00, 0x00,
+            0x77, 0x65, 0x8e, 0x5b, // complete_to_minimal EMHEADER (LC=5 | 0x0b8e6577)
+            0x04, 0x00, 0x00, 0x00, // DHEADER: 4 bytes
+            0x00, 0x00, 0x00, 0x00, // length: 0
+        ];
+        let mut dynamic_data = deserialize_top_level_type(TypeLookupReply::TYPE, &data).unwrap();
+        let sample = TypeLookupReply::create_sample(&mut dynamic_data);
+        assert!(sample.is_some());
     }
 
     #[test]
@@ -2481,5 +2640,114 @@ mod tests {
 
         let deserialized = deserialize_top_level_type(dynamic_type, &cdr_bytes).unwrap();
         assert_eq!(deserialized.get_string_value(0).unwrap(), "ҥėŀľｏ ｔһｅⲅȇ.");
+    }
+
+    #[test]
+    fn deserialize_f_s_seq10_m_s_seq20_uint32() {
+        let type_xml = r#"
+            <dds>
+                <types>
+                    <module name="Test">
+                        <struct name="M_S__seq20_uint32" extensibility="mutable">
+                            <member name="x1" type="uint32" sequenceMaxLength="20" />
+                        </struct>
+                        <struct name="F_S__seq10_M_S__seq20_uint32" extensibility="final">
+                            <member name="x1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32" sequenceMaxLength="10" />
+                        </struct>
+                    </module>
+                </types>
+            </dds>
+        "#;
+        let mut data_xml = String::from("<struct><x1>");
+        for _ in 0..10 {
+            data_xml.push_str("<item><x1>");
+            for val in 1..=20 {
+                data_xml.push_str(&format!("<item>{val}</item>"));
+            }
+            data_xml.push_str("</x1></item>");
+        }
+        data_xml.push_str("</x1></struct>");
+
+        let dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::F_S__seq10_M_S__seq20_uint32",
+            vec![],
+        )
+        .unwrap()
+        .build();
+        let mut expected_data = DynamicDataFactory::create_data(dynamic_type.clone());
+        expected_data.from_xml(&data_xml).unwrap();
+
+        let serialized = crate::xtypes::serializer::serialize_cdr2_le(&expected_data).unwrap();
+        let deserialized = deserialize_top_level_type(dynamic_type, &serialized).unwrap();
+        assert_eq!(deserialized, expected_data);
+    }
+
+    #[test]
+    fn deserialize_f_s_seq10_m_s_seq20_uint32_alt_from_pub() {
+        let type_xml = r#"
+            <dds>
+                <types>
+                    <module name="Test">
+                        <struct name="M_S__seq20_uint32" extensibility="mutable">
+                            <member name="x1" type="uint32" sequenceMaxLength="20" />
+                        </struct>
+                        <struct name="M_S__seq20_uint32_alt" extensibility="mutable">
+                            <member name="altx1" type="uint32" sequenceMaxLength="20" />
+                        </struct>
+                        <struct name="F_S__seq10_M_S__seq20_uint32" extensibility="final">
+                            <member name="x1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32" sequenceMaxLength="10" />
+                        </struct>
+                        <struct name="F_S__seq10_M_S__seq20_uint32_alt" extensibility="final">
+                            <member name="altx1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32_alt" sequenceMaxLength="10" />
+                        </struct>
+                    </module>
+                </types>
+            </dds>
+        "#;
+        let pub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::F_S__seq10_M_S__seq20_uint32",
+            vec![],
+        )
+        .unwrap()
+        .build();
+        let sub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::F_S__seq10_M_S__seq20_uint32_alt",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut pub_data_xml = String::from("<struct><x1>");
+        for _ in 0..10 {
+            pub_data_xml.push_str("<item><x1>");
+            for val in 1..=20 {
+                pub_data_xml.push_str(&format!("<item>{val}</item>"));
+            }
+            pub_data_xml.push_str("</x1></item>");
+        }
+        pub_data_xml.push_str("</x1></struct>");
+
+        let mut sub_data_xml = String::from("<struct><altx1>");
+        for _ in 0..10 {
+            sub_data_xml.push_str("<item><altx1>");
+            for val in 1..=20 {
+                sub_data_xml.push_str(&format!("<item>{val}</item>"));
+            }
+            sub_data_xml.push_str("</altx1></item>");
+        }
+        sub_data_xml.push_str("</altx1></struct>");
+
+        let mut pub_data = DynamicDataFactory::create_data(pub_type);
+        pub_data.from_xml(&pub_data_xml).unwrap();
+
+        let mut expected_sub_data = DynamicDataFactory::create_data(sub_type.clone());
+        expected_sub_data.from_xml(&sub_data_xml).unwrap();
+
+        let serialized = crate::xtypes::serializer::serialize_cdr2_le(&pub_data).unwrap();
+        let deserialized = deserialize_top_level_type(sub_type, &serialized).unwrap();
+        assert_eq!(deserialized, expected_sub_data);
     }
 }

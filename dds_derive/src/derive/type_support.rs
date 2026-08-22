@@ -437,8 +437,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                         });
                         let variant_sample = quote! {
                             Self::#variant_ident {#variant_field_name: <#variant_ty as ::dust_dds::xtypes::data_storage::DataStorageMapping>::try_from_storage(
-                              src.remove_value(#variant_index_unsuffixed as u32).expect("Must exist"),
-                            ).expect("Must match")},
+                              src.remove_value(#variant_index_unsuffixed as u32).ok()?
+                            ).ok()?},
                         };
 
                         variant_sample_seq.push(if variant_attributes.is_default {
