@@ -436,6 +436,7 @@ impl DynamicTypeBuilderFactory {
         if is_union {
             for child in target_node.children() {
                 if child.is_element() && child.tag_name().name() == "discriminator" {
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
                     let member_desc = MemberDescriptor {
                         name: "discriminator",
                         id: member_id,
@@ -477,8 +478,22 @@ impl DynamicTypeBuilderFactory {
                                         i32::from_str_radix(hex, 16)
                                             .map_err(|_| XTypesError::InvalidData)?,
                                     );
+                                } else if let Ok(parsed_val) = val.parse::<i32>() {
+                                    label.push(parsed_val);
+                                } else if let Some(dt) = discriminator_type {
+                                    if let Ok(enum_member) = dt.get_member_by_name(val) {
+                                        let label_val = enum_member
+                                            .descriptor
+                                            .label
+                                            .first()
+                                            .copied()
+                                            .unwrap_or(enum_member.get_id() as i32);
+                                        label.push(label_val);
+                                    } else {
+                                        return Err(XTypesError::InvalidData);
+                                    }
                                 } else {
-                                    label.push(val.parse().map_err(|_| XTypesError::InvalidData)?);
+                                    return Err(XTypesError::InvalidData);
                                 }
                             }
                         }
@@ -1941,6 +1956,7 @@ fn get_discriminator_value_as_i32(data: &DynamicData) -> Option<i32> {
         DataStorage::Int16(x) => Some(*x as i32),
         DataStorage::Int32(x) => Some(*x),
         DataStorage::UInt32(x) => Some(*x as i32),
+        DataStorage::ComplexValue(inner) => get_discriminator_value_as_i32(inner),
         _ => None,
     }
 }
@@ -2102,6 +2118,19 @@ impl<'a> DynamicData<'a> {
                 }
             }
         } else if kind == TypeKind::UNION {
+            if let Ok(disc_member) = self.r#type.get_member(0) {
+                if let Some(disc_val) = self.abstract_data.get_mut(&0) {
+                    if !validate_member_value(disc_val, &disc_member.descriptor) {
+                        match disc_member.descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *disc_val = default_storage_for_type(disc_member.descriptor.r#type);
+                            }
+                            TryConstructKind::Trim => return false,
+                        }
+                    }
+                }
+            }
             let Some(selected_member) = get_selected_union_member(self) else {
                 return false;
             };
@@ -2269,9 +2298,10 @@ fn parse_f128_str(s: &str) -> Result<i128, ()> {
     Ok(val as i128)
 }
 
+
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
-    /// Deserializes data from an XML string into this `DynamicData` instance.
+    /// Deserializes dynamic data from XML.
     pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
         let doc = roxmltree::Document::parse(xml).map_err(|_| XTypesError::InvalidData)?;
         let root = doc.root_element();
@@ -2290,7 +2320,23 @@ impl<'a> DynamicData<'a> {
 
         let tag_name = node.tag_name().name();
         let discriminator_label = if tag_name == "discriminator" {
-            parse_i32(node.text().ok_or(XTypesError::InvalidData)?)?
+            let disc_text = node.text().ok_or(XTypesError::InvalidData)?.trim();
+            if let Ok(val) = parse_i32(disc_text) {
+                val
+            } else {
+                let disc_member = self.r#type.get_member(0)?;
+                let disc_type = disc_member.descriptor.r#type;
+                if let Ok(enum_member) = disc_type.get_member_by_name(disc_text) {
+                    enum_member
+                        .descriptor
+                        .label
+                        .first()
+                        .copied()
+                        .unwrap_or(enum_member.get_id() as i32)
+                } else {
+                    return Err(XTypesError::InvalidData);
+                }
+            }
         } else {
             let variant_member = self.r#type.get_member_by_name(tag_name)?;
             if let Some(&label) = variant_member.descriptor.label.first() {
@@ -2316,7 +2362,13 @@ impl<'a> DynamicData<'a> {
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let disc_member = self.r#type.get_member(0)?;
+                let mut inner_data = DynamicDataFactory::create_data(disc_member.descriptor.r#type);
+                inner_data.set_int32_value(0, discriminator_label as i32)?;
+                self.set_complex_value(0, inner_data)?;
+                Ok(())
+            }
             TypeKind::BITMASK => {
                 let bound = self
                     .r#type
@@ -2455,14 +2507,18 @@ impl<'a> DynamicData<'a> {
                 }
             }
             TypeKind::ENUM => {
-                let enumerator = r#type.get_member_by_name(text)?;
-                let label = enumerator
-                    .descriptor
-                    .label
-                    .first()
-                    .ok_or(XTypesError::InvalidData)?;
+                let label = if let Ok(val) = parse_int(text) {
+                    val as i32
+                } else {
+                    let enumerator = r#type.get_member_by_name(text)?;
+                    *enumerator
+                        .descriptor
+                        .label
+                        .first()
+                        .ok_or(XTypesError::InvalidData)?
+                };
                 let mut inner_data = DynamicDataFactory::create_data(r#type);
-                inner_data.set_int32_value(0, *label)?;
+                inner_data.set_int32_value(0, label)?;
                 Ok(DataStorage::ComplexValue(inner_data))
             }
             TypeKind::STRUCTURE | TypeKind::UNION => {

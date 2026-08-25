@@ -4629,7 +4629,7 @@ fn xtypes_v2_tryconstruct_test_suite_tryc_union_enum_disc_1() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    assert!(reader.read_next_sample().is_err());
+    assert!(reader.read_next_sample().unwrap().data.is_none());
 }
 
 /// 'ext_autoid_1' : {

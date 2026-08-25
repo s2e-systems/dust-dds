@@ -180,6 +180,9 @@ fn get_discriminator_id_as_i32(v: &DynamicData) -> XTypesResult<i32> {
         crate::xtypes::data_storage::DataStorage::Int16(x) => *x as i32,
         crate::xtypes::data_storage::DataStorage::Int32(x) => *x,
         crate::xtypes::data_storage::DataStorage::UInt32(x) => *x as i32,
+        crate::xtypes::data_storage::DataStorage::ComplexValue(inner) => {
+            get_discriminator_id_as_i32(inner)?
+        }
         _ => return Err(XTypesError::InvalidType),
     })
 }
