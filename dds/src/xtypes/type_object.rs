@@ -2370,9 +2370,13 @@ impl From<&DynamicTypeMember> for MinimalEnumeratedLiteral {
             .first()
             .copied()
             .unwrap_or(value.get_id() as i32);
+        let mut flags = MemberFlag::default();
+        if value.descriptor.is_default_label {
+            flags |= MEMBER_FLAG_IS_DEFAULT;
+        }
         let common = CommonEnumeratedLiteral {
             value: literal_value,
-            flags: Default::default(),
+            flags,
         };
         let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
         let detail = MinimalMemberDetail {
@@ -2390,9 +2394,13 @@ impl From<&DynamicTypeMember> for CompleteEnumeratedLiteral {
             .first()
             .copied()
             .unwrap_or(value.get_id() as i32);
+        let mut flags = MemberFlag::default();
+        if value.descriptor.is_default_label {
+            flags |= MEMBER_FLAG_IS_DEFAULT;
+        }
         let common = CommonEnumeratedLiteral {
             value: literal_value,
-            flags: Default::default(),
+            flags,
         };
         let detail = CompleteMemberDetail {
             name: String::from(value.get_name()),

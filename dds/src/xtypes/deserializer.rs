@@ -522,7 +522,7 @@ impl EncodingVersion for EncodingVersion2 {
                 let count = length / elem_size;
                 deserializer.deserialize_sequence_elements(member, dynamic_data, count)
             } else {
-            deserializer.deserialize_value(member, dynamic_data)
+                deserializer.deserialize_value(member, dynamic_data)
             }
         } else {
             Ok(())
@@ -620,21 +620,27 @@ pub fn deserialize_top_level_type_from_representation_identifier<'a>(
     representation_identifier: RepresentationIdentifier,
     data: &[u8],
 ) -> XTypesResult<DynamicData<'a>> {
-    match representation_identifier {
+    let mut dynamic_data = match representation_identifier {
         CDR_BE | PL_CDR_BE => XTypesDeserializer::new(data, EncodingVersion1, BigEndian)
-            .deserialize_as_nested(dynamic_type),
+            .deserialize_as_nested(dynamic_type)?,
         CDR_LE | PL_CDR_LE => XTypesDeserializer::new(data, EncodingVersion1, LittleEndian)
-            .deserialize_as_nested(dynamic_type),
+            .deserialize_as_nested(dynamic_type)?,
         CDR2_BE | D_CDR2_BE | PL_CDR2_BE => {
             XTypesDeserializer::new(data, EncodingVersion2, BigEndian)
-                .deserialize_as_nested(dynamic_type)
+                .deserialize_as_nested(dynamic_type)?
         }
         CDR2_LE | D_CDR2_LE | PL_CDR2_LE => {
             XTypesDeserializer::new(data, EncodingVersion2, LittleEndian)
-                .deserialize_as_nested(dynamic_type)
+                .deserialize_as_nested(dynamic_type)?
         }
-        _ => Err(XTypesError::InvalidData),
+        _ => return Err(XTypesError::InvalidData),
+    };
+
+    if !dynamic_data.validate_dynamic_data() {
+        return Err(XTypesError::InvalidData);
     }
+
+    Ok(dynamic_data)
 }
 
 struct XTypesDeserializer<'a, E, V> {
@@ -1018,45 +1024,21 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             .descriptor
             .discriminator_type
             .ok_or(XTypesError::InvalidType)?;
-        let val = match discriminator_type.get_kind() {
+        match discriminator_type.get_kind() {
             TypeKind::INT8 => {
                 let value = self.deserialize_primitive_type::<i8>()?;
                 dynamic_data.set_int8_value(0, value)?;
-                value as i32
             }
             TypeKind::INT16 => {
                 let value = self.deserialize_primitive_type::<i16>()?;
                 dynamic_data.set_int16_value(0, value)?;
-                value as i32
             }
             TypeKind::INT32 => {
                 let value = self.deserialize_primitive_type::<i32>()?;
                 dynamic_data.set_int32_value(0, value)?;
-                value
             }
             d => panic!("Invalid discriminator {d:?}"),
         };
-
-        let enum_type = dynamic_data.r#type();
-        let is_valid = if enum_type.get_member_count() == 0 {
-            true
-        } else {
-            (0..enum_type.get_member_count()).any(|i| {
-                if let Ok(member) = enum_type.get_member_by_index(i) {
-                    if let Some(&label_val) = member.descriptor.label.first() {
-                        return label_val == val;
-                    } else {
-                        return member.descriptor.index == val as u32
-                            || member.descriptor.id == val as u32;
-                    }
-                }
-                false
-            })
-        };
-
-        if !is_valid {
-            return Err(XTypesError::InvalidData);
-        }
 
         Ok(())
     }
@@ -2780,5 +2762,120 @@ mod tests {
         let serialized = crate::xtypes::serializer::serialize_cdr2_le(&pub_data).unwrap();
         let deserialized = deserialize_top_level_type(sub_type, &serialized).unwrap();
         assert_eq!(deserialized, expected_sub_data);
+    }
+
+    #[test]
+    fn deserialize_try_construct_enum_use_default() {
+        use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <enum name="E1" bitBound="32" extensibility="appendable">
+                        <enumerator name="VAL0" value="0"/>
+                        <enumerator name="VAL1" value="1"/>
+                        <enumerator name="VAL2" value="2"/>
+                        <enumerator name="VAL3" value="3"/>
+                    </enum>
+                    <enum name="E2" bitBound="32" extensibility="appendable">
+                        <enumerator name="VAL0" value="0"/>
+                        <enumerator name="VAL1" value="1" defaultLiteral="true"/>
+                        <enumerator name="VAL2" value="2"/>
+                    </enum>
+                    <struct name="struct_enum_1" extensibility="mutable">
+                        <member name="x1" type="nonBasic" nonBasicTypeName="E1" />
+                    </struct>
+                    <struct name="struct_enum_2_default" extensibility="mutable">
+                        <member name="x1" type="nonBasic" nonBasicTypeName="E2" tryConstruct="use_default"/>
+                    </struct>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let pub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::struct_enum_1",
+            vec![],
+        )
+        .unwrap()
+        .build();
+        let sub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::struct_enum_2_default",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut data = DynamicDataFactory::create_data(pub_type);
+        data.from_xml("<struct><x1>VAL3</x1></struct>").unwrap();
+
+        let serialized = crate::xtypes::serializer::serialize_cdr2_le(&data).unwrap();
+
+        let deserialized = deserialize_top_level_type(sub_type, &serialized).unwrap();
+
+        let mut expected = DynamicDataFactory::create_data(sub_type);
+        expected.from_xml("<struct><x1>VAL1</x1></struct>").unwrap();
+
+        assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    fn deserialize_try_construct_union_enum_disc_discard() {
+        use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <enum name="E1" bitBound="32" extensibility="appendable">
+                        <enumerator name="VAL0" value="0"/>
+                        <enumerator name="VAL1" value="1"/>
+                        <enumerator name="VAL2" value="2"/>
+                        <enumerator name="VAL3" value="3"/>
+                    </enum>
+
+                    <enum name="E2" bitBound="32" extensibility="appendable">
+                        <enumerator name="VAL0" value="0"/>
+                        <enumerator name="VAL1" value="1" defaultLiteral="true"/>
+                        <enumerator name="VAL2" value="2"/>
+                    </enum>
+
+                    <union name="union_disc_enum_1"> <discriminator type="nonBasic" nonBasicTypeName="E1"/>
+                        <case><caseDiscriminator value="VAL0" /><member name="x0"   type="int32"/></case>
+                        <case><caseDiscriminator value="VAL1" /><member name="x1"   type="int32"/></case>
+                        <case><caseDiscriminator value="VAL2" /><member name="x2"   type="int32"/></case>
+                        <case><caseDiscriminator value="VAL3" /><member name="x3"   type="int32"/></case>
+                    </union>
+                    <union name="union_disc_enum_2_discard"> <discriminator type="nonBasic" nonBasicTypeName="E2" tryConstruct="discard"/>
+                        <case><caseDiscriminator value="VAL0" /><member name="x0"   type="int32"/></case>
+                        <case><caseDiscriminator value="VAL1" /><member name="x1"   type="int32"/></case>
+                        <case><caseDiscriminator value="VAL2" /><member name="x2"   type="int32"/></case>
+                    </union>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let pub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::union_disc_enum_1",
+            vec![],
+        )
+        .unwrap()
+        .build();
+        let sub_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::union_disc_enum_2_discard",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut data = DynamicDataFactory::create_data(pub_type);
+        data.from_xml("<union><discriminator>3</discriminator><x3>3</x3></union>").unwrap();
+
+        let serialized = crate::xtypes::serializer::serialize_cdr2_le(&data).unwrap();
+
+        let result = deserialize_top_level_type(sub_type, &serialized);
+        assert_eq!(result, Err(XTypesError::InvalidData));
     }
 }

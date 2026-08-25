@@ -560,6 +560,7 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                    let is_default_label = child.attribute("defaultLiteral") == Some("true");
                     parse_try_construct_kind(&child, &mut try_construct_kind);
                     let label =
                         Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
@@ -579,7 +580,7 @@ impl DynamicTypeBuilderFactory {
                         is_optional: false,
                         is_must_understand: false,
                         is_shared: false,
-                        is_default_label: false,
+                        is_default_label,
                         is_external: false,
                     };
 
@@ -1886,7 +1887,17 @@ fn default_storage_for_type(t: DynamicType<'static>) -> DataStorage {
         TypeKind::CHAR16 => DataStorage::Char8('\0'),
         TypeKind::STRING8 => DataStorage::String(String::new()),
         TypeKind::STRING16 => DataStorage::String(String::new()),
-        TypeKind::ENUM => DataStorage::Int32(0),
+        TypeKind::ENUM => {
+            let default_val = (0..t.get_member_count())
+                .filter_map(|i| t.get_member_by_index(i).ok())
+                .find(|m| m.descriptor.is_default_label)
+                .or_else(|| t.get_member_by_index(0).ok())
+                .and_then(|m| m.descriptor.label.first().copied())
+                .unwrap_or(0);
+            let mut inner_data = DynamicDataFactory::create_data(t);
+            inner_data.set_int32_value(0, default_val).ok();
+            DataStorage::ComplexValue(inner_data)
+        }
         TypeKind::BITMASK => DataStorage::UInt32(0),
         TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             DataStorage::ComplexValue(DynamicDataFactory::create_data(t))
@@ -1950,7 +1961,7 @@ fn get_selected_union_member<'a>(data: &DynamicData<'a>) -> Option<&'a DynamicTy
 
 fn validate_member_value(value: &mut DataStorage, member_descriptor: &MemberDescriptor) -> bool {
     match member_descriptor.r#type.get_kind() {
-        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
+        TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             if let DataStorage::ComplexValue(inner) = value {
                 inner.validate_dynamic_data()
             } else {
@@ -2063,7 +2074,34 @@ impl<'a> DynamicData<'a> {
         let kind = self.r#type.descriptor.kind;
         let extensibility = self.r#type.descriptor.extensibility_kind;
 
-        if kind == TypeKind::UNION {
+        if kind == TypeKind::ENUM {
+            if let Some(value) = self.abstract_data.get(&0) {
+                let val = match value {
+                    DataStorage::Int8(x) => *x as i32,
+                    DataStorage::Int16(x) => *x as i32,
+                    DataStorage::Int32(x) => *x,
+                    _ => return false,
+                };
+                let enum_type = self.r#type;
+                if enum_type.get_member_count() == 0 {
+                    return true;
+                }
+                let is_valid = (0..enum_type.get_member_count()).any(|i| {
+                    if let Ok(m) = enum_type.get_member_by_index(i) {
+                        if let Some(&label_val) = m.descriptor.label.first() {
+                            label_val == val
+                        } else {
+                            m.descriptor.index == val as u32 || m.descriptor.id == val as u32
+                        }
+                    } else {
+                        false
+                    }
+                });
+                if !is_valid {
+                    return false;
+                }
+            }
+        } else if kind == TypeKind::UNION {
             let Some(selected_member) = get_selected_union_member(self) else {
                 return false;
             };
