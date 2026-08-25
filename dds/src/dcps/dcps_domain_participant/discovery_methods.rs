@@ -2758,8 +2758,12 @@ impl DcpsDomainParticipant {
                                                         )
                                                     {
                                                         let resolver = |id: &TypeIdentifier| {
-                                                            if let Some(TypeObject::EkComplete { complete }) =
-                                                                self.domain_participant.type_register.get_type_object(id)
+                                                            if let Some(TypeObject::EkComplete {
+                                                                complete,
+                                                            }) = self
+                                                                .domain_participant
+                                                                .type_register
+                                                                .get_type_object(id)
                                                             {
                                                                 Some(complete)
                                                             } else {
