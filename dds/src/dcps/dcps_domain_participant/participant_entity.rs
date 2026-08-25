@@ -35,7 +35,12 @@ use crate::{
     },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{
+    collections::BTreeSet,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -119,7 +124,14 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .discovered_participant_list
             .iter()
-            .map(|dp| dp.lease_duration - (now - dp.last_communication_timestamp))
+            .map(|dp| {
+                let elapsed = now - dp.last_communication_timestamp;
+                if dp.lease_duration > elapsed {
+                    dp.lease_duration - elapsed
+                } else {
+                    Duration::new(0, 0)
+                }
+            })
             .min()
     }
 
@@ -133,7 +145,14 @@ impl DcpsDomainParticipant {
                     data_reader
                         .instance_ownership
                         .iter()
-                        .map(|instance| deadline - (now - instance.last_received_time))
+                        .map(|instance| {
+                            let elapsed = now - instance.last_received_time;
+                            if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None
@@ -153,7 +172,14 @@ impl DcpsDomainParticipant {
                         .registered_instance_info
                         .iter()
                         .filter_map(|instance| instance.last_write_time)
-                        .map(|last_write_time| deadline - (now - last_write_time))
+                        .map(|last_write_time| {
+                            let elapsed = now - last_write_time;
+                            if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None
@@ -174,7 +200,14 @@ impl DcpsDomainParticipant {
                         .changes()
                         .iter()
                         .filter_map(|cc| cc.source_timestamp)
-                        .map(|source_timestamp| Time::from(source_timestamp) + lifespan - now)
+                        .map(|source_timestamp| {
+                            let expiry = Time::from(source_timestamp) + lifespan;
+                            if expiry > now {
+                                expiry - now
+                            } else {
+                                Duration::new(0, 0)
+                            }
+                        })
                         .min()
                 } else {
                     None
@@ -354,9 +387,9 @@ impl DomainParticipantEntity {
         if let Some(topic) = self
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name)
         {
-            Some((topic.instance_handle, topic.type_name.clone()))
+            Some((topic.instance_handle, topic.type_name.to_string()))
         } else if let Some(discovered_topic_data) = self
             .discovered_topic_list
             .iter()
@@ -400,8 +433,8 @@ impl DomainParticipantEntity {
             let status_condition = DcpsStatusCondition::default();
             let mut topic = TopicEntity::new(
                 qos,
-                type_name.clone().into(),
-                String::from(topic_name),
+                Arc::from(type_name.value.as_str()),
+                Arc::from(topic_name),
                 topic_handle,
                 status_condition,
                 None,
@@ -419,7 +452,7 @@ impl DomainParticipantEntity {
                 None => self.locally_created_topic_list.push(topic),
             }
 
-            Some((topic_handle, type_name.into()))
+            Some((topic_handle, type_name.value))
         } else {
             None
         }
@@ -470,7 +503,7 @@ impl DomainParticipantEntity {
         let no_user_defined_topics = self
             .locally_created_topic_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_str()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_ref()))
             .count()
             == 0;
 

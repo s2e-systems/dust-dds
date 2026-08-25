@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, sync::Arc};
 
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -44,7 +44,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .content_filtered_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             let Some(topic) = self
                 .domain_participant
@@ -60,7 +60,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .locally_created_topic_list
                 .iter()
-                .find(|x| x.topic_name == topic_name)
+                .find(|x| x.topic_name.as_ref() == topic_name.as_str())
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
@@ -133,7 +133,7 @@ impl DcpsDomainParticipant {
         let data_reader = UserDefinedDataReader::new(
             reader_handle,
             qos,
-            topic_name,
+            Arc::from(topic_name),
             listener_sender,
             listener_mask,
             transport_reader,
@@ -189,7 +189,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .locally_created_topic_list
                 .iter()
-                .any(|x| x.topic_name == topic_name)
+                .any(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             return Err(DdsError::BadParameter);
         }
@@ -247,7 +247,7 @@ impl DcpsDomainParticipant {
             };
             Ok(s.data_reader_list
                 .iter_mut()
-                .find(|dr| dr.topic_name == topic_name)
+                .find(|dr| dr.topic_name.as_ref() == topic_name.as_str())
                 .map(|x| x.instance_handle))
         }
     }

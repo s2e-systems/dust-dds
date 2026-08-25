@@ -19,7 +19,7 @@ use crate::{
     rtps::stateful_writer::RtpsStatefulWriter,
     xtypes::dynamic_type::DynamicData,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
 pub struct PendingWriteSample {
@@ -65,7 +65,7 @@ impl UserDefinedDataWriter {
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: RtpsStatefulWriter,
-        topic_name: String,
+        topic_name: Arc<str>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         qos: DataWriterQos,

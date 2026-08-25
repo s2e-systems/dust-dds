@@ -39,7 +39,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -108,7 +108,7 @@ impl DcpsDomainParticipant {
         let data_writer = UserDefinedDataWriter::new(
             writer_handle,
             transport_writer,
-            topic_name,
+            topic.topic_name.clone(),
             listener_sender,
             listener_mask,
             qos,

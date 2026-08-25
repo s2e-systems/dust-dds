@@ -19,19 +19,19 @@ use crate::{
         type_support::Type,
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 pub struct ContentFilteredTopicEntity {
-    pub topic_name: String,
-    pub related_topic_name: String,
+    pub topic_name: Arc<str>,
+    pub related_topic_name: Arc<str>,
     pub filter_expression: String,
     pub expression_parameters: Vec<String>,
 }
 
 impl ContentFilteredTopicEntity {
     pub fn new(
-        name: String,
-        related_topic_name: String,
+        name: Arc<str>,
+        related_topic_name: Arc<str>,
         filter_expression: String,
         expression_parameters: Vec<String>,
     ) -> Self {
@@ -52,8 +52,8 @@ pub enum DiscoveredTypeRepresentationState {
 
 pub struct TopicEntity {
     pub qos: TopicQos,
-    pub type_name: String,
-    pub topic_name: String,
+    pub type_name: Arc<str>,
+    pub topic_name: Arc<str>,
     pub instance_handle: InstanceHandle,
     pub enabled: bool,
     pub inconsistent_topic_status: InconsistentTopicStatus,
@@ -69,8 +69,8 @@ impl TopicEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: TopicQos,
-        type_name: String,
-        topic_name: String,
+        type_name: Arc<str>,
+        topic_name: Arc<str>,
         instance_handle: InstanceHandle,
         status_condition: DcpsStatusCondition,
         listener_sender: Option<MpscSender<ListenerMail>>,
@@ -101,9 +101,9 @@ pub fn get_topic_type_support<'a>(
 ) -> Option<&'a DynamicType<'static>> {
     let resolved_topic_name = if let Some(cf_topic) = content_filtered_topic_list
         .iter()
-        .find(|t| t.topic_name == topic_name)
+        .find(|t| t.topic_name.as_ref() == topic_name)
     {
-        cf_topic.related_topic_name.as_str()
+        cf_topic.related_topic_name.as_ref()
     } else {
         topic_name
     };
@@ -117,7 +117,7 @@ pub fn get_topic_type_support<'a>(
         TYPE_LOOKUP_REPLY_TOPIC_NAME => Some(&TypeLookupReply::TYPE),
         _ => locally_created_topic_list
             .iter()
-            .find(|t| t.topic_name == resolved_topic_name)
+            .find(|t| t.topic_name.as_ref() == resolved_topic_name)
             .map(|t| &t.type_support),
     }
 }

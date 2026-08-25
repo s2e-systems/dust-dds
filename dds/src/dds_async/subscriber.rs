@@ -21,7 +21,7 @@ use crate::{
         status::{SampleLostStatus, StatusKind},
     },
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 /// Async version of [`Subscriber`](crate::subscription::subscriber::Subscriber).
 #[derive(Clone)]
@@ -73,8 +73,8 @@ impl SubscriberAsync {
         Ok(DataReaderAsync::new(
             guid,
             self.clone(),
-            a_topic.get_name(),
-            a_topic.get_type_name(),
+            Arc::from(a_topic.get_name().as_str()),
+            Arc::from(a_topic.get_type_name().as_str()),
         ))
     }
 
@@ -120,8 +120,8 @@ impl SubscriberAsync {
                 Ok(Some(DataReaderAsync::new(
                     reader_handle,
                     self.clone(),
-                    topic.get_name(),
-                    topic.get_type_name(),
+                    Arc::from(topic.get_name().as_str()),
+                    Arc::from(topic.get_type_name().as_str()),
                 )))
             } else {
                 Ok(None)

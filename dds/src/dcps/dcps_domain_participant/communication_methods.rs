@@ -16,7 +16,7 @@ use crate::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync,
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind},
+    infrastructure::{instance::InstanceHandle, status::StatusKind, time::Time},
     rtps::message_receiver::MessageReceiver,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -31,9 +31,8 @@ use crate::{
 };
 
 impl DcpsDomainParticipant {
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn process_user_defined_received_cache_changes(&mut self, runtime: &impl DdsRuntime) {
-        let reception_timestamp = runtime.clock().now();
+    #[tracing::instrument(skip(self))]
+    pub fn process_user_defined_received_cache_changes(&mut self, reception_timestamp: Time) {
         let dcps_sender = self.dcps_sender;
         let domain_id = self.domain_participant.domain_id;
         let dp_instance_handle = self.domain_participant.instance_handle;
@@ -52,8 +51,53 @@ impl DcpsDomainParticipant {
                 &mut subscriber.data_reader_list,
             );
             'data_readers: for data_reader in data_reader_list {
+                if data_reader.transport_reader.changes_mut().is_empty() {
+                    continue;
+                }
+
+                let Some(type_support) = get_topic_type_support(
+                    &data_reader.topic_name,
+                    content_filtered_topic_list,
+                    locally_created_topic_list,
+                ) else {
+                    tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
+                    continue 'data_readers;
+                };
+
+                let content_filtered_topic = content_filtered_topic_list
+                    .iter()
+                    .find(|t| t.topic_name == data_reader.topic_name);
+
+                let (topic_name, type_name) = if let Some(content_filtered_topic) =
+                    content_filtered_topic
+                {
+                    let Some(reader_topic) = locally_created_topic_list
+                        .iter()
+                        .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
+                    else {
+                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                        continue 'data_readers;
+                    };
+                    (
+                        reader_topic.topic_name.clone(),
+                        reader_topic.type_name.clone(),
+                    )
+                } else {
+                    let Some(reader_topic) = locally_created_topic_list
+                        .iter()
+                        .find(|t| t.topic_name == data_reader.topic_name)
+                    else {
+                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
+                        continue 'data_readers;
+                    };
+                    (
+                        data_reader.topic_name.clone(),
+                        reader_topic.type_name.clone(),
+                    )
+                };
+
                 let changes = core::mem::take(data_reader.transport_reader.changes_mut());
-                let data_reader_handle = &data_reader.instance_handle.clone();
+                let data_reader_handle = data_reader.instance_handle;
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
                 for cache_change in changes {
@@ -61,29 +105,10 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
                     {
-                        matched_participant.last_communication_timestamp = runtime.clock().now();
+                        matched_participant.last_communication_timestamp = reception_timestamp;
                     }
-                    let Some(type_support) = get_topic_type_support(
-                        &data_reader.topic_name,
-                        content_filtered_topic_list,
-                        locally_created_topic_list,
-                    ) else {
-                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
-                        continue 'data_readers;
-                    };
 
-                    let (topic_name, type_name) = if let Some(content_filtered_topic) =
-                        content_filtered_topic_list
-                            .iter()
-                            .find(|t| t.topic_name == data_reader.topic_name)
-                    {
-                        let Some(reader_topic) = locally_created_topic_list
-                            .iter()
-                            .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
-                        else {
-                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
-                            continue 'data_readers;
-                        };
+                    if let Some(content_filtered_topic) = content_filtered_topic {
                         if cache_change.kind == ChangeKind::Alive {
                             let Some(data) = deserialize_topic_type(
                                 &data_reader.topic_name,
@@ -197,23 +222,7 @@ impl DcpsDomainParticipant {
                                 continue 'data_readers;
                             };
                         }
-                        (
-                            reader_topic.type_name.clone(),
-                            reader_topic.topic_name.clone(),
-                        )
-                    } else {
-                        let Some(reader_topic) = locally_created_topic_list
-                            .iter()
-                            .find(|t| t.topic_name == data_reader.topic_name)
-                        else {
-                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
-                            continue 'data_readers;
-                        };
-                        (
-                            data_reader.topic_name.clone(),
-                            reader_topic.type_name.clone(),
-                        )
-                    };
+                    }
 
                     let change_instance_handle = if let Some(i) = cache_change.instance_handle {
                         InstanceHandle::new(i)
@@ -273,18 +282,6 @@ impl DcpsDomainParticipant {
                         }
                     };
 
-                    let the_participant =
-                        DomainParticipantAsync::new(dcps_sender, domain_id, dp_instance_handle);
-                    let the_subscriber =
-                        SubscriberAsync::new(subscriber_handle, the_participant.clone());
-
-                    let the_reader = DataReaderAsync::new(
-                        *data_reader_handle,
-                        the_subscriber.clone(),
-                        topic_name,
-                        type_name,
-                    );
-
                     match data_reader.add_reader_change(
                         cache_change.writer_guid,
                         cache_change.data_value,
@@ -302,11 +299,31 @@ impl DcpsDomainParticipant {
 
                             if subscriber_listener_mask.is_enabled(&StatusKind::DataOnReaders) {
                                 if let Some(l) = &subscriber_listener_sender {
+                                    let the_participant = DomainParticipantAsync::new(
+                                        dcps_sender,
+                                        domain_id,
+                                        dp_instance_handle,
+                                    );
+                                    let the_subscriber =
+                                        SubscriberAsync::new(subscriber_handle, the_participant);
                                     l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
                                 }
                             } else if data_reader_on_data_available_active {
                                 if let Some(l) = &data_reader.listener_sender {
                                     info!("Triggering data reader DataAvailable listener");
+                                    let the_participant = DomainParticipantAsync::new(
+                                        dcps_sender,
+                                        domain_id,
+                                        dp_instance_handle,
+                                    );
+                                    let the_subscriber =
+                                        SubscriberAsync::new(subscriber_handle, the_participant);
+                                    let the_reader = DataReaderAsync::new(
+                                        data_reader_handle,
+                                        the_subscriber,
+                                        topic_name.clone(),
+                                        type_name.clone(),
+                                    );
                                     l.send(ListenerMail::DataAvailable { the_reader }).ok();
                                 }
                             }
@@ -329,29 +346,48 @@ impl DcpsDomainParticipant {
                                 sample_rejected_status_kind,
                             );
 
-                            if data_reader
+                            let is_listener_enabled = data_reader
                                 .listener_mask
                                 .is_enabled(&StatusKind::SampleRejected)
-                            {
+                                || subscriber_listener_mask.is_enabled(&StatusKind::SampleRejected)
+                                || dp_listener_mask.is_enabled(&StatusKind::SampleRejected);
+
+                            if is_listener_enabled {
+                                let the_participant = DomainParticipantAsync::new(
+                                    dcps_sender,
+                                    domain_id,
+                                    dp_instance_handle,
+                                );
+                                let the_subscriber =
+                                    SubscriberAsync::new(subscriber_handle, the_participant);
+                                let the_reader = DataReaderAsync::new(
+                                    data_reader_handle,
+                                    the_subscriber,
+                                    topic_name.clone(),
+                                    type_name.clone(),
+                                );
                                 let status = data_reader.get_sample_rejected_status();
 
-                                if let Some(l) = &data_reader.listener_sender {
-                                    l.send(ListenerMail::SampleRejected { the_reader, status })
-                                        .ok();
-                                };
-                            } else if subscriber_listener_mask
-                                .is_enabled(&StatusKind::SampleRejected)
-                            {
-                                let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = &subscriber_listener_sender {
-                                    l.send(ListenerMail::SampleRejected { status, the_reader })
-                                        .ok();
-                                }
-                            } else if dp_listener_mask.is_enabled(&StatusKind::SampleRejected) {
-                                let status = data_reader.get_sample_rejected_status();
-                                if let Some(l) = dp_listener_sender {
-                                    l.send(ListenerMail::SampleRejected { status, the_reader })
-                                        .ok();
+                                if data_reader
+                                    .listener_mask
+                                    .is_enabled(&StatusKind::SampleRejected)
+                                {
+                                    if let Some(l) = &data_reader.listener_sender {
+                                        l.send(ListenerMail::SampleRejected { the_reader, status })
+                                            .ok();
+                                    };
+                                } else if subscriber_listener_mask
+                                    .is_enabled(&StatusKind::SampleRejected)
+                                {
+                                    if let Some(l) = &subscriber_listener_sender {
+                                        l.send(ListenerMail::SampleRejected { status, the_reader })
+                                            .ok();
+                                    }
+                                } else if dp_listener_mask.is_enabled(&StatusKind::SampleRejected) {
+                                    if let Some(l) = dp_listener_sender {
+                                        l.send(ListenerMail::SampleRejected { status, the_reader })
+                                            .ok();
+                                    }
                                 }
                             }
 
@@ -366,39 +402,38 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(&mut self, runtime: &impl DdsRuntime) {
-        let reception_timestamp = runtime.clock().now();
+    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time) {
         let discovered_participant_list = &mut self.domain_participant.discovered_participant_list;
 
         self.domain_participant
             .builtin_subscriber
             .dcps_participant_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
 
         self.domain_participant
             .builtin_subscriber
             .dcps_topic_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
 
         self.domain_participant
             .builtin_subscriber
             .dcps_publication_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
 
         self.domain_participant
             .builtin_subscriber
             .dcps_subscription_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
 
         self.domain_participant
             .builtin_subscriber
             .type_lookup_request_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
 
         self.domain_participant
             .builtin_subscriber
             .type_lookup_reply_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp, runtime);
+            .process_cache_changes(discovered_participant_list, reception_timestamp);
     }
 
     #[tracing::instrument(skip(self, data_message, runtime))]

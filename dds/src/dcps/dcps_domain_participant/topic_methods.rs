@@ -21,7 +21,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -48,7 +48,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -77,7 +77,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -91,7 +91,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -110,7 +110,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };

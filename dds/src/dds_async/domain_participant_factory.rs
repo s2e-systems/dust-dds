@@ -284,19 +284,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             let span = tracing::trace_span!("dds_actor_loop");
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
+                let now = domain_participant_factory.runtime.clock().now();
                 let poke_time = Duration::new(0, 50_000_000);
                 let time_until_missed_reader_deadline =
-                    domain_participant_factory.time_until_missed_reader_deadline();
+                    domain_participant_factory.time_until_missed_reader_deadline(now);
                 let time_until_missed_writer_deadline =
-                    domain_participant_factory.time_until_missed_writer_deadline();
+                    domain_participant_factory.time_until_missed_writer_deadline(now);
                 let time_until_stale_participant =
-                    domain_participant_factory.time_until_stale_participant();
+                    domain_participant_factory.time_until_stale_participant(now);
                 let time_until_stale_writer_sample =
-                    domain_participant_factory.time_until_stale_writer_sample();
+                    domain_participant_factory.time_until_stale_writer_sample(now);
                 let time_until_pending_writer_sample_timeout =
-                    domain_participant_factory.time_until_pending_writer_sample_timeout();
+                    domain_participant_factory.time_until_pending_writer_sample_timeout(now);
                 let time_until_participant_announcement =
-                    domain_participant_factory.time_until_participant_announcement();
+                    domain_participant_factory.time_until_participant_announcement(now);
                 let next_task_time = poke_time
                     .min(time_until_missed_reader_deadline.unwrap_or(poke_time))
                     .min(time_until_missed_writer_deadline.unwrap_or(poke_time))
@@ -317,11 +318,10 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     Either::B(_) => (),
                 };
 
+                let now = domain_participant_factory.runtime.clock().now();
                 for dp in &mut domain_participant_factory.domain_participant_list {
-                    dp.process_builtin_cache_changes(&domain_participant_factory.runtime);
-                    dp.process_user_defined_received_cache_changes(
-                        &domain_participant_factory.runtime,
-                    );
+                    dp.process_builtin_cache_changes(now);
+                    dp.process_user_defined_received_cache_changes(now);
                     dp.process_discovered_participants_detector_cache_change(
                         &domain_participant_factory.runtime,
                     );
@@ -337,22 +337,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dp.request_topic_type_representation(&domain_participant_factory.runtime);
                     dp.process_discovered_readers(&domain_participant_factory.runtime);
                     dp.process_discovered_writers(&domain_participant_factory.runtime);
-                    dp.remove_stale_participants(domain_participant_factory.runtime.clock().now());
-                    dp.check_missed_reader_deadline(
-                        domain_participant_factory.runtime.clock().now(),
-                    );
-                    dp.check_missed_writer_deadline(
-                        domain_participant_factory.runtime.clock().now(),
-                    );
-                    dp.remove_stale_writer_samples(
-                        domain_participant_factory.runtime.clock().now(),
-                    );
-                    dp.check_pending_writer_sample_timeout(
-                        domain_participant_factory.runtime.clock().now(),
-                    );
+                    dp.remove_stale_participants(now);
+                    dp.check_missed_reader_deadline(now);
+                    dp.check_missed_writer_deadline(now);
+                    dp.remove_stale_writer_samples(now);
+                    dp.check_pending_writer_sample_timeout(now);
                     dp.process_pending_write_samples(&domain_participant_factory.runtime);
-                    dp.announce_participant_if_needed(&domain_participant_factory.runtime);
-                    dp.notify_find_topic_senders(domain_participant_factory.runtime.clock().now());
+                    dp.announce_participant_if_needed(&domain_participant_factory.runtime, now);
+                    dp.notify_find_topic_senders(now);
                     dp.poke(&domain_participant_factory.runtime.clock());
                 }
             }

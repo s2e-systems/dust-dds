@@ -23,7 +23,7 @@ use crate::{
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
     },
 };
-use alloc::{collections::VecDeque, string::String, vec::Vec};
+use alloc::{collections::VecDeque, sync::Arc, vec::Vec};
 
 use super::rtps_traits::RtpsWriter;
 
@@ -42,7 +42,7 @@ pub struct IncompatibleSubscriptions {
 pub struct DataWriterEntity<T> {
     pub instance_handle: InstanceHandle,
     pub transport_writer: T,
-    pub topic_name: String,
+    pub topic_name: Arc<str>,
     pub enabled: bool,
     pub last_change_sequence_number: i64,
     pub qos: DataWriterQos,
@@ -53,7 +53,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: T,
-        topic_name: String,
+        topic_name: Arc<str>,
         qos: DataWriterQos,
     ) -> Self {
         Self {

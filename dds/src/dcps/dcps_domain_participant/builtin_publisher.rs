@@ -16,7 +16,7 @@ use crate::{
         types::{Guid, GuidPrefix},
     },
 };
-use alloc::string::String;
+use alloc::sync::Arc;
 
 use super::builtin_constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -79,7 +79,7 @@ impl BuiltinPublisher {
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             dcps_participant_transport_writer,
-            String::from(DCPS_PARTICIPANT),
+            Arc::from(DCPS_PARTICIPANT),
             spdp_writer_qos(),
         );
 
@@ -90,7 +90,7 @@ impl BuiltinPublisher {
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             dcps_topics_transport_writer,
-            String::from(DCPS_TOPIC),
+            Arc::from(DCPS_TOPIC),
             sedp_data_writer_qos(),
         );
 
@@ -101,7 +101,7 @@ impl BuiltinPublisher {
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             dcps_publications_transport_writer,
-            String::from(DCPS_PUBLICATION),
+            Arc::from(DCPS_PUBLICATION),
             sedp_data_writer_qos(),
         );
 
@@ -112,7 +112,7 @@ impl BuiltinPublisher {
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             dcps_subscriptions_transport_writer,
-            String::from(DCPS_SUBSCRIPTION),
+            Arc::from(DCPS_SUBSCRIPTION),
             sedp_data_writer_qos(),
         );
 
@@ -123,7 +123,7 @@ impl BuiltinPublisher {
         let type_lookup_request_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
             type_lookup_request_transport_writer,
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
         );
 
@@ -134,7 +134,7 @@ impl BuiltinPublisher {
         let type_lookup_reply_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
             type_lookup_reply_transport_writer,
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
         );
 
