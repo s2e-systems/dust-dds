@@ -312,7 +312,7 @@ fn foo_xtypes_union_should_read_and_write() {
         #[dust_dds(case = 0)]
         VariantB { a: u32 },
         #[dust_dds(case = 7)]
-        _VariantC,
+        VariantC,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -380,6 +380,21 @@ fn foo_xtypes_union_should_read_and_write() {
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data = MyEnum::VariantB { a: 10 };
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+
+    let data = MyEnum::VariantC;
 
     writer.write(data.clone(), None).unwrap();
 
