@@ -3037,7 +3037,6 @@ fn xtypes_v2_struct_test_suite_struct_key_union_1() {
 ///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
 /// }
 #[test]
-#[ignore = "Bitmask TypeObject to be implemented"]
 fn xtypes_v2_union_test_suite_union_uint32_bitmask32() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let publisher_participant = DomainParticipantFactory::get_instance()

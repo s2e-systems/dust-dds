@@ -2007,6 +2007,20 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
 
                 MinimalTypeObject::TkUnion { union_type }
             }
+            TypeKind::BITMASK => {
+                let bitmask_flags = TYPE_FLAG_IS_FINAL;
+                let bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
+                let header = MinimalBitmaskHeader {
+                    common: CommonEnumeratedHeader { bit_bound: bound },
+                };
+                let flag_seq = value.member_list.iter().map(From::from).collect();
+                let bitmask_type = MinimalBitmaskType {
+                    bitmask_flags,
+                    header,
+                    flag_seq,
+                };
+                MinimalTypeObject::TkBitmask { bitmask_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
@@ -2084,7 +2098,7 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                         type_name: String::from(value.descriptor.name),
                     },
                 };
-                let flag_seq = Vec::new();
+                let flag_seq = value.member_list.iter().map(From::from).collect();
                 let bitmask_type = CompleteBitmaskType {
                     bitmask_flags,
                     header,
@@ -2408,6 +2422,43 @@ impl From<&DynamicTypeMember> for CompleteEnumeratedLiteral {
             ann_custom: None,
         };
         CompleteEnumeratedLiteral { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for MinimalBitflag {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let position = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32) as u16;
+        let flags = MemberFlag::default();
+        let common = CommonBitflag { position, flags };
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalBitflag { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteBitflag {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let position = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32) as u16;
+        let flags = MemberFlag::default();
+        let common = CommonBitflag { position, flags };
+        let detail = CompleteMemberDetail {
+            name: String::from(value.get_name()),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteBitflag { common, detail }
     }
 }
 
