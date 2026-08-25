@@ -437,6 +437,7 @@ impl DynamicTypeBuilderFactory {
             for child in target_node.children() {
                 if child.is_element() && child.tag_name().name() == "discriminator" {
                     parse_try_construct_kind(&child, &mut try_construct_kind);
+                    let is_key = child.attribute("key") == Some("true");
                     let member_desc = MemberDescriptor {
                         name: "discriminator",
                         id: member_id,
@@ -445,7 +446,7 @@ impl DynamicTypeBuilderFactory {
                         index,
                         label: &[],
                         try_construct_kind,
-                        is_key: false,
+                        is_key,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -467,6 +468,7 @@ impl DynamicTypeBuilderFactory {
                     let mut m_id = None;
                     let mut label: Vec<i32> = Vec::new();
                     let mut is_default_label = false;
+                    let mut is_key = false;
 
                     for c in child.children() {
                         if c.is_element() && c.tag_name().name() == "caseDiscriminator" {
@@ -500,6 +502,7 @@ impl DynamicTypeBuilderFactory {
                         if c.is_element() && c.tag_name().name() == "member" {
                             m_name = c.attribute("name");
                             m_type = c.attribute("type");
+                            is_key = c.attribute("key") == Some("true");
                             non_basic_type_name = c.attribute("nonBasicTypeName");
                             string_max_length = c.attribute("stringMaxLength");
                             array_dimensions = c.attribute("arrayDimensions");
@@ -557,7 +560,7 @@ impl DynamicTypeBuilderFactory {
                         index,
                         label,
                         try_construct_kind,
-                        is_key: false,
+                        is_key,
                         is_optional: false,
                         is_must_understand: false,
                         is_shared: false,

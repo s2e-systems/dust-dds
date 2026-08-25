@@ -3239,6 +3239,52 @@ impl CompleteTypeObject {
                     return false;
                 }
 
+                // • Key consistency rules (Clause 7.2.4.4.3 Union Types)
+                let t1_disc_is_key =
+                    (t1.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                let t2_disc_is_key =
+                    (t2.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                if t1_disc_is_key != t2_disc_is_key {
+                    return false;
+                }
+
+                let t1_has_key = t1_disc_is_key
+                    || t1
+                        .member_seq
+                        .iter()
+                        .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                let t2_has_key = t2_disc_is_key
+                    || t2
+                        .member_seq
+                        .iter()
+                        .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                if t1_has_key != t2_has_key {
+                    return false;
+                }
+
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+
                 let t1_default = t1
                     .member_seq
                     .iter()
