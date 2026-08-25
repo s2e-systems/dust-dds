@@ -515,7 +515,7 @@ fn struct_primitive_float128_data_from_xml() {
 
     let ty = builder.build();
 
-    let mut d = DynamicDataFactory::create_data(ty.clone());
+    let mut d = DynamicDataFactory::create_data(ty);
     d.from_xml("<struct_primitive_float128><x1>0.5</x1></struct_primitive_float128>")
         .unwrap();
 
