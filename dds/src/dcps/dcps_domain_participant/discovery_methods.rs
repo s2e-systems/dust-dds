@@ -916,11 +916,21 @@ impl DcpsDomainParticipant {
                                                     .typeid_with_size
                                                     .type_id,
                                             ) {
+                                                let resolver = |id: &TypeIdentifier| {
+                                                    if let Some(TypeObject::EkComplete { complete }) =
+                                                        type_register.get_type_object(id)
+                                                    {
+                                                        Some(complete)
+                                                    } else {
+                                                        None
+                                                    }
+                                                };
                                                 complete.is_assignable_from_w_type_consistency(
                                                     &local_complete,
                                                     &discovered_reader_data
                                                         .dds_subscription_data
                                                         .type_consistency,
+                                                    &resolver,
                                                 )
                                             } else {
                                                 false
@@ -1572,10 +1582,20 @@ impl DcpsDomainParticipant {
                                                     .typeid_with_size
                                                     .type_id,
                                             ) {
+                                                let resolver = |id: &TypeIdentifier| {
+                                                    if let Some(TypeObject::EkComplete { complete }) =
+                                                        type_register.get_type_object(id)
+                                                    {
+                                                        Some(complete)
+                                                    } else {
+                                                        None
+                                                    }
+                                                };
                                                 local_complete
                                                     .is_assignable_from_w_type_consistency(
                                                         complete,
                                                         &data_reader.qos.type_consistency,
+                                                        &resolver,
                                                     )
                                             } else {
                                                 false
@@ -2737,15 +2757,26 @@ impl DcpsDomainParticipant {
                                                                 .type_id,
                                                         )
                                                     {
+                                                        let resolver = |id: &TypeIdentifier| {
+                                                            if let Some(TypeObject::EkComplete { complete }) =
+                                                                self.domain_participant.type_register.get_type_object(id)
+                                                            {
+                                                                Some(complete)
+                                                            } else {
+                                                                None
+                                                            }
+                                                        };
                                                         local_type
-                                                        .is_assignable_from_w_type_consistency(
-                                                            complete,
-                                                            &topic_type_consistency,
-                                                        )
+                                                            .is_assignable_from_w_type_consistency(
+                                                                complete,
+                                                                &topic_type_consistency,
+                                                                &resolver,
+                                                            )
                                                         || complete
                                                             .is_assignable_from_w_type_consistency(
                                                                 &local_type,
                                                                 &topic_type_consistency,
+                                                                &resolver,
                                                             )
                                                     } else {
                                                         false

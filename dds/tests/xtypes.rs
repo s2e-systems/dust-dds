@@ -3181,6 +3181,139 @@ fn xtypes_v2_union_test_suite_union_uint32_bitmask32() {
     assert_eq!(sample.data.unwrap(), expected_received);
 }
 
+/// 'union_uint32_bitmask16': {
+///     'common_args': [''],
+///     'apps': ['pub-exe -P -t test --type-folder types --type-file unions         -y Test::union_uint32    --data-folder data --data-file union_uint32',
+///              'sub-exe -S -t test --type-folder types --type-file unions_bitmask -y Test::union_bitmask16 --data-folder data --data-file union_bitmask'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between union_uint32 and union_bitmask16',
+///     'description' : 'Verifies unions with incompatible discriminator types do not communicate:\n\n'
+///                     ' * Publisher uses `union_uint32` (appendable) from `unions`.\n'
+///                     ' * Subscriber uses `union_bitmask16` (appendable) from `unions_bitmask`.\n'
+///                     ' * Publisher discriminator is `uint32`.\n'
+///                     ' * Subscriber discriminator is `bitmask` with `bitBound=16`.\n'
+///                     ' * A 16-bit bitmask is NOT assignable from `uint32` (different bit widths).\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// }
+#[test]
+fn xtypes_v2_union_test_suite_union_uint32_bitmask16() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let publisher_type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <union name="union_uint32" extensibility="appendable">
+                    <discriminator type="uint32"/>
+                    <case><caseDiscriminator value="2"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="1"/><member name="x2" type="int32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        publisher_type_xml,
+        "Test::union_uint32",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_uint32",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _writer = publisher
+        .create_datawriter::<DynamicData<'static>>(
+            &publisher_topic,
+            QosKind::Specific(writer_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <bitmask name="B_16" bitBound="16">
+                    <flag name="B_FLAG_1" value="0"/>
+                    <flag name="B_FLAG_2" value="1"/>
+                </bitmask>
+                <union name="union_bitmask16" extensibility="appendable">
+                    <discriminator type="nonBasic" nonBasicTypeName="B_16"/>
+                    <case><caseDiscriminator value="2"/><member name="x1" type="int16"/></case>
+                    <case><caseDiscriminator value="1"/><member name="x2" type="int32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        subscriber_type_xml,
+        "Test::union_bitmask16",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_bitmask16",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
+
 /// 'union_final_5_vs_6': {
 ///     'common_args': ['--type-folder types --type-file unions'],
 ///     'apps': ['pub-exe -P -t test -y Test::union_final_5 --data-folder data --data-file union_x1',

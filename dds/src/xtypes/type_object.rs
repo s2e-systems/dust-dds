@@ -4,7 +4,6 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicType, DynamicTypeMember},
         serializer::serialize_without_header_cdr2_le,
-        type_object::TypeIdentifier::EkMinimal,
         type_support::TypeSupport,
     },
 };
@@ -2620,6 +2619,7 @@ impl TypeIdentifier {
         self.is_assignable_from_w_type_consistency(
             other,
             &TypeConsistencyEnforcementQosPolicy::const_default(),
+            &|_| None,
         )
     }
     /// Assignability rules taking into account TypeConsistencyEnforcementQosPolicy
@@ -2627,64 +2627,151 @@ impl TypeIdentifier {
         &self,
         other: &TypeIdentifier,
         type_consistency: &TypeConsistencyEnforcementQosPolicy,
+        type_resolver: &dyn Fn(&TypeIdentifier) -> Option<CompleteTypeObject>,
     ) -> bool {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType => matches!(
-                other,
-                TypeIdentifier::TkByteType
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt8Type => matches!(
-                other,
-                TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint8Type => matches!(
-                other,
-                TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt16Type => matches!(
-                other,
-                TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint16Type => matches!(
-                other,
-                TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt32Type => matches!(
-                other,
-                TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint32Type => matches!(
-                other,
-                TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt64Type => matches!(
-                other,
-                TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint64Type => matches!(
-                other,
-                TypeIdentifier::TkUint64Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
+            TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => match other {
+                TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (1..=8).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (1..=8).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt8Type => match other {
+                TypeIdentifier::TkInt8Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (1..=8).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt16Type => match other {
+                TypeIdentifier::TkInt16Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (9..=16).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint16Type => match other {
+                TypeIdentifier::TkUint16Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (9..=16).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (9..=16).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt32Type => match other {
+                TypeIdentifier::TkInt32Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (17..=32).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint32Type => match other {
+                TypeIdentifier::TkUint32Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (17..=32).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (17..=32).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt64Type => match other {
+                TypeIdentifier::TkInt64Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (33..=64).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint64Type => match other {
+                TypeIdentifier::TkUint64Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (33..=64).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (33..=64).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
             TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
             TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
@@ -2751,6 +2838,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
@@ -2761,6 +2849,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2774,6 +2863,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
@@ -2784,6 +2874,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2794,6 +2885,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2804,6 +2896,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2811,32 +2904,97 @@ impl TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
-            TypeIdentifier::EkComplete { .. } => matches!(
-                other,
-                TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::TkByteType
-                    | TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::TkUint64Type
-            ),
-            EkMinimal { .. } => matches!(
-                other,
-                TypeIdentifier::EkMinimal { .. }
-                    | TypeIdentifier::TkByteType
-                    | TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::TkUint64Type
-            ),
+            TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                if let Some(obj) = type_resolver(self) {
+                    match &obj {
+                        CompleteTypeObject::TkBitmask { bitmask_type } => {
+                            let bound = bitmask_type.header.common.bit_bound;
+                            match other {
+                                TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => {
+                                    (1..=8).contains(&bound)
+                                }
+                                TypeIdentifier::TkUint16Type => (9..=16).contains(&bound),
+                                TypeIdentifier::TkUint32Type => (17..=32).contains(&bound),
+                                TypeIdentifier::TkUint64Type => (33..=64).contains(&bound),
+                                TypeIdentifier::EkComplete { .. }
+                                | TypeIdentifier::EkMinimal { .. } => {
+                                    if let Some(other_obj) = type_resolver(other) {
+                                        obj.is_assignable_from_w_type_consistency(
+                                            &other_obj,
+                                            type_consistency,
+                                            type_resolver,
+                                        )
+                                    } else {
+                                        true
+                                    }
+                                }
+                                _ => false,
+                            }
+                        }
+                        CompleteTypeObject::TkEnum { enumerated_type } => {
+                            let bound = enumerated_type.header.common.bit_bound;
+                            match other {
+                                TypeIdentifier::TkByteType
+                                | TypeIdentifier::TkInt8Type
+                                | TypeIdentifier::TkUint8Type => (1..=8).contains(&bound),
+                                TypeIdentifier::TkInt16Type | TypeIdentifier::TkUint16Type => {
+                                    (9..=16).contains(&bound)
+                                }
+                                TypeIdentifier::TkInt32Type | TypeIdentifier::TkUint32Type => {
+                                    (17..=32).contains(&bound)
+                                }
+                                TypeIdentifier::TkInt64Type | TypeIdentifier::TkUint64Type => {
+                                    (33..=64).contains(&bound)
+                                }
+                                TypeIdentifier::EkComplete { .. }
+                                | TypeIdentifier::EkMinimal { .. } => {
+                                    if let Some(other_obj) = type_resolver(other) {
+                                        obj.is_assignable_from_w_type_consistency(
+                                            &other_obj,
+                                            type_consistency,
+                                            type_resolver,
+                                        )
+                                    } else {
+                                        true
+                                    }
+                                }
+                                _ => false,
+                            }
+                        }
+                        _ => {
+                            if let TypeIdentifier::EkComplete { .. }
+                            | TypeIdentifier::EkMinimal { .. } = other
+                            {
+                                if let Some(other_obj) = type_resolver(other) {
+                                    obj.is_assignable_from_w_type_consistency(
+                                        &other_obj,
+                                        type_consistency,
+                                        type_resolver,
+                                    )
+                                } else {
+                                    true
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                    }
+                } else {
+                    matches!(
+                        other,
+                        TypeIdentifier::EkComplete { .. }
+                            | TypeIdentifier::TkByteType
+                            | TypeIdentifier::TkInt8Type
+                            | TypeIdentifier::TkUint8Type
+                            | TypeIdentifier::TkInt16Type
+                            | TypeIdentifier::TkUint16Type
+                            | TypeIdentifier::TkInt32Type
+                            | TypeIdentifier::TkUint32Type
+                            | TypeIdentifier::TkInt64Type
+                            | TypeIdentifier::TkUint64Type
+                    )
+                }
+            }
             TypeIdentifier::Default { extended_type: _ } => todo!(),
         }
     }
@@ -2849,6 +3007,7 @@ impl CompleteTypeObject {
         self.is_assignable_from_w_type_consistency(
             t2,
             &TypeConsistencyEnforcementQosPolicy::const_default(),
+            &|_| None,
         )
     }
 
@@ -2857,6 +3016,7 @@ impl CompleteTypeObject {
         &self,
         t2: &CompleteTypeObject,
         type_consistency: &TypeConsistencyEnforcementQosPolicy,
+        type_resolver: &dyn Fn(&TypeIdentifier) -> Option<CompleteTypeObject>,
     ) -> bool {
         if self == t2 {
             return true;
@@ -2901,6 +3061,7 @@ impl CompleteTypeObject {
                             .is_assignable_from_w_type_consistency(
                                 &m2.common.member_type_id,
                                 type_consistency,
+                                type_resolver,
                             )
                         {
                             return false;
@@ -2958,12 +3119,53 @@ impl CompleteTypeObject {
                             .is_assignable_from_w_type_consistency(
                                 &m2.common.member_type_id,
                                 type_consistency,
+                                type_resolver,
                             );
                     } else if !type_consistency.ignore_member_names
                         && t1
                             .member_seq
                             .iter()
                             .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
+                    }
+                }
+
+                // • Key consistency rules (Clause 7.2.4.4.2 Structure Types)
+                // • Either both T1 and T2 have at least one key member, or neither does.
+                let t1_has_key = t1
+                    .member_seq
+                    .iter()
+                    .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                let t2_has_key = t2
+                    .member_seq
+                    .iter()
+                    .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                if t1_has_key != t2_has_key {
+                    return false;
+                }
+
+                // • For any key member in T1, there is a corresponding key member in T2 with the same member ID.
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+
+                // • For any key member in T2, there is a corresponding key member in T1 with the same member ID.
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
                     {
                         return false;
                     }
@@ -3000,51 +3202,8 @@ impl CompleteTypeObject {
                     }
                 }
 
-                // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
-                //   member ID) in both T1 and T2.
-                for m1 in &t1.member_seq {
-                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
-                    if is_key
-                        && !t2
-                            .member_seq
-                            .iter()
-                            .any(|m2| m2.common.member_id == m1.common.member_id)
-                    {
-                        return false;
-                    }
-                }
-                for m2 in &t2.member_seq {
-                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
-                    if is_key
-                        && !t1
-                            .member_seq
-                            .iter()
-                            .any(|m1| m1.common.member_id == m2.common.member_id)
-                    {
-                        return false;
-                    }
-                }
-
-                // • For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies
-                //   m1.type.length >= m2.type.length.
-                // TODO
-
-                // • For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that
-                //   all literals in m2.type appear as literals in m1.type.
-                // TODO
-
-                // • For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies
-                //   m1.type.length >= m2.type.length.
-                // TODO
-
-                // • For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID
+                // • For any member "m2" in T2, if there is a key member "m1" in T1 with the same member ID, then the type
                 //   verifies that KeyHolder(m1.type) is-assignable-from KeyHolder(m2.type).
-                // TODO
-
-                // • For any union key member m2 in T2, the m1 member of T1 with the same member ID verifies that: For
-                //   every discriminator value of m2.type that selects a member m22 in m2.type, the discriminator value
-                // TODO
-
                 members_are_assignable
             }
             (
@@ -3074,6 +3233,7 @@ impl CompleteTypeObject {
                     .is_assignable_from_w_type_consistency(
                         &t2.discriminator.common.type_id,
                         type_consistency,
+                        type_resolver,
                     )
                 {
                     return false;
@@ -3164,6 +3324,7 @@ impl CompleteTypeObject {
                             if !m1.common.type_id.is_assignable_from_w_type_consistency(
                                 &m2.common.type_id,
                                 type_consistency,
+                                type_resolver,
                             ) {
                                 return false;
                             }
@@ -3184,6 +3345,7 @@ impl CompleteTypeObject {
                         if !m1_def.common.type_id.is_assignable_from_w_type_consistency(
                             &m2_def.common.type_id,
                             type_consistency,
+                            type_resolver,
                         ) {
                             return false;
                         }
@@ -3204,6 +3366,7 @@ impl CompleteTypeObject {
                                 if !m1.common.type_id.is_assignable_from_w_type_consistency(
                                     &m2_def.common.type_id,
                                     type_consistency,
+                                    type_resolver,
                                 ) {
                                     return false;
                                 }
