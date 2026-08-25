@@ -2298,7 +2298,6 @@ fn parse_f128_str(s: &str) -> Result<i128, ()> {
     Ok(val as i128)
 }
 
-
 #[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
     /// Deserializes dynamic data from XML.
