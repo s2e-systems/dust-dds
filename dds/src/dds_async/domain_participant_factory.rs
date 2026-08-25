@@ -1,4 +1,4 @@
-use alloc::{borrow::ToOwned, boxed::Box};
+use alloc::{borrow::ToOwned, boxed::Box, sync::Arc};
 use core::ops::DerefMut;
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
@@ -38,20 +38,27 @@ pub type DcpsChannel = embassy_sync::channel::Channel<
 >;
 
 #[doc(hidden)]
-pub type DcpsSender = embassy_sync::channel::Sender<
-    'static,
-    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    DcpsMail,
-    DCPS_CHANNEL_SIZE,
->;
+#[derive(Clone)]
+pub struct DcpsSender {
+    channel: Arc<DcpsChannel>,
+}
+
+impl DcpsSender {
+    pub async fn send(&self, message: DcpsMail) {
+        self.channel.send(message).await;
+    }
+}
 
 #[doc(hidden)]
-pub type DcpsReceiver = embassy_sync::channel::Receiver<
-    'static,
-    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    DcpsMail,
-    DCPS_CHANNEL_SIZE,
->;
+pub struct DcpsReceiver {
+    channel: Arc<DcpsChannel>,
+}
+
+impl DcpsReceiver {
+    pub async fn receive(&self) -> DcpsMail {
+        self.channel.receive().await
+    }
+}
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
@@ -65,7 +72,7 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
     configuration: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, DustDdsConfiguration>,
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
-    run_loop: alloc::sync::Arc<core::sync::atomic::AtomicBool>,
+    run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
@@ -82,7 +89,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
         let transport_participant = self.transport.lock().await.create_participant(
             domain_id,
-            TransportDataReceiver::new(participant_handle, self.dcps_sender),
+            TransportDataReceiver::new(participant_handle, self.dcps_sender.clone()),
         );
 
         let domain_tag = configuration.domain_tag().to_owned();
@@ -109,7 +116,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let participant_handle = reply_receiver.await??;
 
         let domain_participant =
-            DomainParticipantAsync::new(self.dcps_sender, domain_id, participant_handle);
+            DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, participant_handle);
 
         Ok(domain_participant)
     }
@@ -146,7 +153,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             .await;
         Ok(reply_receiver
             .await?
-            .map(|handle| DomainParticipantAsync::new(self.dcps_sender, domain_id, handle)))
+            .map(|handle| DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, handle)))
     }
 
     /// Async version of [`set_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_default_participant_qos).
@@ -268,17 +275,22 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         transport: T,
         configuration: DustDdsConfiguration,
     ) -> Self {
-        static DCPS_CHANNEL: DcpsChannel = DcpsChannel::new();
+        let dcps_channel = Arc::new(DcpsChannel::new());
+        let dcps_sender = DcpsSender {
+            channel: dcps_channel.clone(),
+        };
+        let dcps_receiver = DcpsReceiver {
+            channel: dcps_channel,
+        };
         let spawner_handle = runtime.spawner();
         let mut timer_handle = runtime.timer();
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
                 runtime,
-                DCPS_CHANNEL.sender(),
+                dcps_sender.clone(),
             );
-        let dcps_receiver = DCPS_CHANNEL.receiver();
-        let run_loop = alloc::sync::Arc::new(core::sync::atomic::AtomicBool::new(true));
+        let run_loop = Arc::new(core::sync::atomic::AtomicBool::new(true));
         let run_loop_clone = run_loop.clone();
         let worker_task = spawner_handle.spawn(async move {
             let span = tracing::trace_span!("dds_actor_loop");
@@ -350,7 +362,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             }
         });
         Self {
-            dcps_sender: DCPS_CHANNEL.sender(),
+            dcps_sender,
             app_id,
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),

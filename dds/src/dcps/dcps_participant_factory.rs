@@ -63,7 +63,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             listener_sender,
             listener_mask,
             transport_participant,
-            self.dcps_sender,
+            self.dcps_sender.clone(),
             participant_announcement_interval,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
