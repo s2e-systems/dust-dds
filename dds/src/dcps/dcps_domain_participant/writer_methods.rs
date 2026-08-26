@@ -210,14 +210,13 @@ impl DcpsDomainParticipant {
         data_writer.register_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn unregister_instance(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -246,13 +245,7 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        data_writer.unregister_w_timestamp(
-            dynamic_data,
-            &type_support,
-            timestamp,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        )
+        data_writer.unregister_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self))]
@@ -416,14 +409,8 @@ impl DcpsDomainParticipant {
             }
         }
 
-        let write_result = data_writer.write_w_timestamp(
-            instance_handle,
-            serialized_data,
-            timestamp,
-            now,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        );
+        let write_result =
+            data_writer.write_w_timestamp(instance_handle, serialized_data, timestamp, now);
         if write_result.is_err() {
             reply_sender.send(write_result);
             return;
@@ -432,14 +419,13 @@ impl DcpsDomainParticipant {
         reply_sender.send(Ok(()));
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -468,13 +454,7 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        data_writer.dispose_w_timestamp(
-            dynamic_data,
-            &type_support,
-            timestamp,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        )
+        data_writer.dispose_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self))]
@@ -693,8 +673,6 @@ impl DcpsDomainParticipant {
                             serialized_data,
                             pending.timestamp,
                             now,
-                            self.transport.message_writer.as_ref(),
-                            runtime,
                         );
                         if write_result.is_err() {
                             pending.reply_sender.send(write_result);

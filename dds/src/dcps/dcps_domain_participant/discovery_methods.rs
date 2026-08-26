@@ -160,8 +160,6 @@ impl DcpsDomainParticipant {
                     serialized_data,
                     sample_timestamp,
                     now,
-                    self.transport.message_writer.as_ref(),
-                    runtime,
                 )
                 .ok();
             }
@@ -185,14 +183,8 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
-            dw.unregister_w_timestamp(
-                &dynamic_data,
-                &BuiltInKeyHolder::TYPE,
-                timestamp,
-                self.transport.message_writer.as_ref(),
-                runtime,
-            )
-            .ok();
+            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+                .ok();
         }
     }
 
@@ -562,14 +554,11 @@ impl DcpsDomainParticipant {
             let sample_instance_handle = data_writer.transport_writer.guid().into();
             let serialized_data = discovered_writer_data.into_bytes();
             let sample_timestamp = now;
-            let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
                 sample_instance_handle,
                 serialized_data,
                 sample_timestamp,
                 now,
-                message_writer,
-                runtime,
             )
             .ok();
         }
@@ -594,14 +583,8 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
-            dw.unregister_w_timestamp(
-                &dynamic_data,
-                &BuiltInKeyHolder::TYPE,
-                timestamp,
-                self.transport.message_writer.as_ref(),
-                runtime,
-            )
-            .ok();
+            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+                .ok();
         }
     }
 
@@ -708,14 +691,11 @@ impl DcpsDomainParticipant {
             let sample_instance_handle = data_reader.transport_reader.guid().into();
             let serialized_data = discovered_reader_data.into_bytes();
             let sample_timestamp = now;
-            let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
                 sample_instance_handle,
                 serialized_data,
                 sample_timestamp,
                 now,
-                message_writer,
-                runtime,
             )
             .ok();
         }
@@ -740,14 +720,8 @@ impl DcpsDomainParticipant {
             .create_dynamic_sample();
             dynamic_data.set_complex_value(0, topic_key_data).unwrap();
 
-            dw.unregister_w_timestamp(
-                &dynamic_data,
-                &BuiltInKeyHolder::TYPE,
-                timestamp,
-                self.transport.message_writer.as_ref(),
-                runtime,
-            )
-            .ok();
+            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+                .ok();
         }
     }
 
@@ -796,14 +770,11 @@ impl DcpsDomainParticipant {
             let serialized_data = discovered_topic_data.into_bytes();
             let now = runtime.clock().now();
             let sample_timestamp = now;
-            let message_writer = self.transport.message_writer.as_ref();
             dw.write_w_timestamp(
                 sample_instance_handle,
                 serialized_data,
                 sample_timestamp,
                 now,
-                message_writer,
-                runtime,
             )
             .ok();
         }
@@ -838,7 +809,6 @@ impl DcpsDomainParticipant {
         let participant_instance_handle = *participant_instance_handle;
         let participant_listener_mask = *participant_listener_mask;
         let dcps_sender = self.dcps_sender.clone();
-        let message_writer = self.transport.message_writer.as_ref();
 
         for publisher in user_defined_publisher_list.iter_mut() {
             let publisher_handle = publisher.instance_handle;
@@ -1003,8 +973,6 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
-                                                    message_writer,
-                                                    runtime,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1019,7 +987,7 @@ impl DcpsDomainParticipant {
                                             header: RequestHeader {
                                                 request_id: SampleIdentity {
                                                     writer_guid: type_request_writer
-                                                        .transport_writer
+                                                         .transport_writer
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
@@ -1049,8 +1017,6 @@ impl DcpsDomainParticipant {
                                                 serialized_data,
                                                 now,
                                                 now,
-                                                message_writer,
-                                                runtime,
                                             )
                                             .ok();
                                         type_register.add_pending_types_lookup(vec![
@@ -1482,7 +1448,6 @@ impl DcpsDomainParticipant {
         let participant_instance_handle = *participant_instance_handle;
         let participant_listener_mask = *participant_listener_mask;
         let dcps_sender = self.dcps_sender.clone();
-        let message_writer = self.transport.message_writer.as_ref();
 
         for subscriber in user_defined_subscriber_list.iter_mut() {
             let subscriber_handle = subscriber.instance_handle;
@@ -1668,8 +1633,6 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
-                                                    message_writer,
-                                                    runtime,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1714,8 +1677,6 @@ impl DcpsDomainParticipant {
                                                 serialized_data,
                                                 now,
                                                 now,
-                                                message_writer,
-                                                runtime,
                                             )
                                             .ok();
                                         type_register.add_pending_types_lookup(vec![
@@ -2403,8 +2364,6 @@ impl DcpsDomainParticipant {
                                             serialized_data,
                                             now,
                                             now,
-                                            self.transport.message_writer.as_ref(),
-                                            runtime,
                                         )
                                         .ok();
                                 }
@@ -2454,8 +2413,6 @@ impl DcpsDomainParticipant {
                                                 serialized_data,
                                                 now,
                                                 now,
-                                                self.transport.message_writer.as_ref(),
-                                                runtime,
                                             )
                                             .ok();
                                     }
@@ -2558,8 +2515,6 @@ impl DcpsDomainParticipant {
                                                 serialized_data,
                                                 now,
                                                 now,
-                                                self.transport.message_writer.as_ref(),
-                                                runtime,
                                             )
                                             .ok();
                                         self.domain_participant
@@ -2939,8 +2894,6 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
-                                        self.transport.message_writer.as_ref(),
-                                        runtime,
                                     )
                                     .ok();
                                 self.domain_participant
@@ -2988,8 +2941,6 @@ impl DcpsDomainParticipant {
                                     serialized_data,
                                     now,
                                     now,
-                                    self.transport.message_writer.as_ref(),
-                                    runtime,
                                 )
                                 .ok();
                             self.domain_participant
@@ -3678,8 +3629,6 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
-                self.transport.message_writer.as_ref(),
-                runtime,
             )
             .ok();
         }

@@ -32,13 +32,11 @@ impl RtpsStatelessWriter {
         self.guid
     }
 
-    pub fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-        message_writer: &(impl WriteMessage + ?Sized),
-    ) {
+    pub fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
+    }
 
+    pub fn write_message(&mut self, message_writer: &(impl WriteMessage + ?Sized)) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())

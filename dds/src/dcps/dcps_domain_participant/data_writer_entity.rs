@@ -13,11 +13,7 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
-    runtime::DdsRuntime,
-    transport::{
-        interface::WriteMessage,
-        types::{CacheChange, ChangeKind, TopicKind},
-    },
+    transport::types::{CacheChange, ChangeKind, TopicKind},
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -73,8 +69,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         serialized_data: Vec<u8>,
         sample_timestamp: Time,
         now: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self
             .registered_instance_info
@@ -162,8 +156,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             }
         }
 
-        self.transport_writer
-            .add_change(change, message_writer, runtime);
+        self.transport_writer.add_change(change);
 
         Ok(())
     }
@@ -173,8 +166,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         dynamic_data: &DynamicData<'static>,
         type_support: &DynamicType<'static>,
         timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -211,8 +202,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
+        self.transport_writer.add_change(cache_change);
 
         Ok(())
     }
@@ -260,8 +250,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         dynamic_data: &DynamicData<'static>,
         type_support: &DynamicType<'static>,
         timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -306,8 +294,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
+        self.transport_writer.add_change(cache_change);
         Ok(())
     }
 }

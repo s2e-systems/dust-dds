@@ -626,7 +626,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         &data_writer_handle,
                         &dynamic_data,
                         timestamp,
-                        &self.runtime,
                     ));
                 }
                 Err(e) => reply_sender.send(Err(e)),
@@ -687,7 +686,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         &data_writer_handle,
                         &dynamic_data,
                         timestamp,
-                        &self.runtime,
                     ));
                 }
                 Err(e) => reply_sender.send(Err(e)),
