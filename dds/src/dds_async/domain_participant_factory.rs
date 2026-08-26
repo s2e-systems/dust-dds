@@ -19,7 +19,6 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
-        time::Duration,
     },
     runtime::{Clock, DdsRuntime, Either, Spawner, TaskHandle, Timer, select_future},
     transport::{
@@ -299,38 +298,24 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let now = domain_participant_factory.runtime.clock().now();
-                let poke_time = Duration::new(0, 50_000_000);
-                let time_until_missed_reader_deadline =
-                    domain_participant_factory.time_until_missed_reader_deadline(now);
-                let time_until_missed_writer_deadline =
-                    domain_participant_factory.time_until_missed_writer_deadline(now);
-                let time_until_stale_participant =
-                    domain_participant_factory.time_until_stale_participant(now);
-                let time_until_stale_writer_sample =
-                    domain_participant_factory.time_until_stale_writer_sample(now);
-                let time_until_pending_writer_sample_timeout =
-                    domain_participant_factory.time_until_pending_writer_sample_timeout(now);
-                let time_until_participant_announcement =
-                    domain_participant_factory.time_until_participant_announcement(now);
-                let next_task_time = poke_time
-                    .min(time_until_missed_reader_deadline.unwrap_or(poke_time))
-                    .min(time_until_missed_writer_deadline.unwrap_or(poke_time))
-                    .min(time_until_stale_participant.unwrap_or(poke_time))
-                    .min(time_until_stale_writer_sample.unwrap_or(poke_time))
-                    .min(time_until_pending_writer_sample_timeout.unwrap_or(poke_time))
-                    .min(time_until_participant_announcement.unwrap_or(poke_time));
+                let next_task_time = domain_participant_factory.time_until_next_event(now);
 
-                match select_future(
-                    dcps_receiver.receive(),
-                    timer_handle.delay(next_task_time.into()),
-                )
-                .await
-                {
-                    Either::A(m) => {
-                        domain_participant_factory.handle(m);
-                    }
-                    Either::B(_) => (),
-                };
+                if let Some(next_task_time) = next_task_time {
+                    match select_future(
+                        dcps_receiver.receive(),
+                        timer_handle.delay(next_task_time.into()),
+                    )
+                    .await
+                    {
+                        Either::A(m) => {
+                            domain_participant_factory.handle(m);
+                        }
+                        Either::B(_) => (),
+                    };
+                } else {
+                    let m = dcps_receiver.receive().await;
+                    domain_participant_factory.handle(m);
+                }
 
                 let now = domain_participant_factory.runtime.clock().now();
                 for dp in &mut domain_participant_factory.domain_participant_list {
