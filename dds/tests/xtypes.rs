@@ -5266,7 +5266,7 @@ fn xtypes_v2_union_test_suite_union_different_ids_1() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -5295,7 +5295,7 @@ fn xtypes_v2_union_test_suite_union_different_ids_1() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            subscriber_dynamic_type.clone(),
+            subscriber_dynamic_type,
         )
         .unwrap();
     let subscriber = subscriber_participant
@@ -5399,7 +5399,7 @@ fn seq_s_mutable_10_seq_s_mutable_alt_10() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            publisher_dynamic_type.clone(),
+            publisher_dynamic_type,
         )
         .unwrap();
     let publisher = publisher_participant
@@ -5431,7 +5431,7 @@ fn seq_s_mutable_10_seq_s_mutable_alt_10() {
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
-            subscriber_dynamic_type.clone(),
+            subscriber_dynamic_type,
         )
         .unwrap();
     let subscriber = subscriber_participant

@@ -2734,7 +2734,7 @@ mod tests {
         )
         .unwrap()
         .build();
-        let mut expected_data = DynamicDataFactory::create_data(dynamic_type.clone());
+        let mut expected_data = DynamicDataFactory::create_data(dynamic_type);
         expected_data.from_xml(&data_xml).unwrap();
 
         let serialized = crate::xtypes::serializer::serialize_cdr2_le(&expected_data).unwrap();
@@ -2802,7 +2802,7 @@ mod tests {
         let mut pub_data = DynamicDataFactory::create_data(pub_type);
         pub_data.from_xml(&pub_data_xml).unwrap();
 
-        let mut expected_sub_data = DynamicDataFactory::create_data(sub_type.clone());
+        let mut expected_sub_data = DynamicDataFactory::create_data(sub_type);
         expected_sub_data.from_xml(&sub_data_xml).unwrap();
 
         let serialized = crate::xtypes::serializer::serialize_cdr2_le(&pub_data).unwrap();
