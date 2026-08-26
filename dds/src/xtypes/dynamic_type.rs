@@ -1045,7 +1045,7 @@ impl DynamicDataFactory {
     pub fn create_data<'a>(r#type: DynamicType<'a>) -> DynamicData<'a> {
         DynamicData {
             r#type,
-            abstract_data: Vec::new(),
+            abstract_data: Vec::with_capacity(r#type.member_list.len()),
         }
     }
 }
@@ -1067,38 +1067,43 @@ impl<'a> core::fmt::Debug for DynamicData<'a> {
 
 impl<'a> PartialEq for DynamicData<'a> {
     fn eq(&self, other: &Self) -> bool {
-        self.abstract_data == other.abstract_data
+        if self.abstract_data.len() != other.abstract_data.len() {
+            return false;
+        }
+        self.abstract_data
+            .iter()
+            .all(|m| other.get_storage(m.id) == Some(&m.value))
     }
 }
 
 impl<'a> DynamicData<'a> {
     fn get_storage(&self, id: MemberId) -> Option<&DataStorage> {
         self.abstract_data
-            .binary_search_by_key(&id, |m| m.id)
-            .ok()
-            .map(|idx| &self.abstract_data[idx].value)
+            .iter()
+            .find(|m| m.id == id)
+            .map(|m| &m.value)
     }
 
     fn get_storage_mut(&mut self, id: MemberId) -> Option<&mut DataStorage> {
         self.abstract_data
-            .binary_search_by_key(&id, |m| m.id)
-            .ok()
-            .map(|idx| &mut self.abstract_data[idx].value)
+            .iter_mut()
+            .find(|m| m.id == id)
+            .map(|m| &mut m.value)
     }
 
     fn insert_storage(&mut self, id: MemberId, value: DataStorage) {
-        match self.abstract_data.binary_search_by_key(&id, |m| m.id) {
-            Ok(idx) => self.abstract_data[idx].value = value,
-            Err(idx) => self
-                .abstract_data
-                .insert(idx, MemberDataStorage { id, value }),
+        if let Some(m) = self.abstract_data.iter_mut().find(|m| m.id == id) {
+            m.value = value;
+        } else {
+            self.abstract_data.push(MemberDataStorage { id, value });
         }
     }
 
     fn remove_storage(&mut self, id: MemberId) -> Option<DataStorage> {
-        match self.abstract_data.binary_search_by_key(&id, |m| m.id) {
-            Ok(idx) => Some(self.abstract_data.remove(idx).value),
-            Err(_) => None,
+        if let Some(idx) = self.abstract_data.iter().position(|m| m.id == id) {
+            Some(self.abstract_data.swap_remove(idx).value)
+        } else {
+            None
         }
     }
 
@@ -2075,40 +2080,27 @@ impl<'a> DynamicData<'a> {
                 let is_required =
                     !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
 
-                match self
-                    .abstract_data
-                    .binary_search_by_key(&member_id, |m| m.id)
-                {
-                    Err(idx) => {
-                        if is_required {
-                            match try_construct_kind {
-                                TryConstructKind::Discard => return false,
-                                TryConstructKind::UseDefault => {
-                                    let default_val =
-                                        default_storage_for_type(member.descriptor.r#type);
-                                    self.abstract_data.insert(
-                                        idx,
-                                        MemberDataStorage {
-                                            id: member_id,
-                                            value: default_val,
-                                        },
-                                    );
-                                }
-                                TryConstructKind::Trim => return false,
+                if let Some(m) = self.abstract_data.iter_mut().find(|m| m.id == member_id) {
+                    if !validate_member_value(&mut m.value, &member.descriptor) {
+                        match try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                m.value = default_storage_for_type(member.descriptor.r#type);
                             }
+                            TryConstructKind::Trim => return false,
                         }
                     }
-                    Ok(idx) => {
-                        let value = &mut self.abstract_data[idx].value;
-                        if !validate_member_value(value, &member.descriptor) {
-                            match try_construct_kind {
-                                TryConstructKind::Discard => return false,
-                                TryConstructKind::UseDefault => {
-                                    *value = default_storage_for_type(member.descriptor.r#type);
-                                }
-                                TryConstructKind::Trim => return false,
-                            }
+                } else if is_required {
+                    match try_construct_kind {
+                        TryConstructKind::Discard => return false,
+                        TryConstructKind::UseDefault => {
+                            let default_val = default_storage_for_type(member.descriptor.r#type);
+                            self.abstract_data.push(MemberDataStorage {
+                                id: member_id,
+                                value: default_val,
+                            });
                         }
+                        TryConstructKind::Trim => return false,
                     }
                 }
             }
