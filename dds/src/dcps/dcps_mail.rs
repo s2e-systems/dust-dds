@@ -61,6 +61,7 @@ pub enum ParticipantFactoryMail {
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
     },
     DeleteParticipant {
         participant_handle: InstanceHandle,

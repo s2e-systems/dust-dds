@@ -217,6 +217,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilderFactory_create_type(
         key_element_type,
         extensibility_kind,
         is_nested: descriptor.is_nested,
+        is_autoid_hash: false,
     };
 
     let builder = DynamicTypeBuilderFactory::create_type(type_desc);
@@ -340,6 +341,7 @@ pub unsafe extern "C" fn DDS_DynamicTypeBuilder_create_struct(
         key_element_type: None,
         extensibility_kind: ExtensibilityKind::Final,
         is_nested: false,
+        is_autoid_hash: false,
     };
     let builder = DynamicTypeBuilderFactory::create_type(descriptor);
     NonNull::new(Box::into_raw(Box::new(DynamicTypeBuilder::new(builder))))

@@ -46,16 +46,16 @@ jobs:
         include:
         - publisher: dust_dds
           subscriber: dust_dds
-        # - publisher: dust_dds
-        #   subscriber: connext_dds
+        - publisher: dust_dds
+          subscriber: connext_dds
         # - publisher: dust_dds
         #   subscriber: toc_coredx_dds
         # - publisher: dust_dds
         #   subscriber: eclipse_cyclone
 
 
-        # - publisher: connext_dds
-        #   subscriber: dust_dds
+        - publisher: connext_dds
+          subscriber: dust_dds
         # - publisher: toc_coredx_dds
         #   subscriber: dust_dds
         # - publisher: eclipse_cyclone
@@ -110,7 +110,7 @@ jobs:
     - name: Upload reports
       uses: actions/upload-artifact@v7
       with:
-        name: junit_reports
+        name: junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}
         path: ./reports
 
   report:

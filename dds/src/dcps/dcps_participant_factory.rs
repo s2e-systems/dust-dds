@@ -47,6 +47,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -65,6 +66,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             transport_participant,
             self.dcps_sender.clone(),
             participant_announcement_interval,
+            enable_type_information,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
 

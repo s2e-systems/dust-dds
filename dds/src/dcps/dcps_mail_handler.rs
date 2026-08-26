@@ -24,6 +24,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 transport_participant,
                 domain_tag,
                 participant_announcement_interval,
+                enable_type_information,
             }) => reply_sender.send(self.create_participant(
                 guid_prefix,
                 domain_id,
@@ -33,6 +34,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 transport_participant,
                 domain_tag,
                 participant_announcement_interval,
+                enable_type_information,
             )),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,

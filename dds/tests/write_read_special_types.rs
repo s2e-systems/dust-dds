@@ -422,6 +422,7 @@ fn dynamic_data_should_read_and_write() {
         key_element_type: None,
         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
         is_nested: false,
+        is_autoid_hash: false,
     });
     type_buider
         .add_member(MemberDescriptor {

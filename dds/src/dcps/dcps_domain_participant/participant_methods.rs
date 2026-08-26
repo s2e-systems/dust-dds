@@ -272,6 +272,10 @@ impl DcpsDomainParticipant {
         ]);
         self.domain_participant.topic_counter += 1;
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let type_information = self
+            .domain_participant
+            .type_register
+            .register_local_type(Arc::from(type_name.as_ref()), type_support);
         let topic = TopicEntity::new(
             qos,
             Arc::from(type_name),
@@ -280,7 +284,7 @@ impl DcpsDomainParticipant {
             status_condition,
             listener_sender,
             listener_mask,
-            type_support,
+            type_information,
         );
 
         self.domain_participant
@@ -456,6 +460,7 @@ impl DcpsDomainParticipant {
                 &topic_name,
                 &self.domain_participant.content_filtered_topic_list,
                 &self.domain_participant.locally_created_topic_list,
+                &self.domain_participant.type_register,
             );
             Ok(type_support.map(|t| t.get_name().to_string()))
         } else {

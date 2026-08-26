@@ -130,6 +130,7 @@ impl DcpsDomainParticipant {
             &topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
         ) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -139,7 +140,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(&topic_name, *type_support, data.as_ref())
+                        deserialize_topic_type(&topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -188,6 +189,7 @@ impl DcpsDomainParticipant {
             &data_reader.topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
         ) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -197,11 +199,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(
-                            &data_reader.topic_name,
-                            *type_support,
-                            data.as_ref(),
-                        )
+                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -250,6 +248,7 @@ impl DcpsDomainParticipant {
             &data_reader.topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
         ) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -259,11 +258,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(
-                            &data_reader.topic_name,
-                            *type_support,
-                            data.as_ref(),
-                        )
+                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -312,6 +307,7 @@ impl DcpsDomainParticipant {
             &data_reader.topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
         ) else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -321,11 +317,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(
-                            &data_reader.topic_name,
-                            *type_support,
-                            data.as_ref(),
-                        )
+                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },

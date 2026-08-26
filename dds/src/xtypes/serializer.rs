@@ -403,13 +403,18 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.writer.write_byte(0);
     }
 
+    /// Serialization Rule (4)
+    ///
+    /// XCDR << {O : WSTRING_TYPE} =
+    ///            XCDR
+    ///              << { O.ssize : UInt32 }
+    ///              << { O[i] : Wchar }*
     fn serialize_wstring_type(&mut self, v: &str) {
         let utf16_units: Vec<u16> = v.encode_utf16().collect();
-        self.serialize_primitive_type(&(utf16_units.len() as u32 + 1));
+        self.serialize_primitive_type(&((utf16_units.len() * 2) as u32));
         for unit in utf16_units {
             self.serialize_primitive_type(&unit);
         }
-        self.serialize_primitive_type(&0u16);
     }
 
     /// Serialization Rule (5)
@@ -593,10 +598,31 @@ impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
         ) && matches!(
             member_descriptor.r#type.descriptor.extensibility_kind,
             ExtensibilityKind::Appendable | ExtensibilityKind::Mutable
-        )) || member_descriptor.r#type.get_kind()
-            == TypeKind::SEQUENCE;
+        )) || (member_descriptor.r#type.get_kind()
+            == TypeKind::SEQUENCE
+            && !is_element_type_kind_primitive(member_descriptor)?);
         let lc = if is_next_member_having_dheader {
             5
+        } else if member_descriptor.r#type.get_kind() == TypeKind::SEQUENCE
+            && is_element_type_kind_primitive(member_descriptor)?
+        {
+            let elem_kind = member_descriptor
+                .r#type
+                .descriptor
+                .element_type
+                .as_ref()
+                .unwrap()
+                .get_kind();
+            match elem_kind {
+                TypeKind::BOOLEAN
+                | TypeKind::BYTE
+                | TypeKind::INT8
+                | TypeKind::UINT8
+                | TypeKind::CHAR8 => 5,
+                TypeKind::INT32 | TypeKind::UINT32 | TypeKind::FLOAT32 => 6,
+                TypeKind::INT64 | TypeKind::UINT64 | TypeKind::FLOAT64 => 7,
+                _ => 4,
+            }
         } else {
             match ssize {
                 1 => 0,
@@ -797,8 +823,11 @@ impl EncodingVersion for EncodingVersion1 {
         serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
     ) -> Result<(), XTypesError> {
-        for field_index in 0..v.r#type().get_member_count() {
-            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
+        let dynamic_type = v.r#type();
+        for field_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(field_index)?;
+            let member_id = member.get_id();
+            if v.get_value(member_id).is_ok() {
                 Self::serialize_mmember(serializer, v, member_id)?;
             }
         }
@@ -987,8 +1016,11 @@ impl EncodingVersion for EncodingVersion2 {
         v: &DynamicData,
     ) -> Result<(), XTypesError> {
         let dheader = Dheader::new(serializer);
-        for field_index in 0..v.get_item_count() {
-            if let Ok(member_id) = v.get_member_id_at_index(field_index) {
+        let dynamic_type = v.r#type();
+        for field_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(field_index)?;
+            let member_id = member.get_id();
+            if v.get_value(member_id).is_ok() {
                 Self::serialize_mmember(dheader.serializer, v, member_id)?;
             }
         }
@@ -1012,7 +1044,7 @@ impl EncodingVersion for EncodingVersion2 {
         member_id: u32,
     ) -> Result<(), XTypesError> {
         let emheader = EMheader1::new(serializer);
-        emheader.serializer.serialize_value(v, member_id).unwrap();
+        emheader.serializer.serialize_value(v, member_id)?;
         emheader.write_header(member_id, v)?;
         Ok(())
     }
@@ -1284,10 +1316,14 @@ mod tests {
     use super::*;
     use crate::{
         dcps::data_representation_builtin_endpoints::type_lookup::{
-            RequestHeader, SampleIdentity, TypeLookupCall, TypeLookupGetTypesIn, TypeLookupRequest,
+            RemoteExceptionCode, ReplyHeader, RequestHeader, SampleIdentity, TypeLookupCall,
+            TypeLookupGetTypeDependenciesIn, TypeLookupGetTypeDependenciesOut,
+            TypeLookupGetTypeDependenciesResult, TypeLookupGetTypesIn, TypeLookupGetTypesOut,
+            TypeLookupGetTypesResult, TypeLookupReply, TypeLookupRequest, TypeLookupReturn,
         },
         transport::types::{EntityId, Guid},
         xtypes::{
+            dynamic_type::{DynamicDataFactory, DynamicTypeBuilderFactory},
             type_object::{
                 TypeIdentifier, TypeIdentifierWithDependencies, TypeIdentifierWithSize,
                 TypeInformation,
@@ -1762,10 +1798,10 @@ mod tests {
             serialize_cdr1_be(&v).unwrap(),
             vec![
                 0x00, 0x02, 0x00, 0x00, // CDR Header
-                0x20, 0x81, 0, 2, // PID | length
-                0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
                 0x70, 0x91, 0, 1, // PID + M_FLAG | length
                 7, 0, 0, 0, // one_byte | padding
+                0x20, 0x81, 0, 2, // PID | length
+                0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
                 0, 1, 0, 0, // Sentinel
             ]
         );
@@ -1773,33 +1809,33 @@ mod tests {
             serialize_cdr1_le(&v).unwrap(),
             vec![
                 0x00, 0x03, 0x00, 0x00, // CDR Header
-                0x81, 0x20, 2, 0, // PID | length
-                0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
                 0x91, 0x70, 1, 0, // PID + M_FLAG | length
                 7, 0, 0, 0, // one_byte | padding
+                0x81, 0x20, 2, 0, // PID | length
+                0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
                 1, 0, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
             serialize_cdr2_be(&v).unwrap(),
             vec![
-                0x00, 0x0a, 0x00, 0x03, // CDR Header
-                0, 0, 0, 13, // DHEADER (length)
+                0x00, 0x0a, 0x00, 0x02, // CDR Header
+                0, 0, 0, 14, // DHEADER (length)
+                128, 0, 0x30, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                7, 0, 0, 0, // one_byte | padding 3 bytes
                 0b001_0000, 0, 0x20, 0x81, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
-                128, 0, 0x30, 0x91, // EMHEADER1 incl. LC 0b000 (1 bytes)
-                7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
         assert_eq!(
             serialize_cdr2_le(&v).unwrap(),
             vec![
-                0x00, 0x0b, 0x00, 0x03, // CDR Header
-                13, 0, 0, 0, // DHEADER (length)
+                0x00, 0x0b, 0x00, 0x02, // CDR Header
+                14, 0, 0, 0, // DHEADER (length)
+                0x91, 0x30, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
+                7, 0, 0, 0, // one_byte | padding 3 bytes
                 0x81, 0x20, 0, 0b001_0000, // EMHEADER1 incl. LC 0b001 (2 bytes)
                 0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
-                0x91, 0x30, 0, 128, // EMHEADER1 incl. LC 0b000 (1 bytes)
-                7, 0, 0, 0 // one_byte | padding 3 bytes
             ]
         );
     }
@@ -1847,10 +1883,10 @@ mod tests {
                 0x40, 96, 0, 1, // PID (+ M_FLAG) | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 0x00, 97, 0, 20, // PID | length
-                0x00, 80, 0, 2, // field_mutable: PID | length
-                0, 8, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
                 0x40, 90, 0, 1, // field_mutable: PID (+ M_FLAG) | length
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
+                0x00, 80, 0, 2, // field_mutable: PID | length
+                0, 8, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
                 0, 1, 0, 0, // field_mutable: Sentinel
                 0x00, 98, 0, 2, // field_mutable: PID | length
                 0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
@@ -1864,10 +1900,10 @@ mod tests {
                 96, 0x40, 1, 0, // PID (+ M_FLAG) | length
                 5, 0, 0, 0, // field_primitive | padding (3 bytes)
                 97, 0x00, 20, 0, // PID | length
-                0x050, 0x00, 2, 0, // field_mutable: PID | length
-                8, 0, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
                 90, 0x40, 1, 0, // field_mutable: PID (+ M_FLAG) | length
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
+                0x050, 0x00, 2, 0, // field_mutable: PID | length
+                8, 0, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
                 1, 0, 0, 0, // field_mutable: Sentinel
                 98, 0x00, 2, 0, // field_mutable: PID | length
                 9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
@@ -2223,9 +2259,9 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x0b, 0x00, 0x00, // PL_CDR2_LE
-                20, 0, 0, 0, // Struct DHEADER
-                0, 0, 0, 80, // my_sequence EMHEADER
-                3, 0, 0, 0, // Vec length
+                20, 0, 0, 0, // Struct DHEADER (20 bytes payload)
+                0, 0, 0, 96, // my_sequence EMHEADER (LC=6, member_id=0)
+                3, 0, 0, 0, // NEXTINT: 3
                 1, 0, 0, 0, // Vec[0]
                 2, 0, 0, 0, // Vec[1]
                 3, 0, 0, 0, // Vec[2]
@@ -2259,11 +2295,11 @@ mod tests {
             serialize_cdr2_le(&data).unwrap(),
             vec![
                 0x00, 0x09, 0x00, 0x00, // D_CDR2_LE
-                28, 0, 0, 0, //AppendableUnion DHEADER
+                28, 0, 0, 0, // AppendableUnion DHEADER (28 bytes payload)
                 10, 0, 0, 0, // MyVariant discriminator
-                20, 0, 0, 0, // MutableTypeWithSequence DHEADER
-                0, 0, 0, 80, // my_sequence EMHEADER
-                3, 0, 0, 0, // Vec length
+                20, 0, 0, 0, // MutableTypeWithSequence DHEADER (20 bytes)
+                0, 0, 0, 96, // my_sequence EMHEADER (LC=6, member_id=0)
+                3, 0, 0, 0, // NEXTINT: 3
                 1, 0, 0, 0, // Vec[0]
                 2, 0, 0, 0, // Vec[1]
                 3, 0, 0, 0, // Vec[2]
@@ -2289,13 +2325,44 @@ mod tests {
                 35, 0, 0, 0, // TypeLookupCall DHEADER
                 0xd3, 0x52, 0x82, 0x01, // TypeLookupGetTypesHashId DISCRIMINATOR
                 27, 0, 0, 0, // type_ids: DHEADER
-                101, 96, 83, 92, // type_ids EMHEADER
-                // 23, 0, 0, 0, // type_ids NEXTINT
+                101, 96, 83, 92, // type_ids EMHEADER (LC=5 | 0x0c536065)
                 19, 0, 0, 0, // type_ids: DHEADER
                 1, 0, 0, 0,   // type_ids: Length
-                242, //EK_COMPLETE
+                242, // EK_COMPLETE
                 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
                 0, // padding
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_get_dependencies_in() {
+        let data = TypeLookupCall::TypeLookupGetDependenciesHash {
+            get_type_dependencies: TypeLookupGetTypeDependenciesIn {
+                type_ids: vec![TypeIdentifier::EkComplete {
+                    equivalence_hash: [5; 14],
+                }],
+                continuation_point: vec![],
+            },
+        }
+        .create_dynamic_sample();
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x09, 0x00, 0x00, // D_CDR2_LE + padding
+                44, 0, 0, 0, // TypeLookupCall DHEADER (44 bytes payload)
+                0x31, 0xfb, 0xaa,
+                0x05, // TypeLookupGetDependenciesHash DISCRIMINATOR (0x05aafb31)
+                36, 0, 0, 0, // TypeLookupGetTypeDependenciesIn DHEADER
+                101, 96, 83, 92, // type_ids EMHEADER (LC=5 | 0x0c536065)
+                19, 0, 0, 0, // type_ids: DHEADER
+                1, 0, 0, 0,   // type_ids: Length
+                242, // EK_COMPLETE
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, // equivalence_hash
+                0, // padding
+                210, 227, 8, 85, // continuation_point EMHEADER (LC=5 | 0x0508e3d2)
+                0, 0, 0, 0, // continuation_point length 0
             ]
         );
     }
@@ -2326,15 +2393,140 @@ mod tests {
                 1, 0, 0, 0, // instance_name: length
                 0, // instance_name: length
                 0, 0, 0, // Padding
-                20, 0, 0, 0, //TypeLookupCall DHEADER
+                20, 0, 0, 0, // TypeLookupCall DHEADER
                 211, 82, 130, 1, // TypeLookupGetTypesHashId Discriminator
                 12, 0, 0, 0, // type_ids: DHEADER
-                101, 96, 83, 92, // type_ids EMHEADER
-                // 19, 0, 0, 0, // type_ids NEXTINT (skipped, replaced by DHEADER)
+                101, 96, 83, 92, // type_ids EMHEADER (LC=5 | 0x0c536065)
                 4, 0, 0, 0, // type_ids: DHEADER
                 0, 0, 0, 0, // type_ids: Length
             ]
         );
+    }
+
+    #[test]
+    fn serialize_type_lookup_reply() {
+        let data = TypeLookupReply {
+            header: ReplyHeader {
+                related_request_id: SampleIdentity {
+                    writer_guid: Guid::new([1; 12], EntityId::new([1; 3], 1)),
+                    sequence_number: 5.into(),
+                },
+                remote_ex: RemoteExceptionCode::Ok,
+            },
+            r#return: TypeLookupReturn::TypeLookupGetTypesHash {
+                get_type: TypeLookupGetTypesResult::Ok {
+                    result: TypeLookupGetTypesOut {
+                        types: vec![],
+                        complete_to_minimal: vec![],
+                    },
+                },
+            },
+        }
+        .create_dynamic_sample();
+
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00u8, 0x07, 0x00, 0x00, // CDR2_LE + padding
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // writer_guid
+                0, 0, 0, 0, // sequence_number: high
+                5, 0, 0, 0, // sequence_number: low
+                0, 0, 0, 0, // remote_ex: RemoteExceptionCode::Ok
+                40, 0, 0, 0, // TypeLookupReturn DHEADER
+                211, 82, 130, 1, // TypeLookupGetTypesHash Discriminator (0x018252d3)
+                32, 0, 0, 0, // TypeLookupGetTypesResult DHEADER
+                0, 0, 0, 0, // Result Discriminator (0 = Ok)
+                // TypeLookupGetTypesOut DHEADER (mutable struct)
+                24, 0, 0, 0, // types field EMHEADER + DHEADER + length
+                209, 74, 128, 82, // types hashid EMHEADER (LC=5 | 0x02804ad1)
+                4, 0, 0, 0, // types Vec DHEADER
+                0, 0, 0, 0, // types length 0
+                // complete_to_minimal field EMHEADER + DHEADER + length
+                119, 101, 142, 91, // complete_to_minimal hashid EMHEADER (LC=5 | 0x0b8e6577)
+                4, 0, 0, 0, // complete_to_minimal Vec DHEADER
+                0, 0, 0, 0, // complete_to_minimal length 0
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_type_lookup_get_dependencies_reply() {
+        let type_information = TypeInformation {
+            minimal: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkMinimal {
+                        equivalence_hash: [5; 14],
+                    },
+                    typeobject_serialized_size: 10,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+            complete: TypeIdentifierWithDependencies {
+                typeid_with_size: TypeIdentifierWithSize {
+                    type_id: TypeIdentifier::EkComplete {
+                        equivalence_hash: [
+                            0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11,
+                            0x2a, 0x5c,
+                        ],
+                    },
+                    typeobject_serialized_size: 151,
+                },
+                dependent_typeid_count: 0,
+                dependent_typeids: Vec::new(),
+            },
+        };
+
+        let data = TypeLookupReply {
+            header: ReplyHeader {
+                related_request_id: SampleIdentity {
+                    writer_guid: Guid::new(
+                        [
+                            1, 1, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d,
+                        ],
+                        EntityId::new([0, 3, 0], 195),
+                    ),
+                    sequence_number: 1.into(),
+                },
+                remote_ex: RemoteExceptionCode::Ok,
+            },
+            r#return: TypeLookupReturn::TypeLookupGetDependenciesHash {
+                get_type_dependencies: TypeLookupGetTypeDependenciesResult::Ok {
+                    result: TypeLookupGetTypeDependenciesOut {
+                        dependent_typeids: vec![type_information.complete.typeid_with_size.clone()],
+                        continuation_point: vec![],
+                    },
+                },
+            },
+        }
+        .create_dynamic_sample();
+
+        let serialized = serialize_cdr2_le(&data).unwrap();
+
+        let expected = vec![
+            0x00, 0x07, 0x00, 0x00, // CDR2_LE header
+            1, 1, 0x35, 0x98, 0x14, 0xae, 0xf0, 0xd3, 0xef, 0xc6, 0x8d, 0x3d, 0, 3, 0,
+            195, // writer_guid
+            0, 0, 0, 0, // sequence_number: high
+            1, 0, 0, 0, // sequence_number: low
+            0, 0, 0, 0, // remote_ex: RemoteExceptionCode::Ok
+            60, 0, 0, 0, // TypeLookupReturn DHEADER
+            0x31, 0xfb, 0xaa,
+            0x05, // TypeLookupGetDependenciesHash Discriminator (0x05aafb31)
+            52, 0, 0, 0, // TypeLookupGetTypeDependenciesResult DHEADER
+            0x00, 0x00, 0x00, 0x00, // Result Discriminator: 0 (Ok)
+            44, 0, 0, 0, // TypeLookupGetTypeDependenciesOut DHEADER
+            201, 223, 164, 91, // EMHEADER for dependent_typeids (LC=5 | 0x0ba4dfc9)
+            28, 0, 0, 0, // dependent_typeids DHEADER: 28 bytes
+            0x01, 0x00, 0x00, 0x00, // Sequence length: 1
+            0x14, 0x00, 0x00, 0x00, // TypeIdentifierWithSize DHEADER: 20 bytes
+            0xf2, 0x99, 0xbf, 0x61, 0x62, 0x13, 0xb8, 0xbb, 0x50, 0x0c, 0x96, 0x6b, 0x11, 0x2a,
+            0x5c, 0x00, // type_id (EK_COMPLETE + hash + 1 byte pad)
+            0x97, 0x00, 0x00, 0x00, // typeobject_serialized_size: 151
+            210, 227, 8, 85, // EMHEADER for continuation_point (LC=5 | 0x0508e3d2)
+            0x00, 0x00, 0x00, 0x00, // Sequence length: 0
+        ];
+        assert_eq!(serialized, expected);
     }
 
     #[test]
@@ -2450,7 +2642,8 @@ mod tests {
         assert_eq!(
             serialize_cdr2_be(&data).unwrap(),
             vec![
-                0x00, 0x06, 0x00, 0x00, // CDR2_BE
+                0x00, 0x08, 0x00, 0x00, // CDR2_BE DELIMITED
+                0, 0, 0, 88, // DHEADER
                 0, 0, 0, 1, // discriminant (u32)
                 0, 0, 0, 20, // Length
                 0, 0, 0, 1, // i32
@@ -2475,5 +2668,120 @@ mod tests {
                 0, 0, 0, 20, // i32
             ]
         );
+    }
+
+    #[cfg(feature = "xtypes-xml")]
+    #[test]
+    fn serialize_wstring() {
+        use crate::xtypes::dynamic_type;
+
+        let type_xml = r#"
+        <dds>
+            <types>
+                <module name="Test">
+                    <struct name="wstring_unbounded" extensibility="final">
+                        <member name="x1" type="wstring" />
+                    </struct>
+                </module>
+            </types>
+        </dds>
+        "#;
+        let dynamic_type = dynamic_type::DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::wstring_unbounded",
+            vec![],
+        )
+        .unwrap()
+        .build();
+
+        let mut data = dynamic_type::DynamicDataFactory::create_data(dynamic_type);
+        data.from_xml(
+            "<wstring_unbounded>
+                <x1>ҥėŀľｏ ｔһｅⲅȇ.</x1>
+            </wstring_unbounded>",
+        )
+        .unwrap();
+        assert_eq!(
+            serialize_cdr2_le(&data).unwrap(),
+            vec![
+                0x00, 0x07, 0x00, 0x00, // CDR2_LE PLAIN
+                24, 0, 0, 0, // length in octets (24 = 12 UTF-16 units * 2)
+                0xA5, 0x04, // ҥ
+                0x17, 0x01, // ė
+                0x40, 0x01, // ŀ
+                0x3E, 0x01, // ľ
+                0x4F, 0xFF, // ｏ
+                0x20, 0x00, // ' '
+                0x54, 0xFF, // ｔ
+                0xBB, 0x04, // һ
+                0x45, 0xFF, // ｅ
+                0x85, 0x2C, // ⲅ
+                0x07, 0x02, // ȇ
+                0x2E, 0x00, // .
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_f_s_seq10_m_s_seq20_uint32() {
+        let type_xml = r#"
+            <dds>
+                <types>
+                    <module name="Test">
+                        <struct name="M_S__seq20_uint32" extensibility="mutable">
+                            <member name="x1" type="uint32" sequenceMaxLength="20" />
+                        </struct>
+                        <struct name="F_S__seq10_M_S__seq20_uint32" extensibility="final">
+                            <member name="x1" type="nonBasic" nonBasicTypeName="M_S__seq20_uint32" sequenceMaxLength="10" />
+                        </struct>
+                    </module>
+                </types>
+            </dds>
+        "#;
+        let data_xml = r#"
+            <struct>
+              <x1>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+                <item><x1><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item><item>13</item><item>14</item><item>15</item><item>16</item><item>17</item><item>18</item><item>19</item><item>20</item></x1></item>
+              </x1>
+            </struct>
+        "#;
+        let dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+            type_xml,
+            "Test::F_S__seq10_M_S__seq20_uint32",
+            vec![],
+        )
+        .unwrap()
+        .build();
+        let mut data = DynamicDataFactory::create_data(dynamic_type);
+        data.from_xml(data_xml).unwrap();
+        let serialized = serialize_cdr2_le(&data).unwrap();
+
+        // Baseline Connext bytes
+        let mut expected = vec![
+            0x00u8, 0x07, 0x00, 0x00, // CDR2_LE header
+            0x9c, 0x03, 0x00, 0x00, // Outer DHEADER = 924
+            0x0a, 0x00, 0x00, 0x00, // Outer Sequence length = 10
+        ];
+        for _ in 0..10 {
+            expected.extend_from_slice(&[
+                0x58, 0x00, 0x00, 0x00, // Inner struct DHEADER = 88
+                0x00, 0x00, 0x00, 0x60, // EMHEADER: LC=6, Member ID=0
+                0x14, 0x00, 0x00, 0x00, // NEXTINT: 20
+            ]);
+            for i in 1..=20u32 {
+                expected.extend_from_slice(&i.to_le_bytes());
+            }
+        }
+
+        assert_eq!(serialized, expected);
     }
 }

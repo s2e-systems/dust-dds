@@ -3,6 +3,7 @@ use super::{
     builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltinSubscriber,
     topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+    type_register::TypeRegister,
     user_defined_publisher::PublisherEntity,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -80,6 +81,7 @@ impl DcpsDomainParticipant {
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -98,6 +100,7 @@ impl DcpsDomainParticipant {
             builtin_subscriber,
             domain_tag,
             Duration::from(participant_announcement_interval),
+            enable_type_information,
         );
 
         Self {
@@ -274,6 +277,7 @@ pub struct DomainParticipantEntity {
     pub default_publisher_qos: PublisherQos,
     pub locally_created_topic_list: Vec<TopicEntity>,
     pub content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
+    pub type_register: TypeRegister,
     pub default_topic_qos: TopicQos,
     pub discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     pub discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -289,6 +293,7 @@ pub struct DomainParticipantEntity {
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
     pub participant_announcement_interval: Duration,
+    pub enable_type_information: bool,
 }
 
 impl DomainParticipantEntity {
@@ -303,6 +308,7 @@ impl DomainParticipantEntity {
         builtin_subscriber: BuiltinSubscriber,
         domain_tag: String,
         participant_announcement_interval: Duration,
+        enable_type_information: bool,
     ) -> Self {
         Self {
             domain_id,
@@ -317,6 +323,7 @@ impl DomainParticipantEntity {
             default_publisher_qos: PublisherQos::const_default(),
             locally_created_topic_list: Vec::new(),
             content_filtered_topic_list: Vec::new(),
+            type_register: TypeRegister::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -333,6 +340,7 @@ impl DomainParticipantEntity {
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
             participant_announcement_interval,
+            enable_type_information,
         }
     }
 
@@ -431,6 +439,9 @@ impl DomainParticipantEntity {
             ]);
             self.topic_counter += 1;
             let status_condition = DcpsStatusCondition::default();
+            let type_information = self
+                .type_register
+                .register_local_type(Arc::from(type_name.value.as_str()), type_support);
             let mut topic = TopicEntity::new(
                 qos,
                 Arc::from(type_name.value.as_str()),
@@ -439,7 +450,7 @@ impl DomainParticipantEntity {
                 status_condition,
                 None,
                 StatusMask::default(),
-                type_support,
+                type_information,
             );
             topic.enabled = true;
 
@@ -554,6 +565,7 @@ mod tests {
             BuiltinSubscriber::new(GuidPrefix::default()),
             String::new(),
             Duration::new(5, 0),
+            true,
         );
 
         // Disabled entity returns None
