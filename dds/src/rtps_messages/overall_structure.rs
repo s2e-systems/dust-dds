@@ -278,7 +278,10 @@ pub trait Submessage {
 }
 
 impl dyn Submessage + Send + '_ {
-    fn write_submessage_into_bytes(&self, buf: &mut Cursor<Vec<u8>>) {
+    fn write_submessage_into_bytes<T>(&self, buf: &mut Cursor<T>)
+    where
+        Cursor<T>: Write,
+    {
         let header_position: u64 = buf.position();
         let elements_position = header_position + 4;
         buf.set_position(elements_position);
@@ -476,26 +479,114 @@ pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u
     cursor.into_inner()
 }
 
+const STACK_BUFFER_SIZE: usize = 512;
+
+#[derive(Debug, PartialEq, Eq)]
+enum WriteBuffer {
+    Stack {
+        buf: [u8; STACK_BUFFER_SIZE],
+        len: usize,
+    },
+    Heap(Vec<u8>),
+}
+
+impl WriteBuffer {
+    pub const fn new() -> Self {
+        Self::Stack {
+            buf: [0; STACK_BUFFER_SIZE],
+            len: 0,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Stack { buf, len } => &buf[..*len],
+            Self::Heap(vec) => vec.as_slice(),
+        }
+    }
+}
+
+impl Write for Cursor<WriteBuffer> {
+    #[inline]
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        let start_pos = self.pos as usize;
+        let end_pos = start_pos + buf.len();
+
+        match &mut self.inner {
+            WriteBuffer::Stack {
+                buf: stack_buf,
+                len,
+            } => {
+                if end_pos <= STACK_BUFFER_SIZE {
+                    if start_pos > *len {
+                        stack_buf[*len..start_pos].fill(0);
+                    }
+                    stack_buf[start_pos..end_pos].copy_from_slice(buf);
+                    if end_pos > *len {
+                        *len = end_pos;
+                    }
+                    self.pos = end_pos as u64;
+                    return Ok(());
+                }
+
+                // Spill over to heap
+                let mut heap_vec = Vec::with_capacity(end_pos.max(STACK_BUFFER_SIZE * 2));
+                heap_vec.extend_from_slice(&stack_buf[..*len]);
+                if start_pos > heap_vec.len() {
+                    heap_vec.resize(start_pos, 0);
+                }
+                if start_pos == heap_vec.len() {
+                    heap_vec.extend_from_slice(buf);
+                } else if end_pos <= heap_vec.len() {
+                    heap_vec[start_pos..end_pos].copy_from_slice(buf);
+                } else {
+                    let overwrite_len = heap_vec.len() - start_pos;
+                    heap_vec[start_pos..].copy_from_slice(&buf[..overwrite_len]);
+                    heap_vec.extend_from_slice(&buf[overwrite_len..]);
+                }
+                self.inner = WriteBuffer::Heap(heap_vec);
+                self.pos = end_pos as u64;
+                Ok(())
+            }
+            WriteBuffer::Heap(heap_vec) => {
+                if start_pos == heap_vec.len() {
+                    heap_vec.extend_from_slice(buf);
+                } else if start_pos > heap_vec.len() {
+                    heap_vec.resize(start_pos, 0);
+                    heap_vec.extend_from_slice(buf);
+                } else if end_pos <= heap_vec.len() {
+                    heap_vec[start_pos..end_pos].copy_from_slice(buf);
+                } else {
+                    let overwrite_len = heap_vec.len() - start_pos;
+                    heap_vec[start_pos..].copy_from_slice(&buf[..overwrite_len]);
+                    heap_vec.extend_from_slice(&buf[overwrite_len..]);
+                }
+                self.pos = end_pos as u64;
+                Ok(())
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite {
-    data: Vec<u8>,
+    buffer: WriteBuffer,
 }
 
 impl RtpsMessageWrite {
     pub fn new(header: &RtpsMessageHeader, submessages: &[&(dyn Submessage + Send)]) -> Self {
-        let buffer = Vec::with_capacity(256);
-        let mut cursor = Cursor::new(buffer);
+        let mut cursor = Cursor::new(WriteBuffer::new());
         header.write_into_bytes(&mut cursor);
         for submessage in submessages {
             submessage.write_submessage_into_bytes(&mut cursor);
         }
         Self {
-            data: cursor.into_inner(),
+            buffer: cursor.into_inner(),
         }
     }
 
     pub fn buffer(&self) -> &[u8] {
-        &self.data
+        self.buffer.as_slice()
     }
 }
 
