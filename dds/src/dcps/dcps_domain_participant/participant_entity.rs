@@ -525,13 +525,18 @@ mod tests {
 
     #[test]
     fn test_time_until_participant_announcement() {
-        struct MockWriter;
+        struct MockWriter {
+            buffer: [u8; 512],
+        }
         impl crate::transport::interface::WriteMessage for MockWriter {
-            fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
         }
 
         let transport = RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter),
+            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),

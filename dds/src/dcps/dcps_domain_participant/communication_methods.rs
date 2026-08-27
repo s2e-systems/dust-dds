@@ -941,7 +941,7 @@ impl DcpsDomainParticipant {
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
-                                    self.transport.message_writer.as_ref(),
+                                    self.transport.message_writer.as_mut(),
                                     &runtime.clock(),
                                 )
                                 .is_some()
@@ -968,7 +968,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
+                                self.transport.message_writer.as_mut(),
                                 &runtime.clock(),
                             );
                         }
@@ -984,7 +984,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
+                                self.transport.message_writer.as_mut(),
                             );
                         }
                         for dw in self
@@ -995,7 +995,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
+                                self.transport.message_writer.as_mut(),
                             );
                         }
                     }
@@ -1100,7 +1100,7 @@ impl DcpsDomainParticipant {
                         writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
                         writer_proxy
-                            .write_message(&reader_guid, self.transport.message_writer.as_ref());
+                            .write_message(&reader_guid, self.transport.message_writer.as_mut());
                     }
                 }
 
@@ -1133,7 +1133,7 @@ impl DcpsDomainParticipant {
                     writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
                     writer_proxy
-                        .write_message(&reader_guid, self.transport.message_writer.as_ref());
+                        .write_message(&reader_guid, self.transport.message_writer.as_mut());
                 }
             }
         }
@@ -1171,7 +1171,7 @@ impl DcpsDomainParticipant {
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_ref(), clock);
+                .write_message(self.transport.message_writer.as_mut(), clock);
         }
         for dw in self
             .domain_participant
@@ -1179,12 +1179,12 @@ impl DcpsDomainParticipant {
             .stateful_data_writer_list_mut()
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_ref(), clock);
+                .write_message(self.transport.message_writer.as_mut(), clock);
         }
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_ref());
+            .write_message(self.transport.message_writer.as_mut());
     }
 }

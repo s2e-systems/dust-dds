@@ -5,7 +5,8 @@ use crate::{
 use alloc::{boxed::Box, vec::Vec};
 
 pub trait WriteMessage {
-    fn write_message(&self, buf: &[u8], locators: &[Locator]);
+    fn write_buffer_mut(&mut self) -> &mut [u8];
+    fn write_message(&mut self, len: usize, locators: &[Locator]);
 }
 
 #[derive(Clone)]

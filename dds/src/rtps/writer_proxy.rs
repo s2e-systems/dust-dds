@@ -256,7 +256,7 @@ impl RtpsWriterProxy {
     pub fn write_message(
         &mut self,
         reader_guid: &Guid,
-        message_writer: &(impl WriteMessage + ?Sized),
+        message_writer: &mut (impl WriteMessage + ?Sized),
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
@@ -282,7 +282,7 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let rtps_message = if let Some(missing_change_fragments_seq_num) = self
+            let len = if let Some(missing_change_fragments_seq_num) = self
                 .missing_changes()
                 .take(256)
                 .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s))
@@ -316,6 +316,7 @@ impl RtpsWriterProxy {
                 );
 
                 RtpsMessageWrite::from_submessages(
+                    message_writer.write_buffer_mut(),
                     &[
                         &info_dst_submessage,
                         &acknack_submessage,
@@ -323,14 +324,19 @@ impl RtpsWriterProxy {
                     ],
                     reader_guid.prefix(),
                 )
+                .buffer()
+                .len()
             } else {
                 RtpsMessageWrite::from_submessages(
+                    message_writer.write_buffer_mut(),
                     &[&info_dst_submessage, &acknack_submessage],
                     reader_guid.prefix(),
                 )
+                .buffer()
+                .len()
             };
 
-            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
+            message_writer.write_message(len, self.unicast_locator_list());
         }
     }
 

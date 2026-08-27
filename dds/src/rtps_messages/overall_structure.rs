@@ -479,114 +479,44 @@ pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u
     cursor.into_inner()
 }
 
-const STACK_BUFFER_SIZE: usize = 512;
-
-#[derive(Debug, PartialEq, Eq)]
-enum WriteBuffer {
-    Stack {
-        buf: [u8; STACK_BUFFER_SIZE],
-        len: usize,
-    },
-    Heap(Vec<u8>),
-}
-
-impl WriteBuffer {
-    pub const fn new() -> Self {
-        Self::Stack {
-            buf: [0; STACK_BUFFER_SIZE],
-            len: 0,
-        }
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        match self {
-            Self::Stack { buf, len } => &buf[..*len],
-            Self::Heap(vec) => vec.as_slice(),
-        }
-    }
-}
-
-impl Write for Cursor<WriteBuffer> {
+impl Write for Cursor<&mut [u8]> {
     #[inline]
     fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
         let start_pos = self.pos as usize;
         let end_pos = start_pos + buf.len();
-
-        match &mut self.inner {
-            WriteBuffer::Stack {
-                buf: stack_buf,
-                len,
-            } => {
-                if end_pos <= STACK_BUFFER_SIZE {
-                    if start_pos > *len {
-                        stack_buf[*len..start_pos].fill(0);
-                    }
-                    stack_buf[start_pos..end_pos].copy_from_slice(buf);
-                    if end_pos > *len {
-                        *len = end_pos;
-                    }
-                    self.pos = end_pos as u64;
-                    return Ok(());
-                }
-
-                // Spill over to heap
-                let mut heap_vec = Vec::with_capacity(end_pos.max(STACK_BUFFER_SIZE * 2));
-                heap_vec.extend_from_slice(&stack_buf[..*len]);
-                if start_pos > heap_vec.len() {
-                    heap_vec.resize(start_pos, 0);
-                }
-                if start_pos == heap_vec.len() {
-                    heap_vec.extend_from_slice(buf);
-                } else if end_pos <= heap_vec.len() {
-                    heap_vec[start_pos..end_pos].copy_from_slice(buf);
-                } else {
-                    let overwrite_len = heap_vec.len() - start_pos;
-                    heap_vec[start_pos..].copy_from_slice(&buf[..overwrite_len]);
-                    heap_vec.extend_from_slice(&buf[overwrite_len..]);
-                }
-                self.inner = WriteBuffer::Heap(heap_vec);
-                self.pos = end_pos as u64;
-                Ok(())
-            }
-            WriteBuffer::Heap(heap_vec) => {
-                if start_pos == heap_vec.len() {
-                    heap_vec.extend_from_slice(buf);
-                } else if start_pos > heap_vec.len() {
-                    heap_vec.resize(start_pos, 0);
-                    heap_vec.extend_from_slice(buf);
-                } else if end_pos <= heap_vec.len() {
-                    heap_vec[start_pos..end_pos].copy_from_slice(buf);
-                } else {
-                    let overwrite_len = heap_vec.len() - start_pos;
-                    heap_vec[start_pos..].copy_from_slice(&buf[..overwrite_len]);
-                    heap_vec.extend_from_slice(&buf[overwrite_len..]);
-                }
-                self.pos = end_pos as u64;
-                Ok(())
-            }
+        if end_pos > self.inner.len() {
+            return Err(RtpsMessageError::NotEnoughData);
         }
+        self.inner[start_pos..end_pos].copy_from_slice(buf);
+        self.pos = end_pos as u64;
+        Ok(())
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageWrite {
-    buffer: WriteBuffer,
+pub struct RtpsMessageWrite<'a> {
+    buffer: &'a [u8],
 }
 
-impl RtpsMessageWrite {
-    pub fn new(header: &RtpsMessageHeader, submessages: &[&(dyn Submessage + Send)]) -> Self {
-        let mut cursor = Cursor::new(WriteBuffer::new());
+impl<'a> RtpsMessageWrite<'a> {
+    pub fn new(
+        buffer: &'a mut [u8],
+        header: &RtpsMessageHeader,
+        submessages: &[&(dyn Submessage + Send)],
+    ) -> Self {
+        let mut cursor = Cursor::new(buffer);
         header.write_into_bytes(&mut cursor);
         for submessage in submessages {
             submessage.write_submessage_into_bytes(&mut cursor);
         }
+        let len = cursor.position() as usize;
         Self {
-            buffer: cursor.into_inner(),
+            buffer: &cursor.into_inner()[..len],
         }
     }
 
     pub fn buffer(&self) -> &[u8] {
-        self.buffer.as_slice()
+        self.buffer
     }
 }
 
@@ -731,7 +661,8 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let message = RtpsMessageWrite::new(&header, &[]);
+        let mut buffer = [0u8; 512];
+        let message = RtpsMessageWrite::new(&mut buffer, &header, &[]);
         #[rustfmt::skip]
         assert_eq!(message.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -772,7 +703,8 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[&submessage]);
+        let mut buffer = [0u8; 512];
+        let value = RtpsMessageWrite::new(&mut buffer, &header, &[&submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -826,7 +758,12 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[&info_timestamp_submessage, &data_submessage]);
+        let mut buffer = [0u8; 512];
+        let value = RtpsMessageWrite::new(
+            &mut buffer,
+            &header,
+            &[&info_timestamp_submessage, &data_submessage],
+        );
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol

@@ -20,9 +20,14 @@ use dust_dds::{
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-struct MockWriter;
+struct MockWriter {
+    buffer: [u8; 512],
+}
 impl WriteMessage for MockWriter {
-    fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
+    fn write_buffer_mut(&mut self) -> &mut [u8] {
+        &mut self.buffer
+    }
+    fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
 }
 
 struct MockTransport(std::sync::mpsc::SyncSender<TransportDataReceiver>);
@@ -34,7 +39,7 @@ impl TransportParticipantFactory for MockTransport {
     ) -> RtpsTransportParticipant {
         self.0.send(data_receiver).unwrap();
         RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter),
+            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),
@@ -74,7 +79,7 @@ fn detect_stale_participant() {
         .unwrap(),
     );
 
-    let guid_prefix = <[u8; 16]>::from(participant.get_instance_handle())[0..12]
+    let guid_prefix: [u8; 12] = <[u8; 16]>::from(participant.get_instance_handle())[0..12]
         .try_into()
         .unwrap();
 
@@ -122,8 +127,9 @@ fn detect_stale_participant() {
         inline_qos,
         serialized_payload,
     );
+    let mut buf = [0u8; 1024];
     let spdp_rtps_message =
-        RtpsMessageWrite::from_submessages(&[&spdp_data_submessage], guid_prefix);
+        RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
 
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(spdp_rtps_message.buffer().to_vec()),
@@ -238,7 +244,9 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ParameterList::empty(),
         spdp_payload,
     );
-    let spdp_msg = RtpsMessageWrite::from_submessages(&[&spdp_submsg], remote_guid_prefix);
+    let mut buf = [0u8; 1024];
+    let spdp_msg =
+        RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(spdp_msg.buffer().to_vec()),
     );
@@ -322,8 +330,12 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         reader2_sedp_payload,
     );
 
-    let sedp_msg =
-        RtpsMessageWrite::from_submessages(&[&sedp_submsg1, &sedp_submsg2], remote_guid_prefix);
+    let mut buf = [0u8; 2048];
+    let sedp_msg = RtpsMessageWrite::from_submessages(
+        &mut buf,
+        &[&sedp_submsg1, &sedp_submsg2],
+        remote_guid_prefix,
+    );
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(sedp_msg.buffer().to_vec()),
     );
