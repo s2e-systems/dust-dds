@@ -65,6 +65,19 @@ impl RtpsStatefulWriter {
             .any(|rp| rp.unacked_changes(Some(sequence_number)))
     }
 
+    pub fn time_until_next_heartbeat(
+        &self,
+        now: crate::infrastructure::time::Time,
+    ) -> Option<crate::infrastructure::time::Duration> {
+        let seq_num_max = self.changes.iter().map(|cc| cc.sequence_number).max();
+        self.matched_readers
+            .iter()
+            .filter_map(|rp| {
+                rp.time_until_heartbeat(now, self.heartbeat_period.into(), seq_num_max)
+            })
+            .min()
+    }
+
     pub fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) {
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self

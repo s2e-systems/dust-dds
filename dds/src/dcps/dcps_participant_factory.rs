@@ -138,45 +138,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         self.qos.clone()
     }
 
-    pub(crate) fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
+    pub(crate) fn time_until_next_event(&self, now: Time) -> Option<Duration> {
         self.domain_participant_list
             .iter()
-            .filter_map(|x| x.time_until_stale_participant(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_missed_reader_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_missed_reader_deadline(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_missed_writer_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_missed_writer_deadline(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_stale_writer_sample(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_stale_writer_sample(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_pending_writer_sample_timeout(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_pending_writer_sample_timeout(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_participant_announcement(now))
+            .filter_map(|x| x.time_until_next_event(now))
             .min()
     }
 }

@@ -598,8 +598,9 @@ pub enum MessageServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
-    HandleData {
-        participant_handle: InstanceHandle,
-        data_message: Vec<u8>,
-    },
+}
+
+pub struct WireMail {
+    pub participant_handle: InstanceHandle,
+    pub data_message: Vec<u8>,
 }

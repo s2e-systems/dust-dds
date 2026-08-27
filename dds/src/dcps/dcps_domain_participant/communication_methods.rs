@@ -2,7 +2,15 @@ use alloc::{string::String, vec::Vec};
 use tracing::info;
 
 use crate::{
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     dcps::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            type_lookup::{TypeLookupReply, TypeLookupRequest},
+        },
         dcps_domain_participant::{
             data_reader_entity::AddChangeResult, participant_entity::DcpsDomainParticipant,
             reader_methods::deserialize_topic_type, topic_entity::get_topic_type_support,
@@ -16,7 +24,15 @@ use crate::{
         data_reader::DataReaderAsync, domain_participant::DomainParticipantAsync,
         subscriber::SubscriberAsync,
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind, time::Time},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos_policy::{
+            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
+            TransportPriorityQosPolicy,
+        },
+        status::StatusKind,
+        time::Time,
+    },
     rtps::message_receiver::MessageReceiver,
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -27,7 +43,10 @@ use crate::{
     },
     runtime::{Clock, DdsRuntime},
     transport::types::{ChangeKind, Guid},
-    xtypes::deserializer::deserialize_top_level_type,
+    xtypes::{
+        deserializer::deserialize_top_level_type,
+        type_support::{Type, TypeSupport},
+    },
 };
 
 impl DcpsDomainParticipant {
@@ -404,38 +423,468 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time) {
-        let discovered_participant_list = &mut self.domain_participant.discovered_participant_list;
-
-        self.domain_participant
+    pub fn process_builtin_cache_changes(
+        &mut self,
+        runtime: &impl DdsRuntime,
+        reception_timestamp: Time,
+    ) {
+        // 1. SPDP Participant Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .dcps_participant_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .dcps_participant_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            for cache_change in changes {
+                if cache_change.kind == ChangeKind::Alive
+                    || cache_change.kind == ChangeKind::AliveFiltered
+                {
+                    if let Ok(discovered_participant_data) =
+                        SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
+                    {
+                        let instance_handle = InstanceHandle::new(
+                            discovered_participant_data.dds_participant_data.key.value,
+                        );
+                        self.add_discovered_participant(&discovered_participant_data, runtime);
+                        self.domain_participant
+                            .builtin_subscriber
+                            .dcps_participant_reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                cache_change.data_value,
+                                cache_change.kind,
+                                instance_handle.into(),
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
+                } else {
+                    let instance_handle =
+                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
+                    self.remove_discovered_participant(&instance_handle);
+                    self.domain_participant
+                        .builtin_subscriber
+                        .dcps_participant_reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            cache_change.data_value,
+                            cache_change.kind,
+                            instance_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
+            }
+        }
 
-        self.domain_participant
+        // 2. SEDP Topics Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .dcps_topic_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .dcps_topic_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            for cache_change in changes {
+                if let Some(matched_participant) = self
+                    .domain_participant
+                    .discovered_participant_list
+                    .iter_mut()
+                    .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                {
+                    matched_participant.last_communication_timestamp = reception_timestamp;
+                }
 
-        self.domain_participant
+                if cache_change.kind == ChangeKind::Alive
+                    || cache_change.kind == ChangeKind::AliveFiltered
+                {
+                    if let Ok(discovered_topic_data) =
+                        DiscoveredTopicData::from_bytes(cache_change.data_value.as_ref())
+                    {
+                        let instance_handle = InstanceHandle::new(
+                            discovered_topic_data.topic_builtin_topic_data.key.value,
+                        );
+                        self.domain_participant
+                            .add_discovered_topic(discovered_topic_data.topic_builtin_topic_data);
+                        self.domain_participant
+                            .builtin_subscriber
+                            .dcps_topic_reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                cache_change.data_value,
+                                cache_change.kind,
+                                instance_handle.into(),
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
+                }
+            }
+        }
+
+        // 3. SEDP Publications Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .dcps_publication_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .dcps_publication_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            for cache_change in changes {
+                if let Some(matched_participant) = self
+                    .domain_participant
+                    .discovered_participant_list
+                    .iter_mut()
+                    .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                {
+                    matched_participant.last_communication_timestamp = reception_timestamp;
+                }
 
-        self.domain_participant
+                if cache_change.kind == ChangeKind::Alive
+                    || cache_change.kind == ChangeKind::AliveFiltered
+                {
+                    if let Ok(discovered_writer_data) =
+                        DiscoveredWriterData::from_bytes(cache_change.data_value.as_ref())
+                    {
+                        let publication_builtin_topic_data =
+                            &discovered_writer_data.dds_publication_data;
+                        let instance_handle =
+                            InstanceHandle::new(publication_builtin_topic_data.key().value);
+                        if !self
+                            .domain_participant
+                            .discovered_topic_list
+                            .iter()
+                            .any(|x| x.name.value == publication_builtin_topic_data.topic_name())
+                        {
+                            let writer_topic = TopicBuiltinTopicData {
+                                key: BuiltInTopicKey::default(),
+                                name: publication_builtin_topic_data.topic_name.clone(),
+                                type_name: publication_builtin_topic_data.type_name.clone(),
+                                type_information: publication_builtin_topic_data
+                                    .type_information
+                                    .clone(),
+                                durability: publication_builtin_topic_data.durability().clone(),
+                                deadline: publication_builtin_topic_data.deadline().clone(),
+                                latency_budget: publication_builtin_topic_data
+                                    .latency_budget()
+                                    .clone(),
+                                liveliness: publication_builtin_topic_data.liveliness().clone(),
+                                reliability: publication_builtin_topic_data.reliability().clone(),
+                                transport_priority: TransportPriorityQosPolicy::default(),
+                                lifespan: publication_builtin_topic_data.lifespan().clone(),
+                                destination_order: publication_builtin_topic_data
+                                    .destination_order()
+                                    .clone(),
+                                history: HistoryQosPolicy::default(),
+                                resource_limits: ResourceLimitsQosPolicy::default(),
+                                ownership: publication_builtin_topic_data.ownership().clone(),
+                                topic_data: publication_builtin_topic_data.topic_data().clone(),
+                                representation: publication_builtin_topic_data
+                                    .representation()
+                                    .clone(),
+                            };
+                            self.domain_participant.add_discovered_topic(writer_topic);
+                        }
+
+                        self.domain_participant
+                            .add_discovered_writer(discovered_writer_data);
+                        self.domain_participant
+                            .builtin_subscriber
+                            .dcps_publication_reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                cache_change.data_value,
+                                cache_change.kind,
+                                instance_handle.into(),
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
+                } else {
+                    let instance_handle =
+                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
+                    self.domain_participant
+                        .remove_discovered_writer(&instance_handle);
+
+                    let mut handle_list = Vec::new();
+                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
+                        for data_reader in subscriber.data_reader_list.iter() {
+                            handle_list
+                                .push((subscriber.instance_handle, data_reader.instance_handle));
+                        }
+                    }
+                    for (subscriber_handle, data_reader_handle) in handle_list {
+                        self.remove_discovered_writer(
+                            instance_handle,
+                            subscriber_handle,
+                            data_reader_handle,
+                        );
+                    }
+                    self.domain_participant
+                        .builtin_subscriber
+                        .dcps_publication_reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            cache_change.data_value,
+                            cache_change.kind,
+                            instance_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
+            }
+            self.process_discovered_writers(runtime);
+        }
+
+        // 4. SEDP Subscriptions Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .dcps_subscription_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .dcps_subscription_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            for cache_change in changes {
+                if let Some(matched_participant) = self
+                    .domain_participant
+                    .discovered_participant_list
+                    .iter_mut()
+                    .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                {
+                    matched_participant.last_communication_timestamp = reception_timestamp;
+                }
 
-        self.domain_participant
+                if cache_change.kind == ChangeKind::Alive
+                    || cache_change.kind == ChangeKind::AliveFiltered
+                {
+                    if let Ok(discovered_reader_data) =
+                        DiscoveredReaderData::from_bytes(cache_change.data_value.as_ref())
+                    {
+                        let instance_handle = InstanceHandle::new(
+                            discovered_reader_data.dds_subscription_data.key().value,
+                        );
+                        if !self
+                            .domain_participant
+                            .discovered_topic_list
+                            .iter()
+                            .any(|x| {
+                                x.name.value
+                                    == discovered_reader_data.dds_subscription_data.topic_name()
+                            })
+                        {
+                            let reader_topic = TopicBuiltinTopicData {
+                                key: BuiltInTopicKey::default(),
+                                name: discovered_reader_data
+                                    .dds_subscription_data
+                                    .topic_name
+                                    .clone(),
+                                type_name: discovered_reader_data
+                                    .dds_subscription_data
+                                    .type_name
+                                    .clone(),
+                                type_information: discovered_reader_data
+                                    .dds_subscription_data
+                                    .type_information
+                                    .clone(),
+                                topic_data: discovered_reader_data
+                                    .dds_subscription_data
+                                    .topic_data()
+                                    .clone(),
+                                durability: discovered_reader_data
+                                    .dds_subscription_data
+                                    .durability()
+                                    .clone(),
+                                deadline: discovered_reader_data
+                                    .dds_subscription_data
+                                    .deadline()
+                                    .clone(),
+                                latency_budget: discovered_reader_data
+                                    .dds_subscription_data
+                                    .latency_budget()
+                                    .clone(),
+                                liveliness: discovered_reader_data
+                                    .dds_subscription_data
+                                    .liveliness()
+                                    .clone(),
+                                reliability: discovered_reader_data
+                                    .dds_subscription_data
+                                    .reliability()
+                                    .clone(),
+                                destination_order: discovered_reader_data
+                                    .dds_subscription_data
+                                    .destination_order()
+                                    .clone(),
+                                history: HistoryQosPolicy::default(),
+                                resource_limits: ResourceLimitsQosPolicy::default(),
+                                transport_priority: TransportPriorityQosPolicy::default(),
+                                lifespan: LifespanQosPolicy::default(),
+                                ownership: discovered_reader_data
+                                    .dds_subscription_data
+                                    .ownership()
+                                    .clone(),
+                                representation: discovered_reader_data
+                                    .dds_subscription_data
+                                    .representation()
+                                    .clone(),
+                            };
+                            self.domain_participant.add_discovered_topic(reader_topic);
+                        }
+
+                        self.domain_participant
+                            .add_discovered_reader(discovered_reader_data);
+                        self.domain_participant
+                            .builtin_subscriber
+                            .dcps_subscription_reader
+                            .add_reader_change(
+                                cache_change.writer_guid,
+                                cache_change.data_value,
+                                cache_change.kind,
+                                instance_handle.into(),
+                                cache_change.source_timestamp.map(Into::into),
+                                reception_timestamp,
+                            )
+                            .ok();
+                    }
+                } else {
+                    let instance_handle =
+                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
+                    self.domain_participant
+                        .remove_discovered_reader(&instance_handle);
+
+                    let mut handle_list = Vec::new();
+                    for publisher in &self.domain_participant.user_defined_publisher_list {
+                        for data_writer in publisher.data_writer_list.iter() {
+                            handle_list
+                                .push((publisher.instance_handle, data_writer.instance_handle));
+                        }
+                    }
+
+                    for (publisher_handle, data_writer_handle) in handle_list {
+                        self.remove_discovered_reader(
+                            instance_handle,
+                            publisher_handle,
+                            data_writer_handle,
+                        );
+                    }
+                    self.domain_participant
+                        .builtin_subscriber
+                        .dcps_subscription_reader
+                        .add_reader_change(
+                            cache_change.writer_guid,
+                            cache_change.data_value,
+                            cache_change.kind,
+                            instance_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        )
+                        .ok();
+                }
+            }
+            self.process_discovered_readers(runtime);
+        }
+
+        // 5. TypeLookup Request Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .type_lookup_request_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .type_lookup_request_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            for cache_change in changes {
+                if let Some(type_lookup_request) = deserialize_top_level_type(
+                    TypeLookupRequest::TYPE,
+                    cache_change.data_value.as_ref(),
+                )
+                .ok()
+                .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
+                {
+                    self.handle_type_lookup_request(type_lookup_request, runtime);
+                }
+            }
+        }
 
-        self.domain_participant
+        // 6. TypeLookup Reply Reader
+        if !self
+            .domain_participant
             .builtin_subscriber
             .type_lookup_reply_reader
-            .process_cache_changes(discovered_participant_list, reception_timestamp);
+            .transport_reader
+            .changes_mut()
+            .is_empty()
+        {
+            let changes = core::mem::take(
+                self.domain_participant
+                    .builtin_subscriber
+                    .type_lookup_reply_reader
+                    .transport_reader
+                    .changes_mut(),
+            );
+            let mut type_lookup_reply_received = false;
+            for cache_change in changes {
+                if let Some(type_lookup_reply) = deserialize_top_level_type(
+                    TypeLookupReply::TYPE,
+                    cache_change.data_value.as_ref(),
+                )
+                .ok()
+                .and_then(|mut d| TypeLookupReply::create_sample(&mut d))
+                {
+                    if self.handle_type_lookup_reply(type_lookup_reply, runtime) {
+                        type_lookup_reply_received = true;
+                    }
+                }
+            }
+            if type_lookup_reply_received {
+                self.process_discovered_readers(runtime);
+                self.process_discovered_writers(runtime);
+            }
+        }
     }
 
     #[tracing::instrument(skip(self, data_message, runtime))]
