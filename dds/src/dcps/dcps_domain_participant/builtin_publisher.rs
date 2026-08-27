@@ -157,16 +157,6 @@ impl BuiltinPublisher {
         self.enabled = true;
     }
 
-    pub fn stateful_data_writer_list(&self) -> [&DataWriterEntity<RtpsStatefulWriter>; 5] {
-        [
-            &self.dcps_topics_writer,
-            &self.dcps_publications_writer,
-            &self.dcps_subscriptions_writer,
-            &self.type_lookup_request_writer,
-            &self.type_lookup_reply_writer,
-        ]
-    }
-
     pub fn stateful_data_writer_list_mut(
         &mut self,
     ) -> [&mut DataWriterEntity<RtpsStatefulWriter>; 5] {
