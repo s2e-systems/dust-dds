@@ -264,17 +264,14 @@ impl DcpsDomainParticipant {
                             ChangeKind::NotAliveDisposed
                             | ChangeKind::NotAliveUnregistered
                             | ChangeKind::NotAliveDisposedUnregistered => {
-                                let mut dynamic_members = Vec::new();
-                                let Ok(key_holder) = KeyHolderType::from_dynamic_type(
-                                    &type_support,
-                                    &mut dynamic_members,
-                                ) else {
+                                let key_holder = KeyHolderType::new(&type_support);
+                                let Some(dynamic_type) = key_holder.as_dynamic_type() else {
                                     tracing::warn!("Failed to create key holder");
                                     continue 'data_readers;
                                 };
 
                                 let Ok(data_value) = deserialize_top_level_type(
-                                    *key_holder.as_dynamic_type(),
+                                    dynamic_type,
                                     cache_change.data_value.as_ref(),
                                 ) else {
                                     tracing::warn!(

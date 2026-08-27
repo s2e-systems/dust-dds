@@ -109,6 +109,16 @@ impl DcpsDomainParticipant {
             Guid::new(guid.prefix(), entity_id),
             self.transport.fragment_size,
         );
+        let key_holder_type = super::topic_entity::get_topic_type_support(
+            &topic.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
+        )
+        .as_ref()
+        .map(crate::dcps::xtypes_glue::key_and_instance_handle::KeyHolderType::new)
+        .unwrap_or_default();
+
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_writer = UserDefinedDataWriter::new(
             writer_handle,
@@ -117,6 +127,7 @@ impl DcpsDomainParticipant {
             listener_sender,
             listener_mask,
             qos,
+            key_holder_type,
         );
         let data_writer_handle = data_writer.instance_handle;
 

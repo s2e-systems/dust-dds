@@ -10,9 +10,7 @@ use crate::{
         },
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::{
-            KeyHolderData, get_instance_handle_from_key_holder_data,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data_and_key_holder,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -275,15 +273,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
-        {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
+        let instance_handle = match get_instance_handle_from_dynamic_data_and_key_holder(
+            dynamic_data,
+            &data_writer.key_holder_type,
+        ) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -340,16 +333,10 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
-        {
-            Ok(h) => h,
-            Err(e) => {
-                reply_sender.send(Err(e.into()));
-                return;
-            }
-        };
-        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
+        let instance_handle = match get_instance_handle_from_dynamic_data_and_key_holder(
+            dynamic_data,
+            &data_writer.key_holder_type,
+        ) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
@@ -600,15 +587,10 @@ impl DcpsDomainParticipant {
                     if !data_writer.enabled {
                         continue;
                     }
-                    let mut member_list = Vec::new();
-                    let Ok(key_holder_data) =
-                        KeyHolderData::from_dynamic_data(&pending.dynamic_data, &mut member_list)
-                    else {
-                        continue;
-                    };
-                    let Ok(instance_handle) =
-                        get_instance_handle_from_key_holder_data(&key_holder_data)
-                    else {
+                    let Ok(instance_handle) = get_instance_handle_from_dynamic_data_and_key_holder(
+                        &pending.dynamic_data,
+                        &data_writer.key_holder_type,
+                    ) else {
                         continue;
                     };
 

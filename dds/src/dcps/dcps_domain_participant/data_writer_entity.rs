@@ -1,6 +1,6 @@
 use crate::{
     dcps::xtypes_glue::key_and_instance_handle::{
-        KeyHolderData, get_instance_handle_from_key_holder_data,
+        KeyHolderData, KeyHolderType, get_instance_handle_from_key_holder_data,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -43,6 +43,7 @@ pub struct DataWriterEntity<T> {
     pub last_change_sequence_number: i64,
     pub qos: DataWriterQos,
     pub registered_instance_info: Vec<RegisteredInstanceInfo>,
+    pub key_holder_type: KeyHolderType,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
@@ -51,6 +52,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         transport_writer: T,
         topic_name: Arc<str>,
         qos: DataWriterQos,
+        key_holder_type: KeyHolderType,
     ) -> Self {
         Self {
             instance_handle,
@@ -60,6 +62,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             last_change_sequence_number: 0,
             qos,
             registered_instance_info: Vec::new(),
+            key_holder_type,
         }
     }
 
@@ -171,8 +174,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -217,8 +220,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -255,8 +258,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
