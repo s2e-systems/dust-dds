@@ -73,7 +73,10 @@ impl RtpsWriterProxy {
     }
 
     pub fn push_data_frag(&mut self, submessage: DataFragSubmessage) {
-        if !self.frag_buffer.contains(&submessage) {
+        if !self.frag_buffer.iter().any(|f| {
+            f.writer_sn() == submessage.writer_sn()
+                && f.fragment_starting_num() == submessage.fragment_starting_num()
+        }) {
             self.frag_buffer.push(submessage);
         }
     }
@@ -89,42 +92,36 @@ impl RtpsWriterProxy {
         let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
         let total_fragments_expected = total_fragments_expected(frag_submessage);
 
-        let total_fragments = self
+        let total_fragments: u32 = self
             .frag_buffer
             .iter()
             .filter(|f| f.writer_sn() == seq_num)
-            .fold(0, |mut acc, f| {
-                acc += f.fragments_in_submessage() as u32;
-                acc
-            });
+            .map(|f| f.fragments_in_submessage() as u32)
+            .sum();
 
         if total_fragments == total_fragments_expected {
-            let mut data = Vec::new();
-            for frag_number in 0..=total_fragments {
-                let Some(frag) = self
-                    .frag_buffer
-                    .iter()
-                    .find(|f| f.writer_sn() == seq_num && f.fragment_starting_num() == frag_number)
-                else {
-                    continue;
-                };
+            let mut matching_frags: Vec<&DataFragSubmessage> = self
+                .frag_buffer
+                .iter()
+                .filter(|f| f.writer_sn() == seq_num)
+                .collect();
+            matching_frags.sort_unstable_by_key(|f| f.fragment_starting_num());
 
+            let mut data = Vec::with_capacity(frag_submessage.data_size() as usize);
+            for frag in &matching_frags {
                 data.extend_from_slice(frag.serialized_payload().as_ref());
             }
 
-            let frag = self
-                .frag_buffer
-                .iter()
-                .find(|f| f.writer_sn() == seq_num && f.fragment_starting_num() == 1)?;
+            let first_frag = matching_frags.first().copied()?;
 
-            let inline_qos_flag = frag.inline_qos_flag();
-            let data_flag = !frag.key_flag();
-            let key_flag = frag.key_flag();
+            let inline_qos_flag = first_frag.inline_qos_flag();
+            let data_flag = !first_frag.key_flag();
+            let key_flag = first_frag.key_flag();
             let non_standard_payload_flag = false;
             let writer_id = self.remote_writer_guid.entity_id();
-            let reader_id = frag.reader_id();
+            let reader_id = first_frag.reader_id();
             let writer_sn = seq_num;
-            let inline_qos = frag.inline_qos().clone();
+            let inline_qos = first_frag.inline_qos().clone();
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
 
