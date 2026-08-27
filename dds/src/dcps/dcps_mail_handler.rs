@@ -1085,19 +1085,17 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
                 Err(e) => reply_sender.send(Err(e)),
             },
-            DcpsMail::Message(MessageServiceMail::HandleData {
-                participant_handle,
-                data_message,
-            }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.handle_data(data_message.as_slice(), &self.runtime);
-                }
-            }
+        }
+    }
+
+    pub fn handle_wire_mail(&mut self, wire_mail: crate::dcps::dcps_mail::WireMail) {
+        if let Ok(p) = self
+            .domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)
+        {
+            p.handle_data(wire_mail.data_message.as_slice(), &self.runtime);
         }
     }
 }

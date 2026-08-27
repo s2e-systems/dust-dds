@@ -123,123 +123,102 @@ impl DcpsDomainParticipant {
             .time_until_participant_announcement(now)
     }
 
-    pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .discovered_participant_list
-            .iter()
-            .map(|dp| {
-                let elapsed = now - dp.last_communication_timestamp;
-                if dp.lease_duration > elapsed {
-                    dp.lease_duration - elapsed
-                } else {
-                    Duration::new(0, 0)
-                }
-            })
-            .min()
-    }
+    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
+        let mut min_time = self.time_until_participant_announcement(now);
 
-    pub fn time_until_missed_reader_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_subscriber_list
-            .iter()
-            .flat_map(|subscriber| subscriber.data_reader_list.iter())
-            .filter_map(|data_reader| {
+        for dp in &self.domain_participant.discovered_participant_list {
+            let elapsed = now - dp.last_communication_timestamp;
+            let remaining = if dp.lease_duration > elapsed {
+                dp.lease_duration - elapsed
+            } else {
+                Duration::new(0, 0)
+            };
+            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+        }
+
+        for t in &self.domain_participant.find_topic_sender_list {
+            let remaining = if t.deadline > now {
+                t.deadline - now
+            } else {
+                Duration::new(0, 0)
+            };
+            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+        }
+
+        for dw in self
+            .domain_participant
+            .builtin_publisher
+            .stateful_data_writer_list()
+        {
+            if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+                min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+            }
+        }
+
+        for subscriber in &self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &subscriber.data_reader_list {
                 if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-                    data_reader
-                        .instance_ownership
-                        .iter()
-                        .map(|instance| {
-                            let elapsed = now - instance.last_received_time;
-                            if deadline > elapsed {
-                                deadline - elapsed
-                            } else {
-                                Duration::new(0, 0)
-                            }
-                        })
-                        .min()
-                } else {
-                    None
+                    for instance in &data_reader.instance_ownership {
+                        let elapsed = now - instance.last_received_time;
+                        let remaining = if deadline > elapsed {
+                            deadline - elapsed
+                        } else {
+                            Duration::new(0, 0)
+                        };
+                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                    }
                 }
-            })
-            .min()
-    }
+            }
+        }
 
-    pub fn time_until_missed_writer_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
+        for publisher in &self.domain_participant.user_defined_publisher_list {
+            for data_writer in &publisher.data_writer_list {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-                    data_writer
-                        .registered_instance_info
-                        .iter()
-                        .filter_map(|instance| instance.last_write_time)
-                        .map(|last_write_time| {
+                    for instance in &data_writer.registered_instance_info {
+                        if let Some(last_write_time) = instance.last_write_time {
                             let elapsed = now - last_write_time;
-                            if deadline > elapsed {
+                            let remaining = if deadline > elapsed {
                                 deadline - elapsed
                             } else {
                                 Duration::new(0, 0)
-                            }
-                        })
-                        .min()
-                } else {
-                    None
+                            };
+                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                        }
+                    }
                 }
-            })
-            .min()
-    }
 
-    pub fn time_until_stale_writer_sample(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    data_writer
-                        .transport_writer
-                        .changes()
-                        .iter()
-                        .filter_map(|cc| cc.source_timestamp)
-                        .map(|source_timestamp| {
+                    for cc in data_writer.transport_writer.changes() {
+                        if let Some(source_timestamp) = cc.source_timestamp {
                             let expiry = Time::from(source_timestamp) + lifespan;
-                            if expiry > now {
+                            let remaining = if expiry > now {
                                 expiry - now
                             } else {
                                 Duration::new(0, 0)
-                            }
-                        })
-                        .min()
-                } else {
-                    None
+                            };
+                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                        }
+                    }
                 }
-            })
-            .min()
-    }
 
-    pub fn time_until_pending_writer_sample_timeout(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
                 if let Some(pending) = &data_writer.pending_write_sample {
                     if let Some(expiration_time) = pending.expiration_time {
-                        if expiration_time > now {
-                            Some(expiration_time - now)
+                        let remaining = if expiration_time > now {
+                            expiration_time - now
                         } else {
-                            Some(Duration::new(0, 0))
-                        }
-                    } else {
-                        None
+                            Duration::new(0, 0)
+                        };
+                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
                     }
-                } else {
-                    None
                 }
-            })
-            .min()
+
+                if let Some(hb_time) = data_writer.transport_writer.time_until_next_heartbeat(now) {
+                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                }
+            }
+        }
+
+        min_time
     }
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {

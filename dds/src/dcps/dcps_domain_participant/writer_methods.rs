@@ -508,6 +508,7 @@ impl DcpsDomainParticipant {
             data_writer.enabled = true;
 
             self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
+            self.process_discovered_readers(runtime);
         }
         Ok(())
     }

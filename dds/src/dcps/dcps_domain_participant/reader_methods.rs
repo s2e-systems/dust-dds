@@ -581,6 +581,7 @@ impl DcpsDomainParticipant {
             data_reader.enabled = true;
 
             self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
+            self.process_discovered_writers(runtime);
         }
         Ok(())
     }

@@ -80,6 +80,7 @@ pub struct Task {
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
     finished: AtomicBool,
+    is_queued: AtomicBool,
     join_waker: Mutex<Option<Waker>>,
 }
 
@@ -126,7 +127,7 @@ impl Wake for Task {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        if !self.is_finished() {
+        if !self.is_finished() && !self.is_queued.swap(true, atomic::Ordering::AcqRel) {
             self.task_sender.send(self.clone()).unwrap();
             self.thread_handle.unpark();
         }
@@ -147,6 +148,7 @@ impl ExecutorHandle {
             task_sender: self.task_sender.clone(),
             thread_handle: self.thread_handle.clone(),
             finished: AtomicBool::new(false),
+            is_queued: AtomicBool::new(true),
             join_waker: Mutex::new(None),
         });
         self.task_sender
@@ -185,6 +187,7 @@ impl Executor {
                 loop {
                     match task_receiver.try_recv() {
                         Ok(task) => {
+                            task.is_queued.store(false, atomic::Ordering::Release);
                             if !task.is_finished() {
                                 let waker = Waker::from(task.clone());
                                 let mut cx = Context::from_waker(&waker);
