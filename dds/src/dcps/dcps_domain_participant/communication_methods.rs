@@ -41,7 +41,6 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    runtime::{Clock, DdsRuntime},
     transport::types::{ChangeKind, Guid},
     xtypes::{
         deserializer::deserialize_top_level_type,
@@ -413,11 +412,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(
-        &mut self,
-        runtime: &impl DdsRuntime,
-        reception_timestamp: Time,
-    ) {
+    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time) {
         // 1. SPDP Participant Reader
         if !self
             .domain_participant
@@ -436,7 +431,7 @@ impl DcpsDomainParticipant {
             );
             for cache_change in changes {
                 if cache_change.kind == ChangeKind::Alive
-                    || cache_change.kind == ChangeKind::AliveFiltered
+                    && cache_change.data_value.as_ref().len() >= 4
                 {
                     if let Ok(discovered_participant_data) =
                         SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
@@ -444,7 +439,10 @@ impl DcpsDomainParticipant {
                         let instance_handle = InstanceHandle::new(
                             discovered_participant_data.dds_participant_data.key.value,
                         );
-                        self.add_discovered_participant(&discovered_participant_data, runtime);
+                        self.add_discovered_participant(
+                            &discovered_participant_data,
+                            reception_timestamp,
+                        );
                         self.domain_participant
                             .builtin_subscriber
                             .dcps_participant_reader
@@ -653,7 +651,7 @@ impl DcpsDomainParticipant {
                         .ok();
                 }
             }
-            self.process_discovered_writers(runtime);
+            self.process_discovered_writers(reception_timestamp);
         }
 
         // 4. SEDP Subscriptions Reader
@@ -808,7 +806,7 @@ impl DcpsDomainParticipant {
                         .ok();
                 }
             }
-            self.process_discovered_readers(runtime);
+            self.process_discovered_readers(reception_timestamp);
         }
 
         // 5. TypeLookup Request Reader
@@ -835,7 +833,7 @@ impl DcpsDomainParticipant {
                 .ok()
                 .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
                 {
-                    self.handle_type_lookup_request(type_lookup_request, runtime);
+                    self.handle_type_lookup_request(type_lookup_request, reception_timestamp);
                 }
             }
         }
@@ -865,20 +863,20 @@ impl DcpsDomainParticipant {
                 .ok()
                 .and_then(|mut d| TypeLookupReply::create_sample(&mut d))
                 {
-                    if self.handle_type_lookup_reply(type_lookup_reply, runtime) {
+                    if self.handle_type_lookup_reply(type_lookup_reply, reception_timestamp) {
                         type_lookup_reply_received = true;
                     }
                 }
             }
             if type_lookup_reply_received {
-                self.process_discovered_readers(runtime);
-                self.process_discovered_writers(runtime);
+                self.process_discovered_readers(reception_timestamp);
+                self.process_discovered_writers(reception_timestamp);
             }
         }
     }
 
-    #[tracing::instrument(skip(self, data_message, runtime))]
-    pub fn handle_data(&mut self, data_message: &[u8], runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self, data_message))]
+    pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
@@ -939,7 +937,7 @@ impl DcpsDomainParticipant {
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
                                     self.transport.message_writer.as_mut(),
-                                    &runtime.clock(),
+                                    now,
                                 )
                                 .is_some()
                             {
@@ -966,10 +964,10 @@ impl DcpsDomainParticipant {
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
                                 self.transport.message_writer.as_mut(),
-                                &runtime.clock(),
+                                now,
                             );
                         }
-                        self.process_pending_write_samples(runtime);
+                        self.process_pending_write_samples(now);
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                         for dw in self
@@ -1160,7 +1158,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn poke(&mut self, clock: &impl Clock) {
+    pub fn poke(&mut self, now: Time) {
         for dw in self
             .domain_participant
             .user_defined_publisher_list
@@ -1168,7 +1166,7 @@ impl DcpsDomainParticipant {
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_mut(), clock);
+                .write_message(self.transport.message_writer.as_mut(), now);
         }
         for dw in self
             .domain_participant
@@ -1176,7 +1174,7 @@ impl DcpsDomainParticipant {
             .stateful_data_writer_list_mut()
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_mut(), clock);
+                .write_message(self.transport.message_writer.as_mut(), now);
         }
         self.domain_participant
             .builtin_publisher

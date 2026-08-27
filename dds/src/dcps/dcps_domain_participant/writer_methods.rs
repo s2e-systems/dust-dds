@@ -20,7 +20,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -291,17 +291,16 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, reply_sender, runtime))]
+    #[tracing::instrument(skip(self, reply_sender))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
+        now: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
-        let now = runtime.clock().now();
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
@@ -469,12 +468,12 @@ impl DcpsDomainParticipant {
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -494,19 +493,19 @@ impl DcpsDomainParticipant {
         if !data_writer.enabled {
             data_writer.enabled = true;
 
-            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
-            self.process_discovered_readers(runtime);
+            self.announce_data_writer(publisher_handle, data_writer_handle, now);
+            self.process_discovered_readers(now);
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -535,7 +534,7 @@ impl DcpsDomainParticipant {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
+            self.announce_data_writer(publisher_handle, data_writer_handle, now);
         }
         Ok(())
     }
@@ -579,8 +578,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_pending_write_samples(&mut self, runtime: &impl DdsRuntime) {
-        let now = runtime.clock().now();
+    pub fn process_pending_write_samples(&mut self, now: Time) {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let Some(pending) = &data_writer.pending_write_sample {

@@ -351,24 +351,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     .await
                     {
                         Either3::A(user_mail) => {
-                            domain_participant_factory.handle(user_mail);
+                            let now = domain_participant_factory.runtime.clock().now();
+                            domain_participant_factory.handle(user_mail, now);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.poke(&domain_participant_factory.runtime.clock());
+                                dp.poke(now);
                             }
                         }
                         Either3::B(wire_mail) => {
-                            domain_participant_factory.handle_wire_mail(wire_mail);
                             let now = domain_participant_factory.runtime.clock().now();
+                            domain_participant_factory.handle_wire_mail(wire_mail, now);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_builtin_cache_changes(
-                                    &domain_participant_factory.runtime,
-                                    now,
-                                );
+                                dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.poke(&domain_participant_factory.runtime.clock());
+                                dp.request_topic_type_representation(now);
+                                dp.poke(now);
                             }
                         }
                         Either3::C(_) => {
@@ -379,39 +375,30 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.check_missed_writer_deadline(now);
                                 dp.remove_stale_writer_samples(now);
                                 dp.check_pending_writer_sample_timeout(now);
-                                dp.process_pending_write_samples(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.announce_participant_if_needed(
-                                    &domain_participant_factory.runtime,
-                                    now,
-                                );
+                                dp.process_pending_write_samples(now);
+                                dp.announce_participant_if_needed(now);
                                 dp.notify_find_topic_senders(now);
-                                dp.poke(&domain_participant_factory.runtime.clock());
+                                dp.poke(now);
                             }
                         }
                     };
                 } else {
                     match select_future(dcps_receiver.receive(), wire_receiver.receive()).await {
                         Either::A(user_mail) => {
-                            domain_participant_factory.handle(user_mail);
+                            let now = domain_participant_factory.runtime.clock().now();
+                            domain_participant_factory.handle(user_mail, now);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.poke(&domain_participant_factory.runtime.clock());
+                                dp.poke(now);
                             }
                         }
                         Either::B(wire_mail) => {
-                            domain_participant_factory.handle_wire_mail(wire_mail);
                             let now = domain_participant_factory.runtime.clock().now();
+                            domain_participant_factory.handle_wire_mail(wire_mail, now);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_builtin_cache_changes(
-                                    &domain_participant_factory.runtime,
-                                    now,
-                                );
+                                dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.poke(&domain_participant_factory.runtime.clock());
+                                dp.request_topic_type_representation(now);
+                                dp.poke(now);
                             }
                         }
                     };

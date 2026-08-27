@@ -6,8 +6,8 @@ use crate::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
+        time::Time,
     },
-    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -85,8 +85,8 @@ impl DcpsDomainParticipant {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn enable_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) -> DdsResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn enable_topic(&mut self, topic_name: String, now: Time) -> DdsResult<()> {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
@@ -98,7 +98,7 @@ impl DcpsDomainParticipant {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, runtime);
+            self.announce_topic(topic_name, now);
         }
 
         Ok(())

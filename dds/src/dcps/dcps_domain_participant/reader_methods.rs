@@ -26,6 +26,7 @@ use crate::{
         qos_policy::DurabilityQosPolicyKind,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{StatusKind, SubscriptionMatchedStatus},
+        time::Time,
     },
     runtime::DdsRuntime,
     xtypes::{
@@ -408,13 +409,13 @@ impl DcpsDomainParticipant {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -444,7 +445,7 @@ impl DcpsDomainParticipant {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, now);
         }
         Ok(())
     }
@@ -549,12 +550,12 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn enable_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -574,8 +575,8 @@ impl DcpsDomainParticipant {
         if !data_reader.enabled {
             data_reader.enabled = true;
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
-            self.process_discovered_writers(runtime);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, now);
+            self.process_discovered_writers(now);
         }
         Ok(())
     }

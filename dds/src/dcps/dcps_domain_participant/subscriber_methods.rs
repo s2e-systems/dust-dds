@@ -19,6 +19,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::ReliabilityQosPolicyKind,
+        time::Time,
     },
     rtps::stateful_reader::RtpsStatefulReader,
     runtime::DdsRuntime,
@@ -39,6 +40,7 @@ impl DcpsDomainParticipant {
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         let topic = if let Some(content_filtered_topic) = self
             .domain_participant
@@ -149,17 +151,17 @@ impl DcpsDomainParticipant {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, &data_reader_handle, runtime)?;
+            self.enable_data_reader(subscriber_handle, &data_reader_handle, now)?;
         }
         Ok(data_reader_handle)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn delete_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         datareader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -176,7 +178,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
-            self.announce_deleted_data_reader(data_reader, runtime);
+            self.announce_deleted_data_reader(data_reader, now);
         } else {
             return Err(DdsError::AlreadyDeleted);
         };

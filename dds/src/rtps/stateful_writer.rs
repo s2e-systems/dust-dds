@@ -1,5 +1,6 @@
 use super::{behavior_types::Duration, reader_proxy::RtpsReaderProxy};
 use crate::{
+    infrastructure::time::Time,
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
@@ -10,7 +11,6 @@ use crate::{
         },
         types::TIME_INVALID,
     },
-    runtime::Clock,
     transport::{
         interface::WriteMessage,
         types::{
@@ -121,11 +121,7 @@ impl RtpsStatefulWriter {
             .retain(|reader_proxy| reader_proxy.remote_reader_guid() != reader_guid);
     }
 
-    pub fn write_message(
-        &mut self,
-        message_writer: &mut (impl WriteMessage + ?Sized),
-        clock: &impl Clock,
-    ) {
+    pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized), now: Time) {
         for reader_proxy in &mut self.matched_readers {
             reader_proxy.write_message(
                 self.guid.entity_id(),
@@ -133,7 +129,7 @@ impl RtpsStatefulWriter {
                 self.data_max_size_serialized,
                 self.heartbeat_period,
                 message_writer,
-                clock,
+                now,
                 self.guid.prefix(),
             )
         }
@@ -146,7 +142,7 @@ impl RtpsStatefulWriter {
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
         message_writer: &mut (impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        now: Time,
     ) -> Option<SequenceNumber> {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -171,7 +167,7 @@ impl RtpsStatefulWriter {
                         self.data_max_size_serialized,
                         self.heartbeat_period,
                         message_writer,
-                        clock,
+                        now,
                         self.guid.prefix(),
                     );
                     return Some(acked_changes);
@@ -289,7 +285,7 @@ impl RtpsReaderProxy {
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
         message_writer: &mut (impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        now: Time,
         guid_prefix: GuidPrefix,
     ) {
         match self.reliability() {
@@ -306,7 +302,7 @@ impl RtpsReaderProxy {
                 data_max_size_serialized,
                 heartbeat_period,
                 message_writer,
-                clock,
+                now,
                 guid_prefix,
             ),
         }
@@ -442,10 +438,9 @@ impl RtpsReaderProxy {
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
         message_writer: &mut (impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        now: Time,
         guid_prefix: GuidPrefix,
     ) {
-        let now = clock.now();
         let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
         let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
         // Top part of the state machine - Figure 8.19 RTPS standard
@@ -731,12 +726,6 @@ mod tests {
 
     #[test]
     fn test_all_fragments_sent() {
-        struct MockClock {}
-        impl Clock for MockClock {
-            fn now(&self) -> crate::infrastructure::time::Time {
-                Time::new(1, 0)
-            }
-        }
         struct MockWriter {
             total_fragments_sent: Mutex<usize>,
             buffer: [u8; 65535],
@@ -786,18 +775,12 @@ mod tests {
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
         });
-        writer.write_message(&mut message_writer, &MockClock {});
+        writer.write_message(&mut message_writer, Time::new(1, 0));
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 3);
     }
 
     #[test]
     fn test_single_fragment_sent_after_acknack_frag() {
-        struct MockClock {}
-        impl Clock for MockClock {
-            fn now(&self) -> crate::infrastructure::time::Time {
-                Time::new(1, 0)
-            }
-        }
         struct MockWriter {
             total_fragments_sent: Mutex<usize>,
             buffer: [u8; 65535],
@@ -849,7 +832,7 @@ mod tests {
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
         });
-        writer.write_message(&mut message_writer, &MockClock {});
+        writer.write_message(&mut message_writer, Time::new(1, 0));
 
         let nackfrag_submessage = NackFragSubmessage::new(
             remote_reader_id,

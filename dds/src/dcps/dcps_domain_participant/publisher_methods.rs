@@ -15,6 +15,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        time::Time,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
     runtime::DdsRuntime,
@@ -34,6 +35,7 @@ impl DcpsDomainParticipant {
         dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -134,18 +136,18 @@ impl DcpsDomainParticipant {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, &writer_handle, runtime)?;
+            self.enable_data_writer(publisher_handle, &writer_handle, now)?;
         }
 
         Ok(data_writer_handle)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn delete_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         datawriter_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -162,7 +164,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer, runtime);
+            self.announce_deleted_data_writer(data_writer, now);
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)
