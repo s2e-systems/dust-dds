@@ -112,7 +112,7 @@ impl<'a> KeyHolderData<'a> {
 pub fn get_instance_handle_from_key_holder_data<'a>(
     key_holder_data: &KeyHolderData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    let data = serialize_final_without_header(Vec::new(), &key_holder_data.0)?;
+    let data = serialize_final_without_header(Vec::with_capacity(16), &key_holder_data.0)?;
     let key = if data.len() <= 16 {
         let mut key = [0; 16];
         key[0..data.len()].copy_from_slice(&data);
@@ -127,7 +127,7 @@ pub fn get_instance_handle_from_key_holder_data<'a>(
 pub fn get_instance_handle_from_dynamic_data<'a>(
     value: &DynamicData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    let mut member_list = Vec::new();
+    let mut member_list = Vec::with_capacity(4);
     let key_holder_data = KeyHolderData::from_dynamic_data(value, &mut member_list)?;
     get_instance_handle_from_key_holder_data(&key_holder_data)
 }

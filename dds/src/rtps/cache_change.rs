@@ -49,10 +49,15 @@ impl CacheChange {
         if let Some(i) = self.instance_handle {
             parameters.push(Parameter::new(PID_KEY_HASH, Arc::from(i)));
         }
-        let parameter_list = ParameterList::new(parameters);
+        let inline_qos_flag = !parameters.is_empty();
+        let parameter_list = if inline_qos_flag {
+            ParameterList::new(parameters)
+        } else {
+            ParameterList::empty()
+        };
 
         DataSubmessage::new(
-            true,
+            inline_qos_flag,
             data_flag,
             key_flag,
             false,
