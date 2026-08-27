@@ -7,7 +7,7 @@ use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
         channels::oneshot::oneshot,
-        dcps_mail::{DcpsMail, ParticipantFactoryMail},
+        dcps_mail::{DcpsMail, ParticipantFactoryMail, WireMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
     dds_async::{
@@ -20,14 +20,18 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
-    runtime::{Clock, DdsRuntime, Either, Spawner, TaskHandle, Timer, select_future},
+    runtime::{
+        Clock, DdsRuntime, Either, Either3, Spawner, TaskHandle, Timer, select_future,
+        select3_future,
+    },
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
 };
 
-const DCPS_CHANNEL_SIZE: usize = 256;
+const DCPS_CHANNEL_SIZE: usize = 128;
+const WIRE_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
 pub type DcpsChannel = embassy_sync::channel::Channel<
@@ -59,12 +63,43 @@ impl DcpsReceiver {
     }
 }
 
+#[doc(hidden)]
+pub type WireChannel = embassy_sync::channel::Channel<
+    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+    WireMail,
+    WIRE_CHANNEL_SIZE,
+>;
+
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct WireSender {
+    channel: Arc<WireChannel>,
+}
+
+impl WireSender {
+    pub async fn send(&self, message: WireMail) {
+        self.channel.send(message).await;
+    }
+}
+
+#[doc(hidden)]
+pub struct WireReceiver {
+    channel: Arc<WireChannel>,
+}
+
+impl WireReceiver {
+    pub async fn receive(&self) -> WireMail {
+        self.channel.receive().await
+    }
+}
+
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     dcps_sender: DcpsSender,
+    wire_sender: WireSender,
     entity_counter: core::sync::atomic::AtomicU32,
     app_id: [u8; 4],
     host_id: [u8; 4],
@@ -88,7 +123,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
         let transport_participant = self.transport.lock().await.create_participant(
             domain_id,
-            TransportDataReceiver::new(participant_handle, self.dcps_sender.clone()),
+            TransportDataReceiver::new(participant_handle, self.wire_sender.clone()),
         );
 
         let domain_tag = configuration.domain_tag().to_owned();
@@ -283,6 +318,13 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let dcps_receiver = DcpsReceiver {
             channel: dcps_channel,
         };
+        let wire_channel = Arc::new(WireChannel::new());
+        let wire_sender = WireSender {
+            channel: wire_channel.clone(),
+        };
+        let wire_receiver = WireReceiver {
+            channel: wire_channel,
+        };
         let spawner_handle = runtime.spawner();
         let mut timer_handle = runtime.timer();
 
@@ -301,55 +343,110 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                 let next_task_time = domain_participant_factory.time_until_next_event(now);
 
                 if let Some(next_task_time) = next_task_time {
-                    match select_future(
+                    match select3_future(
                         dcps_receiver.receive(),
+                        wire_receiver.receive(),
                         timer_handle.delay(next_task_time.into()),
                     )
                     .await
                     {
-                        Either::A(m) => {
-                            domain_participant_factory.handle(m);
+                        Either3::A(user_mail) => {
+                            domain_participant_factory.handle(user_mail);
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.process_discovered_readers(&domain_participant_factory.runtime);
+                                dp.process_discovered_writers(&domain_participant_factory.runtime);
+                                dp.poke(&domain_participant_factory.runtime.clock());
+                            }
                         }
-                        Either::B(_) => (),
+                        Either3::B(wire_mail) => {
+                            domain_participant_factory.handle_wire_mail(wire_mail);
+                            let now = domain_participant_factory.runtime.clock().now();
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.process_builtin_cache_changes(now);
+                                dp.process_user_defined_received_cache_changes(now);
+                                dp.process_discovered_participants_detector_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_builtin_publications_detector_cache_change();
+                                dp.process_builtin_subscriptions_detector_cache_change();
+                                dp.process_builtin_topics_detector_cache_change();
+                                dp.process_builtin_type_lookup_request_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_builtin_type_lookup_reply_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.request_topic_type_representation(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_discovered_readers(&domain_participant_factory.runtime);
+                                dp.process_discovered_writers(&domain_participant_factory.runtime);
+                                dp.poke(&domain_participant_factory.runtime.clock());
+                            }
+                        }
+                        Either3::C(_) => {
+                            let now = domain_participant_factory.runtime.clock().now();
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.remove_stale_participants(now);
+                                dp.check_missed_reader_deadline(now);
+                                dp.check_missed_writer_deadline(now);
+                                dp.remove_stale_writer_samples(now);
+                                dp.check_pending_writer_sample_timeout(now);
+                                dp.process_pending_write_samples(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.announce_participant_if_needed(
+                                    &domain_participant_factory.runtime,
+                                    now,
+                                );
+                                dp.notify_find_topic_senders(now);
+                                dp.poke(&domain_participant_factory.runtime.clock());
+                            }
+                        }
                     };
                 } else {
-                    let m = dcps_receiver.receive().await;
-                    domain_participant_factory.handle(m);
-                }
-
-                let now = domain_participant_factory.runtime.clock().now();
-                for dp in &mut domain_participant_factory.domain_participant_list {
-                    dp.process_builtin_cache_changes(now);
-                    dp.process_user_defined_received_cache_changes(now);
-                    dp.process_discovered_participants_detector_cache_change(
-                        &domain_participant_factory.runtime,
-                    );
-                    dp.process_builtin_publications_detector_cache_change();
-                    dp.process_builtin_subscriptions_detector_cache_change();
-                    dp.process_builtin_topics_detector_cache_change();
-                    dp.process_builtin_type_lookup_request_cache_change(
-                        &domain_participant_factory.runtime,
-                    );
-                    dp.process_builtin_type_lookup_reply_cache_change(
-                        &domain_participant_factory.runtime,
-                    );
-                    dp.request_topic_type_representation(&domain_participant_factory.runtime);
-                    dp.process_discovered_readers(&domain_participant_factory.runtime);
-                    dp.process_discovered_writers(&domain_participant_factory.runtime);
-                    dp.remove_stale_participants(now);
-                    dp.check_missed_reader_deadline(now);
-                    dp.check_missed_writer_deadline(now);
-                    dp.remove_stale_writer_samples(now);
-                    dp.check_pending_writer_sample_timeout(now);
-                    dp.process_pending_write_samples(&domain_participant_factory.runtime);
-                    dp.announce_participant_if_needed(&domain_participant_factory.runtime, now);
-                    dp.notify_find_topic_senders(now);
-                    dp.poke(&domain_participant_factory.runtime.clock());
+                    match select_future(dcps_receiver.receive(), wire_receiver.receive()).await {
+                        Either::A(user_mail) => {
+                            domain_participant_factory.handle(user_mail);
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.process_discovered_readers(&domain_participant_factory.runtime);
+                                dp.process_discovered_writers(&domain_participant_factory.runtime);
+                                dp.poke(&domain_participant_factory.runtime.clock());
+                            }
+                        }
+                        Either::B(wire_mail) => {
+                            domain_participant_factory.handle_wire_mail(wire_mail);
+                            let now = domain_participant_factory.runtime.clock().now();
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.process_builtin_cache_changes(now);
+                                dp.process_user_defined_received_cache_changes(now);
+                                dp.process_discovered_participants_detector_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_builtin_publications_detector_cache_change();
+                                dp.process_builtin_subscriptions_detector_cache_change();
+                                dp.process_builtin_topics_detector_cache_change();
+                                dp.process_builtin_type_lookup_request_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_builtin_type_lookup_reply_cache_change(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.request_topic_type_representation(
+                                    &domain_participant_factory.runtime,
+                                );
+                                dp.process_discovered_readers(&domain_participant_factory.runtime);
+                                dp.process_discovered_writers(&domain_participant_factory.runtime);
+                                dp.poke(&domain_participant_factory.runtime.clock());
+                            }
+                        }
+                    };
                 }
             }
         });
         Self {
             dcps_sender,
+            wire_sender,
             app_id,
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),

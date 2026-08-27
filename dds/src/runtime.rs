@@ -61,9 +61,26 @@ pub(crate) enum Either<A, B> {
     /// Variant B of either
     B(B),
 }
+
+/// Generic three-way either enumeration type
+pub(crate) enum Either3<A, B, C> {
+    /// Variant A of either3
+    A(A),
+    /// Variant B of either3
+    B(B),
+    /// Variant C of either3
+    C(C),
+}
+
 struct Select<A, B> {
     a: A,
     b: B,
+}
+
+struct Select3<A, B, C> {
+    a: A,
+    b: B,
+    c: C,
 }
 
 /// Run two futures in parallel and return the first one to conclude. In case both futures are ready at the same time
@@ -79,6 +96,21 @@ pub(crate) async fn select_future<A: Future, B: Future>(
     .await
 }
 
+/// Run three futures in parallel and return the first one to conclude. In case multiple futures are ready at the same time
+/// priority is given in order A, B, C.
+pub(crate) async fn select3_future<A: Future, B: Future, C: Future>(
+    a: A,
+    b: B,
+    c: C,
+) -> Either3<A::Output, B::Output, C::Output> {
+    Select3 {
+        a: core::pin::pin!(a),
+        b: core::pin::pin!(b),
+        c: core::pin::pin!(c),
+    }
+    .await
+}
+
 impl<A, B> Future for Select<A, B>
 where
     A: Future + Unpin,
@@ -90,11 +122,36 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<Self::Output> {
+        if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
+            return Poll::Ready(Either::B(b));
+        }
         if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
             return Poll::Ready(Either::A(a));
         }
+        Poll::Pending
+    }
+}
+
+impl<A, B, C> Future for Select3<A, B, C>
+where
+    A: Future + Unpin,
+    B: Future + Unpin,
+    C: Future + Unpin,
+{
+    type Output = Either3<A::Output, B::Output, C::Output>;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
         if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
-            return Poll::Ready(Either::B(b));
+            return Poll::Ready(Either3::B(b));
+        }
+        if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
+            return Poll::Ready(Either3::A(a));
+        }
+        if let Poll::Ready(c) = Pin::new(&mut self.c).poll(cx) {
+            return Poll::Ready(Either3::C(c));
         }
         Poll::Pending
     }
