@@ -353,8 +353,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                         Either3::A(user_mail) => {
                             domain_participant_factory.handle(user_mail);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_discovered_readers(&domain_participant_factory.runtime);
-                                dp.process_discovered_writers(&domain_participant_factory.runtime);
                                 dp.poke(&domain_participant_factory.runtime.clock());
                             }
                         }
@@ -362,25 +360,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             domain_participant_factory.handle_wire_mail(wire_mail);
                             let now = domain_participant_factory.runtime.clock().now();
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_builtin_cache_changes(now);
+                                dp.process_builtin_cache_changes(
+                                    &domain_participant_factory.runtime,
+                                    now,
+                                );
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.process_discovered_participants_detector_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.process_builtin_publications_detector_cache_change();
-                                dp.process_builtin_subscriptions_detector_cache_change();
-                                dp.process_builtin_topics_detector_cache_change();
-                                dp.process_builtin_type_lookup_request_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.process_builtin_type_lookup_reply_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
                                 dp.request_topic_type_representation(
                                     &domain_participant_factory.runtime,
                                 );
-                                dp.process_discovered_readers(&domain_participant_factory.runtime);
-                                dp.process_discovered_writers(&domain_participant_factory.runtime);
                                 dp.poke(&domain_participant_factory.runtime.clock());
                             }
                         }
@@ -409,8 +396,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                         Either::A(user_mail) => {
                             domain_participant_factory.handle(user_mail);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_discovered_readers(&domain_participant_factory.runtime);
-                                dp.process_discovered_writers(&domain_participant_factory.runtime);
                                 dp.poke(&domain_participant_factory.runtime.clock());
                             }
                         }
@@ -418,25 +403,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             domain_participant_factory.handle_wire_mail(wire_mail);
                             let now = domain_participant_factory.runtime.clock().now();
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.process_builtin_cache_changes(now);
+                                dp.process_builtin_cache_changes(
+                                    &domain_participant_factory.runtime,
+                                    now,
+                                );
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.process_discovered_participants_detector_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.process_builtin_publications_detector_cache_change();
-                                dp.process_builtin_subscriptions_detector_cache_change();
-                                dp.process_builtin_topics_detector_cache_change();
-                                dp.process_builtin_type_lookup_request_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
-                                dp.process_builtin_type_lookup_reply_cache_change(
-                                    &domain_participant_factory.runtime,
-                                );
                                 dp.request_topic_type_representation(
                                     &domain_participant_factory.runtime,
                                 );
-                                dp.process_discovered_readers(&domain_participant_factory.runtime);
-                                dp.process_discovered_writers(&domain_participant_factory.runtime);
                                 dp.poke(&domain_participant_factory.runtime.clock());
                             }
                         }

@@ -35,7 +35,6 @@ use crate::{
                 BuiltInKeyHolder, DcpsDomainParticipant, DiscoveredParticipantInfo,
                 DomainParticipantEntity,
             },
-            rtps_traits::RtpsReader,
             user_defined_data_reader::UserDefinedDataReader,
             user_defined_data_writer::UserDefinedDataWriter,
         },
@@ -53,13 +52,11 @@ use crate::{
         qos_policy::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
-            HistoryQosPolicy, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-            LifespanQosPolicy, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
-            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
+            ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
+            XCDR_DATA_REPRESENTATION,
         },
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, SampleStateKind},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -73,7 +70,6 @@ use crate::{
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
     },
     xtypes::{
-        deserializer::deserialize_top_level_type,
         dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
@@ -1384,7 +1380,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    fn remove_discovered_reader(
+    pub(crate) fn remove_discovered_reader(
         &mut self,
         subscription_handle: InstanceHandle,
         publisher_handle: InstanceHandle,
@@ -1995,7 +1991,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    fn remove_discovered_writer(
+    pub(crate) fn remove_discovered_writer(
         &mut self,
         publication_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,
@@ -2025,809 +2021,405 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn process_discovered_participants_detector_cache_change(
+    pub fn handle_type_lookup_request(
         &mut self,
+        type_lookup_request: TypeLookupRequest,
         runtime: &impl DdsRuntime,
     ) {
-        let dcps_reader = &mut self
-            .domain_participant
-            .builtin_subscriber
-            .dcps_participant_reader;
-        {
-            if let Ok(samples) = dcps_reader.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample, sample_info) in samples {
-                    let span = tracing::trace_span!("process_discovered_participant_sample");
-                    let _enter_ = span.enter();
-                    if sample_info.valid_data {
-                        if let Ok(discovered_participant_data) =
-                            SpdpDiscoveredParticipantData::from_bytes(sample.as_ref())
-                        {
-                            self.add_discovered_participant(&discovered_participant_data, runtime);
-                        }
-                    } else {
-                        self.remove_discovered_participant(&sample_info.instance_handle);
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn process_builtin_publications_detector_cache_change(&mut self) {
-        let sedp_publication = &mut self
-            .domain_participant
-            .builtin_subscriber
-            .dcps_publication_reader;
-        {
-            if let Ok(samples) = sedp_publication.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample, sample_info) in samples {
-                    if sample_info.valid_data {
-                        if let Ok(discovered_writer_data) =
-                            DiscoveredWriterData::from_bytes(sample.as_ref())
-                        {
-                            let publication_builtin_topic_data =
-                                &discovered_writer_data.dds_publication_data;
-                            if !self
-                                .domain_participant
-                                .discovered_topic_list
-                                .iter()
-                                .any(|x| {
-                                    x.name.value == publication_builtin_topic_data.topic_name()
-                                })
-                            {
-                                let writer_topic = TopicBuiltinTopicData {
-                                    key: BuiltInTopicKey::default(),
-                                    name: publication_builtin_topic_data.topic_name.clone(),
-                                    type_name: publication_builtin_topic_data.type_name.clone(),
-                                    type_information: publication_builtin_topic_data
-                                        .type_information
-                                        .clone(),
-                                    durability: publication_builtin_topic_data.durability().clone(),
-                                    deadline: publication_builtin_topic_data.deadline().clone(),
-                                    latency_budget: publication_builtin_topic_data
-                                        .latency_budget()
-                                        .clone(),
-                                    liveliness: publication_builtin_topic_data.liveliness().clone(),
-                                    reliability: publication_builtin_topic_data
-                                        .reliability()
-                                        .clone(),
-                                    transport_priority: TransportPriorityQosPolicy::default(),
-                                    lifespan: publication_builtin_topic_data.lifespan().clone(),
-                                    destination_order: publication_builtin_topic_data
-                                        .destination_order()
-                                        .clone(),
-                                    history: HistoryQosPolicy::default(),
-                                    resource_limits: ResourceLimitsQosPolicy::default(),
-                                    ownership: publication_builtin_topic_data.ownership().clone(),
-                                    topic_data: publication_builtin_topic_data.topic_data().clone(),
-                                    representation: publication_builtin_topic_data
-                                        .representation()
-                                        .clone(),
-                                };
-                                self.domain_participant.add_discovered_topic(writer_topic);
-                            }
-
-                            self.domain_participant
-                                .add_discovered_writer(discovered_writer_data.clone());
-                        }
-                    } else {
-                        self.domain_participant
-                            .remove_discovered_writer(&sample_info.instance_handle);
-
-                        let mut handle_list = Vec::new();
-                        for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                            for data_reader in subscriber.data_reader_list.iter() {
-                                handle_list.push((
-                                    subscriber.instance_handle,
-                                    data_reader.instance_handle,
-                                ));
-                            }
-                        }
-                        for (subscriber_handle, data_reader_handle) in handle_list {
-                            self.remove_discovered_writer(
-                                sample_info.instance_handle,
-                                subscriber_handle,
-                                data_reader_handle,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn process_builtin_subscriptions_detector_cache_change(&mut self) {
-        let sedp_subscriptions = &mut self
-            .domain_participant
-            .builtin_subscriber
-            .dcps_subscription_reader;
-        {
-            if let Ok(samples) = sedp_subscriptions.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample, sample_info) in samples {
-                    if sample_info.valid_data {
-                        if let Ok(discovered_reader_data) =
-                            DiscoveredReaderData::from_bytes(sample.as_ref())
-                        {
-                            if !self
-                                .domain_participant
-                                .discovered_topic_list
-                                .iter()
-                                .any(|x| {
-                                    x.name.value
-                                        == discovered_reader_data.dds_subscription_data.topic_name()
-                                })
-                            {
-                                let reader_topic = TopicBuiltinTopicData {
-                                    key: BuiltInTopicKey::default(),
-                                    name: discovered_reader_data
-                                        .dds_subscription_data
-                                        .topic_name
-                                        .clone(),
-                                    type_name: discovered_reader_data
-                                        .dds_subscription_data
-                                        .type_name
-                                        .clone(),
-                                    type_information: discovered_reader_data
-                                        .dds_subscription_data
-                                        .type_information
-                                        .clone(),
-                                    topic_data: discovered_reader_data
-                                        .dds_subscription_data
-                                        .topic_data()
-                                        .clone(),
-                                    durability: discovered_reader_data
-                                        .dds_subscription_data
-                                        .durability()
-                                        .clone(),
-                                    deadline: discovered_reader_data
-                                        .dds_subscription_data
-                                        .deadline()
-                                        .clone(),
-                                    latency_budget: discovered_reader_data
-                                        .dds_subscription_data
-                                        .latency_budget()
-                                        .clone(),
-                                    liveliness: discovered_reader_data
-                                        .dds_subscription_data
-                                        .liveliness()
-                                        .clone(),
-                                    reliability: discovered_reader_data
-                                        .dds_subscription_data
-                                        .reliability()
-                                        .clone(),
-                                    destination_order: discovered_reader_data
-                                        .dds_subscription_data
-                                        .destination_order()
-                                        .clone(),
-                                    history: HistoryQosPolicy::default(),
-                                    resource_limits: ResourceLimitsQosPolicy::default(),
-                                    transport_priority: TransportPriorityQosPolicy::default(),
-                                    lifespan: LifespanQosPolicy::default(),
-                                    ownership: discovered_reader_data
-                                        .dds_subscription_data
-                                        .ownership()
-                                        .clone(),
-                                    representation: discovered_reader_data
-                                        .dds_subscription_data
-                                        .representation()
-                                        .clone(),
-                                };
-                                self.domain_participant.add_discovered_topic(reader_topic);
-                            }
-
-                            self.domain_participant
-                                .add_discovered_reader(discovered_reader_data.clone());
-                            let mut handle_list = Vec::new();
-                            for publisher in &self.domain_participant.user_defined_publisher_list {
-                                for data_writer in publisher.data_writer_list.iter() {
-                                    handle_list.push((
-                                        publisher.instance_handle,
-                                        data_writer.instance_handle,
-                                    ));
-                                }
-                            }
-                        }
-                    } else {
-                        self.domain_participant
-                            .remove_discovered_reader(&sample_info.instance_handle);
-
-                        let mut handle_list = Vec::new();
-                        for publisher in &self.domain_participant.user_defined_publisher_list {
-                            for data_writer in publisher.data_writer_list.iter() {
-                                handle_list
-                                    .push((publisher.instance_handle, data_writer.instance_handle));
-                            }
-                        }
-
-                        for (publisher_handle, data_writer_handle) in handle_list {
-                            self.remove_discovered_reader(
-                                sample_info.instance_handle,
-                                publisher_handle,
-                                data_writer_handle,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn process_builtin_topics_detector_cache_change(&mut self) {
-        let sedp_topics = &mut self.domain_participant.builtin_subscriber.dcps_topic_reader;
-        {
-            if let Ok(samples) = sedp_topics.read(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample, sample_info) in samples {
-                    if sample_info.valid_data {
-                        if let Ok(discovered_topic_data) =
-                            DiscoveredTopicData::from_bytes(sample.as_ref())
-                        {
-                            let topic_builtin_topic_data =
-                                discovered_topic_data.topic_builtin_topic_data;
-                            self.domain_participant
-                                .add_discovered_topic(topic_builtin_topic_data.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn process_builtin_type_lookup_request_cache_change(&mut self, runtime: &impl DdsRuntime) {
-        let type_lookup_request_reader = &mut self
-            .domain_participant
-            .builtin_subscriber
-            .type_lookup_request_reader;
-        {
-            if let Ok(samples) = type_lookup_request_reader.take(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample_data, _sample_info) in samples {
-                    if let Some(type_lookup_request) =
-                        deserialize_top_level_type(TypeLookupRequest::TYPE, &sample_data)
-                            .ok()
-                            .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
+        match type_lookup_request.call {
+            TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
+                let mut types = Vec::new();
+                for type_id in get_types.type_ids {
+                    if let Some(type_object) = self
+                        .domain_participant
+                        .type_register
+                        .get_type_object(&type_id)
                     {
-                        match type_lookup_request.call {
-                            TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
-                                let mut types = Vec::new();
-                                for type_id in get_types.type_ids {
-                                    if let Some(type_object) = self
-                                        .domain_participant
-                                        .type_register
-                                        .get_type_object(&type_id)
-                                    {
-                                        types.push(TypeIdentifierTypeObjectPair {
-                                            type_identifier: type_id,
-                                            type_object,
-                                        });
-                                    }
-                                }
-                                if !types.is_empty() {
-                                    let type_lookup_reply_writer = &mut self
-                                        .domain_participant
-                                        .builtin_publisher
-                                        .type_lookup_reply_writer;
-                                    let type_lookup_reply = TypeLookupReply {
-                                        header: ReplyHeader {
-                                            related_request_id: type_lookup_request
-                                                .header
-                                                .request_id
-                                                .clone(),
-                                            remote_ex: RemoteExceptionCode::Ok,
-                                        },
-                                        r#return: TypeLookupReturn::TypeLookupGetTypesHash {
-                                            get_type: TypeLookupGetTypesResult::Ok {
-                                                result: TypeLookupGetTypesOut {
-                                                    types,
-                                                    complete_to_minimal: Vec::new(),
-                                                },
-                                            },
-                                        },
-                                    };
-                                    let serialized_data = serialize_cdr2_le(
-                                        &type_lookup_reply.create_dynamic_sample(),
-                                    )
-                                    .unwrap();
+                        types.push(TypeIdentifierTypeObjectPair {
+                            type_identifier: type_id,
+                            type_object,
+                        });
+                    }
+                }
+                if !types.is_empty() {
+                    let type_lookup_reply_writer = &mut self
+                        .domain_participant
+                        .builtin_publisher
+                        .type_lookup_reply_writer;
+                    let type_lookup_reply = TypeLookupReply {
+                        header: ReplyHeader {
+                            related_request_id: type_lookup_request.header.request_id.clone(),
+                            remote_ex: RemoteExceptionCode::Ok,
+                        },
+                        r#return: TypeLookupReturn::TypeLookupGetTypesHash {
+                            get_type: TypeLookupGetTypesResult::Ok {
+                                result: TypeLookupGetTypesOut {
+                                    types,
+                                    complete_to_minimal: Vec::new(),
+                                },
+                            },
+                        },
+                    };
+                    let serialized_data =
+                        serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
-                                    let now = runtime.clock().now();
-                                    type_lookup_reply_writer
-                                        .write_w_timestamp(
-                                            InstanceHandle::default(),
-                                            serialized_data,
-                                            now,
-                                            now,
-                                        )
+                    let now = runtime.clock().now();
+                    type_lookup_reply_writer
+                        .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                        .ok();
+                }
+            }
+            TypeLookupCall::TypeLookupGetDependenciesHash {
+                get_type_dependencies,
+            } => {
+                for type_id in get_type_dependencies.type_ids {
+                    if let Some(dependent_typeids) = self
+                        .domain_participant
+                        .type_register
+                        .get_type_dependencies_with_size(&type_id)
+                    {
+                        let type_lookup_reply_writer = &mut self
+                            .domain_participant
+                            .builtin_publisher
+                            .type_lookup_reply_writer;
+                        let type_lookup_reply = TypeLookupReply {
+                            header: ReplyHeader {
+                                related_request_id: type_lookup_request.header.request_id.clone(),
+                                remote_ex: RemoteExceptionCode::Ok,
+                            },
+                            r#return: TypeLookupReturn::TypeLookupGetDependenciesHash {
+                                get_type_dependencies: TypeLookupGetTypeDependenciesResult::Ok {
+                                    result: TypeLookupGetTypeDependenciesOut {
+                                        dependent_typeids,
+                                        continuation_point: Vec::new(),
+                                    },
+                                },
+                            },
+                        };
+                        let serialized_data =
+                            serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
+
+                        let now = runtime.clock().now();
+                        type_lookup_reply_writer
+                            .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                            .ok();
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_type_lookup_reply(
+        &mut self,
+        type_lookup_reply: TypeLookupReply,
+        runtime: &impl DdsRuntime,
+    ) -> bool {
+        let mut type_lookup_reply_received = false;
+        match &type_lookup_reply.r#return {
+            TypeLookupReturn::TypeLookupGetDependenciesHash {
+                get_type_dependencies: TypeLookupGetTypeDependenciesResult::Ok { result },
+            } => {
+                let pending_id = self
+                    .domain_participant
+                    .type_register
+                    .get_pending_dependencies_type_id();
+
+                if let Some(type_id) = pending_id {
+                    self.domain_participant
+                        .type_register
+                        .remove_pending_dependencies_lookup(&type_id);
+                    self.domain_participant
+                        .type_register
+                        .register_type_dependencies(&type_id, result.dependent_typeids.clone());
+
+                    let unresolved = self
+                        .domain_participant
+                        .type_register
+                        .get_unresolved_type_ids(&type_id);
+                    if !unresolved.is_empty()
+                        && !self
+                            .domain_participant
+                            .type_register
+                            .is_types_lookup_pending(&unresolved)
+                    {
+                        let type_request_writer = &mut self
+                            .domain_participant
+                            .builtin_publisher
+                            .type_lookup_request_writer;
+
+                        let type_lookup_request = TypeLookupRequest {
+                            header: RequestHeader {
+                                request_id: SampleIdentity {
+                                    writer_guid: type_request_writer.transport_writer.guid(),
+                                    sequence_number: (type_request_writer
+                                        .last_change_sequence_number
+                                        + 1)
+                                    .into(),
+                                },
+                                instance_name: format!(
+                                    "dds.builtin.TOS.{:x}",
+                                    self.domain_participant.instance_handle,
+                                ),
+                            },
+                            call: TypeLookupCall::TypeLookupGetTypesHashId {
+                                get_types: TypeLookupGetTypesIn {
+                                    type_ids: unresolved.clone(),
+                                },
+                            },
+                        };
+                        let sample_instance_handle = InstanceHandle::default();
+                        let serialized_data =
+                            serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
+                                .unwrap();
+                        let now = runtime.clock().now();
+                        type_request_writer
+                            .write_w_timestamp(sample_instance_handle, serialized_data, now, now)
+                            .ok();
+                        self.domain_participant
+                            .type_register
+                            .add_pending_types_lookup(unresolved);
+                    }
+                }
+            }
+            TypeLookupReturn::TypeLookupGetTypesHash {
+                get_type: TypeLookupGetTypesResult::Ok { result },
+            } => {
+                let mut received_ids = Vec::new();
+                for type_identifier_pair in &result.types {
+                    received_ids.push(type_identifier_pair.type_identifier.clone());
+                    self.domain_participant
+                        .type_register
+                        .register_discovered_type_object(
+                            type_identifier_pair.type_identifier.clone(),
+                            type_identifier_pair.type_object.clone(),
+                        );
+                    type_lookup_reply_received = true;
+
+                    for topic in &mut self.domain_participant.locally_created_topic_list {
+                        let matches_discovered_topic = self
+                            .domain_participant
+                            .discovered_topic_list
+                            .iter()
+                            .any(|dt| {
+                                dt.name.value.as_str() == topic.topic_name.as_ref()
+                                    && dt.type_information.as_ref().is_some_and(|ti| {
+                                        ti.complete.typeid_with_size.type_id
+                                            == type_identifier_pair.type_identifier
+                                    })
+                            });
+
+                        if !matches_discovered_topic {
+                            continue;
+                        }
+
+                        let local_has_readers = self
+                            .domain_participant
+                            .user_defined_subscriber_list
+                            .iter()
+                            .flat_map(|s| s.data_reader_list.iter())
+                            .any(|dr| dr.topic_name == topic.topic_name);
+                        let discovered_has_readers = self
+                            .domain_participant
+                            .discovered_reader_list
+                            .iter()
+                            .any(|dr| {
+                                dr.dds_subscription_data.topic_name() == topic.topic_name.as_ref()
+                            });
+
+                        let ignore_sequence_bounds =
+                            if !local_has_readers && !discovered_has_readers {
+                                true
+                            } else {
+                                self.domain_participant
+                                    .user_defined_subscriber_list
+                                    .iter()
+                                    .flat_map(|s| s.data_reader_list.iter())
+                                    .all(|dr| {
+                                        dr.topic_name != topic.topic_name
+                                            || dr.qos.type_consistency.ignore_sequence_bounds
+                                    })
+                                    && self.domain_participant.discovered_reader_list.iter().all(
+                                        |dr| {
+                                            dr.dds_subscription_data.topic_name()
+                                                != topic.topic_name.as_ref()
+                                                || dr
+                                                    .dds_subscription_data
+                                                    .type_consistency
+                                                    .ignore_sequence_bounds
+                                        },
+                                    )
+                            };
+                        let ignore_string_bounds =
+                            if !local_has_readers && !discovered_has_readers {
+                                true
+                            } else {
+                                self.domain_participant
+                                    .user_defined_subscriber_list
+                                    .iter()
+                                    .flat_map(|s| s.data_reader_list.iter())
+                                    .all(|dr| {
+                                        dr.topic_name != topic.topic_name
+                                            || dr.qos.type_consistency.ignore_string_bounds
+                                    })
+                                    && self.domain_participant.discovered_reader_list.iter().all(
+                                        |dr| {
+                                            dr.dds_subscription_data.topic_name()
+                                                != topic.topic_name.as_ref()
+                                                || dr
+                                                    .dds_subscription_data
+                                                    .type_consistency
+                                                    .ignore_string_bounds
+                                        },
+                                    )
+                            };
+                        let ignore_member_names =
+                            if !local_has_readers && !discovered_has_readers {
+                                true
+                            } else {
+                                self.domain_participant
+                                    .user_defined_subscriber_list
+                                    .iter()
+                                    .flat_map(|s| s.data_reader_list.iter())
+                                    .all(|dr| {
+                                        dr.topic_name != topic.topic_name
+                                            || dr.qos.type_consistency.ignore_member_names
+                                    })
+                                    && self.domain_participant.discovered_reader_list.iter().all(
+                                        |dr| {
+                                            dr.dds_subscription_data.topic_name()
+                                                != topic.topic_name.as_ref()
+                                                || dr
+                                                    .dds_subscription_data
+                                                    .type_consistency
+                                                    .ignore_member_names
+                                        },
+                                    )
+                            };
+                        let prevent_type_widening =
+                            if !local_has_readers && !discovered_has_readers {
+                                false
+                            } else {
+                                self.domain_participant
+                                    .user_defined_subscriber_list
+                                    .iter()
+                                    .flat_map(|s| s.data_reader_list.iter())
+                                    .any(|dr| {
+                                        dr.topic_name == topic.topic_name
+                                            && dr.qos.type_consistency.prevent_type_widening
+                                    })
+                                    || self.domain_participant.discovered_reader_list.iter().any(
+                                        |dr| {
+                                            dr.dds_subscription_data.topic_name()
+                                                == topic.topic_name.as_ref()
+                                                && dr
+                                                    .dds_subscription_data
+                                                    .type_consistency
+                                                    .prevent_type_widening
+                                        },
+                                    )
+                            };
+                        let topic_type_consistency = TypeConsistencyEnforcementQosPolicy {
+                            ignore_member_names,
+                            ignore_sequence_bounds,
+                            ignore_string_bounds,
+                            prevent_type_widening,
+                            ..TypeConsistencyEnforcementQosPolicy::const_default()
+                        };
+
+                        let is_type_assignable = match &type_identifier_pair.type_object {
+                            TypeObject::EkComplete { complete } => {
+                                if let Some(TypeObject::EkComplete {
+                                    complete: local_type,
+                                }) = self.domain_participant.type_register.get_type_object(
+                                    &topic.type_information.complete.typeid_with_size.type_id,
+                                ) {
+                                    let resolver = |id: &TypeIdentifier| {
+                                        if let Some(TypeObject::EkComplete { complete }) = self
+                                            .domain_participant
+                                            .type_register
+                                            .get_type_object(id)
+                                        {
+                                            Some(complete)
+                                        } else {
+                                            None
+                                        }
+                                    };
+                                    local_type.is_assignable_from_w_type_consistency(
+                                        complete,
+                                        &topic_type_consistency,
+                                        &resolver,
+                                    ) || complete.is_assignable_from_w_type_consistency(
+                                        &local_type,
+                                        &topic_type_consistency,
+                                        &resolver,
+                                    )
+                                } else {
+                                    false
+                                }
+                            }
+                            TypeObject::EkMinimal { minimal } => {
+                                if let Some(TypeObject::EkMinimal {
+                                    minimal: local_type,
+                                }) = self.domain_participant.type_register.get_type_object(
+                                    &topic.type_information.minimal.typeid_with_size.type_id,
+                                ) {
+                                    &local_type == minimal
+                                } else {
+                                    false
+                                }
+                            }
+                        };
+
+                        if !is_type_assignable {
+                            topic.inconsistent_topic_status.total_count += 1;
+                            topic.inconsistent_topic_status.total_count_change += 1;
+                            let participant = DomainParticipantAsync::new(
+                                self.dcps_sender.clone(),
+                                self.domain_participant.domain_id,
+                                self.domain_participant.instance_handle,
+                            );
+                            let the_topic = TopicAsync::new(
+                                topic.instance_handle,
+                                topic.type_name.clone(),
+                                topic.topic_name.clone(),
+                                participant,
+                            );
+                            if topic
+                                .listener_mask
+                                .is_enabled(&StatusKind::InconsistentTopic)
+                            {
+                                let status = topic
+                                    .inconsistent_topic_status
+                                    .get_inconsistent_topic_status();
+                                if let Some(l) = &topic.listener_sender {
+                                    l.send(ListenerMail::InconsistentTopic { the_topic, status })
+                                        .ok();
+                                }
+                            } else if self
+                                .domain_participant
+                                .listener_mask
+                                .is_enabled(&StatusKind::InconsistentTopic)
+                            {
+                                let status = topic
+                                    .inconsistent_topic_status
+                                    .get_inconsistent_topic_status();
+                                if let Some(l) = &self.domain_participant.listener_sender {
+                                    l.send(ListenerMail::InconsistentTopic { the_topic, status })
                                         .ok();
                                 }
                             }
-                            TypeLookupCall::TypeLookupGetDependenciesHash {
-                                get_type_dependencies,
-                            } => {
-                                for type_id in get_type_dependencies.type_ids {
-                                    if let Some(dependent_typeids) = self
-                                        .domain_participant
-                                        .type_register
-                                        .get_type_dependencies_with_size(&type_id)
-                                    {
-                                        let type_lookup_reply_writer = &mut self
-                                            .domain_participant
-                                            .builtin_publisher
-                                            .type_lookup_reply_writer;
-                                        let type_lookup_reply = TypeLookupReply {
-                                            header: ReplyHeader {
-                                                related_request_id: type_lookup_request
-                                                    .header
-                                                    .request_id
-                                                    .clone(),
-                                                remote_ex: RemoteExceptionCode::Ok,
-                                            },
-                                            r#return:
-                                                TypeLookupReturn::TypeLookupGetDependenciesHash {
-                                                    get_type_dependencies:
-                                                        TypeLookupGetTypeDependenciesResult::Ok {
-                                                            result:
-                                                                TypeLookupGetTypeDependenciesOut {
-                                                                    dependent_typeids,
-                                                                    continuation_point: Vec::new(),
-                                                                },
-                                                        },
-                                                },
-                                        };
-                                        let serialized_data = serialize_cdr2_le(
-                                            &type_lookup_reply.create_dynamic_sample(),
-                                        )
-                                        .unwrap();
-
-                                        let now = runtime.clock().now();
-                                        type_lookup_reply_writer
-                                            .write_w_timestamp(
-                                                InstanceHandle::default(),
-                                                serialized_data,
-                                                now,
-                                                now,
-                                            )
-                                            .ok();
-                                    }
-                                }
-                            }
+                            topic
+                                .status_condition
+                                .add_communication_state(StatusKind::InconsistentTopic);
                         }
                     }
                 }
+                self.domain_participant
+                    .type_register
+                    .remove_pending_types_lookup(&received_ids);
             }
         }
-    }
-
-    pub fn process_builtin_type_lookup_reply_cache_change(&mut self, runtime: &impl DdsRuntime) {
-        let mut type_lookup_reply_received = false;
-        let type_lookup_reply_reader = &mut self
-            .domain_participant
-            .builtin_subscriber
-            .type_lookup_reply_reader;
-        {
-            if let Ok(samples) = type_lookup_reply_reader.take(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                &None,
-            ) {
-                for (sample_data, _sample_info) in samples {
-                    if let Some(type_lookup_reply) =
-                        deserialize_top_level_type(TypeLookupReply::TYPE, &sample_data)
-                            .ok()
-                            .and_then(|mut d| TypeLookupReply::create_sample(&mut d))
-                    {
-                        match &type_lookup_reply.r#return {
-                            TypeLookupReturn::TypeLookupGetDependenciesHash {
-                                get_type_dependencies:
-                                    TypeLookupGetTypeDependenciesResult::Ok { result },
-                            } => {
-                                let pending_id = self
-                                    .domain_participant
-                                    .type_register
-                                    .get_pending_dependencies_type_id();
-
-                                if let Some(type_id) = pending_id {
-                                    self.domain_participant
-                                        .type_register
-                                        .remove_pending_dependencies_lookup(&type_id);
-                                    self.domain_participant
-                                        .type_register
-                                        .register_type_dependencies(
-                                            &type_id,
-                                            result.dependent_typeids.clone(),
-                                        );
-
-                                    let unresolved = self
-                                        .domain_participant
-                                        .type_register
-                                        .get_unresolved_type_ids(&type_id);
-                                    if !unresolved.is_empty()
-                                        && !self
-                                            .domain_participant
-                                            .type_register
-                                            .is_types_lookup_pending(&unresolved)
-                                    {
-                                        let type_request_writer = &mut self
-                                            .domain_participant
-                                            .builtin_publisher
-                                            .type_lookup_request_writer;
-
-                                        let type_lookup_request = TypeLookupRequest {
-                                            header: RequestHeader {
-                                                request_id: SampleIdentity {
-                                                    writer_guid: type_request_writer
-                                                        .transport_writer
-                                                        .guid(),
-                                                    sequence_number: (type_request_writer
-                                                        .last_change_sequence_number
-                                                        + 1)
-                                                    .into(),
-                                                },
-                                                instance_name: format!(
-                                                    "dds.builtin.TOS.{:x}",
-                                                    self.domain_participant.instance_handle,
-                                                ),
-                                            },
-                                            call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                                get_types: TypeLookupGetTypesIn {
-                                                    type_ids: unresolved.clone(),
-                                                },
-                                            },
-                                        };
-                                        let sample_instance_handle = InstanceHandle::default();
-                                        let serialized_data = serialize_cdr2_le(
-                                            &type_lookup_request.create_dynamic_sample(),
-                                        )
-                                        .unwrap();
-                                        let now = runtime.clock().now();
-                                        type_request_writer
-                                            .write_w_timestamp(
-                                                sample_instance_handle,
-                                                serialized_data,
-                                                now,
-                                                now,
-                                            )
-                                            .ok();
-                                        self.domain_participant
-                                            .type_register
-                                            .add_pending_types_lookup(unresolved);
-                                    }
-                                }
-                            }
-                            TypeLookupReturn::TypeLookupGetTypesHash {
-                                get_type: TypeLookupGetTypesResult::Ok { result },
-                            } => {
-                                let mut received_ids = Vec::new();
-                                for type_identifier_pair in &result.types {
-                                    received_ids.push(type_identifier_pair.type_identifier.clone());
-                                    self.domain_participant
-                                        .type_register
-                                        .register_discovered_type_object(
-                                            type_identifier_pair.type_identifier.clone(),
-                                            type_identifier_pair.type_object.clone(),
-                                        );
-                                    type_lookup_reply_received = true;
-
-                                    for topic in
-                                        &mut self.domain_participant.locally_created_topic_list
-                                    {
-                                        let matches_discovered_topic = self
-                                            .domain_participant
-                                            .discovered_topic_list
-                                            .iter()
-                                            .any(|dt| {
-                                                dt.name.value.as_str() == topic.topic_name.as_ref()
-                                                    && dt.type_information.as_ref().is_some_and(
-                                                        |ti| {
-                                                            ti.complete.typeid_with_size.type_id
-                                                                == type_identifier_pair
-                                                                    .type_identifier
-                                                        },
-                                                    )
-                                            });
-
-                                        if !matches_discovered_topic {
-                                            continue;
-                                        }
-
-                                        let local_has_readers = self
-                                            .domain_participant
-                                            .user_defined_subscriber_list
-                                            .iter()
-                                            .flat_map(|s| s.data_reader_list.iter())
-                                            .any(|dr| dr.topic_name == topic.topic_name);
-                                        let discovered_has_readers = self
-                                            .domain_participant
-                                            .discovered_reader_list
-                                            .iter()
-                                            .any(|dr| {
-                                                dr.dds_subscription_data.topic_name()
-                                                    == topic.topic_name.as_ref()
-                                            });
-
-                                        let ignore_sequence_bounds =
-                                            if !local_has_readers && !discovered_has_readers {
-                                                true
-                                            } else {
-                                                self.domain_participant
-                                                    .user_defined_subscriber_list
-                                                    .iter()
-                                                    .flat_map(|s| s.data_reader_list.iter())
-                                                    .all(|dr| {
-                                                        dr.topic_name != topic.topic_name
-                                                            || dr
-                                                                .qos
-                                                                .type_consistency
-                                                                .ignore_sequence_bounds
-                                                    })
-                                                    && self
-                                                        .domain_participant
-                                                        .discovered_reader_list
-                                                        .iter()
-                                                        .all(|dr| {
-                                                            dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name.as_ref()
-                                                                || dr
-                                                                    .dds_subscription_data
-                                                                    .type_consistency
-                                                                    .ignore_sequence_bounds
-                                                        })
-                                            };
-                                        let ignore_string_bounds =
-                                            if !local_has_readers && !discovered_has_readers {
-                                                true
-                                            } else {
-                                                self.domain_participant
-                                                    .user_defined_subscriber_list
-                                                    .iter()
-                                                    .flat_map(|s| s.data_reader_list.iter())
-                                                    .all(|dr| {
-                                                        dr.topic_name != topic.topic_name
-                                                            || dr
-                                                                .qos
-                                                                .type_consistency
-                                                                .ignore_string_bounds
-                                                    })
-                                                    && self
-                                                        .domain_participant
-                                                        .discovered_reader_list
-                                                        .iter()
-                                                        .all(|dr| {
-                                                            dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name.as_ref()
-                                                                || dr
-                                                                    .dds_subscription_data
-                                                                    .type_consistency
-                                                                    .ignore_string_bounds
-                                                        })
-                                            };
-                                        let ignore_member_names =
-                                            if !local_has_readers && !discovered_has_readers {
-                                                true
-                                            } else {
-                                                self.domain_participant
-                                                    .user_defined_subscriber_list
-                                                    .iter()
-                                                    .flat_map(|s| s.data_reader_list.iter())
-                                                    .all(|dr| {
-                                                        dr.topic_name != topic.topic_name
-                                                            || dr
-                                                                .qos
-                                                                .type_consistency
-                                                                .ignore_member_names
-                                                    })
-                                                    && self
-                                                        .domain_participant
-                                                        .discovered_reader_list
-                                                        .iter()
-                                                        .all(|dr| {
-                                                            dr.dds_subscription_data.topic_name()
-                                                                != topic.topic_name.as_ref()
-                                                                || dr
-                                                                    .dds_subscription_data
-                                                                    .type_consistency
-                                                                    .ignore_member_names
-                                                        })
-                                            };
-                                        let prevent_type_widening =
-                                            if !local_has_readers && !discovered_has_readers {
-                                                false
-                                            } else {
-                                                self.domain_participant
-                                                    .user_defined_subscriber_list
-                                                    .iter()
-                                                    .flat_map(|s| s.data_reader_list.iter())
-                                                    .any(|dr| {
-                                                        dr.topic_name == topic.topic_name
-                                                            && dr
-                                                                .qos
-                                                                .type_consistency
-                                                                .prevent_type_widening
-                                                    })
-                                                    || self
-                                                        .domain_participant
-                                                        .discovered_reader_list
-                                                        .iter()
-                                                        .any(|dr| {
-                                                            dr.dds_subscription_data.topic_name()
-                                                                == topic.topic_name.as_ref()
-                                                                && dr
-                                                                    .dds_subscription_data
-                                                                    .type_consistency
-                                                                    .prevent_type_widening
-                                                        })
-                                            };
-                                        let topic_type_consistency =
-                                            TypeConsistencyEnforcementQosPolicy {
-                                                ignore_member_names,
-                                                ignore_sequence_bounds,
-                                                ignore_string_bounds,
-                                                prevent_type_widening,
-                                                ..TypeConsistencyEnforcementQosPolicy::const_default(
-                                                )
-                                            };
-
-                                        let is_type_assignable =
-                                            match &type_identifier_pair.type_object {
-                                                TypeObject::EkComplete { complete } => {
-                                                    if let Some(TypeObject::EkComplete {
-                                                        complete: local_type,
-                                                    }) = self
-                                                        .domain_participant
-                                                        .type_register
-                                                        .get_type_object(
-                                                            &topic
-                                                                .type_information
-                                                                .complete
-                                                                .typeid_with_size
-                                                                .type_id,
-                                                        )
-                                                    {
-                                                        let resolver = |id: &TypeIdentifier| {
-                                                            if let Some(TypeObject::EkComplete {
-                                                                complete,
-                                                            }) = self
-                                                                .domain_participant
-                                                                .type_register
-                                                                .get_type_object(id)
-                                                            {
-                                                                Some(complete)
-                                                            } else {
-                                                                None
-                                                            }
-                                                        };
-                                                        local_type
-                                                            .is_assignable_from_w_type_consistency(
-                                                                complete,
-                                                                &topic_type_consistency,
-                                                                &resolver,
-                                                            )
-                                                        || complete
-                                                            .is_assignable_from_w_type_consistency(
-                                                                &local_type,
-                                                                &topic_type_consistency,
-                                                                &resolver,
-                                                            )
-                                                    } else {
-                                                        false
-                                                    }
-                                                }
-                                                TypeObject::EkMinimal { minimal } => {
-                                                    if let Some(TypeObject::EkMinimal {
-                                                        minimal: local_type,
-                                                    }) = self
-                                                        .domain_participant
-                                                        .type_register
-                                                        .get_type_object(
-                                                            &topic
-                                                                .type_information
-                                                                .minimal
-                                                                .typeid_with_size
-                                                                .type_id,
-                                                        )
-                                                    {
-                                                        &local_type == minimal
-                                                    } else {
-                                                        false
-                                                    }
-                                                }
-                                            };
-
-                                        if !is_type_assignable {
-                                            topic.inconsistent_topic_status.total_count += 1;
-                                            topic.inconsistent_topic_status.total_count_change += 1;
-                                            let participant = DomainParticipantAsync::new(
-                                                self.dcps_sender.clone(),
-                                                self.domain_participant.domain_id,
-                                                self.domain_participant.instance_handle,
-                                            );
-                                            let the_topic = TopicAsync::new(
-                                                topic.instance_handle,
-                                                topic.type_name.clone(),
-                                                topic.topic_name.clone(),
-                                                participant,
-                                            );
-                                            if topic
-                                                .listener_mask
-                                                .is_enabled(&StatusKind::InconsistentTopic)
-                                            {
-                                                let status = topic
-                                                    .inconsistent_topic_status
-                                                    .get_inconsistent_topic_status();
-                                                if let Some(l) = &topic.listener_sender {
-                                                    l.send(ListenerMail::InconsistentTopic {
-                                                        the_topic,
-                                                        status,
-                                                    })
-                                                    .ok();
-                                                }
-                                            } else if self
-                                                .domain_participant
-                                                .listener_mask
-                                                .is_enabled(&StatusKind::InconsistentTopic)
-                                            {
-                                                let status = topic
-                                                    .inconsistent_topic_status
-                                                    .get_inconsistent_topic_status();
-                                                if let Some(l) =
-                                                    &self.domain_participant.listener_sender
-                                                {
-                                                    l.send(ListenerMail::InconsistentTopic {
-                                                        the_topic,
-                                                        status,
-                                                    })
-                                                    .ok();
-                                                }
-                                            }
-                                            topic.status_condition.add_communication_state(
-                                                StatusKind::InconsistentTopic,
-                                            );
-                                        }
-                                    }
-                                }
-                                self.domain_participant
-                                    .type_register
-                                    .remove_pending_types_lookup(&received_ids);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if type_lookup_reply_received {
-            self.process_discovered_readers(runtime);
-            self.process_discovered_writers(runtime);
-        }
+        type_lookup_reply_received
     }
 
     pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
@@ -2954,7 +2546,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, runtime))]
-    fn add_discovered_participant(
+    pub(crate) fn add_discovered_participant(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         runtime: &impl DdsRuntime,
@@ -3691,8 +3283,8 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 #[tracing::instrument(skip(data_reader))]
-fn get_discovered_writer_incompatible_qos_policy_list(
-    data_reader: &DataReaderEntity<impl RtpsReader>,
+fn get_discovered_writer_incompatible_qos_policy_list<R>(
+    data_reader: &DataReaderEntity<R>,
     publication_builtin_topic_data: &PublicationBuiltinTopicData,
     subscriber_qos: &SubscriberQos,
 ) -> Vec<QosPolicyId> {

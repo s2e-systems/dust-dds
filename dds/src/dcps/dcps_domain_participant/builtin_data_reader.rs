@@ -1,18 +1,8 @@
 use crate::{
-    dcps::{
-        dcps_domain_participant::{
-            data_reader_entity::DataReaderEntity, participant_entity::DiscoveredParticipantInfo,
-            reader_methods::deserialize_topic_type, rtps_traits::RtpsReader,
-        },
-        xtypes_glue::key_and_instance_handle::{
-            KeyHolderType, get_instance_handle_from_dynamic_data,
-        },
-    },
-    infrastructure::{instance::InstanceHandle, qos::DataReaderQos, time::Time},
-    transport::types::ChangeKind,
-    xtypes::{deserializer::deserialize_top_level_type, type_support::Type},
+    dcps::dcps_domain_participant::data_reader_entity::DataReaderEntity,
+    infrastructure::{instance::InstanceHandle, qos::DataReaderQos},
 };
-use alloc::{sync::Arc, vec::Vec};
+use alloc::sync::Arc;
 use core::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -48,92 +38,5 @@ impl<R, T> Deref for BuiltinDataReader<R, T> {
 impl<R, T> DerefMut for BuiltinDataReader<R, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.reader
-    }
-}
-
-impl<R: RtpsReader, T: Type> BuiltinDataReader<R, T> {
-    pub fn process_cache_changes(
-        &mut self,
-        discovered_participant_list: &mut [DiscoveredParticipantInfo],
-        reception_timestamp: Time,
-    ) {
-        if self.reader.transport_reader.changes_mut().is_empty() {
-            return;
-        }
-
-        let changes = core::mem::take(self.reader.transport_reader.changes_mut());
-        let data_reader_handle = &self.reader.instance_handle.clone();
-        tracing::trace!(data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
-
-        for cache_change in changes {
-            if let Some(matched_participant) = discovered_participant_list
-                .iter_mut()
-                .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
-            {
-                matched_participant.last_communication_timestamp = reception_timestamp;
-            }
-
-            let change_instance_handle = if let Some(i) = cache_change.instance_handle {
-                InstanceHandle::new(i)
-            } else {
-                match cache_change.kind {
-                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                        let Some(data_value) = deserialize_topic_type(
-                            &self.reader.topic_name,
-                            T::TYPE,
-                            cache_change.data_value.as_ref(),
-                        ) else {
-                            tracing::warn!("Failed to deserialize user defined data");
-                            return;
-                        };
-                        let Ok(instance_handle) =
-                            get_instance_handle_from_dynamic_data(&data_value)
-                        else {
-                            tracing::warn!("Failed to get instance handle from dynamic_data");
-                            return;
-                        };
-                        instance_handle
-                    }
-                    ChangeKind::NotAliveDisposed
-                    | ChangeKind::NotAliveUnregistered
-                    | ChangeKind::NotAliveDisposedUnregistered => {
-                        let mut dynamic_members = Vec::new();
-                        let Ok(key_holder) =
-                            KeyHolderType::from_dynamic_type(&T::TYPE, &mut dynamic_members)
-                        else {
-                            tracing::warn!("Failed to create key holder");
-                            return;
-                        };
-
-                        let Ok(data_value) = deserialize_top_level_type(
-                            *key_holder.as_dynamic_type(),
-                            cache_change.data_value.as_ref(),
-                        ) else {
-                            tracing::warn!("Failed to deserialize disposed user defined data");
-                            return;
-                        };
-
-                        let Ok(instance_handle) =
-                            get_instance_handle_from_dynamic_data(&data_value)
-                        else {
-                            tracing::warn!("Failed to deserialize disposed key user defined data");
-                            return;
-                        };
-                        instance_handle
-                    }
-                }
-            };
-
-            self.reader
-                .add_reader_change(
-                    cache_change.writer_guid,
-                    cache_change.data_value,
-                    cache_change.kind,
-                    change_instance_handle.into(),
-                    cache_change.source_timestamp.map(Into::into),
-                    reception_timestamp,
-                )
-                .ok();
-        }
     }
 }
