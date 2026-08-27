@@ -28,6 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, Time},
     },
     transport::{
@@ -212,8 +213,12 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                if let Some(hb_time) = data_writer.transport_writer.time_until_next_heartbeat(now) {
-                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                    if let Some(hb_time) =
+                        data_writer.transport_writer.time_until_next_heartbeat(now)
+                    {
+                        min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                    }
                 }
             }
         }

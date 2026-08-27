@@ -89,8 +89,7 @@ impl DcpsDomainParticipant {
                     .iter()
                     .find(|t| t.topic_name == data_reader.topic_name);
 
-                let (topic_name, type_name) = if let Some(content_filtered_topic) =
-                    content_filtered_topic
+                let reader_type_name = if let Some(content_filtered_topic) = content_filtered_topic
                 {
                     let Some(reader_topic) = locally_created_topic_list
                         .iter()
@@ -99,10 +98,7 @@ impl DcpsDomainParticipant {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
                         continue 'data_readers;
                     };
-                    (
-                        reader_topic.topic_name.clone(),
-                        reader_topic.type_name.clone(),
-                    )
+                    &reader_topic.type_name
                 } else {
                     let Some(reader_topic) = locally_created_topic_list
                         .iter()
@@ -111,10 +107,7 @@ impl DcpsDomainParticipant {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
                         continue 'data_readers;
                     };
-                    (
-                        data_reader.topic_name.clone(),
-                        reader_topic.type_name.clone(),
-                    )
+                    &reader_topic.type_name
                 };
 
                 let changes = core::mem::take(data_reader.transport_reader.changes_mut());
@@ -342,8 +335,8 @@ impl DcpsDomainParticipant {
                                     let the_reader = DataReaderAsync::new(
                                         data_reader_handle,
                                         the_subscriber,
-                                        topic_name.clone(),
-                                        type_name.clone(),
+                                        data_reader.topic_name.clone(),
+                                        reader_type_name.clone(),
                                     );
                                     l.send(ListenerMail::DataAvailable { the_reader }).ok();
                                 }
@@ -384,8 +377,8 @@ impl DcpsDomainParticipant {
                                 let the_reader = DataReaderAsync::new(
                                     data_reader_handle,
                                     the_subscriber,
-                                    topic_name.clone(),
-                                    type_name.clone(),
+                                    data_reader.topic_name.clone(),
+                                    reader_type_name.clone(),
                                 );
                                 let status = data_reader.get_sample_rejected_status();
 

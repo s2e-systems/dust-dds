@@ -109,13 +109,14 @@ impl Write for Vec<u8> {
 }
 
 impl Write for Cursor<Vec<u8>> {
+    #[inline]
     fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
         let start_pos = self.pos as usize;
         let end_pos = start_pos + buf.len();
-        if start_pos >= self.inner.len() {
-            if start_pos > self.inner.len() {
-                self.inner.resize(start_pos, 0);
-            }
+        if start_pos == self.inner.len() {
+            self.inner.extend_from_slice(buf);
+        } else if start_pos > self.inner.len() {
+            self.inner.resize(start_pos, 0);
             self.inner.extend_from_slice(buf);
         } else if end_pos <= self.inner.len() {
             self.inner[start_pos..end_pos].copy_from_slice(buf);
@@ -133,13 +134,16 @@ impl Write for Cursor<Vec<u8>> {
 pub trait WriteIntoBytes {
     fn write_into_bytes(&self, buf: &mut dyn Write);
 }
+
 impl WriteIntoBytes for Octet {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(&[*self]).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for Long {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -147,6 +151,7 @@ impl WriteIntoBytes for Long {
 }
 
 impl WriteIntoBytes for UnsignedLong {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -154,6 +159,7 @@ impl WriteIntoBytes for UnsignedLong {
 }
 
 impl WriteIntoBytes for u16 {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -161,6 +167,7 @@ impl WriteIntoBytes for u16 {
 }
 
 impl WriteIntoBytes for i16 {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -168,12 +175,14 @@ impl WriteIntoBytes for i16 {
 }
 
 impl<const N: usize> WriteIntoBytes for [Octet; N] {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for &[u8] {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self).expect("buffer big enough");
     }

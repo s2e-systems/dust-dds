@@ -69,9 +69,13 @@ impl RtpsStatefulWriter {
         &self,
         now: crate::infrastructure::time::Time,
     ) -> Option<crate::infrastructure::time::Duration> {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return None;
+        }
         let seq_num_max = self.changes.iter().map(|cc| cc.sequence_number).max();
         self.matched_readers
             .iter()
+            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
             .filter_map(|rp| {
                 rp.time_until_heartbeat(now, self.heartbeat_period.into(), seq_num_max)
             })
