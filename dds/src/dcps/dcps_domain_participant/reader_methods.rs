@@ -35,12 +35,12 @@ use crate::{
     },
 };
 
-pub fn deserialize_topic_type<'a>(
+pub fn deserialize_topic_type(
     topic_name: &str,
-    type_support: DynamicType<'a>,
+    type_support: DynamicType<'static>,
     data: &[u8],
-) -> Option<DynamicData<'a>> {
-    let mut dynamic_data = match topic_name {
+) -> Option<DynamicData<'static>> {
+    match topic_name {
         DCPS_PARTICIPANT => SpdpDiscoveredParticipantData::from_bytes(data)
             .map(|x| x.dds_participant_data.create_dynamic_sample())
             .ok(),
@@ -54,13 +54,7 @@ pub fn deserialize_topic_type<'a>(
             .map(|x| x.topic_builtin_topic_data.create_dynamic_sample())
             .ok(),
         _ => deserialize_top_level_type(type_support, data).ok(),
-    };
-    if let Some(dynamic_data) = dynamic_data.as_mut() {
-        if !dynamic_data.validate_dynamic_data() {
-            return None;
-        }
     }
-    dynamic_data
 }
 
 impl DcpsDomainParticipant {
@@ -87,7 +81,7 @@ impl DcpsDomainParticipant {
                         instance_states,
                         specific_instance_handle,
                     )?;
-                    (sample_list, bs.dcps_participant_reader.topic_name.clone())
+                    (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
                 } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
                     let sample_list = dr.read(
                         max_samples,
@@ -96,7 +90,7 @@ impl DcpsDomainParticipant {
                         instance_states,
                         specific_instance_handle,
                     )?;
-                    (sample_list, dr.topic_name.clone())
+                    (sample_list, dr.topic_name.as_ref())
                 } else {
                     return Err(DdsError::AlreadyDeleted);
                 }
@@ -123,11 +117,11 @@ impl DcpsDomainParticipant {
                     instance_states,
                     specific_instance_handle,
                 )?;
-                (sample_list, data_reader.topic_name.clone())
+                (sample_list, data_reader.topic_name.as_ref())
             };
 
         let Some(type_support) = get_topic_type_support(
-            &topic_name,
+            topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -140,7 +134,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(&topic_name, type_support, data.as_ref())
+                        deserialize_topic_type(topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },

@@ -2423,6 +2423,11 @@ impl DcpsDomainParticipant {
     }
 
     pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
+        if self.domain_participant.discovered_topic_list.is_empty()
+            || self.domain_participant.locally_created_topic_list.is_empty()
+        {
+            return;
+        }
         for topic in &self.domain_participant.locally_created_topic_list {
             for discovered_topic in self
                 .domain_participant
