@@ -245,7 +245,9 @@ impl RtpsReaderProxy {
         heartbeat_period: Duration,
         highest_available_seq_num: Option<SequenceNumber>,
     ) -> Option<Duration> {
-        if self.unacked_changes(highest_available_seq_num) {
+        if self.reliability == ReliabilityKind::Reliable
+            && self.unacked_changes(highest_available_seq_num)
+        {
             Some(
                 self.heartbeat_machine
                     .time_until_heartbeat(now, heartbeat_period),

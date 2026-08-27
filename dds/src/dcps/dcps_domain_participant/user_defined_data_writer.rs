@@ -8,6 +8,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::DdsResult,
@@ -69,9 +70,16 @@ impl UserDefinedDataWriter {
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         qos: DataWriterQos,
+        key_holder_type: KeyHolderType,
     ) -> Self {
         Self {
-            writer: DataWriterEntity::new(instance_handle, transport_writer, topic_name, qos),
+            writer: DataWriterEntity::new(
+                instance_handle,
+                transport_writer,
+                topic_name,
+                qos,
+                key_holder_type,
+            ),
             listener_sender,
             listener_mask,
             status_condition: DcpsStatusCondition::default(),

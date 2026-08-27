@@ -109,13 +109,14 @@ impl Write for Vec<u8> {
 }
 
 impl Write for Cursor<Vec<u8>> {
+    #[inline]
     fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
         let start_pos = self.pos as usize;
         let end_pos = start_pos + buf.len();
-        if start_pos >= self.inner.len() {
-            if start_pos > self.inner.len() {
-                self.inner.resize(start_pos, 0);
-            }
+        if start_pos == self.inner.len() {
+            self.inner.extend_from_slice(buf);
+        } else if start_pos > self.inner.len() {
+            self.inner.resize(start_pos, 0);
             self.inner.extend_from_slice(buf);
         } else if end_pos <= self.inner.len() {
             self.inner[start_pos..end_pos].copy_from_slice(buf);
@@ -133,13 +134,16 @@ impl Write for Cursor<Vec<u8>> {
 pub trait WriteIntoBytes {
     fn write_into_bytes(&self, buf: &mut dyn Write);
 }
+
 impl WriteIntoBytes for Octet {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(&[*self]).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for Long {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -147,6 +151,7 @@ impl WriteIntoBytes for Long {
 }
 
 impl WriteIntoBytes for UnsignedLong {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -154,6 +159,7 @@ impl WriteIntoBytes for UnsignedLong {
 }
 
 impl WriteIntoBytes for u16 {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -161,6 +167,7 @@ impl WriteIntoBytes for u16 {
 }
 
 impl WriteIntoBytes for i16 {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self.to_le_bytes().as_slice())
             .expect("buffer big enough");
@@ -168,12 +175,14 @@ impl WriteIntoBytes for i16 {
 }
 
 impl<const N: usize> WriteIntoBytes for [Octet; N] {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self).expect("buffer big enough");
     }
 }
 
 impl WriteIntoBytes for &[u8] {
+    #[inline]
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         buf.write_all(self).expect("buffer big enough");
     }
@@ -269,7 +278,10 @@ pub trait Submessage {
 }
 
 impl dyn Submessage + Send + '_ {
-    fn write_submessage_into_bytes(&self, buf: &mut Cursor<Vec<u8>>) {
+    fn write_submessage_into_bytes<T>(&self, buf: &mut Cursor<T>)
+    where
+        Cursor<T>: Write,
+    {
         let header_position: u64 = buf.position();
         let elements_position = header_position + 4;
         buf.set_position(elements_position);
@@ -467,26 +479,44 @@ pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u
     cursor.into_inner()
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct RtpsMessageWrite {
-    data: Vec<u8>,
+impl Write for Cursor<&mut [u8]> {
+    #[inline]
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        let start_pos = self.pos as usize;
+        let end_pos = start_pos + buf.len();
+        if end_pos > self.inner.len() {
+            return Err(RtpsMessageError::NotEnoughData);
+        }
+        self.inner[start_pos..end_pos].copy_from_slice(buf);
+        self.pos = end_pos as u64;
+        Ok(())
+    }
 }
 
-impl RtpsMessageWrite {
-    pub fn new(header: &RtpsMessageHeader, submessages: &[&(dyn Submessage + Send)]) -> Self {
-        let buffer = Vec::with_capacity(256);
+#[derive(Debug, PartialEq, Eq)]
+pub struct RtpsMessageWrite<'a> {
+    buffer: &'a [u8],
+}
+
+impl<'a> RtpsMessageWrite<'a> {
+    pub fn new(
+        buffer: &'a mut [u8],
+        header: &RtpsMessageHeader,
+        submessages: &[&(dyn Submessage + Send)],
+    ) -> Self {
         let mut cursor = Cursor::new(buffer);
         header.write_into_bytes(&mut cursor);
         for submessage in submessages {
             submessage.write_submessage_into_bytes(&mut cursor);
         }
+        let len = cursor.position() as usize;
         Self {
-            data: cursor.into_inner(),
+            buffer: &cursor.into_inner()[..len],
         }
     }
 
     pub fn buffer(&self) -> &[u8] {
-        &self.data
+        self.buffer
     }
 }
 
@@ -631,7 +661,8 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let message = RtpsMessageWrite::new(&header, &[]);
+        let mut buffer = [0u8; 512];
+        let message = RtpsMessageWrite::new(&mut buffer, &header, &[]);
         #[rustfmt::skip]
         assert_eq!(message.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -672,7 +703,8 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[&submessage]);
+        let mut buffer = [0u8; 512];
+        let value = RtpsMessageWrite::new(&mut buffer, &header, &[&submessage]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -726,7 +758,12 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        let value = RtpsMessageWrite::new(&header, &[&info_timestamp_submessage, &data_submessage]);
+        let mut buffer = [0u8; 512];
+        let value = RtpsMessageWrite::new(
+            &mut buffer,
+            &header,
+            &[&info_timestamp_submessage, &data_submessage],
+        );
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol

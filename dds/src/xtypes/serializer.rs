@@ -80,7 +80,7 @@ fn serialize_cdr1(
     dynamic_data: &DynamicData,
     endianness: impl EndiannessWrite,
 ) -> XTypesResult<Vec<u8>> {
-    let mut buffer = Vec::new();
+    let mut buffer = Vec::with_capacity(64);
     XTypesSerializer {
         writer: CdrWriter::new(&mut buffer),
         _endianness: endianness,
@@ -95,7 +95,7 @@ fn serialize_cdr2(
     dynamic_data: &DynamicData,
     endianness: impl EndiannessWrite,
 ) -> XTypesResult<Vec<u8>> {
-    let mut buffer = Vec::new();
+    let mut buffer = Vec::with_capacity(64);
     XTypesSerializer {
         writer: CdrWriter::new(&mut buffer),
         _endianness: endianness,

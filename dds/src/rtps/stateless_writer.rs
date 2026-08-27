@@ -36,7 +36,7 @@ impl RtpsStatelessWriter {
         self.changes.push(cache_change);
     }
 
-    pub fn write_message(&mut self, message_writer: &(impl WriteMessage + ?Sized)) {
+    pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized)) {
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -59,12 +59,14 @@ impl RtpsStatelessWriter {
                     let data_submessage =
                         cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id());
 
-                    let rtps_message = RtpsMessageWrite::from_submessages(
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
                         &[&info_ts_submessage, &data_submessage],
                         self.guid.prefix(),
-                    );
-                    message_writer
-                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, &[reader_locator.locator()]);
                 } else {
                     let gap_submessage = GapSubmessage::new(
                         ENTITYID_UNKNOWN,
@@ -72,10 +74,14 @@ impl RtpsStatelessWriter {
                         unsent_change_seq_num,
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                     );
-                    let rtps_message =
-                        RtpsMessageWrite::from_submessages(&[&gap_submessage], self.guid.prefix());
-                    message_writer
-                        .write_message(rtps_message.buffer(), &[reader_locator.locator()]);
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
+                        &[&gap_submessage],
+                        self.guid.prefix(),
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, &[reader_locator.locator()]);
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }

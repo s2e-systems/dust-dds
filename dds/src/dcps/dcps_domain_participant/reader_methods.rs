@@ -26,6 +26,7 @@ use crate::{
         qos_policy::DurabilityQosPolicyKind,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::{StatusKind, SubscriptionMatchedStatus},
+        time::Time,
     },
     runtime::DdsRuntime,
     xtypes::{
@@ -35,12 +36,12 @@ use crate::{
     },
 };
 
-pub fn deserialize_topic_type<'a>(
+pub fn deserialize_topic_type(
     topic_name: &str,
-    type_support: DynamicType<'a>,
+    type_support: DynamicType<'static>,
     data: &[u8],
-) -> Option<DynamicData<'a>> {
-    let mut dynamic_data = match topic_name {
+) -> Option<DynamicData<'static>> {
+    match topic_name {
         DCPS_PARTICIPANT => SpdpDiscoveredParticipantData::from_bytes(data)
             .map(|x| x.dds_participant_data.create_dynamic_sample())
             .ok(),
@@ -54,13 +55,7 @@ pub fn deserialize_topic_type<'a>(
             .map(|x| x.topic_builtin_topic_data.create_dynamic_sample())
             .ok(),
         _ => deserialize_top_level_type(type_support, data).ok(),
-    };
-    if let Some(dynamic_data) = dynamic_data.as_mut() {
-        if !dynamic_data.validate_dynamic_data() {
-            return None;
-        }
     }
-    dynamic_data
 }
 
 impl DcpsDomainParticipant {
@@ -87,7 +82,7 @@ impl DcpsDomainParticipant {
                         instance_states,
                         specific_instance_handle,
                     )?;
-                    (sample_list, bs.dcps_participant_reader.topic_name.clone())
+                    (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
                 } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
                     let sample_list = dr.read(
                         max_samples,
@@ -96,7 +91,7 @@ impl DcpsDomainParticipant {
                         instance_states,
                         specific_instance_handle,
                     )?;
-                    (sample_list, dr.topic_name.clone())
+                    (sample_list, dr.topic_name.as_ref())
                 } else {
                     return Err(DdsError::AlreadyDeleted);
                 }
@@ -123,11 +118,11 @@ impl DcpsDomainParticipant {
                     instance_states,
                     specific_instance_handle,
                 )?;
-                (sample_list, data_reader.topic_name.clone())
+                (sample_list, data_reader.topic_name.as_ref())
             };
 
         let Some(type_support) = get_topic_type_support(
-            &topic_name,
+            topic_name,
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -140,7 +135,7 @@ impl DcpsDomainParticipant {
             .map(|(data, info)| {
                 (
                     if info.valid_data {
-                        deserialize_topic_type(&topic_name, type_support, data.as_ref())
+                        deserialize_topic_type(topic_name, type_support, data.as_ref())
                     } else {
                         None
                     },
@@ -414,13 +409,13 @@ impl DcpsDomainParticipant {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         qos: QosKind<DataReaderQos>,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -450,7 +445,7 @@ impl DcpsDomainParticipant {
         data_reader.qos = qos;
 
         if data_reader.enabled {
-            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, now);
         }
         Ok(())
     }
@@ -555,12 +550,12 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn enable_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -580,8 +575,8 @@ impl DcpsDomainParticipant {
         if !data_reader.enabled {
             data_reader.enabled = true;
 
-            self.announce_data_reader(subscriber_handle, data_reader_handle, runtime);
-            self.process_discovered_writers(runtime);
+            self.announce_data_reader(subscriber_handle, data_reader_handle, now);
+            self.process_discovered_writers(now);
         }
         Ok(())
     }

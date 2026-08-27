@@ -1,5 +1,6 @@
 use super::{behavior_types::Duration, reader_proxy::RtpsReaderProxy};
 use crate::{
+    infrastructure::time::Time,
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
         submessage_elements::SequenceNumberSet,
@@ -10,7 +11,6 @@ use crate::{
         },
         types::TIME_INVALID,
     },
-    runtime::Clock,
     transport::{
         interface::WriteMessage,
         types::{
@@ -69,9 +69,13 @@ impl RtpsStatefulWriter {
         &self,
         now: crate::infrastructure::time::Time,
     ) -> Option<crate::infrastructure::time::Duration> {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return None;
+        }
         let seq_num_max = self.changes.iter().map(|cc| cc.sequence_number).max();
         self.matched_readers
             .iter()
+            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
             .filter_map(|rp| {
                 rp.time_until_heartbeat(now, self.heartbeat_period.into(), seq_num_max)
             })
@@ -117,11 +121,7 @@ impl RtpsStatefulWriter {
             .retain(|reader_proxy| reader_proxy.remote_reader_guid() != reader_guid);
     }
 
-    pub fn write_message(
-        &mut self,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
-    ) {
+    pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized), now: Time) {
         for reader_proxy in &mut self.matched_readers {
             reader_proxy.write_message(
                 self.guid.entity_id(),
@@ -129,7 +129,7 @@ impl RtpsStatefulWriter {
                 self.data_max_size_serialized,
                 self.heartbeat_period,
                 message_writer,
-                clock,
+                now,
                 self.guid.prefix(),
             )
         }
@@ -141,8 +141,8 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        message_writer: &mut (impl WriteMessage + ?Sized),
+        now: Time,
     ) -> Option<SequenceNumber> {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -167,7 +167,7 @@ impl RtpsStatefulWriter {
                         self.data_max_size_serialized,
                         self.heartbeat_period,
                         message_writer,
-                        clock,
+                        now,
                         self.guid.prefix(),
                     );
                     return Some(acked_changes);
@@ -181,7 +181,7 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &(impl WriteMessage + ?Sized),
+        message_writer: &mut (impl WriteMessage + ?Sized),
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
@@ -233,14 +233,14 @@ impl RtpsStatefulWriter {
                                     InfoTimestampSubmessage::new(true, TIME_INVALID)
                                 };
 
-                            let rtps_message = RtpsMessageWrite::from_submessages(
+                            let len = RtpsMessageWrite::from_submessages(
+                                message_writer.write_buffer_mut(),
                                 &[&info_dst, &info_timestamp, &data_frag],
                                 self.guid.prefix(),
-                            );
-                            message_writer.write_message(
-                                rtps_message.buffer(),
-                                reader_proxy.unicast_locator_list(),
                             )
+                            .buffer()
+                            .len();
+                            message_writer.write_message(len, reader_proxy.unicast_locator_list())
                         }
                     }
                 } else {
@@ -254,12 +254,14 @@ impl RtpsStatefulWriter {
                         SequenceNumberSet::new(change_seq_num + 1, []),
                     );
 
-                    let rtps_message = RtpsMessageWrite::from_submessages(
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
                         &[&info_dst, &gap_submessage],
                         self.guid.prefix(),
-                    );
-                    message_writer
-                        .write_message(rtps_message.buffer(), reader_proxy.unicast_locator_list())
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, reader_proxy.unicast_locator_list())
                 }
             }
         }
@@ -282,8 +284,8 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        message_writer: &mut (impl WriteMessage + ?Sized),
+        now: Time,
         guid_prefix: GuidPrefix,
     ) {
         match self.reliability() {
@@ -300,7 +302,7 @@ impl RtpsReaderProxy {
                 data_max_size_serialized,
                 heartbeat_period,
                 message_writer,
-                clock,
+                now,
                 guid_prefix,
             ),
         }
@@ -311,7 +313,7 @@ impl RtpsReaderProxy {
         writer_id: EntityId,
         changes: &[CacheChange],
         data_max_size_serialized: usize,
-        message_writer: &(impl WriteMessage + ?Sized),
+        message_writer: &mut (impl WriteMessage + ?Sized),
         guid_prefix: GuidPrefix,
     ) {
         // a_change_seq_num := the_reader_proxy.next_unsent_change();
@@ -348,9 +350,14 @@ impl RtpsReaderProxy {
                     gap_start_sequence_number,
                     SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                 );
-                let rtps_message =
-                    RtpsMessageWrite::from_submessages(&[&gap_submessage], guid_prefix);
-                message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list());
+                let len = RtpsMessageWrite::from_submessages(
+                    message_writer.write_buffer_mut(),
+                    &[&gap_submessage],
+                    guid_prefix,
+                )
+                .buffer()
+                .len();
+                message_writer.write_message(len, self.unicast_locator_list());
 
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
             } else if let Some(cache_change) = changes
@@ -380,22 +387,27 @@ impl RtpsReaderProxy {
                             data_max_size_serialized,
                             fragment_number,
                         );
-                        let rtps_message = RtpsMessageWrite::from_submessages(
+                        let len = RtpsMessageWrite::from_submessages(
+                            message_writer.write_buffer_mut(),
                             &[&info_dst, &info_timestamp, &data_frag],
                             guid_prefix,
-                        );
-                        message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        )
+                        .buffer()
+                        .len();
+                        message_writer.write_message(len, self.unicast_locator_list())
                     }
                 } else {
                     let data_submessage = cache_change
                         .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
 
-                    let rtps_message = RtpsMessageWrite::from_submessages(
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
                         &[&info_dst, &info_timestamp, &data_submessage],
                         guid_prefix,
-                    );
-                    message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list())
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, self.unicast_locator_list())
                 }
             } else {
                 let gap_submessage = GapSubmessage::new(
@@ -404,9 +416,14 @@ impl RtpsReaderProxy {
                     next_unsent_change_seq_num,
                     SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                 );
-                let rtps_message =
-                    RtpsMessageWrite::from_submessages(&[&gap_submessage], guid_prefix);
-                message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list())
+                let len = RtpsMessageWrite::from_submessages(
+                    message_writer.write_buffer_mut(),
+                    &[&gap_submessage],
+                    guid_prefix,
+                )
+                .buffer()
+                .len();
+                message_writer.write_message(len, self.unicast_locator_list())
             }
 
             self.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -420,11 +437,10 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
+        message_writer: &mut (impl WriteMessage + ?Sized),
+        now: Time,
         guid_prefix: GuidPrefix,
     ) {
-        let now = clock.now();
         let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
         let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
         // Top part of the state machine - Figure 8.19 RTPS standard
@@ -446,11 +462,14 @@ impl RtpsReaderProxy {
                         .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
                     let info_dst =
                         InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                    let rtps_message = RtpsMessageWrite::from_submessages(
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
                         &[&info_dst, &gap_submessage, &heartbeat_submessage],
                         guid_prefix,
-                    );
-                    message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list())
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, self.unicast_locator_list())
                 } else {
                     let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
                     let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
@@ -484,7 +503,7 @@ impl RtpsReaderProxy {
                                         InfoTimestampSubmessage::new(true, TIME_INVALID)
                                     };
 
-                                let rtps_message = if fragment_number == number_of_fragments - 1 {
+                                let len = if fragment_number == number_of_fragments - 1 {
                                     let first_sn = seq_num_min.unwrap_or(1);
                                     let last_sn = seq_num_max.unwrap_or(0);
                                     let heartbeat =
@@ -492,19 +511,20 @@ impl RtpsReaderProxy {
                                             writer_id, first_sn, last_sn, now, false,
                                         );
                                     RtpsMessageWrite::from_submessages(
+                                        message_writer.write_buffer_mut(),
                                         &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
                                         guid_prefix,
                                     )
                                 } else {
                                     RtpsMessageWrite::from_submessages(
+                                        message_writer.write_buffer_mut(),
                                         &[&info_dst, &info_timestamp, &data_frag],
                                         guid_prefix,
                                     )
-                                };
-                                message_writer.write_message(
-                                    rtps_message.buffer(),
-                                    self.unicast_locator_list(),
-                                )
+                                }
+                                .buffer()
+                                .len();
+                                message_writer.write_message(len, self.unicast_locator_list())
                             }
                         } else {
                             let info_dst =
@@ -528,12 +548,14 @@ impl RtpsReaderProxy {
                                 .heartbeat_machine()
                                 .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
-                            let rtps_message = RtpsMessageWrite::from_submessages(
+                            let len = RtpsMessageWrite::from_submessages(
+                                message_writer.write_buffer_mut(),
                                 &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
                                 guid_prefix,
-                            );
-                            message_writer
-                                .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                            )
+                            .buffer()
+                            .len();
+                            message_writer.write_message(len, self.unicast_locator_list())
                         }
                     } else {
                         let info_dst =
@@ -546,12 +568,14 @@ impl RtpsReaderProxy {
                             SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                         );
 
-                        let rtps_message = RtpsMessageWrite::from_submessages(
+                        let len = RtpsMessageWrite::from_submessages(
+                            message_writer.write_buffer_mut(),
                             &[&info_dst, &gap_submessage],
                             guid_prefix,
-                        );
-                        message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list())
+                        )
+                        .buffer()
+                        .len();
+                        message_writer.write_message(len, self.unicast_locator_list())
                     }
                 }
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -570,11 +594,14 @@ impl RtpsReaderProxy {
 
             let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-            let rtps_message = RtpsMessageWrite::from_submessages(
+            let len = RtpsMessageWrite::from_submessages(
+                message_writer.write_buffer_mut(),
                 &[&info_dst, &heartbeat_submessage],
                 guid_prefix,
-            );
-            message_writer.write_message(rtps_message.buffer(), self.unicast_locator_list())
+            )
+            .buffer()
+            .len();
+            message_writer.write_message(len, self.unicast_locator_list())
         }
 
         // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -621,12 +648,14 @@ impl RtpsReaderProxy {
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
-                        let rtps_message = RtpsMessageWrite::from_submessages(
+                        let len = RtpsMessageWrite::from_submessages(
+                            message_writer.write_buffer_mut(),
                             &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
                             guid_prefix,
-                        );
-                        message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list());
+                        )
+                        .buffer()
+                        .len();
+                        message_writer.write_message(len, self.unicast_locator_list());
                     } else {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
@@ -647,12 +676,14 @@ impl RtpsReaderProxy {
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
-                        let rtps_message = RtpsMessageWrite::from_submessages(
+                        let len = RtpsMessageWrite::from_submessages(
+                            message_writer.write_buffer_mut(),
                             &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
                             guid_prefix,
-                        );
-                        message_writer
-                            .write_message(rtps_message.buffer(), self.unicast_locator_list());
+                        )
+                        .buffer()
+                        .len();
+                        message_writer.write_message(len, self.unicast_locator_list());
                     }
                 } else {
                     let info_dst =
@@ -665,12 +696,14 @@ impl RtpsReaderProxy {
                         SequenceNumberSet::new(next_requested_change_seq_num + 1, []),
                     );
 
-                    let rtps_message = RtpsMessageWrite::from_submessages(
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
                         &[&info_dst, &gap_submessage],
                         guid_prefix,
-                    );
-                    message_writer
-                        .write_message(rtps_message.buffer(), self.unicast_locator_list());
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, self.unicast_locator_list());
                 }
             }
         }
@@ -693,22 +726,20 @@ mod tests {
 
     #[test]
     fn test_all_fragments_sent() {
-        struct MockClock {}
-        impl Clock for MockClock {
-            fn now(&self) -> crate::infrastructure::time::Time {
-                Time::new(1, 0)
-            }
-        }
         struct MockWriter {
             total_fragments_sent: Mutex<usize>,
+            buffer: [u8; 65535],
         }
         impl WriteMessage for MockWriter {
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
             fn write_message(
-                &self,
-                datagram: &[u8],
+                &mut self,
+                len: usize,
                 _locator_list: &[crate::transport::types::Locator],
             ) {
-                let message = RtpsMessageRead::try_from(datagram).unwrap();
+                let message = RtpsMessageRead::try_from(&self.buffer[..len]).unwrap();
                 assert!(matches!(
                     message.submessages()[2],
                     RtpsSubmessageReadKind::DataFrag(_)
@@ -732,8 +763,9 @@ mod tests {
             expects_inline_qos: false,
         });
 
-        let message_writer = MockWriter {
+        let mut message_writer = MockWriter {
             total_fragments_sent: Mutex::new(0),
+            buffer: [0; 65535],
         };
         writer.add_change(CacheChange {
             kind: ChangeKind::Alive,
@@ -743,28 +775,26 @@ mod tests {
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
         });
-        writer.write_message(&message_writer, &MockClock {});
+        writer.write_message(&mut message_writer, Time::new(1, 0));
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 3);
     }
 
     #[test]
     fn test_single_fragment_sent_after_acknack_frag() {
-        struct MockClock {}
-        impl Clock for MockClock {
-            fn now(&self) -> crate::infrastructure::time::Time {
-                Time::new(1, 0)
-            }
-        }
         struct MockWriter {
             total_fragments_sent: Mutex<usize>,
+            buffer: [u8; 65535],
         }
         impl WriteMessage for MockWriter {
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
             fn write_message(
-                &self,
-                datagram: &[u8],
+                &mut self,
+                len: usize,
                 _locator_list: &[crate::transport::types::Locator],
             ) {
-                let message = RtpsMessageRead::try_from(datagram).unwrap();
+                let message = RtpsMessageRead::try_from(&self.buffer[..len]).unwrap();
                 assert!(matches!(
                     message.submessages()[2],
                     RtpsSubmessageReadKind::DataFrag(_)
@@ -790,8 +820,9 @@ mod tests {
             multicast_locator_list: vec![],
             expects_inline_qos: false,
         });
-        let message_writer = MockWriter {
+        let mut message_writer = MockWriter {
             total_fragments_sent: Mutex::new(0),
+            buffer: [0; 65535],
         };
         writer.add_change(CacheChange {
             kind: ChangeKind::Alive,
@@ -801,7 +832,7 @@ mod tests {
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
         });
-        writer.write_message(&message_writer, &MockClock {});
+        writer.write_message(&mut message_writer, Time::new(1, 0));
 
         let nackfrag_submessage = NackFragSubmessage::new(
             remote_reader_id,
@@ -810,13 +841,14 @@ mod tests {
             FragmentNumberSet::new(1, []),
             1,
         );
-        let message_writer = MockWriter {
+        let mut message_writer = MockWriter {
             total_fragments_sent: Mutex::new(0),
+            buffer: [0; 65535],
         };
         writer.on_nack_frag_submessage_received(
             &nackfrag_submessage,
             remote_reader_guid_prefix,
-            &message_writer,
+            &mut message_writer,
         );
 
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 1);

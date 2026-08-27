@@ -28,6 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, Time},
     },
     transport::{
@@ -212,8 +213,12 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                if let Some(hb_time) = data_writer.transport_writer.time_until_next_heartbeat(now) {
-                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                    if let Some(hb_time) =
+                        data_writer.transport_writer.time_until_next_heartbeat(now)
+                    {
+                        min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                    }
                 }
             }
         }
@@ -520,13 +525,18 @@ mod tests {
 
     #[test]
     fn test_time_until_participant_announcement() {
-        struct MockWriter;
+        struct MockWriter {
+            buffer: [u8; 512],
+        }
         impl crate::transport::interface::WriteMessage for MockWriter {
-            fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
         }
 
         let transport = RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter),
+            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),

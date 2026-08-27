@@ -64,7 +64,6 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    runtime::{Clock, DdsRuntime},
     transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
@@ -85,18 +84,18 @@ use alloc::{
 use regex::Regex;
 
 impl DcpsDomainParticipant {
-    pub fn announce_participant_if_needed(&mut self, runtime: &impl DdsRuntime, now: Time) {
+    pub fn announce_participant_if_needed(&mut self, now: Time) {
         if let Some(time_until) = self.time_until_participant_announcement(now) {
             if time_until == Duration::new(0, 0) {
-                self.announce_participant(runtime);
+                self.announce_participant(now);
             }
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn announce_participant(&mut self, runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self))]
+    pub fn announce_participant(&mut self, now: Time) {
         if self.domain_participant.enabled {
-            self.domain_participant.last_announcement_timestamp = Some(runtime.clock().now());
+            self.domain_participant.last_announcement_timestamp = Some(now);
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
             let participant_builtin_topic_data = ParticipantBuiltinTopicData {
@@ -146,7 +145,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_publisher
                     .dcps_participant_writer;
-                let timestamp = runtime.clock().now();
+                let timestamp = now;
                 let sample_instance_handle = self.domain_participant.instance_handle;
                 let serialized_data = spdp_discovered_participant_data.into_bytes();
                 let sample_timestamp = timestamp;
@@ -162,10 +161,10 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn announce_deleted_participant(&mut self, runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self))]
+    pub fn announce_deleted_participant(&mut self, now: Time) {
         if self.domain_participant.enabled {
-            let timestamp = runtime.clock().now();
+            let timestamp = now;
 
             let dw = &mut self
                 .domain_participant
@@ -467,12 +466,12 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn announce_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -546,7 +545,6 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_publisher
                 .dcps_publications_writer;
-            let now = runtime.clock().now();
             let sample_instance_handle = data_writer.transport_writer.guid().into();
             let serialized_data = discovered_writer_data.into_bytes();
             let sample_timestamp = now;
@@ -560,13 +558,13 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, data_writer, runtime))]
+    #[tracing::instrument(skip(self, data_writer))]
     pub(super) fn announce_deleted_data_writer(
         &mut self,
         data_writer: UserDefinedDataWriter,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
-        let timestamp = runtime.clock().now();
+        let timestamp = now;
         {
             let dw = &mut self
                 .domain_participant
@@ -584,12 +582,12 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn announce_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -683,7 +681,6 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_publisher
                 .dcps_subscriptions_writer;
-            let now = runtime.clock().now();
             let sample_instance_handle = data_reader.transport_reader.guid().into();
             let serialized_data = discovered_reader_data.into_bytes();
             let sample_timestamp = now;
@@ -697,13 +694,13 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, data_reader, runtime))]
+    #[tracing::instrument(skip(self, data_reader))]
     pub(super) fn announce_deleted_data_reader(
         &mut self,
         data_reader: UserDefinedDataReader,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
-        let timestamp = runtime.clock().now();
+        let timestamp = now;
         {
             let dw = &mut self
                 .domain_participant
@@ -721,8 +718,8 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn announce_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self))]
+    pub fn announce_topic(&mut self, topic_name: String, now: Time) {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
@@ -764,7 +761,6 @@ impl DcpsDomainParticipant {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
             let sample_instance_handle = topic.instance_handle;
             let serialized_data = discovered_topic_data.into_bytes();
-            let now = runtime.clock().now();
             let sample_timestamp = now;
             dw.write_w_timestamp(
                 sample_instance_handle,
@@ -776,8 +772,8 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn process_discovered_readers(&mut self, runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self))]
+    pub fn process_discovered_readers(&mut self, now: Time) {
         if self.domain_participant.discovered_reader_list.is_empty()
             || self
                 .domain_participant
@@ -962,7 +958,6 @@ impl DcpsDomainParticipant {
                                                 &type_lookup_request.create_dynamic_sample(),
                                             )
                                             .unwrap();
-                                            let now = runtime.clock().now();
                                             type_request_writer
                                                 .write_w_timestamp(
                                                     sample_instance_handle,
@@ -1006,7 +1001,6 @@ impl DcpsDomainParticipant {
                                             &type_lookup_request.create_dynamic_sample(),
                                         )
                                         .unwrap();
-                                        let now = runtime.clock().now();
                                         type_request_writer
                                             .write_w_timestamp(
                                                 sample_instance_handle,
@@ -1414,8 +1408,8 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn process_discovered_writers(&mut self, runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self))]
+    pub fn process_discovered_writers(&mut self, now: Time) {
         if self.domain_participant.discovered_writer_list.is_empty()
             || self
                 .domain_participant
@@ -1622,7 +1616,6 @@ impl DcpsDomainParticipant {
                                                 &type_lookup_request.create_dynamic_sample(),
                                             )
                                             .unwrap();
-                                            let now = runtime.clock().now();
                                             type_request_writer
                                                 .write_w_timestamp(
                                                     sample_instance_handle,
@@ -1666,7 +1659,6 @@ impl DcpsDomainParticipant {
                                             &type_lookup_request.create_dynamic_sample(),
                                         )
                                         .unwrap();
-                                        let now = runtime.clock().now();
                                         type_request_writer
                                             .write_w_timestamp(
                                                 sample_instance_handle,
@@ -2024,7 +2016,7 @@ impl DcpsDomainParticipant {
     pub fn handle_type_lookup_request(
         &mut self,
         type_lookup_request: TypeLookupRequest,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
         match type_lookup_request.call {
             TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
@@ -2063,7 +2055,6 @@ impl DcpsDomainParticipant {
                     let serialized_data =
                         serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
-                    let now = runtime.clock().now();
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
@@ -2099,7 +2090,6 @@ impl DcpsDomainParticipant {
                         let serialized_data =
                             serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
-                        let now = runtime.clock().now();
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
@@ -2112,7 +2102,7 @@ impl DcpsDomainParticipant {
     pub fn handle_type_lookup_reply(
         &mut self,
         type_lookup_reply: TypeLookupReply,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> bool {
         let mut type_lookup_reply_received = false;
         match &type_lookup_reply.r#return {
@@ -2171,7 +2161,6 @@ impl DcpsDomainParticipant {
                         let serialized_data =
                             serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                 .unwrap();
-                        let now = runtime.clock().now();
                         type_request_writer
                             .write_w_timestamp(sample_instance_handle, serialized_data, now, now)
                             .ok();
@@ -2422,7 +2411,15 @@ impl DcpsDomainParticipant {
         type_lookup_reply_received
     }
 
-    pub fn request_topic_type_representation(&mut self, runtime: &impl DdsRuntime) {
+    pub fn request_topic_type_representation(&mut self, now: Time) {
+        if self.domain_participant.discovered_topic_list.is_empty()
+            || self
+                .domain_participant
+                .locally_created_topic_list
+                .is_empty()
+        {
+            return;
+        }
         for topic in &self.domain_participant.locally_created_topic_list {
             for discovered_topic in self
                 .domain_participant
@@ -2479,7 +2476,6 @@ impl DcpsDomainParticipant {
                                 let serialized_data =
                                     serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                         .unwrap();
-                                let now = runtime.clock().now();
                                 type_request_writer
                                     .write_w_timestamp(
                                         sample_instance_handle,
@@ -2526,7 +2522,6 @@ impl DcpsDomainParticipant {
                             let serialized_data =
                                 serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                     .unwrap();
-                            let now = runtime.clock().now();
                             type_request_writer
                                 .write_w_timestamp(
                                     sample_instance_handle,
@@ -2545,11 +2540,11 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub(crate) fn add_discovered_participant(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -2597,7 +2592,7 @@ impl DcpsDomainParticipant {
             self.add_matched_service_reply_data_reader(discovered_participant_data);
             self.add_matched_service_reply_data_writer(discovered_participant_data);
 
-            self.announce_participant(runtime);
+            self.announce_participant(now);
 
             let discovered_participant_info = DiscoveredParticipantInfo {
                 dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
@@ -2611,7 +2606,7 @@ impl DcpsDomainParticipant {
                     .default_multicast_locator_list
                     .clone(),
                 lease_duration: discovered_participant_data.lease_duration,
-                last_communication_timestamp: runtime.clock().now(),
+                last_communication_timestamp: now,
             };
             match self
                 .domain_participant
@@ -3186,12 +3181,8 @@ impl DcpsDomainParticipant {
         dr.transport_reader.delete_matched_writer(guid);
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn _request_type_lookup(
-        &mut self,
-        type_ids: Vec<TypeIdentifier>,
-        runtime: &impl DdsRuntime,
-    ) {
+    #[tracing::instrument(skip(self))]
+    pub fn _request_type_lookup(&mut self, type_ids: Vec<TypeIdentifier>, now: Time) {
         {
             let w = &mut self
                 .domain_participant
@@ -3211,7 +3202,7 @@ impl DcpsDomainParticipant {
             }
             .create_dynamic_sample();
 
-            let timestamp = runtime.clock().now();
+            let timestamp = now;
             let sample_instance_handle = self.domain_participant.instance_handle;
             let serialized_data = serialize_cdr2_le(&dynamic_data).unwrap();
             let sample_timestamp = timestamp;

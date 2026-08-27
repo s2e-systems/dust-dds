@@ -41,7 +41,6 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    runtime::{Clock, DdsRuntime},
     transport::types::{ChangeKind, Guid},
     xtypes::{
         deserializer::deserialize_top_level_type,
@@ -89,8 +88,7 @@ impl DcpsDomainParticipant {
                     .iter()
                     .find(|t| t.topic_name == data_reader.topic_name);
 
-                let (topic_name, type_name) = if let Some(content_filtered_topic) =
-                    content_filtered_topic
+                let reader_type_name = if let Some(content_filtered_topic) = content_filtered_topic
                 {
                     let Some(reader_topic) = locally_created_topic_list
                         .iter()
@@ -99,10 +97,7 @@ impl DcpsDomainParticipant {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
                         continue 'data_readers;
                     };
-                    (
-                        reader_topic.topic_name.clone(),
-                        reader_topic.type_name.clone(),
-                    )
+                    &reader_topic.type_name
                 } else {
                     let Some(reader_topic) = locally_created_topic_list
                         .iter()
@@ -111,10 +106,7 @@ impl DcpsDomainParticipant {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
                         continue 'data_readers;
                     };
-                    (
-                        data_reader.topic_name.clone(),
-                        reader_topic.type_name.clone(),
-                    )
+                    &reader_topic.type_name
                 };
 
                 let changes = core::mem::take(data_reader.transport_reader.changes_mut());
@@ -271,17 +263,14 @@ impl DcpsDomainParticipant {
                             ChangeKind::NotAliveDisposed
                             | ChangeKind::NotAliveUnregistered
                             | ChangeKind::NotAliveDisposedUnregistered => {
-                                let mut dynamic_members = Vec::new();
-                                let Ok(key_holder) = KeyHolderType::from_dynamic_type(
-                                    &type_support,
-                                    &mut dynamic_members,
-                                ) else {
+                                let key_holder = KeyHolderType::new(&type_support);
+                                let Some(dynamic_type) = key_holder.as_dynamic_type() else {
                                     tracing::warn!("Failed to create key holder");
                                     continue 'data_readers;
                                 };
 
                                 let Ok(data_value) = deserialize_top_level_type(
-                                    *key_holder.as_dynamic_type(),
+                                    dynamic_type,
                                     cache_change.data_value.as_ref(),
                                 ) else {
                                     tracing::warn!(
@@ -342,8 +331,8 @@ impl DcpsDomainParticipant {
                                     let the_reader = DataReaderAsync::new(
                                         data_reader_handle,
                                         the_subscriber,
-                                        topic_name.clone(),
-                                        type_name.clone(),
+                                        data_reader.topic_name.clone(),
+                                        reader_type_name.clone(),
                                     );
                                     l.send(ListenerMail::DataAvailable { the_reader }).ok();
                                 }
@@ -384,8 +373,8 @@ impl DcpsDomainParticipant {
                                 let the_reader = DataReaderAsync::new(
                                     data_reader_handle,
                                     the_subscriber,
-                                    topic_name.clone(),
-                                    type_name.clone(),
+                                    data_reader.topic_name.clone(),
+                                    reader_type_name.clone(),
                                 );
                                 let status = data_reader.get_sample_rejected_status();
 
@@ -423,11 +412,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(
-        &mut self,
-        runtime: &impl DdsRuntime,
-        reception_timestamp: Time,
-    ) {
+    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time) {
         // 1. SPDP Participant Reader
         if !self
             .domain_participant
@@ -446,7 +431,7 @@ impl DcpsDomainParticipant {
             );
             for cache_change in changes {
                 if cache_change.kind == ChangeKind::Alive
-                    || cache_change.kind == ChangeKind::AliveFiltered
+                    && cache_change.data_value.as_ref().len() >= 4
                 {
                     if let Ok(discovered_participant_data) =
                         SpdpDiscoveredParticipantData::from_bytes(cache_change.data_value.as_ref())
@@ -454,7 +439,10 @@ impl DcpsDomainParticipant {
                         let instance_handle = InstanceHandle::new(
                             discovered_participant_data.dds_participant_data.key.value,
                         );
-                        self.add_discovered_participant(&discovered_participant_data, runtime);
+                        self.add_discovered_participant(
+                            &discovered_participant_data,
+                            reception_timestamp,
+                        );
                         self.domain_participant
                             .builtin_subscriber
                             .dcps_participant_reader
@@ -663,7 +651,7 @@ impl DcpsDomainParticipant {
                         .ok();
                 }
             }
-            self.process_discovered_writers(runtime);
+            self.process_discovered_writers(reception_timestamp);
         }
 
         // 4. SEDP Subscriptions Reader
@@ -818,7 +806,7 @@ impl DcpsDomainParticipant {
                         .ok();
                 }
             }
-            self.process_discovered_readers(runtime);
+            self.process_discovered_readers(reception_timestamp);
         }
 
         // 5. TypeLookup Request Reader
@@ -845,7 +833,7 @@ impl DcpsDomainParticipant {
                 .ok()
                 .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
                 {
-                    self.handle_type_lookup_request(type_lookup_request, runtime);
+                    self.handle_type_lookup_request(type_lookup_request, reception_timestamp);
                 }
             }
         }
@@ -875,20 +863,20 @@ impl DcpsDomainParticipant {
                 .ok()
                 .and_then(|mut d| TypeLookupReply::create_sample(&mut d))
                 {
-                    if self.handle_type_lookup_reply(type_lookup_reply, runtime) {
+                    if self.handle_type_lookup_reply(type_lookup_reply, reception_timestamp) {
                         type_lookup_reply_received = true;
                     }
                 }
             }
             if type_lookup_reply_received {
-                self.process_discovered_readers(runtime);
-                self.process_discovered_writers(runtime);
+                self.process_discovered_readers(reception_timestamp);
+                self.process_discovered_writers(reception_timestamp);
             }
         }
     }
 
-    #[tracing::instrument(skip(self, data_message, runtime))]
-    pub fn handle_data(&mut self, data_message: &[u8], runtime: &impl DdsRuntime) {
+    #[tracing::instrument(skip(self, data_message))]
+    pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
@@ -948,8 +936,8 @@ impl DcpsDomainParticipant {
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
-                                    self.transport.message_writer.as_ref(),
-                                    &runtime.clock(),
+                                    self.transport.message_writer.as_mut(),
+                                    now,
                                 )
                                 .is_some()
                             {
@@ -975,11 +963,11 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
-                                &runtime.clock(),
+                                self.transport.message_writer.as_mut(),
+                                now,
                             );
                         }
-                        self.process_pending_write_samples(runtime);
+                        self.process_pending_write_samples(now);
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                         for dw in self
@@ -991,7 +979,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
+                                self.transport.message_writer.as_mut(),
                             );
                         }
                         for dw in self
@@ -1002,7 +990,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_ref(),
+                                self.transport.message_writer.as_mut(),
                             );
                         }
                     }
@@ -1107,7 +1095,7 @@ impl DcpsDomainParticipant {
                         writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
                         writer_proxy
-                            .write_message(&reader_guid, self.transport.message_writer.as_ref());
+                            .write_message(&reader_guid, self.transport.message_writer.as_mut());
                     }
                 }
 
@@ -1140,7 +1128,7 @@ impl DcpsDomainParticipant {
                     writer_proxy.set_must_send_acknacks(must_send_acknacks);
 
                     writer_proxy
-                        .write_message(&reader_guid, self.transport.message_writer.as_ref());
+                        .write_message(&reader_guid, self.transport.message_writer.as_mut());
                 }
             }
         }
@@ -1170,7 +1158,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn poke(&mut self, clock: &impl Clock) {
+    pub fn poke(&mut self, now: Time) {
         for dw in self
             .domain_participant
             .user_defined_publisher_list
@@ -1178,7 +1166,7 @@ impl DcpsDomainParticipant {
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_ref(), clock);
+                .write_message(self.transport.message_writer.as_mut(), now);
         }
         for dw in self
             .domain_participant
@@ -1186,12 +1174,12 @@ impl DcpsDomainParticipant {
             .stateful_data_writer_list_mut()
         {
             dw.transport_writer
-                .write_message(self.transport.message_writer.as_ref(), clock);
+                .write_message(self.transport.message_writer.as_mut(), now);
         }
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_ref());
+            .write_message(self.transport.message_writer.as_mut());
     }
 }

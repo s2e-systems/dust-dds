@@ -1,6 +1,14 @@
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
-    dcps::dcps_domain_participant::data_writer_entity::DataWriterEntity,
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
+    dcps::{
+        data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
+        dcps_domain_participant::data_writer_entity::DataWriterEntity,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
+    },
     infrastructure::{
         instance::InstanceHandle,
         qos::DataWriterQos,
@@ -15,6 +23,7 @@ use crate::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix},
     },
+    xtypes::type_support::Type,
 };
 use alloc::sync::Arc;
 
@@ -81,6 +90,7 @@ impl BuiltinPublisher {
             dcps_participant_transport_writer,
             Arc::from(DCPS_PARTICIPANT),
             spdp_writer_qos(),
+            KeyHolderType::new(&ParticipantBuiltinTopicData::TYPE),
         );
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
@@ -92,6 +102,7 @@ impl BuiltinPublisher {
             dcps_topics_transport_writer,
             Arc::from(DCPS_TOPIC),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&TopicBuiltinTopicData::TYPE),
         );
 
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
@@ -103,6 +114,7 @@ impl BuiltinPublisher {
             dcps_publications_transport_writer,
             Arc::from(DCPS_PUBLICATION),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&PublicationBuiltinTopicData::TYPE),
         );
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
@@ -114,6 +126,7 @@ impl BuiltinPublisher {
             dcps_subscriptions_transport_writer,
             Arc::from(DCPS_SUBSCRIPTION),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
         );
 
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
@@ -125,6 +138,7 @@ impl BuiltinPublisher {
             type_lookup_request_transport_writer,
             Arc::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
+            KeyHolderType::new(&TypeLookupRequest::TYPE),
         );
 
         let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
@@ -136,6 +150,7 @@ impl BuiltinPublisher {
             type_lookup_reply_transport_writer,
             Arc::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
+            KeyHolderType::new(&TypeLookupReply::TYPE),
         );
 
         Self {
