@@ -92,6 +92,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         }
         let mut participant = self.domain_participant_list.remove(index);
         participant.announce_deleted_participant(&self.runtime);
+        participant.poke(&self.runtime.clock());
         Ok(())
     }
 

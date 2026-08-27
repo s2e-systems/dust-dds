@@ -48,14 +48,8 @@ impl RtpsStatefulWriter {
         self.data_max_size_serialized
     }
 
-    pub fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-        message_writer: &(impl WriteMessage + ?Sized),
-        clock: &impl Clock,
-    ) {
+    pub fn add_change(&mut self, cache_change: CacheChange) {
         self.changes.push(cache_change);
-        self.write_message(message_writer, clock);
     }
 
     pub fn remove_change(&mut self, sequence_number: SequenceNumber) {
@@ -728,18 +722,15 @@ mod tests {
         let message_writer = MockWriter {
             total_fragments_sent: Mutex::new(0),
         };
-        writer.add_change(
-            CacheChange {
-                kind: ChangeKind::Alive,
-                writer_guid: guid,
-                sequence_number: 1,
-                source_timestamp: None,
-                instance_handle: Some([10; 16]),
-                data_value: vec![8; 1300].into(),
-            },
-            &message_writer,
-            &MockClock {},
-        );
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![8; 1300].into(),
+        });
+        writer.write_message(&message_writer, &MockClock {});
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 3);
     }
 
@@ -789,18 +780,15 @@ mod tests {
         let message_writer = MockWriter {
             total_fragments_sent: Mutex::new(0),
         };
-        writer.add_change(
-            CacheChange {
-                kind: ChangeKind::Alive,
-                writer_guid: guid,
-                sequence_number: 1,
-                source_timestamp: None,
-                instance_handle: Some([10; 16]),
-                data_value: vec![8; 1300].into(),
-            },
-            &message_writer,
-            &MockClock {},
-        );
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![8; 1300].into(),
+        });
+        writer.write_message(&message_writer, &MockClock {});
 
         let nackfrag_submessage = NackFragSubmessage::new(
             remote_reader_id,

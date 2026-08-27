@@ -3,22 +3,13 @@ use crate::{
         stateful_reader::RtpsStatefulReader, stateful_writer::RtpsStatefulWriter,
         stateless_reader::RtpsStatelessReader, stateless_writer::RtpsStatelessWriter,
     },
-    runtime::DdsRuntime,
-    transport::{
-        interface::WriteMessage,
-        types::{CacheChange, Guid},
-    },
+    transport::types::{CacheChange, Guid},
 };
 use alloc::vec::Vec;
 
 pub trait RtpsWriter {
     fn guid(&self) -> Guid;
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
-    );
+    fn add_change(&mut self, cache_change: CacheChange);
 }
 
 impl RtpsWriter for RtpsStatefulWriter {
@@ -26,13 +17,8 @@ impl RtpsWriter for RtpsStatefulWriter {
         self.guid()
     }
 
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
-    ) {
-        self.add_change(cache_change, message_writer, &runtime.clock())
+    fn add_change(&mut self, cache_change: CacheChange) {
+        self.add_change(cache_change)
     }
 }
 
@@ -41,13 +27,8 @@ impl RtpsWriter for RtpsStatelessWriter {
         self.guid()
     }
 
-    fn add_change(
-        &mut self,
-        cache_change: CacheChange,
-        message_writer: &(impl WriteMessage + ?Sized),
-        _runtime: &impl DdsRuntime,
-    ) {
-        self.add_change(cache_change, message_writer)
+    fn add_change(&mut self, cache_change: CacheChange) {
+        self.add_change(cache_change)
     }
 }
 

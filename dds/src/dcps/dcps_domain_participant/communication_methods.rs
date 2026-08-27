@@ -739,5 +739,10 @@ impl DcpsDomainParticipant {
             dw.transport_writer
                 .write_message(self.transport.message_writer.as_ref(), clock);
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_participant_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_ref());
     }
 }
