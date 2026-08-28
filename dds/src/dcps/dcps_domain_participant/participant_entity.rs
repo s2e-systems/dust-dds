@@ -3,6 +3,7 @@ use super::{
     builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltinSubscriber,
     topic_entity::{ContentFilteredTopicEntity, TopicEntity},
+    type_register::TypeRegister,
     user_defined_publisher::PublisherEntity,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -27,6 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, Time},
     },
     transport::{
@@ -35,7 +37,12 @@ use crate::{
     },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{
+    collections::BTreeSet,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -75,6 +82,7 @@ impl DcpsDomainParticipant {
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -93,6 +101,7 @@ impl DcpsDomainParticipant {
             builtin_subscriber,
             domain_tag,
             Duration::from(participant_announcement_interval),
+            enable_type_information,
         );
 
         Self {
@@ -115,95 +124,106 @@ impl DcpsDomainParticipant {
             .time_until_participant_announcement(now)
     }
 
-    pub fn time_until_stale_participant(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .discovered_participant_list
-            .iter()
-            .map(|dp| dp.lease_duration - (now - dp.last_communication_timestamp))
-            .min()
-    }
+    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
+        let mut min_time = self.time_until_participant_announcement(now);
 
-    pub fn time_until_missed_reader_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_subscriber_list
-            .iter()
-            .flat_map(|subscriber| subscriber.data_reader_list.iter())
-            .filter_map(|data_reader| {
+        for dp in &self.domain_participant.discovered_participant_list {
+            let elapsed = now - dp.last_communication_timestamp;
+            let remaining = if dp.lease_duration > elapsed {
+                dp.lease_duration - elapsed
+            } else {
+                Duration::new(0, 0)
+            };
+            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+        }
+
+        for t in &self.domain_participant.find_topic_sender_list {
+            let remaining = if t.deadline > now {
+                t.deadline - now
+            } else {
+                Duration::new(0, 0)
+            };
+            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+        }
+
+        for dw in self
+            .domain_participant
+            .builtin_publisher
+            .stateful_data_writer_list()
+        {
+            if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+                min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+            }
+        }
+
+        for subscriber in &self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &subscriber.data_reader_list {
                 if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-                    data_reader
-                        .instance_ownership
-                        .iter()
-                        .map(|instance| deadline - (now - instance.last_received_time))
-                        .min()
-                } else {
-                    None
+                    for instance in &data_reader.instance_ownership {
+                        let elapsed = now - instance.last_received_time;
+                        let remaining = if deadline > elapsed {
+                            deadline - elapsed
+                        } else {
+                            Duration::new(0, 0)
+                        };
+                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                    }
                 }
-            })
-            .min()
-    }
+            }
+        }
 
-    pub fn time_until_missed_writer_deadline(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
+        for publisher in &self.domain_participant.user_defined_publisher_list {
+            for data_writer in &publisher.data_writer_list {
                 if let DurationKind::Finite(deadline) = data_writer.qos.deadline.period {
-                    data_writer
-                        .registered_instance_info
-                        .iter()
-                        .filter_map(|instance| instance.last_write_time)
-                        .map(|last_write_time| deadline - (now - last_write_time))
-                        .min()
-                } else {
-                    None
+                    for instance in &data_writer.registered_instance_info {
+                        if let Some(last_write_time) = instance.last_write_time {
+                            let elapsed = now - last_write_time;
+                            let remaining = if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            };
+                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                        }
+                    }
                 }
-            })
-            .min()
-    }
 
-    pub fn time_until_stale_writer_sample(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    data_writer
-                        .transport_writer
-                        .changes()
-                        .iter()
-                        .filter_map(|cc| cc.source_timestamp)
-                        .map(|source_timestamp| Time::from(source_timestamp) + lifespan - now)
-                        .min()
-                } else {
-                    None
+                    for cc in data_writer.transport_writer.changes() {
+                        if let Some(source_timestamp) = cc.source_timestamp {
+                            let expiry = Time::from(source_timestamp) + lifespan;
+                            let remaining = if expiry > now {
+                                expiry - now
+                            } else {
+                                Duration::new(0, 0)
+                            };
+                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                        }
+                    }
                 }
-            })
-            .min()
-    }
 
-    pub fn time_until_pending_writer_sample_timeout(&self, now: Time) -> Option<Duration> {
-        self.domain_participant
-            .user_defined_publisher_list
-            .iter()
-            .flat_map(|publisher| publisher.data_writer_list.iter())
-            .filter_map(|data_writer| {
                 if let Some(pending) = &data_writer.pending_write_sample {
                     if let Some(expiration_time) = pending.expiration_time {
-                        if expiration_time > now {
-                            Some(expiration_time - now)
+                        let remaining = if expiration_time > now {
+                            expiration_time - now
                         } else {
-                            Some(Duration::new(0, 0))
-                        }
-                    } else {
-                        None
+                            Duration::new(0, 0)
+                        };
+                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
                     }
-                } else {
-                    None
                 }
-            })
-            .min()
+
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                    if let Some(hb_time) =
+                        data_writer.transport_writer.time_until_next_heartbeat(now)
+                    {
+                        min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                    }
+                }
+            }
+        }
+
+        min_time
     }
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {
@@ -241,6 +261,7 @@ pub struct DomainParticipantEntity {
     pub default_publisher_qos: PublisherQos,
     pub locally_created_topic_list: Vec<TopicEntity>,
     pub content_filtered_topic_list: Vec<ContentFilteredTopicEntity>,
+    pub type_register: TypeRegister,
     pub default_topic_qos: TopicQos,
     pub discovered_participant_list: Vec<DiscoveredParticipantInfo>,
     pub discovered_topic_list: Vec<TopicBuiltinTopicData>,
@@ -256,6 +277,7 @@ pub struct DomainParticipantEntity {
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
     pub participant_announcement_interval: Duration,
+    pub enable_type_information: bool,
 }
 
 impl DomainParticipantEntity {
@@ -270,6 +292,7 @@ impl DomainParticipantEntity {
         builtin_subscriber: BuiltinSubscriber,
         domain_tag: String,
         participant_announcement_interval: Duration,
+        enable_type_information: bool,
     ) -> Self {
         Self {
             domain_id,
@@ -284,6 +307,7 @@ impl DomainParticipantEntity {
             default_publisher_qos: PublisherQos::const_default(),
             locally_created_topic_list: Vec::new(),
             content_filtered_topic_list: Vec::new(),
+            type_register: TypeRegister::new(),
             default_topic_qos: TopicQos::const_default(),
             discovered_participant_list: Vec::new(),
             discovered_topic_list: Vec::new(),
@@ -300,6 +324,7 @@ impl DomainParticipantEntity {
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
             participant_announcement_interval,
+            enable_type_information,
         }
     }
 
@@ -354,9 +379,9 @@ impl DomainParticipantEntity {
         if let Some(topic) = self
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name)
         {
-            Some((topic.instance_handle, topic.type_name.clone()))
+            Some((topic.instance_handle, topic.type_name.to_string()))
         } else if let Some(discovered_topic_data) = self
             .discovered_topic_list
             .iter()
@@ -398,15 +423,18 @@ impl DomainParticipantEntity {
             ]);
             self.topic_counter += 1;
             let status_condition = DcpsStatusCondition::default();
+            let type_information = self
+                .type_register
+                .register_local_type(Arc::from(type_name.value.as_str()), type_support);
             let mut topic = TopicEntity::new(
                 qos,
-                type_name.clone().into(),
-                String::from(topic_name),
+                Arc::from(type_name.value.as_str()),
+                Arc::from(topic_name),
                 topic_handle,
                 status_condition,
                 None,
                 StatusMask::default(),
-                type_support,
+                type_information,
             );
             topic.enabled = true;
 
@@ -419,7 +447,7 @@ impl DomainParticipantEntity {
                 None => self.locally_created_topic_list.push(topic),
             }
 
-            Some((topic_handle, type_name.into()))
+            Some((topic_handle, type_name.value))
         } else {
             None
         }
@@ -470,7 +498,7 @@ impl DomainParticipantEntity {
         let no_user_defined_topics = self
             .locally_created_topic_list
             .iter()
-            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_str()))
+            .filter(|t| !BUILT_IN_TOPIC_NAME_LIST.contains(&t.topic_name.as_ref()))
             .count()
             == 0;
 
@@ -497,13 +525,18 @@ mod tests {
 
     #[test]
     fn test_time_until_participant_announcement() {
-        struct MockWriter;
+        struct MockWriter {
+            buffer: [u8; 512],
+        }
         impl crate::transport::interface::WriteMessage for MockWriter {
-            fn write_message(&self, _buf: &[u8], _locators: &[Locator]) {}
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
         }
 
         let transport = RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter),
+            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),
@@ -521,6 +554,7 @@ mod tests {
             BuiltinSubscriber::new(GuidPrefix::default()),
             String::new(),
             Duration::new(5, 0),
+            true,
         );
 
         // Disabled entity returns None

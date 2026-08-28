@@ -28,8 +28,10 @@ use crate::{
     },
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
+
 use alloc::{
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 
@@ -194,8 +196,8 @@ impl DomainParticipantAsync {
 
         Ok(TopicAsync::new(
             guid,
-            String::from(type_name),
-            String::from(topic_name),
+            Arc::from(type_name),
+            Arc::from(topic_name),
             self.clone(),
         ))
     }
@@ -276,7 +278,7 @@ impl DomainParticipantAsync {
         Foo: TypeSupport,
     {
         let topic_name = String::from(topic_name);
-        let participant_address = self.dcps_sender;
+        let participant_address = self.dcps_sender.clone();
         let participant_async = self.clone();
         let (reply_sender, reply_receiver) = oneshot();
 
@@ -292,8 +294,8 @@ impl DomainParticipantAsync {
         let (guid, type_name) = reply_receiver.await??;
         Ok(TopicAsync::new(
             guid,
-            type_name,
-            topic_name,
+            Arc::from(type_name),
+            Arc::from(topic_name),
             participant_async,
         ))
     }

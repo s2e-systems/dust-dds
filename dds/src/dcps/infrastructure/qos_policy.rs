@@ -1073,6 +1073,7 @@ impl Type for HistoryQosPolicyKind {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -1143,6 +1144,7 @@ impl Type for HistoryQosPolicy {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Appendable,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[
             DynamicTypeMember {
@@ -1291,6 +1293,7 @@ impl Type for ResourceLimitsQosPolicy {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Appendable,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[
             dust_dds::xtypes::dynamic_type::DynamicTypeMember {

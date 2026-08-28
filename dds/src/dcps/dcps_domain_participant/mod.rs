@@ -16,6 +16,7 @@ pub mod subscriber_entity;
 pub mod subscriber_methods;
 pub mod topic_entity;
 pub mod topic_methods;
+pub mod type_register;
 pub mod user_defined_data_reader;
 pub mod user_defined_data_writer;
 pub mod user_defined_publisher;

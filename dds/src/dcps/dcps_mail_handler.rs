@@ -7,12 +7,12 @@ use crate::{
         },
         dcps_participant_factory::DcpsParticipantFactory,
     },
-    infrastructure::error::DdsError,
-    runtime::{Clock, DdsRuntime},
+    infrastructure::{error::DdsError, time::Time},
+    runtime::DdsRuntime,
 };
 
 impl<R: DdsRuntime> DcpsParticipantFactory<R> {
-    pub fn handle(&mut self, message: DcpsMail) {
+    pub fn handle(&mut self, message: DcpsMail, now: Time) {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant {
                 guid_prefix,
@@ -24,6 +24,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 transport_participant,
                 domain_tag,
                 participant_announcement_interval,
+                enable_type_information,
             }) => reply_sender.send(self.create_participant(
                 guid_prefix,
                 domain_id,
@@ -33,11 +34,13 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 transport_participant,
                 domain_tag,
                 participant_announcement_interval,
+                enable_type_information,
+                now,
             )),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
                 reply_sender,
-            }) => reply_sender.send(self.delete_participant(&participant_handle)),
+            }) => reply_sender.send(self.delete_participant(&participant_handle, now)),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
                 reply_sender,
@@ -139,6 +142,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     listener_mask,
                     type_support,
                     &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -183,13 +187,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 type_support,
                 timeout,
                 reply_sender,
-            }) => {
-                let now = self.runtime.clock().now();
-                match self.find_participant(&participant_handle) {
-                    Ok(p) => p.find_topic(topic_name, type_support, timeout, now, reply_sender),
-                    Err(e) => reply_sender.send(Err(e)),
-                }
-            }
+            }) => match self.find_participant(&participant_handle) {
+                Ok(p) => p.find_topic(topic_name, type_support, timeout, now, reply_sender),
+                Err(e) => reply_sender.send(Err(e)),
+            },
 
             DcpsMail::Participant(ParticipantServiceMail::LookupTopicdescription {
                 participant_handle,
@@ -232,7 +233,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.delete_participant_contained_entities(&self.runtime)),
+                Ok(p) => reply_sender.send(p.delete_participant_contained_entities(now)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
@@ -288,7 +289,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .iter_mut()
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
-                    .map(|_| self.runtime.clock().now()),
+                    .map(|_| now),
             ),
             DcpsMail::Participant(ParticipantServiceMail::GetDiscoveredParticipants {
                 participant_handle,
@@ -332,7 +333,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.set_domain_participant_qos(qos, &self.runtime)),
+                Ok(p) => reply_sender.send(p.set_domain_participant_qos(qos, now)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::GetQos {
@@ -370,7 +371,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.enable_domain_participant(&self.runtime)),
+                Ok(p) => reply_sender.send(p.enable_domain_participant(now)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::GetInconsistentTopicStatus {
@@ -409,7 +410,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.enable_topic(topic_name, &self.runtime)),
+                Ok(p) => reply_sender.send(p.enable_topic(topic_name, now)),
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
@@ -441,6 +442,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     dcps_listener,
                     listener_mask,
                     &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -458,7 +460,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.delete_data_writer(
                     &publisher_handle,
                     &datawriter_handle,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -593,12 +595,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.register_instance(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or(now);
+                    reply_sender.send(p.register_instance(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::UnregisterInstance {
@@ -614,13 +619,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.unregister_instance(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or(now);
+                    reply_sender.send(p.unregister_instance(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::LookupInstance {
@@ -645,14 +652,17 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => p.write_w_timestamp(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                    reply_sender,
-                ),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or(now);
+                    p.write_w_timestamp(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                        now,
+                        reply_sender,
+                    );
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
 
@@ -669,13 +679,15 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => reply_sender.send(p.dispose_w_timestamp(
-                    &publisher_handle,
-                    &data_writer_handle,
-                    &dynamic_data,
-                    timestamp,
-                    &self.runtime,
-                )),
+                Ok(p) => {
+                    let timestamp = timestamp.unwrap_or(now);
+                    reply_sender.send(p.dispose_w_timestamp(
+                        &publisher_handle,
+                        &data_writer_handle,
+                        &dynamic_data,
+                        timestamp,
+                    ));
+                }
                 Err(e) => reply_sender.send(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::GetOfferedDeadlineMissedStatus {
@@ -703,7 +715,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.enable_data_writer(
                     &publisher_handle,
                     &data_writer_handle,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -723,7 +735,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     &publisher_handle,
                     &data_writer_handle,
                     qos,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -748,6 +760,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     dcps_listener,
                     listener_mask,
                     &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -765,7 +778,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.delete_data_reader(
                     &subscriber_handle,
                     &datareader_handle,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -934,7 +947,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 Ok(p) => reply_sender.send(p.enable_data_reader(
                     &subscriber_handle,
                     &data_reader_handle,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -997,7 +1010,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     &subscriber_handle,
                     &data_reader_handle,
                     qos,
-                    &self.runtime,
+                    now,
                 )),
                 Err(e) => reply_sender.send(Err(e)),
             },
@@ -1073,19 +1086,17 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
                 Err(e) => reply_sender.send(Err(e)),
             },
-            DcpsMail::Message(MessageServiceMail::HandleData {
-                participant_handle,
-                data_message,
-            }) => {
-                if let Ok(p) = self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    p.handle_data(data_message.as_slice(), &self.runtime);
-                }
-            }
+        }
+    }
+
+    pub fn handle_wire_mail(&mut self, wire_mail: crate::dcps::dcps_mail::WireMail, now: Time) {
+        if let Ok(p) = self
+            .domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)
+        {
+            p.handle_data(wire_mail.data_message.as_slice(), now);
         }
     }
 }

@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, sync::Arc};
 
 use crate::{
     builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
@@ -19,6 +19,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         qos_policy::ReliabilityQosPolicyKind,
+        time::Time,
     },
     rtps::stateful_reader::RtpsStatefulReader,
     runtime::DdsRuntime,
@@ -39,12 +40,13 @@ impl DcpsDomainParticipant {
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         let topic = if let Some(content_filtered_topic) = self
             .domain_participant
             .content_filtered_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             let Some(topic) = self
                 .domain_participant
@@ -60,14 +62,19 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .locally_created_topic_list
                 .iter()
-                .find(|x| x.topic_name == topic_name)
+                .find(|x| x.topic_name.as_ref() == topic_name.as_str())
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
             topic
         };
 
-        let topic_kind = TopicKind::from(&topic.type_support);
+        let topic_kind = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .map(|dt| TopicKind::from(&dt))
+            .unwrap_or(TopicKind::NoKey);
 
         let Some(subscriber) = self
             .domain_participant
@@ -133,7 +140,7 @@ impl DcpsDomainParticipant {
         let data_reader = UserDefinedDataReader::new(
             reader_handle,
             qos,
-            topic_name,
+            Arc::from(topic_name),
             listener_sender,
             listener_mask,
             transport_reader,
@@ -144,17 +151,17 @@ impl DcpsDomainParticipant {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, &data_reader_handle, runtime)?;
+            self.enable_data_reader(subscriber_handle, &data_reader_handle, now)?;
         }
         Ok(data_reader_handle)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn delete_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         datareader_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -171,7 +178,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
-            self.announce_deleted_data_reader(data_reader, runtime);
+            self.announce_deleted_data_reader(data_reader, now);
         } else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -189,7 +196,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .locally_created_topic_list
                 .iter()
-                .any(|x| x.topic_name == topic_name)
+                .any(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             return Err(DdsError::BadParameter);
         }
@@ -247,7 +254,7 @@ impl DcpsDomainParticipant {
             };
             Ok(s.data_reader_list
                 .iter_mut()
-                .find(|dr| dr.topic_name == topic_name)
+                .find(|dr| dr.topic_name.as_ref() == topic_name.as_str())
                 .map(|x| x.instance_handle))
         }
     }

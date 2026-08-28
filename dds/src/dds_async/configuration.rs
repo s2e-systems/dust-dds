@@ -8,6 +8,7 @@ use core::time::Duration;
 pub struct DustDdsConfiguration {
     domain_tag: String,
     participant_announcement_interval: Duration,
+    enable_type_information: bool,
 }
 
 impl DustDdsConfiguration {
@@ -20,6 +21,11 @@ impl DustDdsConfiguration {
     pub fn participant_announcement_interval(&self) -> Duration {
         self.participant_announcement_interval
     }
+
+    /// Enable type information which allows exchanging details about the types of different topics
+    pub fn enable_type_information(&self) -> bool {
+        self.enable_type_information
+    }
 }
 
 impl Default for DustDdsConfiguration {
@@ -27,6 +33,7 @@ impl Default for DustDdsConfiguration {
         Self {
             domain_tag: "".to_string(),
             participant_announcement_interval: Duration::from_secs(5),
+            enable_type_information: true,
         }
     }
 }
@@ -63,6 +70,12 @@ impl DustDdsConfigurationBuilder {
         participant_announcement_interval: Duration,
     ) -> Self {
         self.configuration.participant_announcement_interval = participant_announcement_interval;
+        self
+    }
+
+    /// Set whether type information should be enabled or disabled
+    pub fn enable_type_information(mut self, enable_type_information: bool) -> Self {
+        self.configuration.enable_type_information = enable_type_information;
         self
     }
 }

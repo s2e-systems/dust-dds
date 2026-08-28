@@ -354,23 +354,40 @@ impl UdpLocator {
 
 struct MessageWriter {
     socket: UdpSocket,
+    buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
 }
 
 impl Clone for MessageWriter {
     fn clone(&self) -> Self {
         Self {
             socket: self.socket.try_clone().expect("Socket cloning"),
+            buffer: vec![0u8; MAX_DATAGRAM_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 }
 
 impl MessageWriter {
     fn new(socket: UdpSocket) -> Self {
-        Self { socket }
+        Self {
+            socket,
+            buffer: vec![0u8; MAX_DATAGRAM_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
+        }
     }
 }
+
 impl WriteMessage for MessageWriter {
-    fn write_message(&self, datagram: &[u8], locator_list: &[Locator]) {
+    fn write_buffer_mut(&mut self) -> &mut [u8] {
+        self.buffer.as_mut_slice()
+    }
+
+    fn write_message(&mut self, len: usize, locator_list: &[Locator]) {
+        let datagram = &self.buffer[..len];
         for &destination_locator in locator_list {
             if UdpLocator(destination_locator).is_multicast() {
                 let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();

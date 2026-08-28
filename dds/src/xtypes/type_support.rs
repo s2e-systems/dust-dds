@@ -59,6 +59,7 @@ impl Type for i8 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -76,6 +77,7 @@ impl Type for u8 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -93,6 +95,7 @@ impl Type for i16 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -110,6 +113,7 @@ impl Type for u16 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -127,6 +131,7 @@ impl Type for i32 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -144,6 +149,7 @@ impl Type for u32 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -161,6 +167,7 @@ impl Type for i64 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -178,6 +185,7 @@ impl Type for u64 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -195,6 +203,7 @@ impl Type for f32 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -212,6 +221,7 @@ impl Type for f64 {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -229,6 +239,7 @@ impl Type for bool {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -246,6 +257,7 @@ impl Type for char {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: true,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -281,6 +293,7 @@ impl Type for String {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -298,6 +311,7 @@ impl<T: Type, const N: usize> Type for [T; N] {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -315,6 +329,7 @@ impl Type for &[u8] {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -332,6 +347,7 @@ impl Type for &str {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -349,6 +365,7 @@ impl<T: TypeSupport> Type for Vec<T> {
             key_element_type: None,
             extensibility_kind: crate::xtypes::dynamic_type::ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -366,6 +383,7 @@ impl Type for Vec<bool> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -383,6 +401,7 @@ impl Type for Vec<i8> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -400,6 +419,7 @@ impl Type for Vec<u8> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -417,6 +437,7 @@ impl Type for Vec<i16> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -434,6 +455,7 @@ impl Type for Vec<u16> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -451,6 +473,7 @@ impl Type for Vec<i32> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -468,6 +491,7 @@ impl Type for Vec<u32> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -485,6 +509,7 @@ impl Type for Vec<i64> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -502,6 +527,7 @@ impl Type for Vec<u64> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -519,6 +545,7 @@ impl Type for Vec<f32> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -536,6 +563,7 @@ impl Type for Vec<f64> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -553,6 +581,7 @@ impl Type for Vec<char> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -570,6 +599,7 @@ impl Type for Vec<String> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -609,6 +639,7 @@ impl<const N: u32> Type for BoundedString<N> {
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };

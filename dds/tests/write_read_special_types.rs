@@ -312,7 +312,7 @@ fn foo_xtypes_union_should_read_and_write() {
         #[dust_dds(case = 0)]
         VariantB { a: u32 },
         #[dust_dds(case = 7)]
-        _VariantC,
+        VariantC,
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -393,6 +393,21 @@ fn foo_xtypes_union_should_read_and_write() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+
+    let data = MyEnum::VariantC;
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
 #[test]
@@ -407,6 +422,7 @@ fn dynamic_data_should_read_and_write() {
         key_element_type: None,
         extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
         is_nested: false,
+        is_autoid_hash: false,
     });
     type_buider
         .add_member(MemberDescriptor {

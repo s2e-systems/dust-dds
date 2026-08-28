@@ -1,6 +1,14 @@
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
-    dcps::dcps_domain_participant::data_writer_entity::DataWriterEntity,
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
+    dcps::{
+        data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
+        dcps_domain_participant::data_writer_entity::DataWriterEntity,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
+    },
     infrastructure::{
         instance::InstanceHandle,
         qos::DataWriterQos,
@@ -15,8 +23,9 @@ use crate::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix},
     },
+    xtypes::type_support::Type,
 };
-use alloc::string::String;
+use alloc::sync::Arc;
 
 use super::builtin_constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -79,8 +88,9 @@ impl BuiltinPublisher {
         let dcps_participant_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_participant_transport_writer.guid().into()),
             dcps_participant_transport_writer,
-            String::from(DCPS_PARTICIPANT),
+            Arc::from(DCPS_PARTICIPANT),
             spdp_writer_qos(),
+            KeyHolderType::new(&ParticipantBuiltinTopicData::TYPE),
         );
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
@@ -90,8 +100,9 @@ impl BuiltinPublisher {
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
             dcps_topics_transport_writer,
-            String::from(DCPS_TOPIC),
+            Arc::from(DCPS_TOPIC),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&TopicBuiltinTopicData::TYPE),
         );
 
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
@@ -101,8 +112,9 @@ impl BuiltinPublisher {
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
             dcps_publications_transport_writer,
-            String::from(DCPS_PUBLICATION),
+            Arc::from(DCPS_PUBLICATION),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&PublicationBuiltinTopicData::TYPE),
         );
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
@@ -112,8 +124,9 @@ impl BuiltinPublisher {
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
             dcps_subscriptions_transport_writer,
-            String::from(DCPS_SUBSCRIPTION),
+            Arc::from(DCPS_SUBSCRIPTION),
             sedp_data_writer_qos(),
+            KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
         );
 
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
@@ -123,8 +136,9 @@ impl BuiltinPublisher {
         let type_lookup_request_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
             type_lookup_request_transport_writer,
-            String::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
+            KeyHolderType::new(&TypeLookupRequest::TYPE),
         );
 
         let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
@@ -134,8 +148,9 @@ impl BuiltinPublisher {
         let type_lookup_reply_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
             type_lookup_reply_transport_writer,
-            String::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
+            Arc::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
+            KeyHolderType::new(&TypeLookupReply::TYPE),
         );
 
         Self {
@@ -155,6 +170,16 @@ impl BuiltinPublisher {
             dw.enabled = true;
         }
         self.enabled = true;
+    }
+
+    pub fn stateful_data_writer_list(&self) -> [&DataWriterEntity<RtpsStatefulWriter>; 5] {
+        [
+            &self.dcps_topics_writer,
+            &self.dcps_publications_writer,
+            &self.dcps_subscriptions_writer,
+            &self.type_lookup_request_writer,
+            &self.type_lookup_reply_writer,
+        ]
     }
 
     pub fn stateful_data_writer_list_mut(

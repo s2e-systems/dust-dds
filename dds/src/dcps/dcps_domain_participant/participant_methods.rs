@@ -1,6 +1,7 @@
 use alloc::{
     format,
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 
@@ -228,6 +229,7 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         type_support: DynamicType<'static>,
         runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
             return Err(DdsError::BadParameter);
@@ -237,7 +239,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name == topic_name)
+            .any(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Topic with name {topic_name} already exists.
@@ -271,15 +273,19 @@ impl DcpsDomainParticipant {
         ]);
         self.domain_participant.topic_counter += 1;
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let type_information = self
+            .domain_participant
+            .type_register
+            .register_local_type(Arc::from(type_name.as_ref()), type_support);
         let topic = TopicEntity::new(
             qos,
-            type_name,
-            topic_name.clone(),
+            Arc::from(type_name),
+            Arc::from(topic_name.as_str()),
             topic_handle,
             status_condition,
             listener_sender,
             listener_mask,
-            type_support,
+            type_information,
         );
 
         self.domain_participant
@@ -293,7 +299,7 @@ impl DcpsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, runtime)?;
+            self.enable_topic(topic_name, now)?;
         }
 
         Ok(topic_handle)
@@ -319,7 +325,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -346,7 +352,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant
             .locally_created_topic_list
-            .retain(|x| x.topic_name != topic_name);
+            .retain(|x| x.topic_name.as_ref() != topic_name.as_str());
 
         Ok(())
     }
@@ -364,7 +370,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .any(|x| x.topic_name == related_topic_name)
+            .any(|x| x.topic_name.as_ref() == related_topic_name.as_str())
         {
             return Err(DdsError::PreconditionNotMet(format!(
                 "Related topic with name {related_topic_name} does not exist."
@@ -392,8 +398,8 @@ impl DcpsDomainParticipant {
         self.domain_participant.topic_counter += 1;
 
         let topic = ContentFilteredTopicEntity::new(
-            name,
-            related_topic_name,
+            Arc::from(name),
+            Arc::from(related_topic_name),
             filter_expression,
             expression_parameters,
         );
@@ -447,14 +453,15 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         {
-            Ok(Some(topic.type_name.clone()))
+            Ok(Some(topic.type_name.to_string()))
         } else if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
             let type_support = get_topic_type_support(
                 &topic_name,
                 &self.domain_participant.content_filtered_topic_list,
                 &self.domain_participant.locally_created_topic_list,
+                &self.domain_participant.type_register,
             );
             Ok(type_support.map(|t| t.get_name().to_string()))
         } else {
@@ -504,11 +511,8 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn delete_participant_contained_entities(
-        &mut self,
-        runtime: &impl DdsRuntime,
-    ) -> DdsResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn delete_participant_contained_entities(&mut self, now: Time) -> DdsResult<()> {
         let deleted_publisher_list: Vec<PublisherEntity> = self
             .domain_participant
             .user_defined_publisher_list
@@ -516,7 +520,7 @@ impl DcpsDomainParticipant {
             .collect();
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
-                self.announce_deleted_data_writer(data_writer, runtime);
+                self.announce_deleted_data_writer(data_writer, now);
             }
         }
 
@@ -527,13 +531,13 @@ impl DcpsDomainParticipant {
             .collect();
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.data_reader_list.drain(..) {
-                self.announce_deleted_data_reader(data_reader, runtime);
+                self.announce_deleted_data_reader(data_reader, now);
             }
         }
 
         self.domain_participant
             .locally_created_topic_list
-            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_str()));
+            .retain(|x| BUILT_IN_TOPIC_NAME_LIST.contains(&x.topic_name.as_ref()));
 
         Ok(())
     }
@@ -647,11 +651,11 @@ impl DcpsDomainParticipant {
         Ok(handle.clone())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -660,7 +664,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(runtime);
+            self.announce_participant(now);
         }
         Ok(())
     }
@@ -684,8 +688,8 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn enable_domain_participant(&mut self, runtime: &impl DdsRuntime) -> DdsResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn enable_domain_participant(&mut self, now: Time) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.locally_created_topic_list {
                 t.enabled = true;
@@ -695,7 +699,7 @@ impl DcpsDomainParticipant {
             self.domain_participant.builtin_subscriber.enable();
             self.domain_participant.enabled = true;
 
-            self.announce_participant(runtime);
+            self.announce_participant(now);
         }
 
         Ok(())

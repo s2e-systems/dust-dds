@@ -22,7 +22,7 @@ pub struct StructureMemberAttributes {
     pub optional: bool,
     pub non_serialized: bool,
     pub external: bool,
-    pub hashid: bool,
+    pub hashid: Option<String>,
     pub default_value: Option<Expr>,
     pub try_construct: Option<TryConstructKind>,
 }
@@ -34,7 +34,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut default_value = None;
     let mut non_serialized = false;
     let mut external = false;
-    let mut hashid = false;
+    let mut hashid = None;
     let mut try_construct = None;
 
     if let Some(xtypes_attribute) = field
@@ -62,7 +62,12 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
                 external = true;
                 Ok(())
             } else if meta.path.is_ident("hashid") {
-                hashid = true;
+                if let Ok(val) = meta.value() {
+                    let s: syn::LitStr = val.parse()?;
+                    hashid = Some(s.value());
+                } else {
+                    hashid = Some(String::new());
+                }
                 Ok(())
             } else if meta.path.is_ident("try_construct") {
                let format_str: syn::LitStr = meta.value()?.parse()?;
@@ -110,6 +115,7 @@ pub struct StructAttributes {
     pub name: String,
     pub extensibility: Extensibility,
     pub is_nested: bool,
+    pub is_autoid_hash: bool,
     pub base_type: Option<syn::Type>,
 }
 
@@ -117,6 +123,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut name = input.ident.to_string();
     let mut extensibility = Extensibility::Final;
     let mut is_nested = false;
+    let mut is_autoid_hash = false;
     let mut base_type = None;
 
     if let Some(xtypes_attribute) = input
@@ -151,6 +158,12 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
             } else if meta.path.is_ident("nested") {
                 is_nested = true;
                 Ok(())
+            } else if meta.path.is_ident("autoid") {
+                let format_str: syn::LitStr = meta.value()?.parse()?;
+                if format_str.value().eq_ignore_ascii_case("hash") {
+                    is_autoid_hash = true;
+                }
+                Ok(())
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -161,6 +174,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         name,
         extensibility,
         is_nested,
+        is_autoid_hash,
         base_type,
     })
 }

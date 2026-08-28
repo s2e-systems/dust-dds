@@ -6,8 +6,8 @@ use crate::{
         error::{DdsError, DdsResult},
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
+        time::Time,
     },
-    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicType,
 };
 
@@ -21,7 +21,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -48,7 +48,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -77,7 +77,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -85,20 +85,20 @@ impl DcpsDomainParticipant {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
-    pub fn enable_topic(&mut self, topic_name: String, runtime: &impl DdsRuntime) -> DdsResult<()> {
+    #[tracing::instrument(skip(self))]
+    pub fn enable_topic(&mut self, topic_name: String, now: Time) -> DdsResult<()> {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
             .iter_mut()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, runtime);
+            self.announce_topic(topic_name, now);
         }
 
         Ok(())
@@ -106,14 +106,17 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn get_type_support(&mut self, topic_name: String) -> DdsResult<DynamicType<'static>> {
-        let Some(topic) = self
+        let topic = self
             .domain_participant
             .locally_created_topic_list
-            .iter_mut()
-            .find(|x| x.topic_name == topic_name)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        Ok(topic.type_support)
+            .iter()
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
+            .ok_or(DdsError::AlreadyDeleted)?;
+        self.domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(String::from("Type not found in type register"))
+            })
     }
 }

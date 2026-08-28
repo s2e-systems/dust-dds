@@ -505,6 +505,44 @@ fn struct_primitives_final_data_from_xml() {
 
 #[cfg(feature = "xtypes-xml")]
 #[test]
+fn struct_primitive_float128_data_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_PRIMITIVES,
+        "Test::struct_primitive_float128",
+        vec![],
+    )
+    .unwrap();
+
+    let ty = builder.build();
+
+    let mut d = DynamicDataFactory::create_data(ty);
+    d.from_xml("<struct_primitive_float128><x1>0.5</x1></struct_primitive_float128>")
+        .unwrap();
+
+    let expected_f128_half: i128 = 0x3ffe_0000_0000_0000_0000_0000_0000_0000_u128 as i128;
+    assert_eq!(d.get_float128_value(0).unwrap(), &expected_f128_half);
+    assert_eq!(
+        expected_f128_half.to_le_bytes(),
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xfe, 0x3f]
+    );
+
+    let mut d2 = DynamicDataFactory::create_data(ty);
+    d2.from_xml("<struct_primitive_float128><x1>12.300000</x1></struct_primitive_float128>")
+        .unwrap();
+
+    let expected_f128_12_3: i128 = 0x4002_8999_9999_9999_9999_9999_9999_999a_u128 as i128;
+    assert_eq!(d2.get_float128_value(0).unwrap(), &expected_f128_12_3);
+    assert_eq!(
+        expected_f128_12_3.to_le_bytes(),
+        [
+            0x9a, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x89,
+            0x02, 0x40
+        ]
+    );
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
 fn create_struct_primitives_appendable_from_xml() {
     let builder = DynamicTypeBuilderFactory::create_type_w_document(
         TYPES_XML_PRIMITIVES,
@@ -577,6 +615,10 @@ fn create_union_primitives_final_from_xml() {
     let ty = builder.build();
 
     assert_eq!(ty.get_kind(), TypeKind::UNION);
+    assert_eq!(
+        ty.get_descriptor().extensibility_kind,
+        ExtensibilityKind::Appendable
+    );
     assert_eq!(
         ty.get_descriptor().discriminator_type.unwrap().get_kind(),
         TypeKind::UINT8
@@ -1415,4 +1457,195 @@ fn parse_bitmask_type_and_data_from_xml() {
     data.from_xml(data_xml).unwrap();
     assert_eq!(*data.get_uint32_value(0).unwrap(), 2);
     assert_eq!(*data.get_int16_value(1).unwrap(), 128);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn union_appendable_a_default_from_xml() {
+    let type_xml = r#"<dds>
+        <types>
+            <module name="Test">
+                <union name="union_appendable_a_default" extensibility="appendable">
+                    <discriminator type="uint32" />
+                    <case><caseDiscriminator value="5"/><member name="x5" type="uint32"/></case>
+                    <case><caseDiscriminator value="default"/><member name="xd" type="uint32"/></case>
+                </union>
+            </module>
+        </types>
+    </dds>"#;
+
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_appendable_a_default",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    assert_eq!(dynamic_type.get_kind(), TypeKind::UNION);
+
+    let mut data = DynamicDataFactory::create_data(dynamic_type);
+    let data_xml = r#"<union_xd>
+        <discriminator>10</discriminator>
+        <xd>12345</xd>
+    </union_xd>"#;
+    data.from_xml(data_xml).unwrap();
+    assert_eq!(*data.get_uint32_value(0).unwrap(), 10);
+    assert_eq!(*data.get_uint32_value(2).unwrap(), 12345);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_struct_hashid_1_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_hashid_1",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x1").unwrap();
+    let hash = md5::compute(b"x1");
+    let expected_id = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF;
+    assert_eq!(member.get_id(), expected_id);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn create_struct_hashid_2_from_xml() {
+    let builder = DynamicTypeBuilderFactory::create_type_w_document(
+        TYPES_XML_EXTENSIBILITY,
+        "Test::struct_hashid_2",
+        vec![],
+    )
+    .unwrap();
+    let dynamic_type = builder.build();
+    let member = dynamic_type.get_member_by_name("x2").unwrap();
+    let hash = md5::compute(b"x1");
+    let expected_id = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF;
+    assert_eq!(member.get_id(), expected_id);
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn convert_dynamic_type_to_complete_type_object() {
+    use dust_dds::xtypes::type_object::{CompleteTypeObject, TYPE_FLAG_IS_FINAL, TypeIdentifier};
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <enum name="E2" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                    <enumerator name="VAL3" value="3"/>
+                </enum>
+                <struct name="enum1x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+                </struct>
+                <struct name="enum2x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E2" arrayDimensions="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::enum1x10", vec![])
+            .unwrap()
+            .build();
+
+    let complete_type: CompleteTypeObject = CompleteTypeObject::from(publisher_dynamic_type);
+
+    match complete_type {
+        CompleteTypeObject::TkStructure { struct_type } => {
+            assert_eq!(struct_type.header.detail.type_name, "Test::enum1x10");
+            assert_eq!(
+                struct_type.struct_flags & TYPE_FLAG_IS_FINAL,
+                TYPE_FLAG_IS_FINAL
+            );
+            assert_eq!(struct_type.member_seq.len(), 1);
+
+            let member = &struct_type.member_seq[0];
+            assert_eq!(member.detail.name, "x1");
+            assert_eq!(member.common.member_id, 0);
+
+            match &member.common.member_type_id {
+                TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+                    assert_eq!(array_sdefn.array_bound_seq, vec![10]);
+                    assert!(matches!(
+                        *array_sdefn.element_identifier,
+                        TypeIdentifier::EkComplete { .. }
+                    ));
+                }
+                TypeIdentifier::TiPlainArrayLarge { array_ldefn } => {
+                    assert_eq!(array_ldefn.array_bound_seq, vec![10]);
+                    assert!(matches!(
+                        *array_ldefn.element_identifier,
+                        TypeIdentifier::EkComplete { .. }
+                    ));
+                }
+                _ => panic!("Expected array type identifier for member x1"),
+            }
+        }
+        _ => panic!("Expected TkStructure complete type object"),
+    }
+}
+
+#[cfg(feature = "xtypes-xml")]
+#[test]
+fn convert_enum_dynamic_type_to_complete_type_object() {
+    use dust_dds::xtypes::type_object::CompleteTypeObject;
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <enum name="E1" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                </enum>
+                <enum name="E2" bitBound="32" extensibility="appendable">
+                    <enumerator name="VAL0" value="0"/>
+                    <enumerator name="VAL1" value="1"/>
+                    <enumerator name="VAL2" value="2"/>
+                    <enumerator name="VAL3" value="3"/>
+                </enum>
+                <struct name="enum1x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E1" arrayDimensions="10"  />
+                </struct>
+                <struct name="enum2x10"   extensibility="final">
+                    <member name="x1"   type="nonBasic" nonBasicTypeName="E2" arrayDimensions="10"  />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+
+    let e1_dynamic_type =
+        DynamicTypeBuilderFactory::create_type_w_document(type_xml, "Test::E1", vec![])
+            .unwrap()
+            .build();
+
+    let complete_type = CompleteTypeObject::from(e1_dynamic_type);
+
+    match complete_type {
+        CompleteTypeObject::TkEnum { enumerated_type } => {
+            assert_eq!(enumerated_type.header.detail.type_name, "Test::E1");
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "VAL0");
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 0);
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "VAL1");
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 1);
+            assert_eq!(enumerated_type.literal_seq[2].detail.name, "VAL2");
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 2);
+        }
+        _ => panic!("Expected TkEnum complete type object"),
+    }
 }

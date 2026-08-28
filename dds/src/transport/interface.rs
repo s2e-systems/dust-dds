@@ -1,34 +1,33 @@
 use crate::{
-    dcps::dcps_mail::{DcpsMail, MessageServiceMail},
-    dds_async::domain_participant_factory::DcpsSender,
-    infrastructure::instance::InstanceHandle,
-    transport::types::Locator,
+    dcps::dcps_mail::WireMail, dds_async::domain_participant_factory::WireSender,
+    infrastructure::instance::InstanceHandle, transport::types::Locator,
 };
 use alloc::{boxed::Box, vec::Vec};
 
 pub trait WriteMessage {
-    fn write_message(&self, buf: &[u8], locators: &[Locator]);
+    fn write_buffer_mut(&mut self) -> &mut [u8];
+    fn write_message(&mut self, len: usize, locators: &[Locator]);
 }
 
 #[derive(Clone)]
 pub struct TransportDataReceiver {
     participant_handle: InstanceHandle,
-    dcps_sender: DcpsSender,
+    wire_sender: WireSender,
 }
 impl TransportDataReceiver {
-    pub(crate) fn new(participant_handle: InstanceHandle, dcps_sender: DcpsSender) -> Self {
+    pub(crate) fn new(participant_handle: InstanceHandle, wire_sender: WireSender) -> Self {
         Self {
             participant_handle,
-            dcps_sender,
+            wire_sender,
         }
     }
 
     pub async fn receive_message(&self, data_message: Vec<u8>) {
-        self.dcps_sender
-            .send(DcpsMail::Message(MessageServiceMail::HandleData {
+        self.wire_sender
+            .send(WireMail {
                 participant_handle: self.participant_handle,
                 data_message,
-            }))
+            })
             .await;
     }
 }

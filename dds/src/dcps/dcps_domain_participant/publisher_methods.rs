@@ -15,6 +15,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        time::Time,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
     runtime::DdsRuntime,
@@ -34,17 +35,23 @@ impl DcpsDomainParticipant {
         dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
             .iter()
-            .find(|x| x.topic_name == topic_name)
+            .find(|x| x.topic_name.as_ref() == topic_name.as_str())
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let topic_kind = TopicKind::from(&topic.type_support);
+        let topic_kind = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .map(|dt| TopicKind::from(&dt))
+            .unwrap_or(TopicKind::NoKey);
 
         let Some(publisher) = self
             .domain_participant
@@ -104,32 +111,43 @@ impl DcpsDomainParticipant {
             Guid::new(guid.prefix(), entity_id),
             self.transport.fragment_size,
         );
+        let key_holder_type = super::topic_entity::get_topic_type_support(
+            &topic.topic_name,
+            &self.domain_participant.content_filtered_topic_list,
+            &self.domain_participant.locally_created_topic_list,
+            &self.domain_participant.type_register,
+        )
+        .as_ref()
+        .map(crate::dcps::xtypes_glue::key_and_instance_handle::KeyHolderType::new)
+        .unwrap_or_default();
+
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
         let data_writer = UserDefinedDataWriter::new(
             writer_handle,
             transport_writer,
-            topic_name,
+            topic.topic_name.clone(),
             listener_sender,
             listener_mask,
             qos,
+            key_holder_type,
         );
         let data_writer_handle = data_writer.instance_handle;
 
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, &writer_handle, runtime)?;
+            self.enable_data_writer(publisher_handle, &writer_handle, now)?;
         }
 
         Ok(data_writer_handle)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn delete_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         datawriter_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -146,7 +164,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer, runtime);
+            self.announce_deleted_data_writer(data_writer, now);
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)

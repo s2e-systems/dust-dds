@@ -1,6 +1,6 @@
 use crate::{
     dcps::xtypes_glue::key_and_instance_handle::{
-        KeyHolderData, get_instance_handle_from_key_holder_data,
+        KeyHolderData, KeyHolderType, get_instance_handle_from_key_holder_data,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -13,17 +13,13 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
-    runtime::DdsRuntime,
-    transport::{
-        interface::WriteMessage,
-        types::{CacheChange, ChangeKind, TopicKind},
-    },
+    transport::types::{CacheChange, ChangeKind, TopicKind},
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
     },
 };
-use alloc::{collections::VecDeque, string::String, vec::Vec};
+use alloc::{collections::VecDeque, sync::Arc, vec::Vec};
 
 use super::rtps_traits::RtpsWriter;
 
@@ -42,19 +38,21 @@ pub struct IncompatibleSubscriptions {
 pub struct DataWriterEntity<T> {
     pub instance_handle: InstanceHandle,
     pub transport_writer: T,
-    pub topic_name: String,
+    pub topic_name: Arc<str>,
     pub enabled: bool,
     pub last_change_sequence_number: i64,
     pub qos: DataWriterQos,
     pub registered_instance_info: Vec<RegisteredInstanceInfo>,
+    pub key_holder_type: KeyHolderType,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: T,
-        topic_name: String,
+        topic_name: Arc<str>,
         qos: DataWriterQos,
+        key_holder_type: KeyHolderType,
     ) -> Self {
         Self {
             instance_handle,
@@ -64,6 +62,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             last_change_sequence_number: 0,
             qos,
             registered_instance_info: Vec::new(),
+            key_holder_type,
         }
     }
 
@@ -73,8 +72,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         serialized_data: Vec<u8>,
         sample_timestamp: Time,
         now: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self
             .registered_instance_info
@@ -162,8 +159,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             }
         }
 
-        self.transport_writer
-            .add_change(change, message_writer, runtime);
+        self.transport_writer.add_change(change);
 
         Ok(())
     }
@@ -173,15 +169,13 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         dynamic_data: &DynamicData<'static>,
         type_support: &DynamicType<'static>,
         timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -211,8 +205,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
+        self.transport_writer.add_change(cache_change);
 
         Ok(())
     }
@@ -227,8 +220,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -260,15 +253,13 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         dynamic_data: &DynamicData<'static>,
         type_support: &DynamicType<'static>,
         timestamp: Time,
-        message_writer: &(impl WriteMessage + ?Sized),
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)?;
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
 
         if TopicKind::from(type_support) == TopicKind::NoKey {
             return Err(DdsError::IllegalOperation);
@@ -306,8 +297,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
         };
-        self.transport_writer
-            .add_change(cache_change, message_writer, runtime);
+        self.transport_writer.add_change(cache_change);
         Ok(())
     }
 }

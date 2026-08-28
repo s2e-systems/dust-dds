@@ -10,9 +10,7 @@ use crate::{
         },
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::{
-            KeyHolderData, get_instance_handle_from_key_holder_data,
-        },
+        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data_and_key_holder,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -22,7 +20,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::DdsRuntime,
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -201,18 +199,22 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
-        data_writer.register_w_timestamp(dynamic_data, &topic.type_support, timestamp)
+        data_writer.register_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn unregister_instance(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -235,14 +237,13 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
-        data_writer.unregister_w_timestamp(
-            dynamic_data,
-            &topic.type_support,
-            timestamp,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        )
+        data_writer.unregister_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self))]
@@ -272,15 +273,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
-        {
-            Ok(k) => k,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
+        let instance_handle = match get_instance_handle_from_dynamic_data_and_key_holder(
+            dynamic_data,
+            &data_writer.key_holder_type,
+        ) {
             Ok(k) => k,
             Err(e) => {
                 return Err(e.into());
@@ -295,17 +291,16 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, reply_sender, runtime))]
+    #[tracing::instrument(skip(self, reply_sender))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
+        now: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
     ) {
-        let now = runtime.clock().now();
         let Some(publisher) = self
             .domain_participant
             .user_defined_publisher_list
@@ -337,16 +332,10 @@ impl DcpsDomainParticipant {
             }
         };
 
-        let mut member_list = Vec::new();
-        let key_holder_data = match KeyHolderData::from_dynamic_data(dynamic_data, &mut member_list)
-        {
-            Ok(h) => h,
-            Err(e) => {
-                reply_sender.send(Err(e.into()));
-                return;
-            }
-        };
-        let instance_handle = match get_instance_handle_from_key_holder_data(&key_holder_data) {
+        let instance_handle = match get_instance_handle_from_dynamic_data_and_key_holder(
+            dynamic_data,
+            &data_writer.key_holder_type,
+        ) {
             Ok(h) => h,
             Err(e) => {
                 reply_sender.send(Err(e.into()));
@@ -380,7 +369,7 @@ impl DcpsDomainParticipant {
                         return;
                     }
                     let expiration_time = match data_writer.qos.reliability.max_blocking_time {
-                        DurationKind::Finite(t) => Some(runtime.clock().now() + t),
+                        DurationKind::Finite(t) => Some(now + t),
                         DurationKind::Infinite => None,
                     };
                     data_writer.pending_write_sample = Some(PendingWriteSample {
@@ -406,14 +395,8 @@ impl DcpsDomainParticipant {
             }
         }
 
-        let write_result = data_writer.write_w_timestamp(
-            instance_handle,
-            serialized_data,
-            timestamp,
-            now,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        );
+        let write_result =
+            data_writer.write_w_timestamp(instance_handle, serialized_data, timestamp, now);
         if write_result.is_err() {
             reply_sender.send(write_result);
             return;
@@ -422,14 +405,13 @@ impl DcpsDomainParticipant {
         reply_sender.send(Ok(()));
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
-        runtime: &impl DdsRuntime,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -452,14 +434,13 @@ impl DcpsDomainParticipant {
             .iter()
             .find(|x| x.topic_name == data_writer.topic_name)
             .expect("Writer topic must exist");
+        let type_support = self
+            .domain_participant
+            .type_register
+            .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
+            .expect("Type must exist in type_register");
 
-        data_writer.dispose_w_timestamp(
-            dynamic_data,
-            &topic.type_support,
-            timestamp,
-            self.transport.message_writer.as_ref(),
-            runtime,
-        )
+        data_writer.dispose_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
     #[tracing::instrument(skip(self))]
@@ -487,12 +468,12 @@ impl DcpsDomainParticipant {
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -512,18 +493,19 @@ impl DcpsDomainParticipant {
         if !data_writer.enabled {
             data_writer.enabled = true;
 
-            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
+            self.announce_data_writer(publisher_handle, data_writer_handle, now);
+            self.process_discovered_readers(now);
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, runtime))]
+    #[tracing::instrument(skip(self))]
     pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         qos: QosKind<DataWriterQos>,
-        runtime: &impl DdsRuntime,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -552,7 +534,7 @@ impl DcpsDomainParticipant {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle, runtime);
+            self.announce_data_writer(publisher_handle, data_writer_handle, now);
         }
         Ok(())
     }
@@ -596,23 +578,17 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_pending_write_samples(&mut self, runtime: &impl DdsRuntime) {
-        let now = runtime.clock().now();
+    pub fn process_pending_write_samples(&mut self, now: Time) {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let Some(pending) = &data_writer.pending_write_sample {
                     if !data_writer.enabled {
                         continue;
                     }
-                    let mut member_list = Vec::new();
-                    let Ok(key_holder_data) =
-                        KeyHolderData::from_dynamic_data(&pending.dynamic_data, &mut member_list)
-                    else {
-                        continue;
-                    };
-                    let Ok(instance_handle) =
-                        get_instance_handle_from_key_holder_data(&key_holder_data)
-                    else {
+                    let Ok(instance_handle) = get_instance_handle_from_dynamic_data_and_key_holder(
+                        &pending.dynamic_data,
+                        &data_writer.key_holder_type,
+                    ) else {
                         continue;
                     };
 
@@ -678,8 +654,6 @@ impl DcpsDomainParticipant {
                             serialized_data,
                             pending.timestamp,
                             now,
-                            self.transport.message_writer.as_ref(),
-                            runtime,
                         );
                         if write_result.is_err() {
                             pending.reply_sender.send(write_result);

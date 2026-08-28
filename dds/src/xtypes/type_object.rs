@@ -4,7 +4,6 @@ use crate::{
     xtypes::{
         dynamic_type::{DynamicType, DynamicTypeMember},
         serializer::serialize_without_header_cdr2_le,
-        type_object::TypeIdentifier::EkMinimal,
         type_support::TypeSupport,
     },
 };
@@ -214,7 +213,7 @@ pub const MEMBER_FLAG_IS_EXTERNAL: MemberFlag = MemberFlag(1 << 2); // X StructM
 /// Flag indicating the member is optional.
 pub const MEMBER_FLAG_IS_OPTIONAL: MemberFlag = MemberFlag(1 << 3); // O StructMember
 /// Flag indicating the member must be understood by the reader.
-pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember
+pub const MEMBER_FLAG_IS_MUST_UNDERSTAND: MemberFlag = MemberFlag(1 << 4); // M StructMember, UnionDiscriminator
 /// Flag indicating the member is part of the type's key.
 pub const MEMBER_FLAG_IS_KEY: MemberFlag = MemberFlag(1 << 5); // K StructMember, UnionDiscriminator
 /// Flag indicating the member is the default member (e.g. for unions).
@@ -228,7 +227,7 @@ pub type StructMemberFlag = MemberFlag; // T1, T2, O, M, K, X
 /// Flags that apply to union members.
 pub type UnionMemberFlag = MemberFlag; // T1, T2, D, X
 /// Flags that apply to union discriminator.
-pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K
+pub type UnionDiscriminatorFlag = MemberFlag; // T1, T2, K, M
 /// Flags that apply to enumerated literals.
 pub type EnumeratedLiteralFlag = MemberFlag; // D
 /// Flags that apply to annotation parameters.
@@ -1915,8 +1914,11 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
                 };
                 if value.descriptor.is_nested {
-                    struct_flags |= TYPE_FLAG_IS_NESTED
-                };
+                    struct_flags |= TYPE_FLAG_IS_NESTED;
+                }
+                if value.descriptor.is_autoid_hash {
+                    struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
+                }
 
                 let header = MinimalStructHeader {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type
@@ -1940,11 +1942,12 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = MinimalEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = MinimalEnumeratedType {
                     enum_flags,
@@ -1974,6 +1977,9 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                         if d.descriptor.is_key {
                             member_flags |= MEMBER_FLAG_IS_KEY;
                         }
+                        if d.descriptor.is_must_understand {
+                            member_flags |= MEMBER_FLAG_IS_MUST_UNDERSTAND;
+                        }
                         MinimalDiscriminatorMember {
                             common: CommonDiscriminatorMember {
                                 member_flags,
@@ -2000,13 +2006,27 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
 
                 MinimalTypeObject::TkUnion { union_type }
             }
+            TypeKind::BITMASK => {
+                let bitmask_flags = TYPE_FLAG_IS_FINAL;
+                let bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
+                let header = MinimalBitmaskHeader {
+                    common: CommonEnumeratedHeader { bit_bound: bound },
+                };
+                let flag_seq = value.member_list.iter().map(From::from).collect();
+                let bitmask_type = MinimalBitmaskType {
+                    bitmask_flags,
+                    header,
+                    flag_seq,
+                };
+                MinimalTypeObject::TkBitmask { bitmask_type }
+            }
             t => todo!("Not yet implemeneted for {t:?}"),
         }
     }
 }
 
-impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
-    fn from(value: DynamicType<'a>) -> Self {
+impl From<DynamicType<'_>> for CompleteTypeObject {
+    fn from(value: DynamicType) -> Self {
         match value.get_kind() {
             TypeKind::STRUCTURE => {
                 let mut struct_flags = match value.descriptor.extensibility_kind {
@@ -2015,8 +2035,11 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     ExtensibilityKind::Mutable => TYPE_FLAG_IS_MUTABLE,
                 };
                 if value.descriptor.is_nested {
-                    struct_flags |= TYPE_FLAG_IS_NESTED
-                };
+                    struct_flags |= TYPE_FLAG_IS_NESTED;
+                }
+                if value.descriptor.is_autoid_hash {
+                    struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
+                }
 
                 let header = CompleteStructHeader {
                     base_type: TypeIdentifier::TkNone, // TODO: Include base type
@@ -2044,8 +2067,9 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     enum_flags |= TYPE_FLAG_IS_NESTED;
                 };
 
+                let bit_bound = value.descriptor.bound.first().copied().unwrap_or(32) as u16;
                 let header = CompleteEnumeratedHeader {
-                    common: CommonEnumeratedHeader { bit_bound: 32 }, //TODO: Add correct bit_bound
+                    common: CommonEnumeratedHeader { bit_bound },
                     detail: CompleteTypeDetail {
                         ann_builtin: None,
                         ann_custom: None,
@@ -2053,7 +2077,7 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                     },
                 };
 
-                let literal_seq = Vec::new(); // TODO: fill up
+                let literal_seq = value.member_list.iter().map(From::from).collect();
 
                 let enumerated_type = CompleteEnumeratedType {
                     enum_flags,
@@ -2073,7 +2097,7 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                         type_name: String::from(value.descriptor.name),
                     },
                 };
-                let flag_seq = Vec::new();
+                let flag_seq = value.member_list.iter().map(From::from).collect();
                 let bitmask_type = CompleteBitmaskType {
                     bitmask_flags,
                     header,
@@ -2105,6 +2129,9 @@ impl<'a> From<DynamicType<'a>> for CompleteTypeObject {
                         let mut member_flags = MemberFlag::from(d.descriptor.try_construct_kind);
                         if d.descriptor.is_key {
                             member_flags |= MEMBER_FLAG_IS_KEY;
+                        }
+                        if d.descriptor.is_must_understand {
+                            member_flags |= MEMBER_FLAG_IS_MUST_UNDERSTAND;
                         }
                         CompleteDiscriminatorMember {
                             common: CommonDiscriminatorMember {
@@ -2235,9 +2262,14 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind,
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainSequenceSmall {
@@ -2267,9 +2299,14 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
                         .map(From::from)
                         .unwrap_or(TypeIdentifier::TkNone),
                 );
+                let equiv_kind = if element_identifier.is_fully_descriptive() {
+                    EK_BOTH
+                } else {
+                    EK_COMPLETE
+                };
                 let header = PlainCollectionHeader {
-                    equiv_kind: EK_MINIMAL,
-                    element_flags: MEMBER_FLAG_MINIMAL_MASK,
+                    equiv_kind,
+                    element_flags: MemberFlag::from(TryConstructKind::Discard),
                 };
                 if bound <= u8::MAX as u32 {
                     TypeIdentifier::TiPlainArraySmall {
@@ -2338,8 +2375,96 @@ impl From<&DynamicTypeMember> for CompleteStructMember {
     }
 }
 
+impl From<&DynamicTypeMember> for MinimalEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let mut flags = MemberFlag::default();
+        if value.descriptor.is_default_label {
+            flags |= MEMBER_FLAG_IS_DEFAULT;
+        }
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags,
+        };
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalEnumeratedLiteral { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteEnumeratedLiteral {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let literal_value = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32);
+        let mut flags = MemberFlag::default();
+        if value.descriptor.is_default_label {
+            flags |= MEMBER_FLAG_IS_DEFAULT;
+        }
+        let common = CommonEnumeratedLiteral {
+            value: literal_value,
+            flags,
+        };
+        let detail = CompleteMemberDetail {
+            name: String::from(value.get_name()),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteEnumeratedLiteral { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for MinimalBitflag {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let position = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32) as u16;
+        let flags = MemberFlag::default();
+        let common = CommonBitflag { position, flags };
+        let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
+        let detail = MinimalMemberDetail {
+            name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
+        };
+        MinimalBitflag { common, detail }
+    }
+}
+
+impl From<&DynamicTypeMember> for CompleteBitflag {
+    fn from(value: &DynamicTypeMember) -> Self {
+        let position = value
+            .descriptor
+            .label
+            .first()
+            .copied()
+            .unwrap_or(value.get_id() as i32) as u16;
+        let flags = MemberFlag::default();
+        let common = CommonBitflag { position, flags };
+        let detail = CompleteMemberDetail {
+            name: String::from(value.get_name()),
+            ann_builtin: None,
+            ann_custom: None,
+        };
+        CompleteBitflag { common, detail }
+    }
+}
+
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
+        let dependent_typeid_count = if value.has_dependencies() { -1 } else { 0 };
+
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
         };
@@ -2381,7 +2506,7 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count: 0,
+                dependent_typeid_count,
                 dependent_typeids: Vec::new(),
             },
             complete: TypeIdentifierWithDependencies {
@@ -2406,11 +2531,36 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_complete_type_object.len() as u32,
                 },
-                dependent_typeid_count: 0,
+                dependent_typeid_count,
                 dependent_typeids: Vec::new(),
             },
         }
     }
+}
+
+/// Returns the sequence of dependent [`TypeIdentifierWithSize`] for all constructed dependencies of `dynamic_type`.
+pub fn get_type_dependencies_with_size(dynamic_type: DynamicType) -> Vec<TypeIdentifierWithSize> {
+    let deps = dynamic_type.get_dependencies();
+    deps.into_iter()
+        .map(|dep| {
+            let complete_type_object = TypeObject::EkComplete {
+                complete: CompleteTypeObject::from(dep),
+            };
+            let data = complete_type_object.create_dynamic_sample();
+            let serialized =
+                serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+            let hash = md5::compute(&serialized);
+            TypeIdentifierWithSize {
+                type_id: TypeIdentifier::EkComplete {
+                    equivalence_hash: [
+                        hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+                        hash[8], hash[9], hash[10], hash[11], hash[12], hash[13],
+                    ],
+                },
+                typeobject_serialized_size: serialized.len() as u32,
+            }
+        })
+        .collect()
 }
 
 impl From<TryConstructKind> for MemberFlag {
@@ -2424,11 +2574,52 @@ impl From<TryConstructKind> for MemberFlag {
 }
 
 impl TypeIdentifier {
+    /// 7.3.4.6.1 Fully-descriptive TypeIdentifiers
+    pub fn is_fully_descriptive(&self) -> bool {
+        match self {
+            TypeIdentifier::TkBoolean
+            | TypeIdentifier::TkByteType
+            | TypeIdentifier::TkInt8Type
+            | TypeIdentifier::TkInt16Type
+            | TypeIdentifier::TkInt32Type
+            | TypeIdentifier::TkInt64Type
+            | TypeIdentifier::TkUint8Type
+            | TypeIdentifier::TkUint16Type
+            | TypeIdentifier::TkUint32Type
+            | TypeIdentifier::TkUint64Type
+            | TypeIdentifier::TkFloat32Type
+            | TypeIdentifier::TkFloat64Type
+            | TypeIdentifier::TkFloat128Type
+            | TypeIdentifier::TkChar8Type
+            | TypeIdentifier::TkChar16Type
+            | TypeIdentifier::TiString8Small { .. }
+            | TypeIdentifier::TiString8Large { .. }
+            | TypeIdentifier::TiString16Small { .. }
+            | TypeIdentifier::TiString16Large { .. } => true,
+            TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } => {
+                seq_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainSequenceLarge { seq_ldefn } => {
+                seq_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArraySmall { array_sdefn } => {
+                array_sdefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainArrayLarge { array_ldefn } => {
+                array_ldefn.header.equiv_kind == EK_BOTH
+            }
+            TypeIdentifier::TiPlainMapSmall { map_sdefn } => map_sdefn.header.equiv_kind == EK_BOTH,
+            TypeIdentifier::TiPlainMapLarge { map_ldefn } => map_ldefn.header.equiv_kind == EK_BOTH,
+            _ => false,
+        }
+    }
+
     /// 7.2.4.4 Assignability Rules
     pub fn is_assignable_from(&self, other: &TypeIdentifier) -> bool {
         self.is_assignable_from_w_type_consistency(
             other,
             &TypeConsistencyEnforcementQosPolicy::const_default(),
+            &|_| None,
         )
     }
     /// Assignability rules taking into account TypeConsistencyEnforcementQosPolicy
@@ -2436,64 +2627,151 @@ impl TypeIdentifier {
         &self,
         other: &TypeIdentifier,
         type_consistency: &TypeConsistencyEnforcementQosPolicy,
+        type_resolver: &dyn Fn(&TypeIdentifier) -> Option<CompleteTypeObject>,
     ) -> bool {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType => matches!(
-                other,
-                TypeIdentifier::TkByteType
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt8Type => matches!(
-                other,
-                TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint8Type => matches!(
-                other,
-                TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt16Type => matches!(
-                other,
-                TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint16Type => matches!(
-                other,
-                TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt32Type => matches!(
-                other,
-                TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint32Type => matches!(
-                other,
-                TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkInt64Type => matches!(
-                other,
-                TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
-            TypeIdentifier::TkUint64Type => matches!(
-                other,
-                TypeIdentifier::TkUint64Type
-                    | TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::EkMinimal { .. }
-            ),
+            TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => match other {
+                TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (1..=8).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (1..=8).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt8Type => match other {
+                TypeIdentifier::TkInt8Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (1..=8).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt16Type => match other {
+                TypeIdentifier::TkInt16Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (9..=16).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint16Type => match other {
+                TypeIdentifier::TkUint16Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (9..=16).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (9..=16).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt32Type => match other {
+                TypeIdentifier::TkInt32Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (17..=32).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint32Type => match other {
+                TypeIdentifier::TkUint32Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (17..=32).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (17..=32).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkInt64Type => match other {
+                TypeIdentifier::TkInt64Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (33..=64).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
+            TypeIdentifier::TkUint64Type => match other {
+                TypeIdentifier::TkUint64Type => true,
+                TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                    if let Some(obj) = type_resolver(other) {
+                        match obj {
+                            CompleteTypeObject::TkBitmask { bitmask_type } => {
+                                (33..=64).contains(&bitmask_type.header.common.bit_bound)
+                            }
+                            CompleteTypeObject::TkEnum { enumerated_type } => {
+                                (33..=64).contains(&enumerated_type.header.common.bit_bound)
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        true
+                    }
+                }
+                _ => false,
+            },
             TypeIdentifier::TkFloat32Type => matches!(other, TypeIdentifier::TkFloat32Type),
             TypeIdentifier::TkFloat64Type => matches!(other, TypeIdentifier::TkFloat64Type),
             TypeIdentifier::TkFloat128Type => matches!(other, TypeIdentifier::TkFloat128Type),
@@ -2560,6 +2838,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
@@ -2570,6 +2849,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2583,6 +2863,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 TypeIdentifier::TiPlainSequenceLarge { seq_ldefn: t2 } => {
@@ -2593,6 +2874,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2603,6 +2885,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2613,6 +2896,7 @@ impl TypeIdentifier {
                         && t1.element_identifier.is_assignable_from_w_type_consistency(
                             &t2.element_identifier,
                             type_consistency,
+                            type_resolver,
                         )
                 }
                 _ => false,
@@ -2620,32 +2904,97 @@ impl TypeIdentifier {
             TypeIdentifier::TiPlainMapSmall { map_sdefn: _ } => todo!(),
             TypeIdentifier::TiPlainMapLarge { map_ldefn: _ } => todo!(),
             TypeIdentifier::TiStronglyConnectedComponent { sc_component_id: _ } => todo!(),
-            TypeIdentifier::EkComplete { .. } => matches!(
-                other,
-                TypeIdentifier::EkComplete { .. }
-                    | TypeIdentifier::TkByteType
-                    | TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::TkUint64Type
-            ),
-            EkMinimal { .. } => matches!(
-                other,
-                TypeIdentifier::EkMinimal { .. }
-                    | TypeIdentifier::TkByteType
-                    | TypeIdentifier::TkInt8Type
-                    | TypeIdentifier::TkUint8Type
-                    | TypeIdentifier::TkInt16Type
-                    | TypeIdentifier::TkUint16Type
-                    | TypeIdentifier::TkInt32Type
-                    | TypeIdentifier::TkUint32Type
-                    | TypeIdentifier::TkInt64Type
-                    | TypeIdentifier::TkUint64Type
-            ),
+            TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
+                if let Some(obj) = type_resolver(self) {
+                    match &obj {
+                        CompleteTypeObject::TkBitmask { bitmask_type } => {
+                            let bound = bitmask_type.header.common.bit_bound;
+                            match other {
+                                TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => {
+                                    (1..=8).contains(&bound)
+                                }
+                                TypeIdentifier::TkUint16Type => (9..=16).contains(&bound),
+                                TypeIdentifier::TkUint32Type => (17..=32).contains(&bound),
+                                TypeIdentifier::TkUint64Type => (33..=64).contains(&bound),
+                                TypeIdentifier::EkComplete { .. }
+                                | TypeIdentifier::EkMinimal { .. } => {
+                                    if let Some(other_obj) = type_resolver(other) {
+                                        obj.is_assignable_from_w_type_consistency(
+                                            &other_obj,
+                                            type_consistency,
+                                            type_resolver,
+                                        )
+                                    } else {
+                                        true
+                                    }
+                                }
+                                _ => false,
+                            }
+                        }
+                        CompleteTypeObject::TkEnum { enumerated_type } => {
+                            let bound = enumerated_type.header.common.bit_bound;
+                            match other {
+                                TypeIdentifier::TkByteType
+                                | TypeIdentifier::TkInt8Type
+                                | TypeIdentifier::TkUint8Type => (1..=8).contains(&bound),
+                                TypeIdentifier::TkInt16Type | TypeIdentifier::TkUint16Type => {
+                                    (9..=16).contains(&bound)
+                                }
+                                TypeIdentifier::TkInt32Type | TypeIdentifier::TkUint32Type => {
+                                    (17..=32).contains(&bound)
+                                }
+                                TypeIdentifier::TkInt64Type | TypeIdentifier::TkUint64Type => {
+                                    (33..=64).contains(&bound)
+                                }
+                                TypeIdentifier::EkComplete { .. }
+                                | TypeIdentifier::EkMinimal { .. } => {
+                                    if let Some(other_obj) = type_resolver(other) {
+                                        obj.is_assignable_from_w_type_consistency(
+                                            &other_obj,
+                                            type_consistency,
+                                            type_resolver,
+                                        )
+                                    } else {
+                                        true
+                                    }
+                                }
+                                _ => false,
+                            }
+                        }
+                        _ => {
+                            if let TypeIdentifier::EkComplete { .. }
+                            | TypeIdentifier::EkMinimal { .. } = other
+                            {
+                                if let Some(other_obj) = type_resolver(other) {
+                                    obj.is_assignable_from_w_type_consistency(
+                                        &other_obj,
+                                        type_consistency,
+                                        type_resolver,
+                                    )
+                                } else {
+                                    true
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                    }
+                } else {
+                    matches!(
+                        other,
+                        TypeIdentifier::EkComplete { .. }
+                            | TypeIdentifier::TkByteType
+                            | TypeIdentifier::TkInt8Type
+                            | TypeIdentifier::TkUint8Type
+                            | TypeIdentifier::TkInt16Type
+                            | TypeIdentifier::TkUint16Type
+                            | TypeIdentifier::TkInt32Type
+                            | TypeIdentifier::TkUint32Type
+                            | TypeIdentifier::TkInt64Type
+                            | TypeIdentifier::TkUint64Type
+                    )
+                }
+            }
             TypeIdentifier::Default { extended_type: _ } => todo!(),
         }
     }
@@ -2658,6 +3007,7 @@ impl CompleteTypeObject {
         self.is_assignable_from_w_type_consistency(
             t2,
             &TypeConsistencyEnforcementQosPolicy::const_default(),
+            &|_| None,
         )
     }
 
@@ -2666,6 +3016,7 @@ impl CompleteTypeObject {
         &self,
         t2: &CompleteTypeObject,
         type_consistency: &TypeConsistencyEnforcementQosPolicy,
+        type_resolver: &dyn Fn(&TypeIdentifier) -> Option<CompleteTypeObject>,
     ) -> bool {
         if self == t2 {
             return true;
@@ -2710,6 +3061,7 @@ impl CompleteTypeObject {
                             .is_assignable_from_w_type_consistency(
                                 &m2.common.member_type_id,
                                 type_consistency,
+                                type_resolver,
                             )
                         {
                             return false;
@@ -2736,6 +3088,18 @@ impl CompleteTypeObject {
                     return false;
                 }
 
+                if type_consistency.prevent_type_widening {
+                    for m1 in &t1.member_seq {
+                        if !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
                 // • For any member "m2" in T2, if there is a member "m1" in T1 with the same member ID, then the type
                 //   KeyErased(m1.type) is-assignable-from the type KeyErased(m2.type).
                 let mut members_are_assignable = true;
@@ -2755,12 +3119,53 @@ impl CompleteTypeObject {
                             .is_assignable_from_w_type_consistency(
                                 &m2.common.member_type_id,
                                 type_consistency,
+                                type_resolver,
                             );
                     } else if !type_consistency.ignore_member_names
                         && t1
                             .member_seq
                             .iter()
                             .any(|m1| m1.detail.name == m2.detail.name)
+                    {
+                        return false;
+                    }
+                }
+
+                // • Key consistency rules (Clause 7.2.4.4.2 Structure Types)
+                // • Either both T1 and T2 have at least one key member, or neither does.
+                let t1_has_key = t1
+                    .member_seq
+                    .iter()
+                    .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                let t2_has_key = t2
+                    .member_seq
+                    .iter()
+                    .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                if t1_has_key != t2_has_key {
+                    return false;
+                }
+
+                // • For any key member in T1, there is a corresponding key member in T2 with the same member ID.
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
+                            .member_seq
+                            .iter()
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+
+                // • For any key member in T2, there is a corresponding key member in T1 with the same member ID.
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
                     {
                         return false;
                     }
@@ -2797,51 +3202,8 @@ impl CompleteTypeObject {
                     }
                 }
 
-                // • Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same
-                //   member ID) in both T1 and T2.
-                for m1 in &t1.member_seq {
-                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
-                    if is_key
-                        && !t2
-                            .member_seq
-                            .iter()
-                            .any(|m2| m2.common.member_id == m1.common.member_id)
-                    {
-                        return false;
-                    }
-                }
-                for m2 in &t2.member_seq {
-                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
-                    if is_key
-                        && !t1
-                            .member_seq
-                            .iter()
-                            .any(|m1| m1.common.member_id == m2.common.member_id)
-                    {
-                        return false;
-                    }
-                }
-
-                // • For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies
-                //   m1.type.length >= m2.type.length.
-                // TODO
-
-                // • For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that
-                //   all literals in m2.type appear as literals in m1.type.
-                // TODO
-
-                // • For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies
-                //   m1.type.length >= m2.type.length.
-                // TODO
-
-                // • For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID
+                // • For any member "m2" in T2, if there is a key member "m1" in T1 with the same member ID, then the type
                 //   verifies that KeyHolder(m1.type) is-assignable-from KeyHolder(m2.type).
-                // TODO
-
-                // • For any union key member m2 in T2, the m1 member of T1 with the same member ID verifies that: For
-                //   every discriminator value of m2.type that selects a member m22 in m2.type, the discriminator value
-                // TODO
-
                 members_are_assignable
             }
             (
@@ -2871,38 +3233,195 @@ impl CompleteTypeObject {
                     .is_assignable_from_w_type_consistency(
                         &t2.discriminator.common.type_id,
                         type_consistency,
+                        type_resolver,
                     )
                 {
                     return false;
                 }
 
-                let mut members_are_assignable = true;
-                for m2 in t2.member_seq.iter() {
-                    if let Some(m1) = t1
+                // • Key consistency rules (Clause 7.2.4.4.3 Union Types)
+                let t1_disc_is_key =
+                    (t1.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                let t2_disc_is_key =
+                    (t2.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                if t1_disc_is_key != t2_disc_is_key {
+                    return false;
+                }
+
+                let t1_has_key = t1_disc_is_key
+                    || t1
                         .member_seq
                         .iter()
-                        .find(|m1| m1.common.member_id == m2.common.member_id)
-                    {
-                        if !type_consistency.ignore_member_names && m1.detail.name != m2.detail.name
-                        {
-                            return false;
-                        }
-                        members_are_assignable &=
-                            m1.common.type_id.is_assignable_from_w_type_consistency(
-                                &m2.common.type_id,
-                                type_consistency,
-                            );
-                    } else if !type_consistency.ignore_member_names
-                        && t1
+                        .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                let t2_has_key = t2_disc_is_key
+                    || t2
+                        .member_seq
+                        .iter()
+                        .any(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0);
+                if t1_has_key != t2_has_key {
+                    return false;
+                }
+
+                for m1 in &t1.member_seq {
+                    let is_key = (m1.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t2
                             .member_seq
                             .iter()
-                            .any(|m1| m1.detail.name == m2.detail.name)
+                            .any(|m2| m2.common.member_id == m1.common.member_id)
+                    {
+                        return false;
+                    }
+                }
+                for m2 in &t2.member_seq {
+                    let is_key = (m2.common.member_flags.0 & MEMBER_FLAG_IS_KEY.0) != 0;
+                    if is_key
+                        && !t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.member_id == m2.common.member_id)
                     {
                         return false;
                     }
                 }
 
-                members_are_assignable
+                let t1_default = t1
+                    .member_seq
+                    .iter()
+                    .find(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_DEFAULT.0) != 0);
+                let t2_default = t2
+                    .member_seq
+                    .iter()
+                    .find(|m| (m.common.member_flags.0 & MEMBER_FLAG_IS_DEFAULT.0) != 0);
+
+                if (is_t1_final && is_t2_final) && (t1_default.is_some() != t2_default.is_some()) {
+                    return false;
+                }
+
+                // If prevent_type_widening is true, every label in t1 must exist in t2
+                if type_consistency.prevent_type_widening {
+                    if t1_default.is_some() && t2_default.is_none() {
+                        return false;
+                    }
+                    for m1 in &t1.member_seq {
+                        for l1 in &m1.common.label_seq {
+                            if !t2
+                                .member_seq
+                                .iter()
+                                .any(|m2| m2.common.label_seq.contains(l1))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                // If not ignoring member names, members with the same ID must have the same name
+                if !type_consistency.ignore_member_names {
+                    for m2 in &t2.member_seq {
+                        if let Some(m1) = t1
+                            .member_seq
+                            .iter()
+                            .find(|m1| m1.common.member_id == m2.common.member_id)
+                        {
+                            if m1.detail.name != m2.detail.name {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                // Find member by label in t1
+                let find_t1_member = |label: i32| -> Option<&CompleteUnionMember> {
+                    t1.member_seq
+                        .iter()
+                        .find(|m| m.common.label_seq.contains(&label))
+                        .or(t1_default)
+                };
+
+                // Check that there is at least one common explicit label
+                let mut has_common_label = false;
+                for m2 in &t2.member_seq {
+                    for l2 in &m2.common.label_seq {
+                        if t1
+                            .member_seq
+                            .iter()
+                            .any(|m1| m1.common.label_seq.contains(l2))
+                        {
+                            has_common_label = true;
+                            break;
+                        }
+                    }
+                }
+
+                if !has_common_label {
+                    return false;
+                }
+
+                // For every explicit label in t2, the selected member in t1 must be assignable
+                for m2 in &t2.member_seq {
+                    for l2 in &m2.common.label_seq {
+                        if let Some(m1) = find_t1_member(*l2) {
+                            if !type_consistency.ignore_member_names
+                                && m1.detail.name != m2.detail.name
+                            {
+                                return false;
+                            }
+                            if !m1.common.type_id.is_assignable_from_w_type_consistency(
+                                &m2.common.type_id,
+                                type_consistency,
+                                type_resolver,
+                            ) {
+                                return false;
+                            }
+                        } else if is_t1_final {
+                            return false;
+                        }
+                    }
+                }
+
+                // If t2 has a default case, verify default case compatibility
+                if let Some(m2_def) = t2_default {
+                    if let Some(m1_def) = t1_default {
+                        if !type_consistency.ignore_member_names
+                            && m1_def.detail.name != m2_def.detail.name
+                        {
+                            return false;
+                        }
+                        if !m1_def.common.type_id.is_assignable_from_w_type_consistency(
+                            &m2_def.common.type_id,
+                            type_consistency,
+                            type_resolver,
+                        ) {
+                            return false;
+                        }
+                    }
+                    // Any explicit label in t1 not covered by t2's explicit labels falls into t2's default case
+                    for m1 in &t1.member_seq {
+                        for l1 in &m1.common.label_seq {
+                            if !t2
+                                .member_seq
+                                .iter()
+                                .any(|m2| m2.common.label_seq.contains(l1))
+                            {
+                                if !type_consistency.ignore_member_names
+                                    && m1.detail.name != m2_def.detail.name
+                                {
+                                    return false;
+                                }
+                                if !m1.common.type_id.is_assignable_from_w_type_consistency(
+                                    &m2_def.common.type_id,
+                                    type_consistency,
+                                    type_resolver,
+                                ) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                true
             }
             (
                 CompleteTypeObject::TkEnum {
@@ -2924,8 +3443,8 @@ impl CompleteTypeObject {
 #[cfg(test)]
 mod tests {
     use crate::xtypes::{
-        deserializer::deserialize_top_level_type, serializer::serialize_without_header_cdr2_le,
-        type_support::BoundedString,
+        deserializer::deserialize_top_level_type, dynamic_type::TypeDescriptor,
+        serializer::serialize_without_header_cdr2_le, type_support::BoundedString,
     };
 
     use super::*;
@@ -2942,6 +3461,8 @@ mod tests {
         }
 
         let type_information = TypeInformation::from(ShapeType::get_type());
+        assert_eq!(type_information.complete.dependent_typeid_count, 0);
+        assert_eq!(type_information.minimal.dependent_typeid_count, 0);
         assert_eq!(
             type_information
                 .complete
@@ -2958,6 +3479,43 @@ mod tests {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn type_information_with_dependencies() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        enum Status {
+            Active,
+            Inactive,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct StructWithEnum {
+            id: u32,
+            status: Status,
+        }
+
+        let type_info = TypeInformation::from(StructWithEnum::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct StructWithArrayOfEnum {
+            statuses: [Status; 3],
+        }
+
+        let type_info = TypeInformation::from(StructWithArrayOfEnum::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct NestedStruct {
+            nested: StructWithEnum,
+        }
+
+        let type_info = TypeInformation::from(NestedStruct::get_type());
+        assert_eq!(type_info.complete.dependent_typeid_count, -1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
     }
 
     #[test]
@@ -3155,5 +3713,101 @@ mod tests {
         ];
 
         assert_eq!(buffer, expected.to_vec())
+    }
+
+    #[test]
+    fn test_sequence_and_array_type_identifier_equivalence_kind() {
+        use super::*;
+        use crate::xtypes::dynamic_type::DynamicTypeBuilderFactory;
+
+        let int32_type = DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32);
+
+        // Sequence of primitive -> EK_BOTH
+        let seq_primitive_type =
+            DynamicTypeBuilderFactory::create_sequence_type(int32_type, 10).build();
+        let type_id = TypeIdentifier::from(&seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Sequence of sequence of primitive -> EK_BOTH
+        let seq_seq_primitive_type =
+            DynamicTypeBuilderFactory::create_sequence_type(seq_primitive_type, 5).build();
+        let type_id = TypeIdentifier::from(&seq_seq_primitive_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+
+        // Array of primitive -> EK_BOTH
+        let int32_type = DynamicTypeBuilderFactory::get_primitive_type(TypeKind::INT32);
+        let array_primitive_type =
+            DynamicTypeBuilderFactory::create_array_type(int32_type, vec![10].leak()).build();
+        let type_id = TypeIdentifier::from(&array_primitive_type);
+        if let TypeIdentifier::TiPlainArraySmall { array_sdefn } = type_id {
+            assert_eq!(array_sdefn.header.equiv_kind, EK_BOTH);
+        } else {
+            panic!("Expected TiPlainArraySmall");
+        }
+
+        // Sequence of struct -> EK_COMPLETE
+        let struct_type = DynamicTypeBuilderFactory::create_type(TypeDescriptor {
+            kind: TypeKind::STRUCTURE,
+            name: "MyStruct",
+            base_type: None,
+            discriminator_type: None,
+            bound: &[],
+            element_type: None,
+            key_element_type: None,
+            extensibility_kind: ExtensibilityKind::Final,
+            is_nested: false,
+            is_autoid_hash: false,
+        })
+        .build();
+
+        let seq_struct_type =
+            DynamicTypeBuilderFactory::create_sequence_type(struct_type, 10).build();
+        let type_id = TypeIdentifier::from(&seq_struct_type);
+        if let TypeIdentifier::TiPlainSequenceSmall { seq_sdefn } = type_id {
+            assert_eq!(seq_sdefn.header.equiv_kind, EK_COMPLETE);
+        } else {
+            panic!("Expected TiPlainSequenceSmall");
+        }
+    }
+
+    #[test]
+    fn test_union_discriminator_is_must_understand() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        #[dust_dds(switch(i32))]
+        enum TestUnion {
+            #[dust_dds(case = 1)]
+            A(i32),
+        }
+
+        let minimal_obj = MinimalTypeObject::from(TestUnion::TYPE);
+        if let MinimalTypeObject::TkUnion { union_type } = minimal_obj {
+            assert_ne!(
+                union_type.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0,
+                0
+            );
+        } else {
+            panic!("Expected TkUnion");
+        }
+
+        let complete_obj = CompleteTypeObject::from(TestUnion::TYPE);
+        if let CompleteTypeObject::TkUnion { union_type } = complete_obj {
+            assert_ne!(
+                union_type.discriminator.common.member_flags.0 & MEMBER_FLAG_IS_MUST_UNDERSTAND.0,
+                0
+            );
+        } else {
+            panic!("Expected TkUnion");
+        }
     }
 }

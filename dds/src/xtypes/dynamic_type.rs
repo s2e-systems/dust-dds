@@ -96,6 +96,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             })),
             member_list: &[],
         }
@@ -132,6 +133,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -150,6 +152,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -171,6 +174,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -192,6 +196,7 @@ impl DynamicTypeBuilderFactory {
                 key_element_type: None,
                 extensibility_kind: ExtensibilityKind::Final,
                 is_nested: false,
+                is_autoid_hash: false,
             },
             member_list: Vec::new(),
         }
@@ -274,12 +279,14 @@ impl DynamicTypeBuilderFactory {
         let is_enum = target_node.tag_name().name() == "enum";
         let is_bitmask = target_node.tag_name().name() == "bitmask";
 
-        let ext_str = target_node.attribute("extensibility").unwrap_or("final");
+        let ext_str = target_node
+            .attribute("extensibility")
+            .unwrap_or("appendable");
         let extensibility_kind = match ext_str {
             "final" => ExtensibilityKind::Final,
             "appendable" => ExtensibilityKind::Appendable,
             "mutable" => ExtensibilityKind::Mutable,
-            _ => ExtensibilityKind::Final,
+            _ => ExtensibilityKind::Appendable,
         };
 
         let parse_type_kind = |m_type: &str| -> XTypesResult<TypeKind> {
@@ -381,11 +388,13 @@ impl DynamicTypeBuilderFactory {
             .attribute("bitBound")
             .and_then(|s| s.parse().ok())
             .unwrap_or(32);
-        let bound: &'static [u32] = if is_bitmask {
+        let bound: &'static [u32] = if is_bitmask || is_enum {
             Box::leak(vec![bit_bound].into_boxed_slice())
         } else {
             &[]
         };
+
+        let is_autoid_hash = target_node.attribute("autoid") == Some("hash");
 
         let descriptor = TypeDescriptor {
             kind: if is_union {
@@ -405,6 +414,7 @@ impl DynamicTypeBuilderFactory {
             key_element_type: None,
             extensibility_kind,
             is_nested: target_node.attribute("nested") == Some("true"),
+            is_autoid_hash,
         };
 
         let mut builder = Self::create_type(descriptor);
@@ -426,6 +436,8 @@ impl DynamicTypeBuilderFactory {
         if is_union {
             for child in target_node.children() {
                 if child.is_element() && child.tag_name().name() == "discriminator" {
+                    parse_try_construct_kind(&child, &mut try_construct_kind);
+                    let is_key = child.attribute("key") == Some("true");
                     let member_desc = MemberDescriptor {
                         name: "discriminator",
                         id: member_id,
@@ -434,7 +446,7 @@ impl DynamicTypeBuilderFactory {
                         index,
                         label: &[],
                         try_construct_kind,
-                        is_key: false,
+                        is_key,
                         is_optional: false,
                         is_must_understand: true,
                         is_shared: false,
@@ -453,64 +465,102 @@ impl DynamicTypeBuilderFactory {
                     let mut string_max_length = None;
                     let mut array_dimensions = None;
                     let mut sequence_max_length = None;
-                    let mut label = Vec::new();
+                    let mut m_id = None;
+                    let mut label: Vec<i32> = Vec::new();
                     let mut is_default_label = false;
+                    let mut is_key = false;
 
-                    for case_child in child.children() {
-                        if case_child.is_element()
-                            && case_child.tag_name().name() == "caseDiscriminator"
-                        {
-                            let value_str = case_child
-                                .attribute("value")
-                                .ok_or(XTypesError::InvalidData)?;
-                            if value_str == "default" {
-                                is_default_label = true;
-                            } else if let Some(hex) = value_str.strip_prefix("0x") {
-                                label.push(
-                                    i32::from_str_radix(hex, 16)
-                                        .map_err(|_| XTypesError::InvalidData)?,
-                                );
-                            } else {
-                                label.push(
-                                    value_str
-                                        .parse::<i32>()
-                                        .map_err(|_| XTypesError::InvalidData)?,
+                    for c in child.children() {
+                        if c.is_element() && c.tag_name().name() == "caseDiscriminator" {
+                            if let Some(val) = c.attribute("value") {
+                                if val == "default" {
+                                    is_default_label = true;
+                                } else if let Some(hex) = val.strip_prefix("0x") {
+                                    label.push(
+                                        i32::from_str_radix(hex, 16)
+                                            .map_err(|_| XTypesError::InvalidData)?,
+                                    );
+                                } else if let Ok(parsed_val) = val.parse::<i32>() {
+                                    label.push(parsed_val);
+                                } else if let Some(dt) = discriminator_type {
+                                    if let Ok(enum_member) = dt.get_member_by_name(val) {
+                                        let label_val = enum_member
+                                            .descriptor
+                                            .label
+                                            .first()
+                                            .copied()
+                                            .unwrap_or(enum_member.get_id() as i32);
+                                        label.push(label_val);
+                                    } else {
+                                        return Err(XTypesError::InvalidData);
+                                    }
+                                } else {
+                                    return Err(XTypesError::InvalidData);
+                                }
+                            }
+                        }
+                        if c.is_element() && c.tag_name().name() == "member" {
+                            m_name = c.attribute("name");
+                            m_type = c.attribute("type");
+                            is_key = c.attribute("key") == Some("true");
+                            non_basic_type_name = c.attribute("nonBasicTypeName");
+                            string_max_length = c.attribute("stringMaxLength");
+                            array_dimensions = c.attribute("arrayDimensions");
+                            sequence_max_length = c.attribute("sequenceMaxLength");
+                            parse_try_construct_kind(&c, &mut try_construct_kind);
+                            if let Some(id_str) = c.attribute("id") {
+                                m_id = Some(if let Some(hex) = id_str.strip_prefix("0x") {
+                                    u32::from_str_radix(hex, 16)
+                                        .map_err(|_| XTypesError::InvalidData)?
+                                } else {
+                                    id_str
+                                        .parse::<u32>()
+                                        .map_err(|_| XTypesError::InvalidData)?
+                                });
+                            } else if let Some(hashid_name) = c.attribute("hashid") {
+                                let target = if hashid_name.is_empty() {
+                                    m_name.ok_or(XTypesError::InvalidData)?
+                                } else {
+                                    hashid_name
+                                };
+                                let hash = md5::compute(target.as_bytes());
+                                m_id = Some(
+                                    u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]])
+                                        & 0x0FFF_FFFF,
                                 );
                             }
-                        } else if case_child.is_element()
-                            && case_child.tag_name().name() == "member"
-                        {
-                            m_name = case_child.attribute("name");
-                            m_type = case_child.attribute("type");
-                            non_basic_type_name = case_child.attribute("nonBasicTypeName");
-                            string_max_length = case_child.attribute("stringMaxLength");
-                            array_dimensions = case_child.attribute("arrayDimensions");
-                            sequence_max_length = case_child.attribute("sequenceMaxLength");
-                            parse_try_construct_kind(&case_child, &mut try_construct_kind);
                         }
                     }
 
-                    let m_name = m_name.ok_or(XTypesError::InvalidData)?;
-                    let m_type = m_type.ok_or(XTypesError::InvalidData)?;
+                    let label = label.leak();
+
+                    let m_name_unwrapped = m_name.ok_or(XTypesError::InvalidData)?;
+                    let m_id = m_id.unwrap_or_else(|| {
+                        if is_autoid_hash {
+                            let hash = md5::compute(m_name_unwrapped.as_bytes());
+                            u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
+                        } else {
+                            member_id
+                        }
+                    });
 
                     let type_ptr = resolve_member_type(
-                        m_type,
+                        m_type.ok_or(XTypesError::InvalidData)?,
                         non_basic_type_name,
                         string_max_length,
                         array_dimensions,
                         sequence_max_length,
                     )?;
-                    let m_name_static = Box::leak(m_name.to_string().into_boxed_str());
-                    let label = Vec::leak(label);
+                    let m_name_static = Box::leak(m_name_unwrapped.to_string().into_boxed_str());
                     let member_desc = MemberDescriptor {
                         name: m_name_static,
-                        id: member_id,
+                        id: m_id,
                         r#type: type_ptr,
                         default_value: None,
                         index,
                         label,
                         try_construct_kind,
-                        is_key: false,
+                        is_key,
                         is_optional: false,
                         is_must_understand: false,
                         is_shared: false,
@@ -528,6 +578,7 @@ impl DynamicTypeBuilderFactory {
                 if child.is_element() && child.tag_name().name() == "enumerator" {
                     let m_name = child.attribute("name").ok_or(XTypesError::InvalidData)?;
                     let value = child.attribute("value").ok_or(XTypesError::InvalidData)?;
+                    let is_default_label = child.attribute("defaultLiteral") == Some("true");
                     parse_try_construct_kind(&child, &mut try_construct_kind);
                     let label =
                         Vec::leak(vec![value.parse().map_err(|_| XTypesError::InvalidData)?]);
@@ -547,7 +598,7 @@ impl DynamicTypeBuilderFactory {
                         is_optional: false,
                         is_must_understand: false,
                         is_shared: false,
-                        is_default_label: false,
+                        is_default_label,
                         is_external: false,
                     };
 
@@ -582,6 +633,17 @@ impl DynamicTypeBuilderFactory {
                                 .parse::<u32>()
                                 .map_err(|_| XTypesError::InvalidData)?
                         }
+                    } else if let Some(hashid_name) = child.attribute("hashid") {
+                        let target = if hashid_name.is_empty() {
+                            m_name
+                        } else {
+                            hashid_name
+                        };
+                        let hash = md5::compute(target.as_bytes());
+                        u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
+                    } else if is_autoid_hash {
+                        let hash = md5::compute(m_name.as_bytes());
+                        u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]) & 0x0FFF_FFFF
                     } else {
                         member_id
                     };
@@ -660,6 +722,8 @@ pub struct TypeDescriptor {
     pub extensibility_kind: ExtensibilityKind,
     /// Indicates whether this is a nested type.
     pub is_nested: bool,
+    /// Indicates whether member IDs are calculated using autoid hash.
+    pub is_autoid_hash: bool,
 }
 
 /// Represents the unique identifier of a member.
@@ -876,10 +940,101 @@ impl<'a> DynamicType<'a> {
             .ok_or(XTypesError::InvalidIndex(index))
     }
 
-    // fn get_annotation_count(&self) -> u32;
-    // DDS::ReturnCode_t get_annotation(inout AnnotationDescriptor descriptor, in unsigned long idx);
-    // unsigned long get_verbatim_text_count();
-    // DDS::ReturnCode_t get_verbatim_text(inout VerbatimTextDescriptor descriptor, in unsigned long idx);
+    /// Returns true if this type is a constructed / non-primitive dependent type.
+    pub fn is_dependent_type(&self) -> bool {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => true,
+            TypeKind::ARRAY | TypeKind::SEQUENCE => self
+                .descriptor
+                .element_type
+                .as_ref()
+                .is_some_and(|elem| elem.is_dependent_type()),
+            TypeKind::ALIAS => self
+                .descriptor
+                .base_type
+                .as_ref()
+                .is_some_and(|base| base.is_dependent_type()),
+            TypeKind::MAP => {
+                let key_dep = self
+                    .descriptor
+                    .key_element_type
+                    .as_ref()
+                    .is_some_and(|k| k.is_dependent_type());
+                let val_dep = self
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .is_some_and(|v| v.is_dependent_type());
+                key_dep || val_dep
+            }
+            _ => false,
+        }
+    }
+
+    /// Returns true if this type has any direct or indirect constructed dependencies.
+    pub fn has_dependencies(&self) -> bool {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION => self
+                .member_list
+                .iter()
+                .any(|m| m.descriptor.r#type.is_dependent_type()),
+            TypeKind::ARRAY | TypeKind::SEQUENCE => self
+                .descriptor
+                .element_type
+                .as_ref()
+                .is_some_and(|elem| elem.is_dependent_type()),
+            _ => false,
+        }
+    }
+
+    /// Returns all direct and indirect constructed types that this type depends on.
+    pub fn get_dependencies(&self) -> Vec<DynamicType<'a>> {
+        let mut deps = Vec::new();
+        self.collect_dependencies(&mut deps);
+        deps
+    }
+
+    fn collect_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION => {
+                for member in self.member_list {
+                    member
+                        .descriptor
+                        .r#type
+                        .collect_type_and_nested_dependencies(out);
+                }
+            }
+            TypeKind::ARRAY | TypeKind::SEQUENCE => {
+                if let Some(element_type) = &self.descriptor.element_type {
+                    element_type.collect_type_and_nested_dependencies(out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_type_and_nested_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
+        match self.get_kind() {
+            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
+                if !out.iter().any(|existing| existing == self) {
+                    out.push(*self);
+                    self.collect_dependencies(out);
+                }
+            }
+            TypeKind::ARRAY | TypeKind::SEQUENCE => {
+                if let Some(element_type) = &self.descriptor.element_type {
+                    element_type.collect_type_and_nested_dependencies(out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct MemberDataStorage {
+    pub id: MemberId,
+    pub value: DataStorage,
 }
 
 /// A factory class used to instantiate [`DynamicData`] samples.
@@ -890,7 +1045,7 @@ impl DynamicDataFactory {
     pub fn create_data<'a>(r#type: DynamicType<'a>) -> DynamicData<'a> {
         DynamicData {
             r#type,
-            abstract_data: BTreeMap::new(),
+            abstract_data: Vec::with_capacity(r#type.member_list.len()),
         }
     }
 }
@@ -899,7 +1054,7 @@ impl DynamicDataFactory {
 #[derive(Clone)]
 pub struct DynamicData<'a> {
     pub(crate) r#type: DynamicType<'a>,
-    pub(crate) abstract_data: BTreeMap<MemberId, DataStorage>,
+    pub(crate) abstract_data: Vec<MemberDataStorage>,
 }
 
 impl<'a> core::fmt::Debug for DynamicData<'a> {
@@ -912,11 +1067,46 @@ impl<'a> core::fmt::Debug for DynamicData<'a> {
 
 impl<'a> PartialEq for DynamicData<'a> {
     fn eq(&self, other: &Self) -> bool {
-        self.abstract_data == other.abstract_data
+        if self.abstract_data.len() != other.abstract_data.len() {
+            return false;
+        }
+        self.abstract_data
+            .iter()
+            .all(|m| other.get_storage(m.id) == Some(&m.value))
     }
 }
 
 impl<'a> DynamicData<'a> {
+    fn get_storage(&self, id: MemberId) -> Option<&DataStorage> {
+        self.abstract_data
+            .iter()
+            .find(|m| m.id == id)
+            .map(|m| &m.value)
+    }
+
+    fn get_storage_mut(&mut self, id: MemberId) -> Option<&mut DataStorage> {
+        self.abstract_data
+            .iter_mut()
+            .find(|m| m.id == id)
+            .map(|m| &mut m.value)
+    }
+
+    fn insert_storage(&mut self, id: MemberId, value: DataStorage) {
+        if let Some(m) = self.abstract_data.iter_mut().find(|m| m.id == id) {
+            m.value = value;
+        } else {
+            self.abstract_data.push(MemberDataStorage { id, value });
+        }
+    }
+
+    fn remove_storage(&mut self, id: MemberId) -> Option<DataStorage> {
+        if let Some(idx) = self.abstract_data.iter().position(|m| m.id == id) {
+            Some(self.abstract_data.swap_remove(idx).value)
+        } else {
+            None
+        }
+    }
+
     /// Returns the [`DynamicType`] of this data sample.
     pub const fn r#type(&self) -> DynamicType<'a> {
         self.r#type
@@ -949,9 +1139,8 @@ impl<'a> DynamicData<'a> {
     /// Retrieves the member ID at the specified index.
     pub fn get_member_id_at_index(&self, index: u32) -> XTypesResult<MemberId> {
         self.abstract_data
-            .keys()
-            .nth(index as usize)
-            .cloned()
+            .get(index as usize)
+            .map(|m| m.id)
             .ok_or(XTypesError::InvalidIndex(index))
     }
 
@@ -972,7 +1161,7 @@ impl<'a> DynamicData<'a> {
             let member = self.r#type.get_member_by_index(index)?;
             if !member.get_descriptor()?.is_key {
                 let member_id = member.get_id();
-                self.abstract_data.remove(&member_id);
+                self.remove_storage(member_id);
             }
         }
         Ok(())
@@ -980,19 +1169,13 @@ impl<'a> DynamicData<'a> {
 
     /// Clears the value of the specified member.
     pub fn clear_value(&mut self, id: MemberId) -> XTypesResult<()> {
-        self.abstract_data
-            .remove(&id)
-            .ok_or(XTypesError::InvalidId(id))?;
+        self.remove_storage(id).ok_or(XTypesError::InvalidId(id))?;
         Ok(())
     }
 
     /// Gets the `i32` value for the specified member.
     pub fn get_int32_value(&self, id: MemberId) -> XTypesResult<&i32> {
-        if let DataStorage::Int32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Int32(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1001,17 +1184,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `i32` value for the specified member.
     pub fn set_int32_value(&mut self, id: MemberId, value: i32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Int32(value));
+        self.insert_storage(id, DataStorage::Int32(value));
         Ok(())
     }
 
     /// Gets the `u32` value for the specified member.
     pub fn get_uint32_value(&self, id: MemberId) -> XTypesResult<&u32> {
-        if let DataStorage::UInt32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::UInt32(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1020,17 +1199,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `u32` value for the specified member.
     pub fn set_uint32_value(&mut self, id: MemberId, value: u32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::UInt32(value));
+        self.insert_storage(id, DataStorage::UInt32(value));
         Ok(())
     }
 
     /// Gets the `i8` value for the specified member.
     pub fn get_int8_value(&self, id: MemberId) -> XTypesResult<&i8> {
-        if let DataStorage::Int8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Int8(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1039,17 +1214,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `i8` value for the specified member.
     pub fn set_int8_value(&mut self, id: MemberId, value: i8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Int8(value));
+        self.insert_storage(id, DataStorage::Int8(value));
         Ok(())
     }
 
     /// Gets the `u8` value for the specified member.
     pub fn get_uint8_value(&self, id: MemberId) -> XTypesResult<&u8> {
-        if let DataStorage::UInt8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::UInt8(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1058,17 +1229,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `u8` value for the specified member.
     pub fn set_uint8_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::UInt8(value));
+        self.insert_storage(id, DataStorage::UInt8(value));
         Ok(())
     }
 
     /// Gets the `i16` value for the specified member.
     pub fn get_int16_value(&self, id: MemberId) -> XTypesResult<&i16> {
-        if let DataStorage::Int16(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Int16(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1077,17 +1244,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `i16` value for the specified member.
     pub fn set_int16_value(&mut self, id: MemberId, value: i16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Int16(value));
+        self.insert_storage(id, DataStorage::Int16(value));
         Ok(())
     }
 
     /// Gets the `u16` value for the specified member.
     pub fn get_uint16_value(&self, id: MemberId) -> XTypesResult<&u16> {
-        if let DataStorage::UInt16(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::UInt16(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1096,17 +1259,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `u16` value for the specified member.
     pub fn set_uint16_value(&mut self, id: MemberId, value: u16) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::UInt16(value));
+        self.insert_storage(id, DataStorage::UInt16(value));
         Ok(())
     }
 
     /// Gets the `i64` value for the specified member.
     pub fn get_int64_value(&self, id: MemberId) -> XTypesResult<&i64> {
-        if let DataStorage::Int64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Int64(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1115,17 +1274,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `i64` value for the specified member.
     pub fn set_int64_value(&mut self, id: MemberId, value: i64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Int64(value));
+        self.insert_storage(id, DataStorage::Int64(value));
         Ok(())
     }
 
     /// Gets the `u64` value for the specified member.
     pub fn get_uint64_value(&self, id: MemberId) -> XTypesResult<&u64> {
-        if let DataStorage::UInt64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::UInt64(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1134,17 +1289,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `u64` value for the specified member.
     pub fn set_uint64_value(&mut self, id: MemberId, value: u64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::UInt64(value));
+        self.insert_storage(id, DataStorage::UInt64(value));
         Ok(())
     }
 
     /// Gets the `f32` value for the specified member.
     pub fn get_float32_value(&self, id: MemberId) -> XTypesResult<&f32> {
-        if let DataStorage::Float32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Float32(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1153,17 +1304,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `f32` value for the specified member.
     pub fn set_float32_value(&mut self, id: MemberId, value: f32) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Float32(value));
+        self.insert_storage(id, DataStorage::Float32(value));
         Ok(())
     }
 
     /// Gets the `f64` value for the specified member.
     pub fn get_float64_value(&self, id: MemberId) -> XTypesResult<&f64> {
-        if let DataStorage::Float64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Float64(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1172,17 +1319,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `f64` value for the specified member.
     pub fn set_float64_value(&mut self, id: MemberId, value: f64) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Float64(value));
+        self.insert_storage(id, DataStorage::Float64(value));
         Ok(())
     }
 
     /// Gets the `i128` (representing `float128`) value for the specified member.
     pub fn get_float128_value(&self, id: MemberId) -> XTypesResult<&i128> {
-        if let DataStorage::Float128(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Float128(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1191,17 +1334,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `i128` (representing `float128`) value for the specified member.
     pub fn set_float128_value(&mut self, id: MemberId, value: i128) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Float128(value));
+        self.insert_storage(id, DataStorage::Float128(value));
         Ok(())
     }
 
     /// Gets the `char` (representing `char8`) value for the specified member.
     pub fn get_char8_value(&self, id: MemberId) -> XTypesResult<&char> {
-        if let DataStorage::Char8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Char8(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1210,17 +1349,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `char` (representing `char8`) value for the specified member.
     pub fn set_char8_value(&mut self, id: MemberId, value: char) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::Char8(value));
+        self.insert_storage(id, DataStorage::Char8(value));
         Ok(())
     }
 
     /// Gets the byte (8-bit unsigned integer) value for the specified member.
     pub fn get_byte_value(&self, id: MemberId) -> XTypesResult<&u8> {
-        if let DataStorage::UInt8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::UInt8(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1229,17 +1364,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the byte (8-bit unsigned integer) value for the specified member.
     pub fn set_byte_value(&mut self, id: MemberId, value: u8) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::UInt8(value));
+        self.insert_storage(id, DataStorage::UInt8(value));
         Ok(())
     }
 
     /// Gets the `bool` value for the specified member.
     pub fn get_boolean_value(&self, id: MemberId) -> XTypesResult<&bool> {
-        if let DataStorage::Boolean(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::Boolean(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1248,17 +1379,13 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `bool` value for the specified member.
     pub fn set_boolean_value(&mut self, id: MemberId, value: bool) -> XTypesResult<()> {
-        self.abstract_data.insert(id, value.into_storage());
+        self.insert_storage(id, value.into_storage());
         Ok(())
     }
 
     /// Gets the `String` value for the specified member.
     pub fn get_string_value(&self, id: MemberId) -> XTypesResult<&String> {
-        if let DataStorage::String(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
-        {
+        if let DataStorage::String(d) = self.get_storage(id).ok_or(XTypesError::InvalidId(id))? {
             Ok(d)
         } else {
             Err(XTypesError::InvalidType)
@@ -1267,16 +1394,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets the `String` value for the specified member.
     pub fn set_string_value(&mut self, id: MemberId, value: String) -> XTypesResult<()> {
-        self.abstract_data.insert(id, DataStorage::String(value));
+        self.insert_storage(id, DataStorage::String(value));
         Ok(())
     }
 
     /// Gets the complex (nested `DynamicData`) value for the specified member.
     pub fn get_complex_value(&self, id: MemberId) -> XTypesResult<&DynamicData<'static>> {
-        if let DataStorage::ComplexValue(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::ComplexValue(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d)
         } else {
@@ -1286,9 +1411,7 @@ impl<'a> DynamicData<'a> {
 
     /// Gets the raw data kind/storage for the specified member.
     pub fn get_data_kind(&self, id: MemberId) -> XTypesResult<&DataStorage> {
-        self.abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))
+        self.get_storage(id).ok_or(XTypesError::InvalidId(id))
     }
 
     /// Sets the complex (nested `DynamicData`) value for the specified member.
@@ -1297,17 +1420,14 @@ impl<'a> DynamicData<'a> {
         id: MemberId,
         value: DynamicData<'static>,
     ) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::ComplexValue(value));
+        self.insert_storage(id, DataStorage::ComplexValue(value));
         Ok(())
     }
 
     /// Gets a slice of `i32` values for the specified sequence/array member.
     pub fn get_int32_values(&self, id: MemberId) -> XTypesResult<&[i32]> {
-        if let DataStorage::SequenceInt32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceInt32(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1317,17 +1437,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `i32` values for the specified member.
     pub fn set_int32_values(&mut self, id: MemberId, value: Vec<i32>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceInt32(value));
+        self.insert_storage(id, DataStorage::SequenceInt32(value));
         Ok(())
     }
 
     /// Gets a slice of `u32` values for the specified sequence/array member.
     pub fn get_uint32_values(&self, id: MemberId) -> XTypesResult<&[u32]> {
-        if let DataStorage::SequenceUInt32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceUInt32(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1337,17 +1454,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `u32` values for the specified member.
     pub fn set_uint32_values(&mut self, id: MemberId, value: Vec<u32>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceUInt32(value));
+        self.insert_storage(id, DataStorage::SequenceUInt32(value));
         Ok(())
     }
 
     /// Gets a slice of `i16` values for the specified sequence/array member.
     pub fn get_int16_values(&self, id: MemberId) -> XTypesResult<&[i16]> {
-        if let DataStorage::SequenceInt16(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceInt16(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1357,17 +1471,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `i16` values for the specified member.
     pub fn set_int16_values(&mut self, id: MemberId, value: Vec<i16>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceInt16(value));
+        self.insert_storage(id, DataStorage::SequenceInt16(value));
         Ok(())
     }
 
     /// Gets a slice of `u16` values for the specified sequence/array member.
     pub fn get_uint16_values(&self, id: MemberId) -> XTypesResult<&[u16]> {
-        if let DataStorage::SequenceUInt16(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceUInt16(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1377,17 +1488,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `u16` values for the specified member.
     pub fn set_uint16_values(&mut self, id: MemberId, value: Vec<u16>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceUInt16(value));
+        self.insert_storage(id, DataStorage::SequenceUInt16(value));
         Ok(())
     }
 
     /// Gets a slice of `i64` values for the specified sequence/array member.
     pub fn get_int64_values(&self, id: MemberId) -> XTypesResult<&[i64]> {
-        if let DataStorage::SequenceInt64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceInt64(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1397,17 +1505,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `i64` values for the specified member.
     pub fn set_int64_values(&mut self, id: MemberId, value: Vec<i64>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceInt64(value));
+        self.insert_storage(id, DataStorage::SequenceInt64(value));
         Ok(())
     }
 
     /// Gets a slice of `u64` values for the specified sequence/array member.
     pub fn get_uint64_values(&self, id: MemberId) -> XTypesResult<&[u64]> {
-        if let DataStorage::SequenceUInt64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceUInt64(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1417,17 +1522,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `u64` values for the specified member.
     pub fn set_uint64_values(&mut self, id: MemberId, value: Vec<u64>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceUInt64(value));
+        self.insert_storage(id, DataStorage::SequenceUInt64(value));
         Ok(())
     }
 
     /// Gets a slice of `f32` values for the specified sequence/array member.
     pub fn get_float32_values(&self, id: MemberId) -> XTypesResult<&[f32]> {
-        if let DataStorage::SequenceFloat32(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceFloat32(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1437,17 +1539,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `f32` values for the specified member.
     pub fn set_float32_values(&mut self, id: MemberId, value: Vec<f32>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceFloat32(value));
+        self.insert_storage(id, DataStorage::SequenceFloat32(value));
         Ok(())
     }
 
     /// Gets a slice of `f64` values for the specified sequence/array member.
     pub fn get_float64_values(&self, id: MemberId) -> XTypesResult<&[f64]> {
-        if let DataStorage::SequenceFloat64(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceFloat64(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1457,17 +1556,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `f64` values for the specified member.
     pub fn set_float64_values(&mut self, id: MemberId, value: Vec<f64>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceFloat64(value));
+        self.insert_storage(id, DataStorage::SequenceFloat64(value));
         Ok(())
     }
 
     /// Gets a slice of `i128` (representing `float128`) values for the specified sequence/array member.
     pub fn get_float128_values(&self, id: MemberId) -> XTypesResult<&[i128]> {
-        if let DataStorage::SequenceFloat128(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceFloat128(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1477,17 +1573,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `i128` (representing `float128`) values for the specified member.
     pub fn set_float128_values(&mut self, id: MemberId, value: Vec<i128>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceFloat128(value));
+        self.insert_storage(id, DataStorage::SequenceFloat128(value));
         Ok(())
     }
 
     /// Gets a slice of `char` (representing `char8`) values for the specified sequence/array member.
     pub fn get_char8_values(&self, id: MemberId) -> XTypesResult<&[char]> {
-        if let DataStorage::SequenceChar8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceChar8(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1497,17 +1590,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `char` (representing `char8`) values for the specified member.
     pub fn set_char8_values(&mut self, id: MemberId, value: Vec<char>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceChar8(value));
+        self.insert_storage(id, DataStorage::SequenceChar8(value));
         Ok(())
     }
 
     /// Gets a slice of byte (8-bit unsigned integer) values for the specified sequence/array member.
     pub fn get_byte_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
-        if let DataStorage::SequenceUInt8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceUInt8(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1517,17 +1607,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of byte (8-bit unsigned integer) values for the specified member.
     pub fn set_byte_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceUInt8(value));
+        self.insert_storage(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
     /// Gets a slice of `bool` values for the specified sequence/array member.
     pub fn get_boolean_values(&self, id: MemberId) -> XTypesResult<&[bool]> {
-        if let DataStorage::SequenceBoolean(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceBoolean(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1537,17 +1624,14 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `bool` values for the specified member.
     pub fn set_boolean_values(&mut self, id: MemberId, value: Vec<bool>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceBoolean(value));
+        self.insert_storage(id, DataStorage::SequenceBoolean(value));
         Ok(())
     }
 
     /// Gets a slice of `String` values for the specified sequence/array member.
     pub fn get_string_values(&self, id: MemberId) -> XTypesResult<&[String]> {
-        if let DataStorage::SequenceString(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceString(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1557,18 +1641,15 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `String` values for the specified member.
     pub fn set_string_values(&mut self, id: MemberId, value: Vec<String>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceString(value));
+        self.insert_storage(id, DataStorage::SequenceString(value));
         Ok(())
     }
 
     // Custom functions
     /// Gets a slice of `u8` values for the specified sequence/array member.
     pub fn get_uint8_values(&self, id: MemberId) -> XTypesResult<&[u8]> {
-        if let DataStorage::SequenceUInt8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceUInt8(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1578,10 +1659,8 @@ impl<'a> DynamicData<'a> {
 
     /// Gets a slice of `i8` values for the specified sequence/array member.
     pub fn get_int8_values(&self, id: MemberId) -> XTypesResult<&[i8]> {
-        if let DataStorage::SequenceInt8(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceInt8(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1591,24 +1670,20 @@ impl<'a> DynamicData<'a> {
 
     /// Sets a sequence of `u8` values for the specified member.
     pub fn set_uint8_values(&mut self, id: MemberId, value: Vec<u8>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceUInt8(value));
+        self.insert_storage(id, DataStorage::SequenceUInt8(value));
         Ok(())
     }
 
     /// Sets a sequence of `i8` values for the specified member.
     pub fn set_int8_values(&mut self, id: MemberId, value: Vec<i8>) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceInt8(value));
+        self.insert_storage(id, DataStorage::SequenceInt8(value));
         Ok(())
     }
 
     /// Gets a slice of complex (nested `DynamicData`) values for the specified sequence/array member.
     pub fn get_complex_values(&self, id: MemberId) -> XTypesResult<&[DynamicData<'static>]> {
-        if let DataStorage::SequenceComplexValue(d) = self
-            .abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))?
+        if let DataStorage::SequenceComplexValue(d) =
+            self.get_storage(id).ok_or(XTypesError::InvalidId(id))?
         {
             Ok(d.as_slice())
         } else {
@@ -1622,28 +1697,23 @@ impl<'a> DynamicData<'a> {
         id: MemberId,
         value: Vec<DynamicData<'static>>,
     ) -> XTypesResult<()> {
-        self.abstract_data
-            .insert(id, DataStorage::SequenceComplexValue(value));
+        self.insert_storage(id, DataStorage::SequenceComplexValue(value));
         Ok(())
     }
 
     /// Sets the value of the specified member to the given raw data storage.
     pub fn set_value(&mut self, id: MemberId, value: DataStorage) {
-        self.abstract_data.insert(id, value);
+        self.insert_storage(id, value);
     }
 
     /// Gets the raw data storage for the specified member.
     pub fn get_value(&self, id: MemberId) -> XTypesResult<&DataStorage> {
-        self.abstract_data
-            .get(&id)
-            .ok_or(XTypesError::InvalidId(id))
+        self.get_storage(id).ok_or(XTypesError::InvalidId(id))
     }
 
     /// Removes and returns the raw data storage for the specified member.
     pub fn remove_value(&mut self, id: MemberId) -> XTypesResult<DataStorage> {
-        self.abstract_data
-            .remove(&id)
-            .ok_or(XTypesError::InvalidId(id))
+        self.remove_storage(id).ok_or(XTypesError::InvalidId(id))
     }
 }
 
@@ -1659,6 +1729,7 @@ impl Type for DynamicData<'static> {
             key_element_type: None,
             extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
             is_nested: false,
+            is_autoid_hash: false,
         },
         member_list: &[],
     };
@@ -1755,7 +1826,17 @@ fn default_storage_for_type(t: DynamicType<'static>) -> DataStorage {
         TypeKind::CHAR16 => DataStorage::Char8('\0'),
         TypeKind::STRING8 => DataStorage::String(String::new()),
         TypeKind::STRING16 => DataStorage::String(String::new()),
-        TypeKind::ENUM => DataStorage::Int32(0),
+        TypeKind::ENUM => {
+            let default_val = (0..t.get_member_count())
+                .filter_map(|i| t.get_member_by_index(i).ok())
+                .find(|m| m.descriptor.is_default_label)
+                .or_else(|| t.get_member_by_index(0).ok())
+                .and_then(|m| m.descriptor.label.first().copied())
+                .unwrap_or(0);
+            let mut inner_data = DynamicDataFactory::create_data(t);
+            inner_data.set_int32_value(0, default_val).ok();
+            DataStorage::ComplexValue(inner_data)
+        }
         TypeKind::BITMASK => DataStorage::UInt32(0),
         TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             DataStorage::ComplexValue(DynamicDataFactory::create_data(t))
@@ -1792,13 +1873,14 @@ fn default_storage_for_type(t: DynamicType<'static>) -> DataStorage {
 }
 
 fn get_discriminator_value_as_i32(data: &DynamicData) -> Option<i32> {
-    match data.abstract_data.get(&0)? {
+    match data.get_storage(0)? {
         DataStorage::UInt8(x) => Some(*x as i32),
         DataStorage::Int8(x) => Some(*x as i32),
         DataStorage::UInt16(x) => Some(*x as i32),
         DataStorage::Int16(x) => Some(*x as i32),
         DataStorage::Int32(x) => Some(*x),
         DataStorage::UInt32(x) => Some(*x as i32),
+        DataStorage::ComplexValue(inner) => get_discriminator_value_as_i32(inner),
         _ => None,
     }
 }
@@ -1819,7 +1901,7 @@ fn get_selected_union_member<'a>(data: &DynamicData<'a>) -> Option<&'a DynamicTy
 
 fn validate_member_value(value: &mut DataStorage, member_descriptor: &MemberDescriptor) -> bool {
     match member_descriptor.r#type.get_kind() {
-        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
+        TypeKind::ENUM | TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ANNOTATION => {
             if let DataStorage::ComplexValue(inner) = value {
                 inner.validate_dynamic_data()
             } else {
@@ -1932,20 +2014,63 @@ impl<'a> DynamicData<'a> {
         let kind = self.r#type.descriptor.kind;
         let extensibility = self.r#type.descriptor.extensibility_kind;
 
-        if kind == TypeKind::UNION {
+        if kind == TypeKind::ENUM {
+            if let Some(value) = self.get_storage(0) {
+                let val = match value {
+                    DataStorage::Int8(x) => *x as i32,
+                    DataStorage::Int16(x) => *x as i32,
+                    DataStorage::Int32(x) => *x,
+                    _ => return false,
+                };
+                let enum_type = self.r#type;
+                if enum_type.get_member_count() == 0 {
+                    return true;
+                }
+                let is_valid = (0..enum_type.get_member_count()).any(|i| {
+                    if let Ok(m) = enum_type.get_member_by_index(i) {
+                        if let Some(&label_val) = m.descriptor.label.first() {
+                            label_val == val
+                        } else {
+                            m.descriptor.index == val as u32 || m.descriptor.id == val as u32
+                        }
+                    } else {
+                        false
+                    }
+                });
+                if !is_valid {
+                    return false;
+                }
+            }
+        } else if kind == TypeKind::UNION {
+            let r#type = self.r#type;
+            if let Ok(disc_member) = r#type.get_member(0) {
+                if let Some(disc_val) = self.get_storage_mut(0) {
+                    if !validate_member_value(disc_val, &disc_member.descriptor) {
+                        match disc_member.descriptor.try_construct_kind {
+                            TryConstructKind::Discard => return false,
+                            TryConstructKind::UseDefault => {
+                                *disc_val = default_storage_for_type(disc_member.descriptor.r#type);
+                            }
+                            TryConstructKind::Trim => return false,
+                        }
+                    }
+                }
+            }
             let Some(selected_member) = get_selected_union_member(self) else {
                 return false;
             };
-            let Some(value) = self.abstract_data.get_mut(&selected_member.get_id()) else {
-                return false;
-            };
-            if !validate_member_value(value, &selected_member.descriptor) {
-                match selected_member.descriptor.try_construct_kind {
-                    TryConstructKind::Discard => return false,
-                    TryConstructKind::UseDefault => {
-                        *value = default_storage_for_type(selected_member.descriptor.r#type);
+            if selected_member.descriptor.r#type.get_kind() != TypeKind::NONE {
+                let Some(value) = self.get_storage_mut(selected_member.get_id()) else {
+                    return false;
+                };
+                if !validate_member_value(value, &selected_member.descriptor) {
+                    match selected_member.descriptor.try_construct_kind {
+                        TryConstructKind::Discard => return false,
+                        TryConstructKind::UseDefault => {
+                            *value = default_storage_for_type(selected_member.descriptor.r#type);
+                        }
+                        TryConstructKind::Trim => return false,
                     }
-                    TryConstructKind::Trim => return false,
                 }
             }
         } else if kind == TypeKind::STRUCTURE {
@@ -1955,30 +2080,27 @@ impl<'a> DynamicData<'a> {
                 let is_required =
                     !member.descriptor.is_optional && extensibility == ExtensibilityKind::Final;
 
-                if let alloc::collections::btree_map::Entry::Vacant(e) =
-                    self.abstract_data.entry(member_id)
-                {
-                    if is_required {
+                if let Some(m) = self.abstract_data.iter_mut().find(|m| m.id == member_id) {
+                    if !validate_member_value(&mut m.value, &member.descriptor) {
                         match try_construct_kind {
                             TryConstructKind::Discard => return false,
                             TryConstructKind::UseDefault => {
-                                let default_val =
-                                    default_storage_for_type(member.descriptor.r#type);
-                                e.insert(default_val);
+                                m.value = default_storage_for_type(member.descriptor.r#type);
                             }
                             TryConstructKind::Trim => return false,
                         }
                     }
-                } else {
-                    let value = self.abstract_data.get_mut(&member_id).unwrap();
-                    if !validate_member_value(value, &member.descriptor) {
-                        match try_construct_kind {
-                            TryConstructKind::Discard => return false,
-                            TryConstructKind::UseDefault => {
-                                *value = default_storage_for_type(member.descriptor.r#type);
-                            }
-                            TryConstructKind::Trim => return false,
+                } else if is_required {
+                    match try_construct_kind {
+                        TryConstructKind::Discard => return false,
+                        TryConstructKind::UseDefault => {
+                            let default_val = default_storage_for_type(member.descriptor.r#type);
+                            self.abstract_data.push(MemberDataStorage {
+                                id: member_id,
+                                value: default_val,
+                            });
                         }
+                        TryConstructKind::Trim => return false,
                     }
                 }
             }
@@ -1989,8 +2111,118 @@ impl<'a> DynamicData<'a> {
 }
 
 #[cfg(feature = "xtypes-xml")]
+fn parse_f128_str(s: &str) -> Result<i128, ()> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err(());
+    }
+
+    let (is_negative, s) = if let Some(stripped) = s.strip_prefix('-') {
+        (true, stripped)
+    } else if let Some(stripped) = s.strip_prefix('+') {
+        (false, stripped)
+    } else {
+        (false, s)
+    };
+
+    let sign = if is_negative { 1_u128 } else { 0_u128 };
+
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        let val = u128::from_str_radix(hex, 16).map_err(|_| ())?;
+        return Ok(if is_negative {
+            ((1_u128 << 127) | val) as i128
+        } else {
+            val as i128
+        });
+    }
+
+    if s.eq_ignore_ascii_case("inf") || s.eq_ignore_ascii_case("infinity") {
+        return Ok(((sign << 127) | (0x7FFF_u128 << 112)) as i128);
+    }
+    if s.eq_ignore_ascii_case("nan") {
+        return Ok(((sign << 127) | (0x7FFF_u128 << 112) | (1_u128 << 111)) as i128);
+    }
+
+    let (int_s, frac_s_raw) = s.split_once('.').unwrap_or((s, ""));
+    let frac_s = frac_s_raw.trim_end_matches('0');
+
+    let int_val: u128 = if int_s.is_empty() {
+        0
+    } else {
+        int_s.parse().map_err(|_| ())?
+    };
+    let frac_val: u128 = if frac_s.is_empty() {
+        0
+    } else {
+        frac_s.parse().map_err(|_| ())?
+    };
+
+    if int_val == 0 && frac_val == 0 {
+        return Ok((sign << 127) as i128);
+    }
+
+    let denom: u128 = if frac_s.is_empty() {
+        1
+    } else {
+        10_u128.checked_pow(frac_s.len() as u32).ok_or(())?
+    };
+
+    let div_shift = |val: u128, shift: u32, denom: u128| -> (u128, u128) {
+        let s1 = shift.min(60);
+        let s2 = (shift - s1).min(60);
+        let s3 = shift - s1 - s2;
+        let q1 = (val << s1) / denom;
+        let r1 = (val << s1) % denom;
+        let q2 = (r1 << s2) / denom;
+        let r2 = (r1 << s2) % denom;
+        let q3 = (r2 << s3) / denom;
+        let r3 = (r2 << s3) % denom;
+        let q = (((q1 << s2) + q2) << s3) + q3;
+        (q, r3)
+    };
+
+    let (mut k, mut mantissa, rem) = if int_val > 0 {
+        let k = 127 - int_val.leading_zeros() as i32;
+        let shift = (112 - k) as u32;
+        let int_mantissa = int_val << shift;
+        let (frac_mantissa, rem) = if frac_val > 0 {
+            div_shift(frac_val, shift, denom)
+        } else {
+            (0, 0)
+        };
+        (k, int_mantissa + frac_mantissa, rem)
+    } else {
+        let q1 = (frac_val << 60) / denom;
+        let lz = if q1 > 0 {
+            q1.leading_zeros() as i32 - 68
+        } else {
+            let r1 = (frac_val << 60) % denom;
+            let q2 = (r1 << 60) / denom;
+            60 + (q2.leading_zeros() as i32 - 68)
+        };
+        let k = -(lz + 1);
+        let shift = (112 - k) as u32;
+        let (mantissa, rem) = div_shift(frac_val, shift, denom);
+        (k, mantissa, rem)
+    };
+
+    if rem * 2 > denom || (rem * 2 == denom && (mantissa & 1 == 1)) {
+        mantissa += 1;
+    }
+    if mantissa == (1_u128 << 113) {
+        mantissa = 1_u128 << 112;
+        k += 1;
+    }
+
+    let biased_exp = (k + 16383) as u128;
+    let frac = mantissa & ((1_u128 << 112) - 1);
+    let val = (sign << 127) | (biased_exp << 112) | frac;
+    Ok(val as i128)
+}
+
+#[cfg(feature = "xtypes-xml")]
 impl<'a> DynamicData<'a> {
-    /// Deserializes data from an XML string into this `DynamicData` instance.
+    /// Deserializes dynamic data from XML.
     pub fn from_xml(&mut self, xml: &str) -> XTypesResult<()> {
         let doc = roxmltree::Document::parse(xml).map_err(|_| XTypesError::InvalidData)?;
         let root = doc.root_element();
@@ -2009,14 +2241,32 @@ impl<'a> DynamicData<'a> {
 
         let tag_name = node.tag_name().name();
         let discriminator_label = if tag_name == "discriminator" {
-            parse_i32(node.text().ok_or(XTypesError::InvalidData)?)?
+            let disc_text = node.text().ok_or(XTypesError::InvalidData)?.trim();
+            if let Ok(val) = parse_i32(disc_text) {
+                val
+            } else {
+                let disc_member = self.r#type.get_member(0)?;
+                let disc_type = disc_member.descriptor.r#type;
+                if let Ok(enum_member) = disc_type.get_member_by_name(disc_text) {
+                    enum_member
+                        .descriptor
+                        .label
+                        .first()
+                        .copied()
+                        .unwrap_or(enum_member.get_id() as i32)
+                } else {
+                    return Err(XTypesError::InvalidData);
+                }
+            }
         } else {
             let variant_member = self.r#type.get_member_by_name(tag_name)?;
-            *variant_member
-                .descriptor
-                .label
-                .first()
-                .ok_or(XTypesError::InvalidType)?
+            if let Some(&label) = variant_member.descriptor.label.first() {
+                label
+            } else if variant_member.descriptor.is_default_label {
+                return Ok(());
+            } else {
+                return Err(XTypesError::InvalidType);
+            }
         };
 
         match self.r#type.get_member(0)?.descriptor.r#type.get_kind() {
@@ -2033,7 +2283,13 @@ impl<'a> DynamicData<'a> {
             TypeKind::CHAR8 => todo!(),
             TypeKind::CHAR16 => todo!(),
             TypeKind::ALIAS => todo!(),
-            TypeKind::ENUM => todo!(),
+            TypeKind::ENUM => {
+                let disc_member = self.r#type.get_member(0)?;
+                let mut inner_data = DynamicDataFactory::create_data(disc_member.descriptor.r#type);
+                inner_data.set_int32_value(0, discriminator_label as i32)?;
+                self.set_complex_value(0, inner_data)?;
+                Ok(())
+            }
             TypeKind::BITMASK => {
                 let bound = self
                     .r#type
@@ -2099,6 +2355,8 @@ impl<'a> DynamicData<'a> {
             }
         };
 
+        let parse_float128 = parse_f128_str;
+
         match kind {
             TypeKind::BOOLEAN => {
                 let val = text == "true" || text == "1";
@@ -2145,13 +2403,8 @@ impl<'a> DynamicData<'a> {
                 Ok(DataStorage::Float64(val))
             }
             TypeKind::FLOAT128 => {
-                let val = text
-                    .parse::<f32>()
-                    .map_err(|_| XTypesError::InvalidData)?
-                    .to_be_bytes();
-                Ok(DataStorage::Float128(i128::from_be_bytes([
-                    val[3], val[2], val[1], val[0], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                ])))
+                let val = parse_float128(text).map_err(|_| XTypesError::InvalidData)?;
+                Ok(DataStorage::Float128(val))
             }
             TypeKind::CHAR8 => {
                 let val = parse_uint(text)
@@ -2175,14 +2428,18 @@ impl<'a> DynamicData<'a> {
                 }
             }
             TypeKind::ENUM => {
-                let enumerator = r#type.get_member_by_name(text)?;
-                let label = enumerator
-                    .descriptor
-                    .label
-                    .first()
-                    .ok_or(XTypesError::InvalidData)?;
+                let label = if let Ok(val) = parse_int(text) {
+                    val as i32
+                } else {
+                    let enumerator = r#type.get_member_by_name(text)?;
+                    *enumerator
+                        .descriptor
+                        .label
+                        .first()
+                        .ok_or(XTypesError::InvalidData)?
+                };
                 let mut inner_data = DynamicDataFactory::create_data(r#type);
-                inner_data.set_int32_value(0, *label)?;
+                inner_data.set_int32_value(0, label)?;
                 Ok(DataStorage::ComplexValue(inner_data))
             }
             TypeKind::STRUCTURE | TypeKind::UNION => {
@@ -2244,6 +2501,16 @@ impl<'a> DynamicData<'a> {
                             );
                         }
                         Ok(DataStorage::SequenceFloat64(vec))
+                    }
+                    TypeKind::FLOAT128 => {
+                        let mut vec = Vec::new();
+                        for item in node.children().filter(|c| c.is_element()) {
+                            let item_text = item.text().unwrap_or("").trim();
+                            let val =
+                                parse_float128(item_text).map_err(|_| XTypesError::InvalidData)?;
+                            vec.push(val);
+                        }
+                        Ok(DataStorage::SequenceFloat128(vec))
                     }
                     TypeKind::BOOLEAN => {
                         let mut vec = Vec::new();

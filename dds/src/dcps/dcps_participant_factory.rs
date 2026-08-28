@@ -10,9 +10,9 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
-        time::Duration,
+        time::{Duration, Time},
     },
-    runtime::{Clock, DdsRuntime},
+    runtime::DdsRuntime,
     transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
 };
 use alloc::{string::String, vec::Vec};
@@ -47,6 +47,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         transport_participant: RtpsTransportParticipant,
         domain_tag: String,
         participant_announcement_interval: core::time::Duration,
+        enable_type_information: bool,
+        now: Time,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -63,13 +65,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             listener_sender,
             listener_mask,
             transport_participant,
-            self.dcps_sender,
+            self.dcps_sender.clone(),
             participant_announcement_interval,
+            enable_type_information,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant.enable_domain_participant(&self.runtime)?;
+            dcps_participant.enable_domain_participant(now)?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -77,7 +80,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         Ok(participant_handle)
     }
 
-    pub fn delete_participant(&mut self, participant_handle: &InstanceHandle) -> DdsResult<()> {
+    pub fn delete_participant(
+        &mut self,
+        participant_handle: &InstanceHandle,
+        now: Time,
+    ) -> DdsResult<()> {
         let index = self
             .domain_participant_list
             .iter()
@@ -89,7 +96,8 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant(&self.runtime);
+        participant.announce_deleted_participant(now);
+        participant.poke(now);
         Ok(())
     }
 
@@ -135,51 +143,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         self.qos.clone()
     }
 
-    pub(crate) fn time_until_stale_participant(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
+    pub(crate) fn time_until_next_event(&self, now: Time) -> Option<Duration> {
         self.domain_participant_list
             .iter()
-            .filter_map(|x| x.time_until_stale_participant(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_missed_reader_deadline(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_missed_reader_deadline(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_missed_writer_deadline(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_missed_writer_deadline(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_stale_writer_sample(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_stale_writer_sample(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_pending_writer_sample_timeout(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_pending_writer_sample_timeout(now))
-            .min()
-    }
-
-    pub(crate) fn time_until_participant_announcement(&self) -> Option<Duration> {
-        let now = self.runtime.clock().now();
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| x.time_until_participant_announcement(now))
+            .filter_map(|x| x.time_until_next_event(now))
             .min()
     }
 }

@@ -28,6 +28,15 @@ impl HeartbeatMachine {
         now - self.last_heartbeat_time >= heartbeat_period
     }
 
+    pub fn time_until_heartbeat(&self, now: Time, heartbeat_period: Duration) -> Duration {
+        let elapsed = now - self.last_heartbeat_time;
+        if elapsed >= heartbeat_period {
+            Duration::new(0, 0)
+        } else {
+            heartbeat_period - elapsed
+        }
+    }
+
     pub fn generate_new_heartbeat(
         &mut self,
         writer_id: EntityId,
@@ -200,8 +209,8 @@ impl RtpsReaderProxy {
         self.next_unsent_change(writer_history_cache).is_some()
     }
 
-    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
-        self.requested_changes.clone()
+    pub fn requested_changes(&self) -> &[SequenceNumber] {
+        &self.requested_changes
     }
 
     pub fn requested_changes_set(&mut self, req_seq_num_set: impl Iterator<Item = SequenceNumber>) {
@@ -227,6 +236,24 @@ impl RtpsReaderProxy {
                 highest_available_seq_num > self.highest_acked_seq_num
             }
             None => false,
+        }
+    }
+
+    pub fn time_until_heartbeat(
+        &self,
+        now: Time,
+        heartbeat_period: Duration,
+        highest_available_seq_num: Option<SequenceNumber>,
+    ) -> Option<Duration> {
+        if self.reliability == ReliabilityKind::Reliable
+            && self.unacked_changes(highest_available_seq_num)
+        {
+            Some(
+                self.heartbeat_machine
+                    .time_until_heartbeat(now, heartbeat_period),
+            )
+        } else {
+            None
         }
     }
 

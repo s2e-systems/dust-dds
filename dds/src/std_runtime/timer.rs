@@ -97,18 +97,18 @@ impl Future for Sleep {
             if this.deadline.is_none() {
                 // First time being polled starts the sleep count
                 this.reset();
+                let deadline = this
+                    .deadline
+                    .expect("Must have deadline set after check above");
+                let timer_wake = TimerWake {
+                    id: this.id,
+                    deadline,
+                    waker: cx.waker().clone(),
+                };
+                this.periodic_task_sender
+                    .send(TimerMessage::Wake(timer_wake))
+                    .expect("Shouldn't fail to send");
             }
-            let deadline = this
-                .deadline
-                .expect("Must have deadline set after check above");
-            let timer_wake = TimerWake {
-                id: this.id,
-                deadline,
-                waker: cx.waker().clone(),
-            };
-            this.periodic_task_sender
-                .send(TimerMessage::Wake(timer_wake))
-                .expect("Shouldn't fail to send");
             Poll::Pending
         }
     }
@@ -156,8 +156,7 @@ impl TimerHeap {
 
     #[inline(always)]
     fn remove(&mut self, id: usize) {
-        let heap = std::mem::take(&mut self.heap);
-        self.heap = heap.into_iter().filter(|t| t.id != id).collect();
+        self.heap.retain(|t| t.id != id);
     }
 }
 
@@ -241,6 +240,13 @@ impl TimerDriver {
                         Ok(TimerMessage::Cancel(id)) => timer_heap.remove(id),
                         Err(RecvTimeoutError::Timeout) => (),
                         Err(RecvTimeoutError::Disconnected) => break,
+                    }
+
+                    while let Ok(msg) = periodic_task_receiver.try_recv() {
+                        match msg {
+                            TimerMessage::Wake(t) => timer_heap.push(t),
+                            TimerMessage::Cancel(id) => timer_heap.remove(id),
+                        }
                     }
                 }
             })

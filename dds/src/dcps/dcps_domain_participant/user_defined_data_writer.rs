@@ -8,6 +8,7 @@ use crate::{
         listeners::domain_participant_listener::ListenerMail,
         status_condition::DcpsStatusCondition,
         status_mask::StatusMask,
+        xtypes_glue::key_and_instance_handle::KeyHolderType,
     },
     infrastructure::{
         error::DdsResult,
@@ -19,7 +20,7 @@ use crate::{
     rtps::stateful_writer::RtpsStatefulWriter,
     xtypes::dynamic_type::DynamicData,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
 pub struct PendingWriteSample {
@@ -65,13 +66,20 @@ impl UserDefinedDataWriter {
     pub fn new(
         instance_handle: InstanceHandle,
         transport_writer: RtpsStatefulWriter,
-        topic_name: String,
+        topic_name: Arc<str>,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         qos: DataWriterQos,
+        key_holder_type: KeyHolderType,
     ) -> Self {
         Self {
-            writer: DataWriterEntity::new(instance_handle, transport_writer, topic_name, qos),
+            writer: DataWriterEntity::new(
+                instance_handle,
+                transport_writer,
+                topic_name,
+                qos,
+                key_holder_type,
+            ),
             listener_sender,
             listener_mask,
             status_condition: DcpsStatusCondition::default(),

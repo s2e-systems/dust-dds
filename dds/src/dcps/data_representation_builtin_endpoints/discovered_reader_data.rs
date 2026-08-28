@@ -16,8 +16,7 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DataRepresentationQosPolicy,
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-        TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy,
+        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
 };
@@ -111,14 +110,15 @@ impl DiscoveredReaderData {
             );
         }
 
-        if self.dds_subscription_data.type_consistency
-            != TypeConsistencyEnforcementQosPolicy::default()
-        {
-            pl.write_xcdr1_parameter(
-                PID_TYPE_CONSISTENCY_ENFORCEMENT,
-                self.dds_subscription_data.type_consistency,
-            );
-        }
+        // For interoperability reasons this is unconditionally sent and the if clause remains commented out
+        // if self.dds_subscription_data.type_consistency
+        //     != TypeConsistencyEnforcementQosPolicy::default()
+        // {
+        pl.write_xcdr1_parameter(
+            PID_TYPE_CONSISTENCY_ENFORCEMENT,
+            self.dds_subscription_data.type_consistency,
+        );
+        // }
 
         if self.reader_proxy.remote_group_entity_id != ENTITYID_UNKNOWN {
             pl.write_cdr_parameter(PID_GROUP_ENTITYID, self.reader_proxy.remote_group_entity_id);
@@ -268,6 +268,8 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
+            1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
@@ -347,6 +349,8 @@ mod tests {
             b'o', b'n', b'e', 0, // String
             4, 0, 0, 0, // String length
             b't', b'w', b'o', 0, // String
+            0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
+            1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc2, //
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length

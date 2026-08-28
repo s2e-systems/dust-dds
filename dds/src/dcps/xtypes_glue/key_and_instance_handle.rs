@@ -2,24 +2,38 @@ use crate::{
     infrastructure::instance::InstanceHandle,
     transport::types::TopicKind,
     xtypes::{
-        dynamic_type::{DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeKind},
+        dynamic_type::{
+            DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeDescriptor,
+            TypeKind,
+        },
         error::{XTypesError, XTypesResult},
         serializer::serialize_final_without_header,
     },
 };
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
-pub struct KeyHolderType<'a>(DynamicType<'a>);
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyHolderType {
+    descriptor: Option<TypeDescriptor>,
+    key_members: Box<[DynamicTypeMember]>,
+}
 
-impl<'a> KeyHolderType<'a> {
-    pub fn from_dynamic_type(
-        value: &DynamicType<'a>,
-        member_list: &'a mut Vec<DynamicTypeMember>,
-    ) -> XTypesResult<Self> {
-        fn fill_struct_key_holder_type<'a>(
-            value: &DynamicType<'a>,
-            member_list: &'a mut Vec<DynamicTypeMember>,
-        ) -> XTypesResult<()> {
+impl Default for KeyHolderType {
+    fn default() -> Self {
+        Self {
+            descriptor: None,
+            key_members: Box::new([]),
+        }
+    }
+}
+
+impl KeyHolderType {
+    pub fn new(value: &DynamicType<'_>) -> Self {
+        let mut member_list = Vec::new();
+        fn fill_struct_key_holder_type(
+            value: &DynamicType<'_>,
+            member_list: &mut Vec<DynamicTypeMember>,
+        ) {
             if value.get_kind() == TypeKind::STRUCTURE {
                 for member in value.member_list {
                     if member.descriptor.is_key {
@@ -27,22 +41,28 @@ impl<'a> KeyHolderType<'a> {
                     } else if member.descriptor.r#type.descriptor.kind == TypeKind::STRUCTURE
                         && !member.descriptor.is_optional
                     {
-                        fill_struct_key_holder_type(&member.descriptor.r#type, member_list)?;
+                        fill_struct_key_holder_type(&member.descriptor.r#type, member_list);
                     }
                 }
             }
-            Ok(())
         }
 
-        fill_struct_key_holder_type(value, member_list)?;
-        Ok(Self(DynamicType {
-            descriptor: value.descriptor,
-            member_list: member_list.as_slice(),
-        }))
+        fill_struct_key_holder_type(value, &mut member_list);
+        Self {
+            descriptor: Some(value.descriptor.clone()),
+            key_members: member_list.into_boxed_slice(),
+        }
     }
 
-    pub fn as_dynamic_type(&self) -> &DynamicType<'a> {
-        &self.0
+    pub fn as_dynamic_type(&self) -> Option<DynamicType<'_>> {
+        self.descriptor.as_ref().map(|descriptor| DynamicType {
+            descriptor,
+            member_list: &self.key_members,
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_members.is_empty()
     }
 }
 
@@ -71,7 +91,7 @@ pub struct KeyHolderData<'a>(DynamicData<'a>);
 impl<'a> KeyHolderData<'a> {
     pub fn from_dynamic_data(
         value: &DynamicData<'a>,
-        member_list: &'a mut Vec<DynamicTypeMember>,
+        key_holder_type: &'a KeyHolderType,
     ) -> XTypesResult<KeyHolderData<'a>> {
         fn fill_struct_key_holder_data<'a>(
             value: &DynamicData<'a>,
@@ -98,8 +118,10 @@ impl<'a> KeyHolderData<'a> {
             }
             Ok(())
         }
-        let key_holder_type = KeyHolderType::from_dynamic_type(&value.r#type(), member_list)?.0;
-        let mut key_holder_data = DynamicDataFactory::create_data(key_holder_type);
+        let dynamic_type = key_holder_type
+            .as_dynamic_type()
+            .ok_or(XTypesError::InvalidType)?;
+        let mut key_holder_data = DynamicDataFactory::create_data(dynamic_type);
         fill_struct_key_holder_data(value, &mut key_holder_data)?;
         Ok(Self(key_holder_data))
     }
@@ -112,7 +134,7 @@ impl<'a> KeyHolderData<'a> {
 pub fn get_instance_handle_from_key_holder_data<'a>(
     key_holder_data: &KeyHolderData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    let data = serialize_final_without_header(Vec::new(), &key_holder_data.0)?;
+    let data = serialize_final_without_header(Vec::with_capacity(16), &key_holder_data.0)?;
     let key = if data.len() <= 16 {
         let mut key = [0; 16];
         key[0..data.len()].copy_from_slice(&data);
@@ -124,12 +146,22 @@ pub fn get_instance_handle_from_key_holder_data<'a>(
     Ok(InstanceHandle::new(key))
 }
 
+pub fn get_instance_handle_from_dynamic_data_and_key_holder<'a>(
+    value: &DynamicData<'a>,
+    key_holder_type: &KeyHolderType,
+) -> Result<InstanceHandle, XTypesError> {
+    if key_holder_type.is_empty() {
+        return Ok(InstanceHandle::new([0; 16]));
+    }
+    let key_holder_data = KeyHolderData::from_dynamic_data(value, key_holder_type)?;
+    get_instance_handle_from_key_holder_data(&key_holder_data)
+}
+
 pub fn get_instance_handle_from_dynamic_data<'a>(
     value: &DynamicData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
-    let mut member_list = Vec::new();
-    let key_holder_data = KeyHolderData::from_dynamic_data(value, &mut member_list)?;
-    get_instance_handle_from_key_holder_data(&key_holder_data)
+    let key_holder_type = KeyHolderType::new(&value.r#type());
+    get_instance_handle_from_dynamic_data_and_key_holder(value, &key_holder_type)
 }
 
 #[cfg(test)]
