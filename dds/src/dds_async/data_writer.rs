@@ -25,7 +25,7 @@ use crate::{
     },
     xtypes::type_support::TypeSupport,
 };
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use core::marker::PhantomData;
 
 /// Async version of [`DataWriter`](crate::publication::data_writer::DataWriter).
