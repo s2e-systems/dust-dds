@@ -167,9 +167,12 @@ impl Spawner for ExecutorHandle {
     }
 }
 
+use super::timer::TimerState;
+
 pub struct Executor {
     task_sender: Sender<Arc<Task>>,
     executor_thread_handle: JoinHandle<()>,
+    timer_state_holder: Arc<Mutex<Arc<TimerState>>>,
 }
 
 impl Default for Executor {
@@ -180,10 +183,23 @@ impl Default for Executor {
 
 impl Executor {
     pub fn new() -> Self {
+        Self::new_with_timer_state(Arc::new(TimerState::new()))
+    }
+
+    pub fn new_with_timer_state(initial_timer_state: Arc<TimerState>) -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
+        let timer_state_holder = Arc::new(Mutex::new(initial_timer_state.clone()));
+        let timer_state_holder_clone = timer_state_holder.clone();
+
         let executor_thread_handle = std::thread::Builder::new()
             .name("Dust DDS Executor".to_string())
             .spawn(move || {
+                let current_thread = std::thread::current();
+                timer_state_holder_clone
+                    .lock()
+                    .unwrap()
+                    .set_executor_thread(current_thread);
+
                 loop {
                     match task_receiver.try_recv() {
                         Ok(task) => {
@@ -205,7 +221,21 @@ impl Executor {
                                 }
                             }
                         }
-                        Err(TryRecvError::Empty) => thread::park(),
+                        Err(TryRecvError::Empty) => {
+                            let timer_state = timer_state_holder_clone.lock().unwrap().clone();
+                            timer_state.wake_elapsed();
+
+                            if let Some(duration) = timer_state.duration_until_next_deadline() {
+                                if duration == std::time::Duration::ZERO {
+                                    timer_state.wake_elapsed();
+                                } else {
+                                    thread::park_timeout(duration);
+                                    timer_state.wake_elapsed();
+                                }
+                            } else {
+                                thread::park();
+                            }
+                        }
                         Err(TryRecvError::Disconnected) => break,
                     }
                 }
@@ -215,7 +245,14 @@ impl Executor {
         Self {
             task_sender,
             executor_thread_handle,
+            timer_state_holder,
         }
+    }
+
+    pub fn set_timer_state(&self, timer_state: Arc<TimerState>) {
+        timer_state.set_executor_thread(self.executor_thread_handle.thread().clone());
+        *self.timer_state_holder.lock().unwrap() = timer_state;
+        self.executor_thread_handle.thread().unpark();
     }
 
     pub fn handle(&self) -> ExecutorHandle {

@@ -2,47 +2,123 @@ use std::{
     collections::BinaryHeap,
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex, mpsc::RecvTimeoutError},
+    sync::{Arc, Mutex, atomic::AtomicUsize},
     task::{Context, Poll, Waker},
-    thread::JoinHandle,
+    thread::Thread,
     time::{Duration, Instant},
 };
 
-use tracing::trace;
-
 use crate::runtime::Timer;
 
-pub struct TimerWake {
+#[derive(Debug)]
+struct TimerEntry {
     id: usize,
     deadline: Instant,
     waker: Waker,
 }
 
-impl PartialEq for TimerWake {
+impl PartialEq for TimerEntry {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id && self.deadline == other.deadline
     }
 }
 
-impl Eq for TimerWake {}
+impl Eq for TimerEntry {}
 
-impl PartialOrd for TimerWake {
+impl PartialOrd for TimerEntry {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for TimerWake {
+impl Ord for TimerEntry {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Reverse order compared to usual implementation
-        // since the binary heap is a max tree
+        // since the binary heap is a max tree and we want a min-heap
         other.deadline.cmp(&self.deadline)
     }
 }
 
-pub enum TimerMessage {
-    Wake(TimerWake),
-    Cancel(usize),
+#[derive(Default, Debug)]
+pub struct TimerState {
+    next_id: AtomicUsize,
+    entries: Mutex<BinaryHeap<TimerEntry>>,
+    executor_thread: Mutex<Option<Thread>>,
+}
+
+impl TimerState {
+    pub fn new() -> Self {
+        Self {
+            next_id: AtomicUsize::new(1),
+            entries: Mutex::new(BinaryHeap::new()),
+            executor_thread: Mutex::new(None),
+        }
+    }
+
+    pub fn set_executor_thread(&self, thread: Thread) {
+        *self.executor_thread.lock().unwrap() = Some(thread);
+    }
+
+    pub fn allocate_id(&self) -> usize {
+        self.next_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn register(&self, id: usize, deadline: Instant, waker: Waker) {
+        let mut entries = self.entries.lock().unwrap();
+        let is_earliest = entries
+            .peek()
+            .is_none_or(|earliest| deadline < earliest.deadline);
+        entries.push(TimerEntry {
+            id,
+            deadline,
+            waker,
+        });
+        drop(entries);
+
+        if is_earliest {
+            if let Some(thread) = self.executor_thread.lock().unwrap().as_ref() {
+                thread.unpark();
+            }
+        }
+    }
+
+    pub fn remove(&self, id: usize) {
+        let mut entries = self.entries.lock().unwrap();
+        entries.retain(|e| e.id != id);
+    }
+
+    pub fn duration_until_next_deadline(&self) -> Option<Duration> {
+        let entries = self.entries.lock().unwrap();
+        entries.peek().map(|earliest| {
+            let now = Instant::now();
+            if earliest.deadline > now {
+                earliest.deadline.duration_since(now)
+            } else {
+                Duration::ZERO
+            }
+        })
+    }
+
+    pub fn wake_elapsed(&self) {
+        let now = Instant::now();
+        let mut to_wake = Vec::new();
+        {
+            let mut entries = self.entries.lock().unwrap();
+            while let Some(earliest) = entries.peek() {
+                if earliest.deadline <= now {
+                    if let Some(entry) = entries.pop() {
+                        to_wake.push(entry.waker);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        for waker in to_wake {
+            waker.wake();
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -50,28 +126,24 @@ pub struct Sleep {
     id: usize,
     deadline: Option<Instant>,
     duration: Duration,
-    periodic_task_sender: std::sync::mpsc::Sender<TimerMessage>,
+    timer_state: Arc<TimerState>,
 }
 
 impl Drop for Sleep {
     fn drop(&mut self) {
-        let _ = self
-            .periodic_task_sender
-            .send(TimerMessage::Cancel(self.id));
+        self.timer_state.remove(self.id);
     }
 }
 
 impl Sleep {
-    #[tracing::instrument]
     pub fn is_elapsed(&self) -> bool {
         if let Some(d) = self.deadline {
-            Instant::now() > d
+            Instant::now() >= d
         } else {
             false
         }
     }
 
-    #[tracing::instrument]
     pub fn reset(&mut self) {
         self.deadline = Some(
             Instant::now()
@@ -95,93 +167,31 @@ impl Future for Sleep {
             Poll::Ready(())
         } else {
             if this.deadline.is_none() {
-                // First time being polled starts the sleep count
                 this.reset();
                 let deadline = this
                     .deadline
                     .expect("Must have deadline set after check above");
-                let timer_wake = TimerWake {
-                    id: this.id,
-                    deadline,
-                    waker: cx.waker().clone(),
-                };
-                this.periodic_task_sender
-                    .send(TimerMessage::Wake(timer_wake))
-                    .expect("Shouldn't fail to send");
+                this.timer_state
+                    .register(this.id, deadline, cx.waker().clone());
             }
             Poll::Pending
         }
     }
 }
 
-struct TimerHeap {
-    heap: BinaryHeap<TimerWake>,
-}
-
-impl TimerHeap {
-    fn new() -> Self {
-        Self {
-            heap: BinaryHeap::with_capacity(10),
-        }
-    }
-
-    #[inline(always)]
-    fn push(&mut self, item: TimerWake) {
-        self.heap.push(item)
-    }
-
-    #[inline(always)]
-    fn duration_until_next_timer(&self) -> Option<Duration> {
-        if let Some(t) = self.heap.peek() {
-            let d = t.deadline.duration_since(Instant::now());
-            Some(d)
-        } else {
-            None
-        }
-    }
-
-    #[inline(always)]
-    fn is_next_timer_elapsed(&self) -> bool {
-        matches!(self.heap.peek(), Some(t) if t.deadline < Instant::now())
-    }
-
-    #[inline(always)]
-    fn notify_next_timer(&mut self) {
-        if let Some(t) = self.heap.pop() {
-            debug_assert!(t.deadline < Instant::now());
-            trace!("Notify timer with id {}", t.id);
-            t.waker.wake();
-        }
-    }
-
-    #[inline(always)]
-    fn remove(&mut self, id: usize) {
-        self.heap.retain(|t| t.id != id);
-    }
-}
-
-#[derive(Debug)]
-struct HandleInner {
-    sleep_task_id: usize,
-    periodic_task_sender: std::sync::mpsc::Sender<TimerMessage>,
-}
-
 #[derive(Clone, Debug)]
 pub struct TimerHandle {
-    inner: Arc<Mutex<HandleInner>>,
+    state: Arc<TimerState>,
 }
 
 impl TimerHandle {
     pub fn sleep(&self, duration: Duration) -> Sleep {
-        let mut inner_lock = self.inner.lock().expect("Mutex should not be poisoned");
-        let id = inner_lock.sleep_task_id;
-        inner_lock.sleep_task_id += 1;
-        trace!("Create Sleep with id {}", inner_lock.sleep_task_id);
+        let id = self.state.allocate_id();
         Sleep {
             id,
             deadline: None,
             duration,
-            periodic_task_sender: inner_lock.periodic_task_sender.clone(),
+            timer_state: self.state.clone(),
         }
     }
 }
@@ -193,8 +203,7 @@ impl Timer for TimerHandle {
 }
 
 pub struct TimerDriver {
-    inner: Arc<Mutex<HandleInner>>,
-    _timer_thread_join_handle: JoinHandle<()>,
+    state: Arc<TimerState>,
 }
 
 impl Default for TimerDriver {
@@ -205,65 +214,18 @@ impl Default for TimerDriver {
 
 impl TimerDriver {
     pub fn new() -> Self {
-        let (periodic_task_sender, periodic_task_receiver) =
-            std::sync::mpsc::channel::<TimerMessage>();
-        let timer_thread_join_handle = std::thread::Builder::new()
-            .name("Dust DDS Timer".to_string())
-            .spawn(move || {
-                let mut timer_heap = TimerHeap::new();
-                loop {
-                    // Check if there are any elapsed tasks and wake them
-                    while timer_heap.is_next_timer_elapsed() {
-                        trace!("Notifying next timer");
-                        timer_heap.notify_next_timer();
-                    }
-
-                    // Wait for a new timer wake to come. Sleep forever
-                    // if there are no timer tasks on the queue otherwise
-                    // sleep until the next deadline so that the tasks can be
-                    // notified at the correct time
-                    let new_timer = match timer_heap.duration_until_next_timer() {
-                        Some(d) => {
-                            trace!("Waiting for new waker value for fixed duration {:?}", d);
-                            periodic_task_receiver.recv_timeout(d)
-                        }
-                        None => {
-                            trace!("Waiting for new waker value indefinitely");
-                            periodic_task_receiver
-                                .recv()
-                                .map_err(|_| RecvTimeoutError::Disconnected)
-                        }
-                    };
-
-                    match new_timer {
-                        Ok(TimerMessage::Wake(t)) => timer_heap.push(t),
-                        Ok(TimerMessage::Cancel(id)) => timer_heap.remove(id),
-                        Err(RecvTimeoutError::Timeout) => (),
-                        Err(RecvTimeoutError::Disconnected) => break,
-                    }
-
-                    while let Ok(msg) = periodic_task_receiver.try_recv() {
-                        match msg {
-                            TimerMessage::Wake(t) => timer_heap.push(t),
-                            TimerMessage::Cancel(id) => timer_heap.remove(id),
-                        }
-                    }
-                }
-            })
-            .expect("failed to spawn thread");
-        let inner = Arc::new(Mutex::new(HandleInner {
-            sleep_task_id: 0,
-            periodic_task_sender,
-        }));
         Self {
-            inner,
-            _timer_thread_join_handle: timer_thread_join_handle,
+            state: Arc::new(TimerState::new()),
         }
+    }
+
+    pub fn state(&self) -> Arc<TimerState> {
+        self.state.clone()
     }
 
     pub fn handle(&self) -> TimerHandle {
         TimerHandle {
-            inner: self.inner.clone(),
+            state: self.state.clone(),
         }
     }
 }
@@ -274,15 +236,37 @@ mod tests {
 
     #[test]
     fn test_reset_overflow() {
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let timer_state = Arc::new(TimerState::new());
         let mut sleep = Sleep {
             id: 1,
             deadline: None,
             duration: Duration::MAX,
-            periodic_task_sender: tx,
+            timer_state,
         };
         // This should not panic
         sleep.reset();
         assert!(sleep.deadline.is_some());
+    }
+
+    #[test]
+    fn test_timer_delay() {
+        let timer_driver = TimerDriver::new();
+        let mut timer = timer_driver.handle();
+        let start = Instant::now();
+        let sleep_duration = Duration::from_millis(50);
+
+        let fut = timer.delay(sleep_duration);
+        let timer_state = timer_driver.state();
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(&waker);
+        let mut pinned = std::pin::pin!(fut);
+
+        assert!(matches!(pinned.as_mut().poll(&mut cx), Poll::Pending));
+        assert!(timer_state.duration_until_next_deadline().is_some());
+
+        std::thread::sleep(sleep_duration);
+        timer_state.wake_elapsed();
+        assert!(matches!(pinned.as_mut().poll(&mut cx), Poll::Ready(())));
+        assert!(start.elapsed() >= sleep_duration);
     }
 }

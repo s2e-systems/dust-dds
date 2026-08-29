@@ -24,14 +24,25 @@ impl Clock for StdClock {
     }
 }
 
-#[derive(Default)]
 pub struct StdRuntime {
     timer_driver: TimerDriver,
     executor: Executor,
 }
 
+impl Default for StdRuntime {
+    fn default() -> Self {
+        let timer_driver = TimerDriver::new();
+        let executor = Executor::new_with_timer_state(timer_driver.state());
+        Self {
+            timer_driver,
+            executor,
+        }
+    }
+}
+
 impl StdRuntime {
     pub fn new(executor: Executor, timer_driver: TimerDriver) -> Self {
+        executor.set_timer_state(timer_driver.state());
         Self {
             executor,
             timer_driver,
