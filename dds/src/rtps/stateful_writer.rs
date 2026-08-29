@@ -340,7 +340,7 @@ impl RtpsReaderProxy {
         //      send GAP;
         // }
         // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
-        while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes.iter()) {
+        while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
             if next_unsent_change_seq_num > self.highest_sent_seq_num() + 1 {
                 let gap_start_sequence_number = self.highest_sent_seq_num() + 1;
                 let gap_end_sequence_number = next_unsent_change_seq_num - 1;
@@ -444,8 +444,8 @@ impl RtpsReaderProxy {
         let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
         let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
         // Top part of the state machine - Figure 8.19 RTPS standard
-        if self.unsent_changes(changes.iter()) {
-            while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes.iter()) {
+        if self.unsent_changes(changes) {
+            while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
                 if next_unsent_change_seq_num > self.highest_sent_seq_num() + 1 {
                     let gap_start_sequence_number = self.highest_sent_seq_num() + 1;
                     let gap_end_sequence_number = next_unsent_change_seq_num - 1;
