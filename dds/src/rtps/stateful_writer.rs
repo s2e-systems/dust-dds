@@ -69,26 +69,28 @@ impl RtpsStatefulWriter {
         &self,
         now: crate::infrastructure::time::Time,
     ) -> Option<crate::infrastructure::time::Duration> {
-        if self.changes.is_empty() || self.matched_readers.is_empty() {
-            return None;
+        let seq_num_max = self.changes.last()?.sequence_number;
+        let mut min_time: Option<crate::infrastructure::time::Duration> = None;
+        for rp in &self.matched_readers {
+            if rp.reliability() == ReliabilityKind::Reliable
+                && seq_num_max > rp.highest_acked_seq_num()
+            {
+                if let Some(d) =
+                    rp.time_until_heartbeat(now, self.heartbeat_period.into(), Some(seq_num_max))
+                {
+                    min_time = Some(min_time.map_or(d, |min| min.min(d)));
+                }
+            }
         }
-        let seq_num_max = self.changes.iter().map(|cc| cc.sequence_number).max();
-        self.matched_readers
-            .iter()
-            .filter(|rp| rp.reliability() == ReliabilityKind::Reliable)
-            .filter_map(|rp| {
-                rp.time_until_heartbeat(now, self.heartbeat_period.into(), seq_num_max)
-            })
-            .min()
+        min_time
     }
 
     pub fn add_matched_reader(&mut self, reader_proxy: ReaderProxy) {
         let first_relevant_sample_seq_num = match reader_proxy.durability_kind {
             DurabilityKind::Volatile => self
                 .changes
-                .iter()
+                .last()
                 .map(|cc| cc.sequence_number)
-                .max()
                 .unwrap_or(0),
             DurabilityKind::TransientLocal
             | DurabilityKind::Transient
@@ -441,8 +443,8 @@ impl RtpsReaderProxy {
         now: Time,
         guid_prefix: GuidPrefix,
     ) {
-        let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
-        let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
+        let seq_num_min = changes.first().map(|cc| cc.sequence_number);
+        let seq_num_max = changes.last().map(|cc| cc.sequence_number);
         // Top part of the state machine - Figure 8.19 RTPS standard
         if self.unsent_changes(changes) {
             while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
@@ -471,8 +473,6 @@ impl RtpsReaderProxy {
                     .len();
                     message_writer.write_message(len, self.unicast_locator_list())
                 } else {
-                    let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
-                    let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
                     if let Some(cache_change) = changes.iter().find(|cc| {
                         cc.sequence_number == next_unsent_change_seq_num
                             && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
@@ -612,8 +612,6 @@ impl RtpsReaderProxy {
                 // Also the post-condition:
                 // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
                 // should be full-filled by next_requested_change()
-                let seq_num_min = changes.iter().map(|cc| cc.sequence_number).min();
-                let seq_num_max = changes.iter().map(|cc| cc.sequence_number).max();
                 if let Some(cache_change) = changes.iter().find(|cc| {
                     cc.sequence_number == next_requested_change_seq_num
                         && next_requested_change_seq_num > self.first_relevant_sample_seq_num()

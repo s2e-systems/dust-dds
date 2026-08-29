@@ -258,6 +258,10 @@ impl RtpsReaderProxy {
         }
     }
 
+    pub fn highest_acked_seq_num(&self) -> SequenceNumber {
+        self.highest_acked_seq_num
+    }
+
     pub fn highest_sent_seq_num(&self) -> SequenceNumber {
         self.highest_sent_seq_num
     }
