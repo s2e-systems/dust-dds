@@ -472,64 +472,28 @@ impl RtpsReaderProxy {
                     .buffer()
                     .len();
                     message_writer.write_message(len, self.unicast_locator_list())
-                } else {
-                    if let Some(cache_change) = changes.iter().find(|cc| {
-                        cc.sequence_number == next_unsent_change_seq_num
-                            && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
-                    }) {
-                        let number_of_fragments = cache_change
-                            .data_value
-                            .len()
-                            .div_ceil(data_max_size_serialized);
+                } else if let Some(cache_change) = changes.iter().find(|cc| {
+                    cc.sequence_number == next_unsent_change_seq_num
+                        && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
+                }) {
+                    let number_of_fragments = cache_change
+                        .data_value
+                        .len()
+                        .div_ceil(data_max_size_serialized);
 
-                        // Either send a DATAFRAG submessages or send a single DATA submessage
-                        if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
-                            for fragment_number in 0..number_of_fragments {
-                                let reader_id = self.remote_reader_guid().entity_id();
-                                let data_frag = cache_change.as_data_frag_submessage(
-                                    reader_id,
-                                    writer_id,
-                                    data_max_size_serialized,
-                                    fragment_number,
-                                );
+                    // Either send a DATAFRAG submessages or send a single DATA submessage
+                    if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
+                        for fragment_number in 0..number_of_fragments {
+                            let reader_id = self.remote_reader_guid().entity_id();
+                            let data_frag = cache_change.as_data_frag_submessage(
+                                reader_id,
+                                writer_id,
+                                data_max_size_serialized,
+                                fragment_number,
+                            );
 
-                                let info_dst = InfoDestinationSubmessage::new(
-                                    self.remote_reader_guid().prefix(),
-                                );
-                                let info_timestamp =
-                                    if let Some(timestamp) = cache_change.source_timestamp {
-                                        InfoTimestampSubmessage::new(false, timestamp.into())
-                                    } else {
-                                        InfoTimestampSubmessage::new(true, TIME_INVALID)
-                                    };
-
-                                let len = if fragment_number == number_of_fragments - 1 {
-                                    let first_sn = seq_num_min.unwrap_or(1);
-                                    let last_sn = seq_num_max.unwrap_or(0);
-                                    let heartbeat =
-                                        self.heartbeat_machine().generate_new_heartbeat(
-                                            writer_id, first_sn, last_sn, now, false,
-                                        );
-                                    RtpsMessageWrite::from_submessages(
-                                        message_writer.write_buffer_mut(),
-                                        &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
-                                        guid_prefix,
-                                    )
-                                } else {
-                                    RtpsMessageWrite::from_submessages(
-                                        message_writer.write_buffer_mut(),
-                                        &[&info_dst, &info_timestamp, &data_frag],
-                                        guid_prefix,
-                                    )
-                                }
-                                .buffer()
-                                .len();
-                                message_writer.write_message(len, self.unicast_locator_list())
-                            }
-                        } else {
                             let info_dst =
                                 InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-
                             let info_timestamp =
                                 if let Some(timestamp) = cache_change.source_timestamp {
                                     InfoTimestampSubmessage::new(false, timestamp.into())
@@ -537,22 +501,24 @@ impl RtpsReaderProxy {
                                     InfoTimestampSubmessage::new(true, TIME_INVALID)
                                 };
 
-                            let data_submessage = cache_change.as_data_submessage(
-                                self.remote_reader_guid().entity_id(),
-                                writer_id,
-                            );
-
-                            let first_sn = seq_num_min.unwrap_or(1);
-                            let last_sn = seq_num_max.unwrap_or(0);
-                            let heartbeat = self
-                                .heartbeat_machine()
-                                .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
-
-                            let len = RtpsMessageWrite::from_submessages(
-                                message_writer.write_buffer_mut(),
-                                &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
-                                guid_prefix,
-                            )
+                            let len = if fragment_number == number_of_fragments - 1 {
+                                let first_sn = seq_num_min.unwrap_or(1);
+                                let last_sn = seq_num_max.unwrap_or(0);
+                                let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
+                                    writer_id, first_sn, last_sn, now, false,
+                                );
+                                RtpsMessageWrite::from_submessages(
+                                    message_writer.write_buffer_mut(),
+                                    &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
+                                    guid_prefix,
+                                )
+                            } else {
+                                RtpsMessageWrite::from_submessages(
+                                    message_writer.write_buffer_mut(),
+                                    &[&info_dst, &info_timestamp, &data_frag],
+                                    guid_prefix,
+                                )
+                            }
                             .buffer()
                             .len();
                             message_writer.write_message(len, self.unicast_locator_list())
@@ -561,23 +527,52 @@ impl RtpsReaderProxy {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-                        let gap_submessage = GapSubmessage::new(
-                            ENTITYID_UNKNOWN,
-                            writer_id,
-                            next_unsent_change_seq_num,
-                            SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                        );
+                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
+                        {
+                            InfoTimestampSubmessage::new(false, timestamp.into())
+                        } else {
+                            InfoTimestampSubmessage::new(true, TIME_INVALID)
+                        };
+
+                        let data_submessage = cache_change
+                            .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+
+                        let first_sn = seq_num_min.unwrap_or(1);
+                        let last_sn = seq_num_max.unwrap_or(0);
+                        let heartbeat = self
+                            .heartbeat_machine()
+                            .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
                         let len = RtpsMessageWrite::from_submessages(
                             message_writer.write_buffer_mut(),
-                            &[&info_dst, &gap_submessage],
+                            &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
                             guid_prefix,
                         )
                         .buffer()
                         .len();
                         message_writer.write_message(len, self.unicast_locator_list())
                     }
+                } else {
+                    let info_dst =
+                        InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
+
+                    let gap_submessage = GapSubmessage::new(
+                        ENTITYID_UNKNOWN,
+                        writer_id,
+                        next_unsent_change_seq_num,
+                        SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
+                    );
+
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
+                        &[&info_dst, &gap_submessage],
+                        guid_prefix,
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, self.unicast_locator_list())
                 }
+
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
             }
         } else if !self.unacked_changes(seq_num_max) {
