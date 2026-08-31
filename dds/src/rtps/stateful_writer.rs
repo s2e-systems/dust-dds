@@ -399,8 +399,20 @@ impl RtpsReaderProxy {
                         message_writer.write_message(len, self.unicast_locator_list())
                     }
                 } else {
-                    let data_submessage = cache_change
-                        .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                    let inline_qos = match (
+                        cache_change.status_info_parameter(),
+                        cache_change.key_hash_parameter(),
+                    ) {
+                        (Some(s), Some(k)) => &[s, k][..],
+                        (Some(s), None) => &[s][..],
+                        (None, Some(k)) => &[k][..],
+                        (None, None) => &[],
+                    };
+                    let data_submessage = cache_change.as_data_submessage(
+                        self.remote_reader_guid().entity_id(),
+                        writer_id,
+                        inline_qos,
+                    );
 
                     let len = RtpsMessageWrite::from_submessages(
                         message_writer.write_buffer_mut(),
@@ -534,8 +546,20 @@ impl RtpsReaderProxy {
                             InfoTimestampSubmessage::new(true, TIME_INVALID)
                         };
 
-                        let data_submessage = cache_change
-                            .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                        let inline_qos = match (
+                            cache_change.status_info_parameter(),
+                            cache_change.key_hash_parameter(),
+                        ) {
+                            (Some(s), Some(k)) => &[s, k][..],
+                            (Some(s), None) => &[s][..],
+                            (None, Some(k)) => &[k][..],
+                            (None, None) => &[],
+                        };
+                        let data_submessage = cache_change.as_data_submessage(
+                            self.remote_reader_guid().entity_id(),
+                            writer_id,
+                            inline_qos,
+                        );
 
                         let first_sn = seq_num_min.unwrap_or(1);
                         let last_sn = seq_num_max.unwrap_or(0);
@@ -660,8 +684,20 @@ impl RtpsReaderProxy {
                             InfoTimestampSubmessage::new(true, TIME_INVALID)
                         };
 
-                        let data_submessage = cache_change
-                            .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                        let inline_qos = match (
+                            cache_change.status_info_parameter(),
+                            cache_change.key_hash_parameter(),
+                        ) {
+                            (Some(s), Some(k)) => &[s, k][..],
+                            (Some(s), None) => &[s][..],
+                            (None, Some(k)) => &[k][..],
+                            (None, None) => &[],
+                        };
+                        let data_submessage = cache_change.as_data_submessage(
+                            self.remote_reader_guid().entity_id(),
+                            writer_id,
+                            inline_qos,
+                        );
 
                         let first_sn = seq_num_min.unwrap_or(1);
                         let last_sn = seq_num_max.unwrap_or(0);
