@@ -522,7 +522,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     }
 }
 
-const PID_SENTINEL: u16 = 1;
+const PID_LIST_END: u16 = 0x3F02;
 
 struct Ssize<'a, 'b, E, V> {
     serializer: &'a mut XTypesSerializer<'b, E, V>,
@@ -833,7 +833,7 @@ impl EncodingVersion for EncodingVersion1 {
         }
         // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
         Self::align(serializer, 4);
-        serializer.serialize_primitive_type(&PID_SENTINEL);
+        serializer.serialize_primitive_type(&PID_LIST_END);
         serializer.serialize_primitive_type(&0u16);
         Ok(())
     }
@@ -888,7 +888,7 @@ impl EncodingVersion for EncodingVersion1 {
         serializer.serialize_selected_member_mmember(v)?;
         // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
         Self::align(serializer, 4);
-        serializer.serialize_primitive_type(&PID_SENTINEL);
+        serializer.serialize_primitive_type(&PID_LIST_END);
         serializer.serialize_primitive_type(&0u16);
         Ok(())
     }
@@ -1444,7 +1444,7 @@ mod tests {
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 41, 0, 2, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
-                0, 1, 0, 0, // Sentinel
+                0x3F, 0x02, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1453,7 +1453,7 @@ mod tests {
                 0x00, 0x03, 0x00, 0x00, // CDR Header
                 41, 0x00, 2, 0, // PID, length
                 1, 2, 0, 0, // version | padding (2 bytres)
-                1, 0, 0, 0, // Sentinel
+                0x02, 0x3F, 0, 0, // Sentinel
             ]
         );
     }
@@ -1474,7 +1474,7 @@ mod tests {
                 0x00, 0x02, 0x00, 0x00, // CDR Header
                 0x00, 41, 0, 3, // PID, length
                 1, 2, 3, 0, // member | padding (1 bytres)
-                0, 1, 0, 0, // Sentinel
+                0x3F, 0x02, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1483,7 +1483,7 @@ mod tests {
                 0x00, 0x03, 0x00, 0x00, // CDR Header
                 41, 0x00, 3, 0, // PID, length
                 1, 2, 3, 0, // member | padding (2 bytres)
-                1, 0, 0, 0, // Sentinel
+                0x02, 0x3F, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1540,7 +1540,7 @@ mod tests {
                 0, 0, 0, 1, // kind
                 3, 4, 5, 6, // address1 and 2
                 7, 0, 0, 0, // address2 | pading (3 bytes)
-                0, 1, 0, 0
+                0x3F, 0x02, 0, 0
             ]
         );
     }
@@ -1802,7 +1802,7 @@ mod tests {
                 7, 0, 0, 0, // one_byte | padding
                 0x20, 0x81, 0, 2, // PID | length
                 0x08, 0x09, 0, 0, // two_bytes | padding (2 bytes)
-                0, 1, 0, 0, // Sentinel
+                0x3F, 0x02, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1813,7 +1813,7 @@ mod tests {
                 7, 0, 0, 0, // one_byte | padding
                 0x81, 0x20, 2, 0, // PID | length
                 0x09, 0x08, 0, 0, // two_bytes | padding (2 bytes)
-                1, 0, 0, 0, // Sentinel
+                0x02, 0x3F, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1887,10 +1887,10 @@ mod tests {
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
                 0x00, 80, 0, 2, // field_mutable: PID | length
                 0, 8, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
-                0, 1, 0, 0, // field_mutable: Sentinel
+                0x3F, 0x02, 0, 0, // field_mutable: Sentinel
                 0x00, 98, 0, 2, // field_mutable: PID | length
                 0, 9, 0, 0, // field_final: primitive | padding (2 bytes)
-                0, 1, 0, 0, // Sentinel
+                0x3F, 0x02, 0, 0, // Sentinel
             ]
         );
         assert_eq!(
@@ -1904,10 +1904,10 @@ mod tests {
                 7, 0, 0, 0, // field_mutable: one_byte | padding (3 bytes)
                 0x050, 0x00, 2, 0, // field_mutable: PID | length
                 8, 0, 0, 0, // field_mutable: two_bytes | padding (2 bytes)
-                1, 0, 0, 0, // field_mutable: Sentinel
+                0x02, 0x3F, 0, 0, // field_mutable: Sentinel
                 98, 0x00, 2, 0, // field_mutable: PID | length
                 9, 0, 0, 0, // field_final: primitive | padding (2 bytes)
-                1, 0, 0, 0, // Sentinel
+                0x02, 0x3F, 0, 0, // Sentinel
             ]
         );
     }
@@ -2081,7 +2081,7 @@ mod tests {
             0, 5, 0, 0, // discriminant (u16) | padding (2 bytes)
             0b0000_0000, 1, 0, 4, // SMHEADER1 ID 1 (auto asigned) | length
             0, 0, 0, 10, // selected_member u32 (VariantA)
-            0, 1, 0, 0, // SENTINEL
+            0x3F, 0x02, 0, 0, // SENTINEL
         ];
         assert_eq!(serialize_cdr1_be(&variant_a).unwrap(), expected);
         #[rustfmt::skip]
@@ -2103,7 +2103,7 @@ mod tests {
             0, 6, 0, 0, // discriminant (u16) | padding (2 bytes)
             0b0000_0000, 2, 0, 4, // SMHEADER1 ID 2 (auto asigned) | length
             0, 0, 0, 10, // selected_member u32 (VariantA)
-            0, 1, 0, 0, // SENTINEL
+            0x3F, 0x02, 0, 0, // SENTINEL
         ];
         assert_eq!(serialize_cdr1_be(&variant_b).unwrap(), expected);
         #[rustfmt::skip]
