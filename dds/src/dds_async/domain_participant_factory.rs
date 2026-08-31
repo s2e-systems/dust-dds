@@ -230,9 +230,8 @@ impl
             >,
         > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-            let executor = crate::std_runtime::executor::Executor::new();
-            let timer_driver = crate::std_runtime::timer::TimerDriver::new();
-            let runtime = crate::std_runtime::StdRuntime::new(executor, timer_driver);
+
+            let runtime = crate::std_runtime::StdRuntime::default();
             let interface_address = NetworkInterface::show()
                 .expect("Could not scan interfaces")
                 .into_iter()

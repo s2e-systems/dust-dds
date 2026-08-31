@@ -54,9 +54,7 @@ fn detect_stale_participant() {
     let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let executor = dust_dds::std_runtime::executor::Executor::new();
-    let timer_driver = dust_dds::std_runtime::timer::TimerDriver::new();
-    let runtime = dust_dds::std_runtime::StdRuntime::new(executor, timer_driver);
+    let runtime = dust_dds::std_runtime::StdRuntime::default();
     let app_id = [1, 2, 3, 4];
     let host_id = [5, 6, 7, 8];
     let configuration = Default::default();
@@ -150,9 +148,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-    let executor = dust_dds::std_runtime::executor::Executor::new();
-    let timer_driver = dust_dds::std_runtime::timer::TimerDriver::new();
-    let runtime = dust_dds::std_runtime::StdRuntime::new(executor, timer_driver);
+    let runtime = dust_dds::std_runtime::StdRuntime::default();
     let app_id = [1, 2, 3, 4];
     let host_id = [5, 6, 7, 8];
     let configuration = Default::default();

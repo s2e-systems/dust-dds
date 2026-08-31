@@ -186,25 +186,26 @@ impl RtpsReaderProxy {
         next_requested_change
     }
 
-    pub fn next_unsent_change<'a>(
-        &'a self,
-        writer_history_cache: impl Iterator<Item = &'a CacheChange>,
+    pub fn next_unsent_change(
+        &self,
+        writer_history_cache: &[CacheChange],
     ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
         //
         // IF unsent_changes == <empty> return SEQUENCE_NUMBER_INVALID
         // ELSE return MIN { unsent_changes.sequenceNumber }
+
+        // Iterate from the end since the last sequence number is like
         writer_history_cache
+            .iter()
+            .rev()
             .map(|cc| cc.sequence_number)
             .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
             .min()
     }
 
-    pub fn unsent_changes<'a>(
-        &'a self,
-        writer_history_cache: impl Iterator<Item = &'a CacheChange>,
-    ) -> bool {
+    pub fn unsent_changes(&self, writer_history_cache: &[CacheChange]) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
         self.next_unsent_change(writer_history_cache).is_some()
     }
@@ -255,6 +256,10 @@ impl RtpsReaderProxy {
         } else {
             None
         }
+    }
+
+    pub fn highest_acked_seq_num(&self) -> SequenceNumber {
+        self.highest_acked_seq_num
     }
 
     pub fn highest_sent_seq_num(&self) -> SequenceNumber {

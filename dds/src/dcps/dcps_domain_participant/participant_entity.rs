@@ -189,7 +189,7 @@ impl DcpsDomainParticipant {
                 }
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    for cc in data_writer.transport_writer.changes() {
+                    if let Some(cc) = data_writer.transport_writer.changes().first() {
                         if let Some(source_timestamp) = cc.source_timestamp {
                             let expiry = Time::from(source_timestamp) + lifespan;
                             let remaining = if expiry > now {
