@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{
     dcps::{
-        channels::oneshot::oneshot,
         dcps_mail::{DcpsMail, TopicServiceMail},
         status_condition::StatusConditionEntity,
     },
@@ -18,6 +17,7 @@ use crate::{
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
+    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -52,18 +52,16 @@ impl TopicAsync {
     /// Async version of [`get_inconsistent_topic_status`](crate::topic_definition::topic::Topic::get_inconsistent_topic_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
-            .send(DcpsMail::Topic(
+            .call(DcpsMail::Topic(
                 TopicServiceMail::GetInconsistentTopicStatus {
                     participant_handle: self.participant.get_instance_handle(),
                     topic_name: self.topic_name.to_string(),
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_inconsistent_topic_status()
     }
 }
 
@@ -85,34 +83,28 @@ impl TopicAsync {
     /// Async version of [`set_qos`](crate::topic_definition::topic::Topic::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
-            .send(DcpsMail::Topic(TopicServiceMail::SetQos {
+            .call(DcpsMail::Topic(TopicServiceMail::SetQos {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-                topic_qos: qos,
-                reply_sender,
+                topic_qos: Box::new(qos),
             }))
-            .await;
-
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
-            .send(DcpsMail::Topic(TopicServiceMail::GetQos {
+            .call(DcpsMail::Topic(TopicServiceMail::GetQos {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-                reply_sender,
             }))
-            .await;
-
-        reply_receiver.await?
+            .await?
+            .expect_topic_qos()
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -136,16 +128,14 @@ impl TopicAsync {
     /// Async version of [`enable`](crate::topic_definition::topic::Topic::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
-            .send(DcpsMail::Topic(TopicServiceMail::Enable {
+            .call(DcpsMail::Topic(TopicServiceMail::Enable {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -169,16 +159,13 @@ impl TopicAsync {
     #[doc(hidden)]
     #[tracing::instrument(skip(self))]
     pub async fn get_type_support(&self) -> DdsResult<DynamicType<'static>> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.participant
             .dcps_sender()
-            .send(DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
+            .call(DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-                reply_sender,
             }))
-            .await;
-
-        reply_receiver.await?
+            .await?
+            .expect_dynamic_type()
     }
 }

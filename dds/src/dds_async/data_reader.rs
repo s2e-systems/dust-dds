@@ -5,7 +5,9 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps::{
         channels::oneshot::oneshot,
-        dcps_mail::{DcpsMail, MessageServiceMail, ReaderServiceMail},
+        dcps_mail::{
+            DcpsMail, MessageServiceMail, ReadMail, ReadNextInstanceMail, ReaderServiceMail,
+        },
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_condition::StatusConditionEntity,
     },
@@ -29,6 +31,7 @@ use crate::{
     xtypes::type_support::TypeSupport,
 };
 use alloc::{
+    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec,
@@ -120,21 +123,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Read {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                specific_instance_handle: None,
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Read(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    specific_instance_handle: None,
+                },
+            ))))
+            .await?;
+        let samples = reply.expect_samples()?;
 
         Ok(samples
             .into_iter()
@@ -151,21 +155,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Take {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                specific_instance_handle: None,
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Take(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    specific_instance_handle: None,
+                },
+            ))))
+            .await?;
+        let samples = reply.expect_samples()?;
 
         Ok(samples
             .into_iter()
@@ -176,21 +181,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
     /// Async version of [`read_next_sample`](crate::subscription::data_reader::DataReader::read_next_sample).
     #[tracing::instrument(skip(self))]
     pub async fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Read {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples: 1,
-                sample_states: vec![SampleStateKind::NotRead],
-                view_states: ANY_VIEW_STATE.to_vec(),
-                instance_states: ANY_INSTANCE_STATE.to_vec(),
-                specific_instance_handle: None,
-                reply_sender,
-            }))
-            .await;
-        let mut samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Read(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples: 1,
+                    sample_states: vec![SampleStateKind::NotRead],
+                    view_states: ANY_VIEW_STATE.to_vec(),
+                    instance_states: ANY_INSTANCE_STATE.to_vec(),
+                    specific_instance_handle: None,
+                },
+            ))))
+            .await?;
+        let mut samples = reply.expect_samples()?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -198,21 +204,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
     /// Async version of [`take_next_sample`](crate::subscription::data_reader::DataReader::take_next_sample).
     #[tracing::instrument(skip(self))]
     pub async fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Take {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples: 1,
-                sample_states: vec![SampleStateKind::NotRead],
-                view_states: ANY_VIEW_STATE.to_vec(),
-                instance_states: ANY_INSTANCE_STATE.to_vec(),
-                specific_instance_handle: None,
-                reply_sender,
-            }))
-            .await;
-        let mut samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Take(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples: 1,
+                    sample_states: vec![SampleStateKind::NotRead],
+                    view_states: ANY_VIEW_STATE.to_vec(),
+                    instance_states: ANY_INSTANCE_STATE.to_vec(),
+                    specific_instance_handle: None,
+                },
+            ))))
+            .await?;
+        let mut samples = reply.expect_samples()?;
         let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
         Ok(Sample::new(data, sample_info))
     }
@@ -227,21 +234,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Read {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                specific_instance_handle: Some(a_handle),
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Read(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    specific_instance_handle: Some(a_handle),
+                },
+            ))))
+            .await?;
+        let samples = reply.expect_samples()?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -258,21 +266,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Take {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                specific_instance_handle: Some(a_handle),
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::Take(Box::new(
+                ReadMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                    specific_instance_handle: Some(a_handle),
+                },
+            ))))
+            .await?;
+        let samples = reply.expect_samples()?;
 
         Ok(samples
             .into_iter()
@@ -290,21 +299,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::ReadNextInstance {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                previous_handle,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::ReadNextInstance(
+                Box::new(ReadNextInstanceMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                }),
+            )))
+            .await?;
+        let samples = reply.expect_samples()?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -321,21 +331,22 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::TakeNextInstance {
-                participant_handle: self.subscriber.get_participant().get_instance_handle(),
-                subscriber_handle: self.subscriber.get_instance_handle(),
-                data_reader_handle: self.handle,
-                max_samples,
-                previous_handle,
-                sample_states: sample_states.to_vec(),
-                view_states: view_states.to_vec(),
-                instance_states: instance_states.to_vec(),
-                reply_sender,
-            }))
-            .await;
-        let samples = reply_receiver.await??;
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Reader(ReaderServiceMail::TakeNextInstance(
+                Box::new(ReadNextInstanceMail {
+                    participant_handle: self.subscriber.get_participant().get_instance_handle(),
+                    subscriber_handle: self.subscriber.get_instance_handle(),
+                    data_reader_handle: self.handle,
+                    max_samples,
+                    previous_handle,
+                    sample_states: sample_states.to_vec(),
+                    view_states: view_states.to_vec(),
+                    instance_states: instance_states.to_vec(),
+                }),
+            )))
+            .await?;
+        let samples = reply.expect_samples()?;
         Ok(samples
             .into_iter()
             .map(|(data, sample_info)| Sample::new(data, sample_info))
@@ -397,18 +408,16 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`get_subscription_matched_status`](crate::subscription::data_reader::DataReader::get_subscription_matched_status).
     #[tracing::instrument(skip(self))]
     pub async fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(
+            .call(DcpsMail::Reader(
                 ReaderServiceMail::GetSubscriptionMatchedStatus {
                     participant_handle: self.subscriber.get_participant().get_instance_handle(),
                     subscriber_handle: self.subscriber.get_instance_handle(),
                     data_reader_handle: self.handle,
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_subscription_matched_status()
     }
 
     /// Async version of [`get_topicdescription`](crate::subscription::data_reader::DataReader::get_topicdescription).
@@ -430,7 +439,7 @@ impl<Foo> DataReaderAsync<Foo> {
     pub async fn wait_for_historical_data(&self) -> DdsResult<()> {
         let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Message(
+            .call(DcpsMail::Message(
                 MessageServiceMail::NotifyHistoricalData {
                     participant_handle: self.subscriber.get_participant().get_instance_handle(),
                     subscriber_handle: self.subscriber.get_instance_handle(),
@@ -438,7 +447,7 @@ impl<Foo> DataReaderAsync<Foo> {
                     reply_sender,
                 },
             ))
-            .await;
+            .await?;
         reply_receiver.await?
     }
 
@@ -448,69 +457,60 @@ impl<Foo> DataReaderAsync<Foo> {
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(
+            .call(DcpsMail::Reader(
                 ReaderServiceMail::GetMatchedPublicationData {
                     participant_handle: self.subscriber.get_participant().get_instance_handle(),
                     subscriber_handle: self.subscriber.get_instance_handle(),
                     data_reader_handle: self.handle,
                     publication_handle,
-                    reply_sender,
                 },
             ))
-            .await;
-
-        reply_receiver.await?
+            .await?
+            .expect_publication_builtin_topic_data()
     }
 
     /// Async version of [`get_matched_publications`](crate::subscription::data_reader::DataReader::get_matched_publications).
     #[tracing::instrument(skip(self))]
     pub async fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(
+            .call(DcpsMail::Reader(
                 ReaderServiceMail::GetMatchedPublications {
                     participant_handle: self.subscriber.get_participant().get_instance_handle(),
                     subscriber_handle: self.subscriber.get_instance_handle(),
                     data_reader_handle: self.handle,
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_instance_handle_list()
     }
 }
 
 impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`set_qos`](crate::subscription::data_reader::DataReader::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::SetQos {
+            .call(DcpsMail::Reader(ReaderServiceMail::SetQos {
                 participant_handle: self.subscriber.get_participant().get_instance_handle(),
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
-                qos,
-                reply_sender,
+                qos: Box::new(qos),
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_qos`](crate::subscription::data_reader::DataReader::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::GetQos {
+            .call(DcpsMail::Reader(ReaderServiceMail::GetQos {
                 participant_handle: self.subscriber.get_participant().get_instance_handle(),
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_data_reader_qos()
     }
 
     /// Async version of [`get_statuscondition`](crate::subscription::data_reader::DataReader::get_statuscondition).
@@ -538,16 +538,14 @@ impl<Foo> DataReaderAsync<Foo> {
     /// Async version of [`enable`](crate::subscription::data_reader::DataReader::enable).
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::Enable {
+            .call(DcpsMail::Reader(ReaderServiceMail::Enable {
                 participant_handle: self.subscriber.get_participant().get_instance_handle(),
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_instance_handle`](crate::subscription::data_reader::DataReader::get_instance_handle).
@@ -565,18 +563,16 @@ impl<Foo> DataReaderAsync<Foo> {
         a_listener: Option<impl DataReaderListener<Foo> + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsDataReaderListener::new);
         self.dcps_sender()
-            .send(DcpsMail::Reader(ReaderServiceMail::SetListener {
+            .call(DcpsMail::Reader(ReaderServiceMail::SetListener {
                 participant_handle: self.subscriber.get_participant().get_instance_handle(),
                 subscriber_handle: self.subscriber.get_instance_handle(),
                 data_reader_handle: self.handle,
                 dcps_listener,
                 listener_mask: mask.iter().collect(),
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 }

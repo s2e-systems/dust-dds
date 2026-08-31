@@ -6,8 +6,8 @@ use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
-        channels::oneshot::oneshot,
-        dcps_mail::{DcpsMail, ParticipantFactoryMail, WireMail},
+        channels::rpc::{RpcClient, RpcMailbox},
+        dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail, WireMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
     dds_async::{
@@ -30,38 +30,10 @@ use crate::{
     },
 };
 
-const DCPS_CHANNEL_SIZE: usize = 128;
 const WIRE_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
-pub type DcpsChannel = embassy_sync::channel::Channel<
-    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    DcpsMail,
-    DCPS_CHANNEL_SIZE,
->;
-
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct DcpsSender {
-    channel: Arc<DcpsChannel>,
-}
-
-impl DcpsSender {
-    pub async fn send(&self, message: DcpsMail) {
-        self.channel.send(message).await;
-    }
-}
-
-#[doc(hidden)]
-pub struct DcpsReceiver {
-    channel: Arc<DcpsChannel>,
-}
-
-impl DcpsReceiver {
-    pub async fn receive(&self) -> DcpsMail {
-        self.channel.receive().await
-    }
-}
+pub type DcpsSender = RpcClient;
 
 #[doc(hidden)]
 pub type WireChannel = embassy_sync::channel::Channel<
@@ -131,25 +103,25 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let enable_type_information = configuration.enable_type_information();
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::CreateParticipant {
+
+        let reply = self
+            .dcps_sender
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::CreateParticipant(Box::new(CreateParticipantMail {
                     guid_prefix,
                     domain_id,
                     qos,
                     dcps_listener,
                     listener_mask,
-                    reply_sender,
                     transport_participant,
                     domain_tag,
                     participant_announcement_interval,
                     enable_type_information,
-                },
+                })),
             ))
-            .await;
+            .await?;
 
-        let participant_handle = reply_receiver.await??;
+        let participant_handle = reply.expect_instance_handle()?;
 
         let domain_participant =
             DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, participant_handle);
@@ -159,18 +131,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
     /// Async version of [`delete_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::delete_participant).
     pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let participant_handle = participant.get_instance_handle();
 
         self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::DeleteParticipant {
-                    participant_handle,
-                    reply_sender,
-                },
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::DeleteParticipant { participant_handle },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`lookup_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::lookup_participant).
@@ -178,17 +146,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         &self,
         domain_id: DomainId,
     ) -> DdsResult<Option<DomainParticipantAsync>> {
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::LookupParticipant {
-                    domain_id,
-                    reply_sender,
-                },
+        let reply = self
+            .dcps_sender
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::LookupParticipant { domain_id },
             ))
-            .await;
-        Ok(reply_receiver
-            .await?
+            .await?;
+        Ok(reply
+            .expect_option_instance_handle()?
             .map(|handle| DomainParticipantAsync::new(self.dcps_sender.clone(), domain_id, handle)))
     }
 
@@ -197,46 +162,40 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         &self,
         qos: QosKind<DomainParticipantQos>,
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::SetDefaultParticipantQos { qos, reply_sender },
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::SetDefaultParticipantQos { qos: Box::new(qos) },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_default_participant_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_default_participant_qos).
     pub async fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::GetDefaultParticipantQos { reply_sender },
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::GetDefaultParticipantQos,
             ))
-            .await;
-        reply_receiver.await
+            .await?
+            .expect_participant_qos()
     }
 
     /// Async version of [`set_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::set_qos).
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::SetQos { qos, reply_sender },
+            .call(DcpsMail::ParticipantFactory(
+                ParticipantFactoryMail::SetQos { qos: Box::new(qos) },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant_factory::DomainParticipantFactory::get_qos).
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender
-            .send(DcpsMail::ParticipantFactory(
-                ParticipantFactoryMail::GetQos { reply_sender },
-            ))
-            .await;
-        reply_receiver.await
+            .call(DcpsMail::ParticipantFactory(ParticipantFactoryMail::GetQos))
+            .await?
+            .expect_factory_qos()
     }
 
     /// Get a mutable reference to the transport object
@@ -309,13 +268,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         transport: T,
         configuration: DustDdsConfiguration,
     ) -> Self {
-        let dcps_channel = Arc::new(DcpsChannel::new());
-        let dcps_sender = DcpsSender {
-            channel: dcps_channel.clone(),
-        };
-        let dcps_receiver = DcpsReceiver {
-            channel: dcps_channel,
-        };
+        let rpc_mailbox = Arc::new(RpcMailbox::new());
+        let dcps_sender = RpcClient::new(rpc_mailbox.clone());
         let wire_channel = Arc::new(WireChannel::new());
         let wire_sender = WireSender {
             channel: wire_channel.clone(),
@@ -342,7 +296,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
                 if let Some(next_task_time) = next_task_time {
                     match select3_future(
-                        dcps_receiver.receive(),
+                        rpc_mailbox.receive_request(),
                         wire_receiver.receive(),
                         timer_handle.delay(next_task_time.into()),
                     )
@@ -350,15 +304,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     {
                         Either3::A(user_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();
-                            domain_participant_factory.handle(user_mail, now);
+                            let reply = domain_participant_factory.handle(user_mail, now);
+                            rpc_mailbox.send_reply(reply).await;
                             for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.poke(now);
                             }
                         }
                         Either3::B(wire_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();
-                            domain_participant_factory.handle_wire_mail(wire_mail, now);
-                            for dp in &mut domain_participant_factory.domain_participant_list {
+                            if let Some(dp) = domain_participant_factory
+                                .domain_participant_list
+                                .iter_mut()
+                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+                            {
+                                dp.handle_data(&wire_mail.data_message, now);
                                 dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
@@ -381,18 +340,25 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                         }
                     };
                 } else {
-                    match select_future(dcps_receiver.receive(), wire_receiver.receive()).await {
+                    match select_future(rpc_mailbox.receive_request(), wire_receiver.receive())
+                        .await
+                    {
                         Either::A(user_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();
-                            domain_participant_factory.handle(user_mail, now);
+                            let reply = domain_participant_factory.handle(user_mail, now);
+                            rpc_mailbox.send_reply(reply).await;
                             for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.poke(now);
                             }
                         }
                         Either::B(wire_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();
-                            domain_participant_factory.handle_wire_mail(wire_mail, now);
-                            for dp in &mut domain_participant_factory.domain_participant_list {
+                            if let Some(dp) = domain_participant_factory
+                                .domain_participant_list
+                                .iter_mut()
+                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+                            {
+                                dp.handle_data(&wire_mail.data_message, now);
                                 dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);

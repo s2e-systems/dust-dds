@@ -4,8 +4,7 @@ use super::{
 };
 use crate::{
     dcps::{
-        channels::oneshot::oneshot,
-        dcps_mail::{DcpsMail, PublisherServiceMail},
+        dcps_mail::{CreateDataWriterMail, DcpsMail, PublisherServiceMail},
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
         },
@@ -22,7 +21,7 @@ use crate::{
         time::Duration,
     },
 };
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 /// Async version of [`Publisher`](crate::publication::publisher::Publisher).
 #[derive(Clone)]
@@ -56,21 +55,20 @@ impl PublisherAsync {
     ) -> DdsResult<DataWriterAsync<Foo>> {
         let topic_name = a_topic.get_name();
         let dcps_listener = a_listener.map(DcpsDataWriterListener::new);
-        let (reply_sender, reply_receiver) = oneshot();
-        self.dcps_sender()
-            .send(DcpsMail::Publisher(
-                PublisherServiceMail::CreateDataWriter {
+        let reply = self
+            .dcps_sender()
+            .call(DcpsMail::Publisher(PublisherServiceMail::CreateDataWriter(
+                Box::new(CreateDataWriterMail {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
                     topic_name,
                     qos,
                     dcps_listener,
                     listener_mask: mask.iter().collect(),
-                    reply_sender,
-                },
-            ))
-            .await;
-        let guid = reply_receiver.await??;
+                }),
+            )))
+            .await?;
+        let guid = reply.expect_instance_handle()?;
 
         Ok(DataWriterAsync::new(guid, self.clone(), a_topic.clone()))
     }
@@ -81,18 +79,16 @@ impl PublisherAsync {
         &self,
         a_datawriter: &DataWriterAsync<Foo>,
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Publisher(
+            .call(DcpsMail::Publisher(
                 PublisherServiceMail::DeleteDataWriter {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
                     datawriter_handle: a_datawriter.get_instance_handle(),
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::lookup_datawriter).
@@ -149,34 +145,30 @@ impl PublisherAsync {
     /// Async version of [`set_default_datawriter_qos`](crate::publication::publisher::Publisher::set_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Publisher(
+            .call(DcpsMail::Publisher(
                 PublisherServiceMail::SetDefaultDataWriterQos {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
-                    qos,
-                    reply_sender,
+                    qos: Box::new(qos),
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_default_datawriter_qos`](crate::publication::publisher::Publisher::get_default_datawriter_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Publisher(
+            .call(DcpsMail::Publisher(
                 PublisherServiceMail::GetDefaultDataWriterQos {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_data_writer_qos()
     }
 
     /// Async version of [`copy_from_topic_qos`](crate::publication::publisher::Publisher::copy_from_topic_qos).
@@ -194,30 +186,26 @@ impl PublisherAsync {
     /// Async version of [`set_qos`](crate::publication::publisher::Publisher::set_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Publisher(PublisherServiceMail::SetPublisherQos {
+            .call(DcpsMail::Publisher(PublisherServiceMail::SetPublisherQos {
                 participant_handle: self.participant.get_instance_handle(),
                 publisher_handle: self.handle,
-                qos,
-                reply_sender,
+                qos: Box::new(qos),
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_qos`](crate::publication::publisher::Publisher::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<PublisherQos> {
-        let (reply_sender, reply_receiver) = oneshot();
         self.dcps_sender()
-            .send(DcpsMail::Publisher(PublisherServiceMail::GetPublisherQos {
+            .call(DcpsMail::Publisher(PublisherServiceMail::GetPublisherQos {
                 participant_handle: self.participant.get_instance_handle(),
                 publisher_handle: self.handle,
-                reply_sender,
             }))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_publisher_qos()
     }
 
     /// Async version of [`set_listener`](crate::publication::publisher::Publisher::set_listener).
@@ -227,20 +215,18 @@ impl PublisherAsync {
         a_listener: Option<impl PublisherListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let dcps_listener = a_listener.map(DcpsPublisherListener::new);
         self.dcps_sender()
-            .send(DcpsMail::Publisher(
+            .call(DcpsMail::Publisher(
                 PublisherServiceMail::SetPublisherListener {
                     participant_handle: self.participant.get_instance_handle(),
                     publisher_handle: self.handle,
                     dcps_listener,
                     listener_mask: mask.iter().collect(),
-                    reply_sender,
                 },
             ))
-            .await;
-        reply_receiver.await?
+            .await?
+            .expect_ok()
     }
 
     /// Async version of [`get_status_changes`](crate::publication::publisher::Publisher::get_status_changes).
