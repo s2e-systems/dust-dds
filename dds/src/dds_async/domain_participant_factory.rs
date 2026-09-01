@@ -306,9 +306,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             let now = domain_participant_factory.runtime.clock().now();
                             let reply = domain_participant_factory.handle(user_mail, now);
                             rpc_mailbox.send_reply(reply).await;
-                            for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.poke(now);
-                            }
                         }
                         Either3::B(wire_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();
@@ -347,9 +344,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             let now = domain_participant_factory.runtime.clock().now();
                             let reply = domain_participant_factory.handle(user_mail, now);
                             rpc_mailbox.send_reply(reply).await;
-                            for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.poke(now);
-                            }
                         }
                         Either::B(wire_mail) => {
                             let now = domain_participant_factory.runtime.clock().now();

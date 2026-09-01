@@ -158,6 +158,11 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -180,6 +185,11 @@ impl DcpsDomainParticipant {
 
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -556,6 +566,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -580,6 +595,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -692,6 +712,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_reader))]
@@ -716,6 +741,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -770,6 +800,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_topics_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
