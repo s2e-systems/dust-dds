@@ -69,6 +69,9 @@ impl RtpsStatefulWriter {
         &self,
         now: crate::infrastructure::time::Time,
     ) -> Option<crate::infrastructure::time::Duration> {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return None;
+        }
         let seq_num_max = self.changes.last()?.sequence_number;
         let mut min_time: Option<crate::infrastructure::time::Duration> = None;
         for rp in &self.matched_readers {
@@ -124,6 +127,9 @@ impl RtpsStatefulWriter {
     }
 
     pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized), now: Time) {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return;
+        }
         for reader_proxy in &mut self.matched_readers {
             reader_proxy.write_message(
                 self.guid.entity_id(),

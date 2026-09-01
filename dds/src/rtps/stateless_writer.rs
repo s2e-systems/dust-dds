@@ -37,6 +37,9 @@ impl RtpsStatelessWriter {
     }
 
     pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized)) {
+        if self.changes.is_empty() || self.reader_locators.is_empty() {
+            return;
+        }
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
