@@ -7,7 +7,7 @@
 #include "ddsc/dds.h"
 #include "Union.h"
 
-int main(int argc, char *argv[])
+int main()
 {
 	const char *topic_name = "Union";
 
