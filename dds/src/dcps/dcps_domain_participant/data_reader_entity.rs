@@ -114,6 +114,14 @@ impl InstanceState {
         self.view_state = ViewStateKind::NotNew;
     }
 
+    pub fn remove_writer(&mut self, writer_guid: &[u8; 16]) {
+        self.registered_writers.retain(|x| x != writer_guid);
+        if self.registered_writers.is_empty() {
+            self.instance_state = InstanceStateKind::NotAliveNoWriters;
+            self.view_state = ViewStateKind::New;
+        }
+    }
+
     pub fn handle(&self) -> &InstanceHandle {
         &self.handle
     }
@@ -433,36 +441,6 @@ impl<T> DataReaderEntity<T> {
                     return Ok(AddChangeResult::NotAdded);
                 }
             }
-
-            match self
-                .instance_ownership
-                .iter_mut()
-                .find(|x| x.instance_handle == instance_handle)
-            {
-                Some(x) => {
-                    x.owner_handle = writer_guid.into();
-                }
-                None => self.instance_ownership.push(InstanceOwnership {
-                    instance_handle,
-                    owner_handle: writer_guid.into(),
-                    last_received_time: reception_timestamp,
-                }),
-            }
-        }
-
-        if matches!(
-            change_kind,
-            ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered
-        ) {
-            if let Some(i) = self
-                .instance_ownership
-                .iter()
-                .position(|x| x.instance_handle == instance_handle)
-            {
-                self.instance_ownership.remove(i);
-            }
         }
 
         let is_sample_of_interest_based_on_time = {
@@ -647,21 +625,39 @@ impl<T> DataReaderEntity<T> {
             DestinationOrderQosPolicyKind::ByReceptionTimestamp => self.sample_list.push(sample),
         }
 
-        match self
-            .instance_ownership
-            .iter_mut()
-            .find(|x| x.instance_handle == instance_handle)
-        {
-            Some(x) => {
-                if x.last_received_time < reception_timestamp {
-                    x.last_received_time = reception_timestamp;
+        if self.qos.ownership.kind == OwnershipQosPolicyKind::Exclusive {
+            if matches!(
+                change_kind,
+                ChangeKind::NotAliveDisposed
+                    | ChangeKind::NotAliveUnregistered
+                    | ChangeKind::NotAliveDisposedUnregistered
+            ) {
+                if let Some(i) = self
+                    .instance_ownership
+                    .iter()
+                    .position(|x| x.instance_handle == instance_handle)
+                {
+                    self.instance_ownership.remove(i);
+                }
+            } else {
+                match self
+                    .instance_ownership
+                    .iter_mut()
+                    .find(|x| x.instance_handle == instance_handle)
+                {
+                    Some(x) => {
+                        x.owner_handle = writer_guid.into();
+                        if x.last_received_time < reception_timestamp {
+                            x.last_received_time = reception_timestamp;
+                        }
+                    }
+                    None => self.instance_ownership.push(InstanceOwnership {
+                        instance_handle,
+                        last_received_time: reception_timestamp,
+                        owner_handle: writer_guid.into(),
+                    }),
                 }
             }
-            None => self.instance_ownership.push(InstanceOwnership {
-                instance_handle,
-                last_received_time: reception_timestamp,
-                owner_handle: writer_guid.into(),
-            }),
         }
         Ok(AddChangeResult::Added)
     }
