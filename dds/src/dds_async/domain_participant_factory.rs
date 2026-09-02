@@ -297,8 +297,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                 if let Some(next_task_time) = next_task_time {
                     match select3_future(
                         rpc_mailbox.receive_request(),
-                        wire_receiver.receive(),
                         timer_handle.delay(next_task_time.into()),
+                        wire_receiver.receive(),
                     )
                     .await
                     {
@@ -307,21 +307,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             let reply = domain_participant_factory.handle(user_mail, now);
                             rpc_mailbox.send_reply(reply).await;
                         }
-                        Either3::B(wire_mail) => {
-                            let now = domain_participant_factory.runtime.clock().now();
-                            if let Some(dp) = domain_participant_factory
-                                .domain_participant_list
-                                .iter_mut()
-                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
-                            {
-                                dp.handle_data(&wire_mail.data_message, now);
-                                dp.process_builtin_cache_changes(now);
-                                dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now);
-                                dp.poke(now);
-                            }
-                        }
-                        Either3::C(_) => {
+                        Either3::B(_) => {
                             let now = domain_participant_factory.runtime.clock().now();
                             for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.remove_stale_participants(now);
@@ -332,6 +318,20 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.process_pending_write_samples(now);
                                 dp.announce_participant_if_needed(now);
                                 dp.notify_find_topic_senders(now);
+                                dp.poke(now);
+                            }
+                        }
+                        Either3::C(wire_mail) => {
+                            let now = domain_participant_factory.runtime.clock().now();
+                            if let Some(dp) = domain_participant_factory
+                                .domain_participant_list
+                                .iter_mut()
+                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+                            {
+                                dp.handle_data(&wire_mail.data_message, now);
+                                dp.process_builtin_cache_changes(now);
+                                dp.process_user_defined_received_cache_changes(now);
+                                dp.request_topic_type_representation(now);
                                 dp.poke(now);
                             }
                         }

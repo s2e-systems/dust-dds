@@ -409,11 +409,11 @@ impl DcpsDomainParticipant {
             return;
         }
 
+        reply_sender.send(Ok(()));
+
         data_writer
             .transport_writer
             .write_message(self.transport.message_writer.as_mut(), now);
-
-        reply_sender.send(Ok(()));
     }
 
     #[tracing::instrument(skip(self))]
@@ -693,10 +693,10 @@ impl DcpsDomainParticipant {
                         if write_result.is_err() {
                             pending.reply_sender.send(write_result);
                         } else {
+                            pending.reply_sender.send(Ok(()));
                             data_writer
                                 .transport_writer
                                 .write_message(self.transport.message_writer.as_mut(), now);
-                            pending.reply_sender.send(Ok(()));
                         }
                     }
                 }
