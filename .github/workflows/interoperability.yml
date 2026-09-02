@@ -77,11 +77,10 @@ jobs:
       with:
         python-version: '3.11.4'
     - name: Downloads shape_main executables from OMG
-      uses: robinraju/release-downloader@v1.10
+      uses: robinraju/release-downloader@v1.13
       with:
         repository: omg-dds/dds-rtps
         latest: true
-        preRelease: false
         fileName: "*"
         out-file-path: zipped_executables
     - name: Remove DustDDS
@@ -135,16 +134,10 @@ jobs:
       run: ls -l
     - name: Generate xlsx report
       run: python3 ./omg-dds-rtps/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
-    - name: XUnit
-      uses: AutoModality/action-xunit-viewer@v1
-      with:
-        results: ./junit_interoperability_report.xml
-        fail: false
     - name: Upload report
       uses: actions/upload-artifact@v7
       with:
         name: interoperability_report_complete
         path: |
           ./index.html
-          ./junit_interoperability_report.xml
           ./interoperability_report.xlsx
