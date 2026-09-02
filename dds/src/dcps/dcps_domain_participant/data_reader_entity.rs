@@ -75,16 +75,20 @@ impl InstanceState {
             }
             ChangeKind::NotAliveUnregistered => {
                 self.registered_writers.retain(|x| x != &writer_guid);
-                if self.registered_writers.is_empty() {
+                if self.registered_writers.is_empty()
+                    && self.instance_state == InstanceStateKind::Alive
+                {
                     self.instance_state = InstanceStateKind::NotAliveNoWriters;
                 }
             }
             ChangeKind::NotAliveDisposedUnregistered => {
                 self.registered_writers.retain(|x| x != &writer_guid);
-                if self.registered_writers.is_empty() {
-                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
-                } else {
-                    self.instance_state = InstanceStateKind::NotAliveDisposed;
+                if self.instance_state == InstanceStateKind::Alive {
+                    if self.registered_writers.is_empty() {
+                        self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                    } else {
+                        self.instance_state = InstanceStateKind::NotAliveDisposed;
+                    }
                 }
             }
         }
@@ -116,7 +120,7 @@ impl InstanceState {
 
     pub fn remove_writer(&mut self, writer_guid: &[u8; 16]) {
         self.registered_writers.retain(|x| x != writer_guid);
-        if self.registered_writers.is_empty() {
+        if self.registered_writers.is_empty() && self.instance_state == InstanceStateKind::Alive {
             self.instance_state = InstanceStateKind::NotAliveNoWriters;
             self.view_state = ViewStateKind::New;
         }

@@ -3075,10 +3075,10 @@ fn multiple_writers_unregister_instance() {
         .unwrap();
 
     assert_eq!(samples2.len(), 4);
-    // Now that both writers have unregistered, instance is NotAliveNoWriters
+    // Since instance was disposed by writer1 (autodispose=true), it remains NotAliveDisposed
     assert_eq!(
         samples2[3].sample_info.instance_state,
-        InstanceStateKind::NotAliveNoWriters
+        InstanceStateKind::NotAliveDisposed
     );
 }
 
@@ -3207,6 +3207,139 @@ fn data_reader_instance_state_not_alive_no_writers_when_writer_is_deleted() {
     assert_eq!(
         samples_after_delete[0].sample_info.instance_state,
         InstanceStateKind::NotAliveNoWriters
+    );
+}
+
+#[test]
+fn data_reader_instance_state_not_alive_disposed_when_writer_disposes_and_is_deleted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant2
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    writer.write(data1.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+
+    writer.dispose(data1, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    reader.get_subscription_matched_status().unwrap();
+
+    // Delete writer / publisher / participant1
+    participant1.delete_contained_entities().unwrap();
+    participant_factory
+        .delete_participant(&participant1)
+        .unwrap();
+
+    // Wait for subscription matched status to update or reader to detect writer deletion
+    let cond_reader = reader.get_statuscondition();
+    cond_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set_reader = WaitSet::new();
+    wait_set_reader
+        .attach_condition(Condition::StatusCondition(cond_reader))
+        .unwrap();
+    wait_set_reader.wait(Duration::new(10, 0)).unwrap();
+
+    let samples_after_delete = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(
+        samples_after_delete[0].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
     );
 }
 
