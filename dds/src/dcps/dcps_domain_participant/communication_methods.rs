@@ -160,9 +160,10 @@ impl DcpsDomainParticipant {
                             let mut operators = [Operator::LessThan, Operator::Equal].iter();
                             let filter = loop {
                                 if let Some(operator) = operators.next() {
-                                    if let Some((variable_name, value_expr)) = content_filtered_topic
-                                        .filter_expression
-                                        .split_once(operator.to_str())
+                                    if let Some((variable_name, value_expr)) =
+                                        content_filtered_topic
+                                            .filter_expression
+                                            .split_once(operator.to_str())
                                     {
                                         let trimmed_val = value_expr.trim();
                                         let value_str = if trimmed_val.starts_with('%') {
@@ -204,10 +205,7 @@ impl DcpsDomainParticipant {
                                         let Ok(rhs) = value_str.parse::<i32>() else {
                                             continue 'data_readers;
                                         };
-                                        if !comparison_function.compare_int32(
-                                            member_value,
-                                            &rhs,
-                                        ) {
+                                        if !comparison_function.compare_int32(member_value, &rhs) {
                                             continue 'data_readers;
                                         }
                                     }
@@ -226,10 +224,9 @@ impl DcpsDomainParticipant {
                                     | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
                                         let member_value =
                                             data.get_string_value(member_id).unwrap();
-                                        if !comparison_function.compare_string(
-                                            member_value.as_str(),
-                                            value_str,
-                                        ) {
+                                        if !comparison_function
+                                            .compare_string(member_value.as_str(), value_str)
+                                        {
                                             continue 'data_readers;
                                         }
                                     }

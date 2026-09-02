@@ -171,6 +171,29 @@ impl DcpsDomainParticipant {
                         min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
                     }
                 }
+
+                for sample in &data_reader.sample_list {
+                    if let Some(source_timestamp) = sample.source_timestamp {
+                        if let Some(matched_publication) = data_reader
+                            .matched_publication_list
+                            .iter()
+                            .find(|x| x.key().value == sample.writer_guid)
+                        {
+                            if let DurationKind::Finite(lifespan) =
+                                matched_publication.lifespan().duration
+                            {
+                                let expiry = Time::from(source_timestamp) + lifespan;
+                                let remaining = if expiry > now {
+                                    expiry - now
+                                } else {
+                                    Duration::new(0, 0)
+                                };
+                                min_time =
+                                    min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -476,6 +476,14 @@ impl DcpsDomainParticipant {
         }
     }
 
+    pub fn remove_stale_reader_samples(&mut self, now: Time) {
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &mut subscriber.data_reader_list {
+                data_reader.remove_stale_samples(now);
+            }
+        }
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn announce_data_writer(
         &mut self,

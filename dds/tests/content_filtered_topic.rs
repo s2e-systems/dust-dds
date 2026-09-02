@@ -430,5 +430,3 @@ fn samples_should_be_content_filtered_by_literal_string() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }
-
-

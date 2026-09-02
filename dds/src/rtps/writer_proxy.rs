@@ -291,7 +291,8 @@ impl RtpsWriterProxy {
                 .take(256)
                 .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s));
 
-            let len = if let Some(missing_change_fragments_seq_num) = missing_change_fragments_seq_num
+            let len = if let Some(missing_change_fragments_seq_num) =
+                missing_change_fragments_seq_num
             {
                 let frag = self
                     .frag_buffer

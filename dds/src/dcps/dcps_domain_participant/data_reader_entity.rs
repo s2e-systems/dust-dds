@@ -185,6 +185,27 @@ impl<T> DataReaderEntity<T> {
         }
     }
 
+    pub fn remove_stale_samples(&mut self, now: Time) {
+        self.sample_list.retain(|sample| {
+            if let Some(source_timestamp) = sample.source_timestamp {
+                if let Some(matched_publication) = self
+                    .matched_publication_list
+                    .iter()
+                    .find(|x| x.key().value == sample.writer_guid)
+                {
+                    if let DurationKind::Finite(lifespan_duration) =
+                        matched_publication.lifespan().duration
+                    {
+                        if now >= source_timestamp + lifespan_duration {
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
+        });
+    }
+
     pub fn create_sample_collection(
         &mut self,
         max_samples: i32,
