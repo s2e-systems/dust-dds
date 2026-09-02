@@ -69,6 +69,9 @@ impl RtpsStatefulWriter {
         &self,
         now: crate::infrastructure::time::Time,
     ) -> Option<crate::infrastructure::time::Duration> {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return None;
+        }
         let seq_num_max = self.changes.last()?.sequence_number;
         let mut min_time: Option<crate::infrastructure::time::Duration> = None;
         for rp in &self.matched_readers {
@@ -124,6 +127,9 @@ impl RtpsStatefulWriter {
     }
 
     pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized), now: Time) {
+        if self.changes.is_empty() || self.matched_readers.is_empty() {
+            return;
+        }
         for reader_proxy in &mut self.matched_readers {
             reader_proxy.write_message(
                 self.guid.entity_id(),
@@ -399,8 +405,20 @@ impl RtpsReaderProxy {
                         message_writer.write_message(len, self.unicast_locator_list())
                     }
                 } else {
-                    let data_submessage = cache_change
-                        .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                    let inline_qos = match (
+                        cache_change.status_info_parameter(),
+                        cache_change.key_hash_parameter(),
+                    ) {
+                        (Some(s), Some(k)) => &[s, k][..],
+                        (Some(s), None) => &[s][..],
+                        (None, Some(k)) => &[k][..],
+                        (None, None) => &[],
+                    };
+                    let data_submessage = cache_change.as_data_submessage(
+                        self.remote_reader_guid().entity_id(),
+                        writer_id,
+                        inline_qos,
+                    );
 
                     let len = RtpsMessageWrite::from_submessages(
                         message_writer.write_buffer_mut(),
@@ -534,8 +552,20 @@ impl RtpsReaderProxy {
                             InfoTimestampSubmessage::new(true, TIME_INVALID)
                         };
 
-                        let data_submessage = cache_change
-                            .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                        let inline_qos = match (
+                            cache_change.status_info_parameter(),
+                            cache_change.key_hash_parameter(),
+                        ) {
+                            (Some(s), Some(k)) => &[s, k][..],
+                            (Some(s), None) => &[s][..],
+                            (None, Some(k)) => &[k][..],
+                            (None, None) => &[],
+                        };
+                        let data_submessage = cache_change.as_data_submessage(
+                            self.remote_reader_guid().entity_id(),
+                            writer_id,
+                            inline_qos,
+                        );
 
                         let first_sn = seq_num_min.unwrap_or(1);
                         let last_sn = seq_num_max.unwrap_or(0);
@@ -660,8 +690,20 @@ impl RtpsReaderProxy {
                             InfoTimestampSubmessage::new(true, TIME_INVALID)
                         };
 
-                        let data_submessage = cache_change
-                            .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
+                        let inline_qos = match (
+                            cache_change.status_info_parameter(),
+                            cache_change.key_hash_parameter(),
+                        ) {
+                            (Some(s), Some(k)) => &[s, k][..],
+                            (Some(s), None) => &[s][..],
+                            (None, Some(k)) => &[k][..],
+                            (None, None) => &[],
+                        };
+                        let data_submessage = cache_change.as_data_submessage(
+                            self.remote_reader_guid().entity_id(),
+                            writer_id,
+                            inline_qos,
+                        );
 
                         let first_sn = seq_num_min.unwrap_or(1);
                         let last_sn = seq_num_max.unwrap_or(0);

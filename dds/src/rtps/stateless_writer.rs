@@ -37,6 +37,9 @@ impl RtpsStatelessWriter {
     }
 
     pub fn write_message(&mut self, message_writer: &mut (impl WriteMessage + ?Sized)) {
+        if self.changes.is_empty() || self.reader_locators.is_empty() {
+            return;
+        }
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -56,8 +59,20 @@ impl RtpsStatelessWriter {
                             InfoTimestampSubmessage::new(false, t.into())
                         });
 
-                    let data_submessage =
-                        cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id());
+                    let inline_qos = match (
+                        cache_change.status_info_parameter(),
+                        cache_change.key_hash_parameter(),
+                    ) {
+                        (Some(s), Some(k)) => &[s, k][..],
+                        (Some(s), None) => &[s][..],
+                        (None, Some(k)) => &[k][..],
+                        (None, None) => &[],
+                    };
+                    let data_submessage = cache_change.as_data_submessage(
+                        ENTITYID_UNKNOWN,
+                        self.guid.entity_id(),
+                        inline_qos,
+                    );
 
                     let len = RtpsMessageWrite::from_submessages(
                         message_writer.write_buffer_mut(),
