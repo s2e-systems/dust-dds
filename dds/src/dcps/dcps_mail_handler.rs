@@ -563,6 +563,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         &data_writer_handle,
                         &dynamic_data,
                         timestamp,
+                        now,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -625,6 +626,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         &data_writer_handle,
                         &dynamic_data,
                         timestamp,
+                        now,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),

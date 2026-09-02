@@ -911,6 +911,7 @@ impl DcpsDomainParticipant {
                                 message_receiver.source_guid_prefix(),
                                 heartbeat_frag_submessage.writer_id(),
                             );
+                            let reader_guid = dr.transport_reader.guid();
                             if let Some(writer_proxy) =
                                 dr.transport_reader.matched_writer_lookup(writer_guid)
                             {
@@ -919,6 +920,10 @@ impl DcpsDomainParticipant {
                                 {
                                     writer_proxy.set_last_received_heartbeat_frag_count(
                                         heartbeat_frag_submessage.count(),
+                                    );
+                                    writer_proxy.write_message(
+                                        &reader_guid,
+                                        self.transport.message_writer.as_mut(),
                                     );
                                 }
                             }
