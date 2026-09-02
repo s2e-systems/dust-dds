@@ -3474,6 +3474,16 @@ fn reader_joining_after_writer_writes_many_samples() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
     let new_data = KeyedData { id: 1, value: 1000 };
     writer.write(new_data.clone(), None).unwrap();
     writer
