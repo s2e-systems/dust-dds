@@ -334,6 +334,78 @@ impl ParameterList {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ParameterWrite<'a> {
+    parameter_id: ParameterId,
+    value: &'a [u8],
+}
+
+impl<'a> ParameterWrite<'a> {
+    pub const fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
+        Self {
+            parameter_id,
+            value,
+        }
+    }
+
+    pub fn parameter_id(&self) -> ParameterId {
+        self.parameter_id
+    }
+
+    pub fn value(&self) -> &'a [u8] {
+        self.value
+    }
+
+    pub fn length(&self) -> i16 {
+        self.value.len() as i16
+    }
+}
+
+impl WriteIntoBytes for ParameterWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        let padding = match self.value().len() % 4 {
+            1 => &[0_u8; 3][..],
+            2 => &[0_u8; 2][..],
+            3 => &[0_u8; 1][..],
+            _ => &[0_u8; 0][..],
+        };
+        let length = self.value().len() + padding.len();
+        self.parameter_id().write_into_bytes(buf);
+        (length as i16).write_into_bytes(buf);
+        self.value().write_into_bytes(buf);
+        padding.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ParameterListWrite<'a> {
+    parameter: &'a [ParameterWrite<'a>],
+}
+
+impl<'a> ParameterListWrite<'a> {
+    pub const fn new(parameter: &'a [ParameterWrite<'a>]) -> Self {
+        Self { parameter }
+    }
+
+    pub const fn empty() -> Self {
+        Self { parameter: &[] }
+    }
+
+    pub fn parameter(&self) -> &'a [ParameterWrite<'a>] {
+        self.parameter
+    }
+}
+
+impl WriteIntoBytes for ParameterListWrite<'_> {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        for parameter in self.parameter() {
+            parameter.write_into_bytes(buf);
+        }
+        PID_SENTINEL.write_into_bytes(buf);
+        [0_u8; 2].write_into_bytes(buf);
+    }
+}
+
 impl WriteIntoBytes for Parameter {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         let padding = match self.value().len() % 4 {
@@ -824,6 +896,41 @@ mod tests {
         let parameter = ParameterList::empty();
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter), vec![
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_write() {
+        let parameter = ParameterWrite::new(2, &[51, 61, 71, 81]);
+        #[rustfmt::skip]
+        assert_eq!(write_into_bytes_vec(parameter), vec![
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81,   // value
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_list_write() {
+        let parameter_1 = ParameterWrite::new(2, &[51, 61, 71, 81]);
+        let parameter_2 = ParameterWrite::new(3, &[52, 62, 0, 0]);
+        let parameters = [parameter_1, parameter_2];
+        let parameter_list = ParameterListWrite::new(&parameters);
+        #[rustfmt::skip]
+        assert_eq!(write_into_bytes_vec(parameter_list), vec![
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81,   // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            52, 62, 0, 0,   // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_list_write_empty() {
+        let parameter_list = ParameterListWrite::empty();
+        #[rustfmt::skip]
+        assert_eq!(write_into_bytes_vec(parameter_list), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }

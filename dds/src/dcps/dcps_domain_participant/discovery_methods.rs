@@ -158,6 +158,11 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -180,6 +185,11 @@ impl DcpsDomainParticipant {
 
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -242,7 +252,7 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|x| {
                             if now - x.last_received_time_stamp() > deadline {
-                                Some(x.handle)
+                                Some(*x.handle())
                             } else {
                                 None
                             }
@@ -556,6 +566,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -580,6 +595,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -692,6 +712,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_reader))]
@@ -716,6 +741,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -770,6 +800,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_topics_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -2058,6 +2093,9 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
+                    type_lookup_reply_writer
+                        .transport_writer
+                        .write_message(self.transport.message_writer.as_mut(), now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2093,6 +2131,9 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
+                        type_lookup_reply_writer
+                            .transport_writer
+                            .write_message(self.transport.message_writer.as_mut(), now);
                     }
                 }
             }
@@ -2484,6 +2525,9 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
+                                type_request_writer
+                                    .transport_writer
+                                    .write_message(self.transport.message_writer.as_mut(), now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2530,6 +2574,9 @@ impl DcpsDomainParticipant {
                                     now,
                                 )
                                 .ok();
+                            type_request_writer
+                                .transport_writer
+                                .write_message(self.transport.message_writer.as_mut(), now);
                             self.domain_participant
                                 .type_register
                                 .add_pending_types_lookup(vec![discovered_type_id.clone()]);
@@ -2637,11 +2684,6 @@ impl DcpsDomainParticipant {
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             for data_reader in &mut subscriber.data_reader_list {
-                // Remove samples
-                data_reader
-                    .sample_list
-                    .retain(|sample| sample.writer_guid[..12] != prefix);
-
                 let removed_writer_guids: Vec<_> = data_reader
                     .matched_publication_list
                     .iter()
@@ -2652,6 +2694,7 @@ impl DcpsDomainParticipant {
                     data_reader
                         .transport_reader
                         .delete_matched_writer(key.into());
+                    data_reader.remove_matched_publication(&InstanceHandle::new(key));
                 }
             }
         }

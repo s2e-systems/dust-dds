@@ -122,11 +122,11 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<Self::Output> {
-        if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
-            return Poll::Ready(Either::B(b));
-        }
         if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
             return Poll::Ready(Either::A(a));
+        }
+        if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
+            return Poll::Ready(Either::B(b));
         }
         Poll::Pending
     }
@@ -144,11 +144,11 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<Self::Output> {
-        if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
-            return Poll::Ready(Either3::B(b));
-        }
         if let Poll::Ready(a) = Pin::new(&mut self.a).poll(cx) {
             return Poll::Ready(Either3::A(a));
+        }
+        if let Poll::Ready(b) = Pin::new(&mut self.b).poll(cx) {
+            return Poll::Ready(Either3::B(b));
         }
         if let Poll::Ready(c) = Pin::new(&mut self.c).poll(cx) {
             return Poll::Ready(Either3::C(c));
