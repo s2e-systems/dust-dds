@@ -108,6 +108,16 @@ fn large_data_should_be_fragmented() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
     let even_data = LargeData {
         id: 1,
         value: vec![8; 15000],
@@ -220,6 +230,16 @@ fn large_data_should_be_fragmented_reliable() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data = LargeData {
         id: 1,
@@ -619,6 +639,16 @@ fn wait_for_samples_to_be_taken_best_effort() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -1037,7 +1067,7 @@ fn each_key_sample_is_read() {
     let data3_handle = writer.lookup_instance(data3.clone()).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(2, 0))
         .unwrap();
 
     let samples = reader
@@ -1881,7 +1911,7 @@ fn write_read_sample_view_state() {
     writer.write(data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(2, 0))
         .unwrap();
 
     let samples = reader
@@ -2588,7 +2618,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(2, 0))
         .unwrap();
 
     let samples = reader
@@ -2973,19 +3003,21 @@ fn multiple_writers_unregister_instance() {
     cond1
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+    let mut wait_set1 = WaitSet::new();
+    wait_set1
+        .attach_condition(Condition::StatusCondition(cond1))
+        .unwrap();
+    wait_set1.wait(Duration::new(10, 0)).unwrap();
+
     let cond2 = writer2.get_statuscondition();
     cond2
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond1))
-        .unwrap();
-    wait_set
+    let mut wait_set2 = WaitSet::new();
+    wait_set2
         .attach_condition(Condition::StatusCondition(cond2))
         .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
+    wait_set2.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
 
@@ -3135,6 +3167,8 @@ fn data_reader_instance_state_not_alive_no_writers_when_writer_is_deleted() {
         samples[0].sample_info.instance_state,
         InstanceStateKind::Alive
     );
+
+    reader.get_subscription_matched_status().unwrap();
 
     // Delete writer / publisher / participant1
     participant1.delete_contained_entities().unwrap();
