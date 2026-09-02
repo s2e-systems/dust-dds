@@ -166,19 +166,20 @@ impl DcpsDomainParticipant {
                                             .split_once(operator.to_str())
                                     {
                                         let trimmed_val = value_expr.trim();
-                                        let value_str = if trimmed_val.starts_with('%') {
-                                            if let Ok(index) = trimmed_val[1..].parse::<usize>() {
-                                                content_filtered_topic
-                                                    .expression_parameters
-                                                    .get(index)
-                                                    .map(|s| s.as_str())
-                                                    .unwrap_or(trimmed_val)
+                                        let value_str =
+                                            if let Some(stripped) = trimmed_val.strip_prefix('%') {
+                                                if let Ok(index) = stripped.parse::<usize>() {
+                                                    content_filtered_topic
+                                                        .expression_parameters
+                                                        .get(index)
+                                                        .map(|s| s.as_str())
+                                                        .unwrap_or(trimmed_val)
+                                                } else {
+                                                    trimmed_val
+                                                }
                                             } else {
-                                                trimmed_val
-                                            }
-                                        } else {
-                                            trimmed_val.trim_matches('\'').trim_matches('"')
-                                        };
+                                                trimmed_val.trim_matches('\'').trim_matches('"')
+                                            };
                                         break Some((variable_name, operator, value_str));
                                     }
                                 } else {
