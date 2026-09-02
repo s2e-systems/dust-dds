@@ -260,8 +260,6 @@ fn large_data_should_be_fragmented_reliable() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-
-
 #[test]
 fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -4569,11 +4567,11 @@ fn large_data_transfer_between_two_participants() {
         value: vec![255; 100_000],
     };
 
-    let total_samples = 10;
+    let total_samples = 200;
     let writer_thread = std::thread::spawn(move || {
         for _ in 0..total_samples {
             writer.write(data.clone(), None).unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            std::thread::sleep(std::time::Duration::from_millis(15));
         }
         writer
             .wait_for_acknowledgments(Duration::new(10, 0))
@@ -4582,20 +4580,19 @@ fn large_data_transfer_between_two_participants() {
 
     let start_time = std::time::Instant::now();
     let mut received_samples = 0;
-    while received_samples < total_samples && start_time.elapsed() < std::time::Duration::from_secs(30) {
-        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
-            received_samples += samples.len();
+    while received_samples < total_samples
+        && start_time.elapsed() < std::time::Duration::from_secs(12)
+    {
+        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
+            if !samples.is_empty() {
+                received_samples += samples.len();
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
     writer_thread.join().unwrap();
-
-    if received_samples < total_samples {
-        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
-            received_samples += samples.len();
-        }
-    }
     assert_eq!(received_samples, total_samples);
 }
 
