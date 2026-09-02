@@ -2999,6 +2999,19 @@ fn multiple_writers_unregister_instance() {
         )
         .unwrap();
 
+    let start_time = std::time::Instant::now();
+    while std::time::Instant::now().duration_since(start_time) < std::time::Duration::from_secs(10)
+    {
+        if reader.get_matched_publications().unwrap().len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(
+        reader.get_matched_publications().unwrap().len(),
+        2,
+        "Reader must have 2 matched writers"
+    );
+
     let cond1 = writer1.get_statuscondition();
     cond1
         .set_enabled_statuses(&[StatusKind::PublicationMatched])

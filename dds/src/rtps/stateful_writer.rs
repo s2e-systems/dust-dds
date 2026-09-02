@@ -367,8 +367,10 @@ impl RtpsReaderProxy {
                 .len();
                 message_writer.write_message(len, self.unicast_locator_list());
 
-                self.set_highest_sent_seq_num(next_unsent_change_seq_num);
-            } else if let Some(cache_change) = changes
+                self.set_highest_sent_seq_num(gap_end_sequence_number);
+            }
+
+            if let Some(cache_change) = changes
                 .iter()
                 .find(|cc| cc.sequence_number == next_unsent_change_seq_num)
             {
@@ -475,22 +477,20 @@ impl RtpsReaderProxy {
                         gap_start_sequence_number,
                         SequenceNumberSet::new(gap_end_sequence_number + 1, []),
                     );
-                    let first_sn = seq_num_min.unwrap_or(1);
-                    let last_sn = seq_num_max.unwrap_or(0);
-                    let heartbeat_submessage = self
-                        .heartbeat_machine()
-                        .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
                     let info_dst =
                         InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
                     let len = RtpsMessageWrite::from_submessages(
                         message_writer.write_buffer_mut(),
-                        &[&info_dst, &gap_submessage, &heartbeat_submessage],
+                        &[&info_dst, &gap_submessage],
                         guid_prefix,
                     )
                     .buffer()
                     .len();
-                    message_writer.write_message(len, self.unicast_locator_list())
-                } else if let Some(cache_change) = changes.iter().find(|cc| {
+                    message_writer.write_message(len, self.unicast_locator_list());
+                    self.set_highest_sent_seq_num(gap_end_sequence_number);
+                }
+
+                if let Some(cache_change) = changes.iter().find(|cc| {
                     cc.sequence_number == next_unsent_change_seq_num
                         && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
                 }) {
