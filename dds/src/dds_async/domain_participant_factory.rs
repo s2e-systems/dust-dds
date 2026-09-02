@@ -332,7 +332,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
-                                dp.poke(now);
                             }
                         }
                     };
@@ -356,7 +355,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.process_builtin_cache_changes(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
-                                dp.poke(now);
                             }
                         }
                     };
