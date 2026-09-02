@@ -182,7 +182,7 @@ impl DcpsDomainParticipant {
                             if let DurationKind::Finite(lifespan) =
                                 matched_publication.lifespan().duration
                             {
-                                let expiry = Time::from(source_timestamp) + lifespan;
+                                let expiry = source_timestamp + lifespan;
                                 let remaining = if expiry > now {
                                     expiry - now
                                 } else {
