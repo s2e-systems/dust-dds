@@ -143,7 +143,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         self.qos.clone()
     }
 
-    pub(crate) fn time_until_next_event(&self, now: Time) -> Option<Duration> {
+    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
         self.domain_participant_list
             .iter()
             .filter_map(|x| x.time_until_next_event(now))
