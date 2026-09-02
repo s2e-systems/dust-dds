@@ -4614,7 +4614,6 @@ fn shared_ownership_writer1_should_write_and_writer2_should_dispose_same_data() 
 }
 
 #[test]
-#[ignore]
 fn data_reader_does_not_read_lifespan_expired_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -4644,7 +4643,7 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
             max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         lifespan: LifespanQosPolicy {
-            duration: DurationKind::Finite(Duration::new(0, 250_000_000)), // 250ms
+            duration: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -4712,22 +4711,24 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
-    for i in 0..6 {
-        let data = KeyedData { id: 1, value: i };
-        writer.write(data, None).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 1, value: 2 };
+
+    writer
+        .write_w_timestamp(data1, None, Time::new(0, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(data2.clone(), None, Time::new(i32::MAX, 0))
+        .unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
 
     let samples = reader
         .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    // With 100ms write period and 250ms lifespan, reading after 500ms (6 samples sent: 0, 1, 2, 3, 4, 5)
-    // samples 0, 1, 2 (age >= 300ms) must have expired.
-    // Only 2 or 3 unexpired samples (e.g. samples 3, 4, 5) should be received.
-    assert!(
-        samples.len() == 2 || samples.len() == 3,
-        "Expected 2 or 3 samples, but received {}",
-        samples.len()
-    );
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }
