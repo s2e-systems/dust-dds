@@ -260,6 +260,8 @@ fn large_data_should_be_fragmented_reliable() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
+
+
 #[test]
 fn writer_with_keep_last_1_should_send_only_last_sample_to_reader() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -4466,6 +4468,135 @@ fn samples_are_transfered_between_two_participants() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
+
+#[test]
+fn large_data_transfer_between_two_participants() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<LargeData>(
+            "LargeDataTopic",
+            "LargeData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let topic2 = participant2
+        .create_topic::<LargeData>(
+            "LargeDataTopic",
+            "LargeData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let reader = subscriber
+        .create_datareader::<LargeData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = LargeData {
+        id: 1,
+        value: vec![255; 100_000],
+    };
+
+    let total_samples = 10;
+    let writer_thread = std::thread::spawn(move || {
+        for _ in 0..total_samples {
+            writer.write(data.clone(), None).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    });
+
+    let start_time = std::time::Instant::now();
+    let mut received_samples = 0;
+    while received_samples < total_samples && start_time.elapsed() < std::time::Duration::from_secs(30) {
+        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+            received_samples += samples.len();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    writer_thread.join().unwrap();
+
+    if received_samples < total_samples {
+        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+            received_samples += samples.len();
+        }
+    }
+    assert_eq!(received_samples, total_samples);
 }
 
 #[test]

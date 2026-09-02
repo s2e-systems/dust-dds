@@ -219,7 +219,7 @@ impl RtpsStatefulWriter {
                     {
                         let request_fragment_number = request_fragment_number as usize;
                         // Either send a DATAFRAG submessages or send a single DATA submessage
-                        if (request_fragment_number) < number_of_fragments
+                        if (1..=number_of_fragments).contains(&request_fragment_number)
                             && cache_change.kind == ChangeKind::Alive
                         {
                             let writer_id = self.guid.entity_id();
@@ -228,7 +228,7 @@ impl RtpsStatefulWriter {
                                 reader_id,
                                 writer_id,
                                 self.data_max_size_serialized,
-                                request_fragment_number,
+                                request_fragment_number - 1,
                             );
 
                             let info_dst = InfoDestinationSubmessage::new(
@@ -648,37 +648,46 @@ impl RtpsReaderProxy {
 
                     // Either send a DATAFRAG submessages or send a single DATA submessage
                     if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
-                        let fragment_number = 0;
-                        let reader_id = self.remote_reader_guid().entity_id();
-                        let data_frag = cache_change.as_data_frag_submessage(
-                            reader_id,
-                            writer_id,
-                            data_max_size_serialized,
-                            fragment_number,
-                        );
+                        for fragment_number in 0..number_of_fragments {
+                            let reader_id = self.remote_reader_guid().entity_id();
+                            let data_frag = cache_change.as_data_frag_submessage(
+                                reader_id,
+                                writer_id,
+                                data_max_size_serialized,
+                                fragment_number,
+                            );
 
-                        let info_dst =
-                            InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
-                        let first_sn = seq_num_min.unwrap_or(1);
-                        let last_sn = seq_num_max.unwrap_or(0);
-                        let heartbeat = self
-                            .heartbeat_machine()
-                            .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
+                            let info_dst =
+                                InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
+                            let info_timestamp =
+                                if let Some(timestamp) = cache_change.source_timestamp {
+                                    InfoTimestampSubmessage::new(false, timestamp.into())
+                                } else {
+                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
+                                };
+                            let len = if fragment_number == number_of_fragments - 1 {
+                                let first_sn = seq_num_min.unwrap_or(1);
+                                let last_sn = seq_num_max.unwrap_or(0);
+                                let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
+                                    writer_id, first_sn, last_sn, now, false,
+                                );
 
-                        let len = RtpsMessageWrite::from_submessages(
-                            message_writer.write_buffer_mut(),
-                            &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
-                            guid_prefix,
-                        )
-                        .buffer()
-                        .len();
-                        message_writer.write_message(len, self.unicast_locator_list());
+                                RtpsMessageWrite::from_submessages(
+                                    message_writer.write_buffer_mut(),
+                                    &[&info_dst, &info_timestamp, &data_frag, &heartbeat],
+                                    guid_prefix,
+                                )
+                            } else {
+                                RtpsMessageWrite::from_submessages(
+                                    message_writer.write_buffer_mut(),
+                                    &[&info_dst, &info_timestamp, &data_frag],
+                                    guid_prefix,
+                                )
+                            }
+                            .buffer()
+                            .len();
+                            message_writer.write_message(len, self.unicast_locator_list());
+                        }
                     } else {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());

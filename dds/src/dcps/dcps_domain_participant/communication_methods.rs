@@ -915,7 +915,7 @@ impl DcpsDomainParticipant {
                             if let Some(writer_proxy) =
                                 dr.transport_reader.matched_writer_lookup(writer_guid)
                             {
-                                if writer_proxy.last_received_heartbeat_count()
+                                if writer_proxy.last_received_heartbeat_frag_count()
                                     < heartbeat_frag_submessage.count()
                                 {
                                     writer_proxy.set_last_received_heartbeat_frag_count(

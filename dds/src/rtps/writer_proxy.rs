@@ -238,6 +238,10 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
     }
 
+    pub fn last_received_heartbeat_frag_count(&self) -> Count {
+        self.last_received_heartbeat_frag_count
+    }
+
     pub fn set_last_received_heartbeat_frag_count(
         &mut self,
         last_received_heartbeat_frag_count: Count,
@@ -265,15 +269,11 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
 
-            // We report missing changes up to the one where we have received at least one fragment
-            let missing_changes = self.missing_changes().take(256).take_while(|x| {
-                x < &self
-                    .frag_buffer
-                    .iter()
-                    .map(|x| x.writer_sn())
-                    .min()
-                    .unwrap_or(i64::MAX)
-            });
+            // We report missing changes excluding those where we have received at least one fragment
+            let missing_changes = self
+                .missing_changes()
+                .take(256)
+                .filter(|x| !self.frag_buffer.iter().any(|f| &f.writer_sn() == x));
             let acknack_submessage = AckNackSubmessage::new(
                 true,
                 reader_guid.entity_id(),
