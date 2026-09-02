@@ -151,8 +151,10 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list()
         {
-            if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
-                min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+            if !dw.transport_writer.changes().is_empty() {
+                if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                }
             }
         }
 
@@ -213,7 +215,9 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
+                    && !data_writer.transport_writer.changes().is_empty()
+                {
                     if let Some(hb_time) =
                         data_writer.transport_writer.time_until_next_heartbeat(now)
                     {
