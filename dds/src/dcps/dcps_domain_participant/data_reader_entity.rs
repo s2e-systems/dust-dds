@@ -29,6 +29,7 @@ pub struct InstanceState {
     most_recent_disposed_generation_count: i32,
     most_recent_no_writers_generation_count: i32,
     last_received_time_stamp: Time,
+    registered_writers: Vec<[u8; 16]>,
 }
 
 impl InstanceState {
@@ -41,35 +42,49 @@ impl InstanceState {
             most_recent_disposed_generation_count: 0,
             most_recent_no_writers_generation_count: 0,
             last_received_time_stamp: Time::new(TIME_INVALID_SEC, TIME_INVALID_NSEC),
+            registered_writers: Vec::new(),
         }
     }
 
     pub fn update_state(
         &mut self,
         change_kind: ChangeKind,
+        writer_guid: [u8; 16],
         now: Option<Time>,
         source_timestamp: Option<Time>,
     ) {
-        match self.instance_state {
-            InstanceStateKind::Alive => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
-                {
-                    self.instance_state = InstanceStateKind::NotAliveDisposed;
-                } else if change_kind == ChangeKind::NotAliveUnregistered {
+        match change_kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                if !self.registered_writers.contains(&writer_guid) {
+                    self.registered_writers.push(writer_guid);
+                }
+                match self.instance_state {
+                    InstanceStateKind::Alive => (),
+                    InstanceStateKind::NotAliveDisposed => {
+                        self.instance_state = InstanceStateKind::Alive;
+                        self.most_recent_disposed_generation_count += 1;
+                    }
+                    InstanceStateKind::NotAliveNoWriters => {
+                        self.instance_state = InstanceStateKind::Alive;
+                        self.most_recent_no_writers_generation_count += 1;
+                    }
+                }
+            }
+            ChangeKind::NotAliveDisposed => {
+                self.instance_state = InstanceStateKind::NotAliveDisposed;
+            }
+            ChangeKind::NotAliveUnregistered => {
+                self.registered_writers.retain(|x| x != &writer_guid);
+                if self.registered_writers.is_empty() {
                     self.instance_state = InstanceStateKind::NotAliveNoWriters;
                 }
             }
-            InstanceStateKind::NotAliveDisposed => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_disposed_generation_count += 1;
-                }
-            }
-            InstanceStateKind::NotAliveNoWriters => {
-                if change_kind == ChangeKind::Alive {
-                    self.instance_state = InstanceStateKind::Alive;
-                    self.most_recent_no_writers_generation_count += 1;
+            ChangeKind::NotAliveDisposedUnregistered => {
+                self.registered_writers.retain(|x| x != &writer_guid);
+                if self.registered_writers.is_empty() {
+                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                } else {
+                    self.instance_state = InstanceStateKind::NotAliveDisposed;
                 }
             }
         }
@@ -77,9 +92,12 @@ impl InstanceState {
         match self.view_state {
             ViewStateKind::New => (),
             ViewStateKind::NotNew => {
-                if change_kind == ChangeKind::NotAliveDisposed
-                    || change_kind == ChangeKind::NotAliveUnregistered
-                {
+                if matches!(
+                    change_kind,
+                    ChangeKind::NotAliveDisposed
+                        | ChangeKind::NotAliveUnregistered
+                        | ChangeKind::NotAliveDisposedUnregistered
+                ) {
                     self.view_state = ViewStateKind::New;
                 }
             }
@@ -249,9 +267,12 @@ impl<T> DataReaderEntity<T> {
                 }
             };
 
-            instance_in_coll
-                .instance_state
-                .update_state(cache_change.kind, None, None);
+            instance_in_coll.instance_state.update_state(
+                cache_change.kind,
+                cache_change.writer_guid,
+                None,
+                None,
+            );
             let sample_state = cache_change.sample_state;
             let view_state = instance.view_state;
             let instance_state = instance.instance_state;
@@ -554,6 +575,7 @@ impl<T> DataReaderEntity<T> {
                     Some(x) => {
                         x.update_state(
                             change_kind,
+                            writer_guid.into(),
                             Some(reception_timestamp),
                             change_source_timestamp,
                         );
@@ -566,6 +588,7 @@ impl<T> DataReaderEntity<T> {
                         let mut s = InstanceState::new(instance_handle);
                         s.update_state(
                             change_kind,
+                            writer_guid.into(),
                             Some(reception_timestamp),
                             change_source_timestamp,
                         );
@@ -588,6 +611,7 @@ impl<T> DataReaderEntity<T> {
                     .expect("Instance must exist");
                 instance.update_state(
                     change_kind,
+                    writer_guid.into(),
                     Some(reception_timestamp),
                     change_source_timestamp,
                 );
