@@ -891,6 +891,15 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, data_message))]
     pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
+            if let Some(matched_participant) = self
+                .domain_participant
+                .discovered_participant_list
+                .iter_mut()
+                .find(|x| x.guid_prefix == rtps_message.header().guid_prefix())
+            {
+                matched_participant.last_communication_timestamp = now;
+            }
+
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
             while let Some(submessage) = message_receiver.next() {
