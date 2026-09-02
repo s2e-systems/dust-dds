@@ -325,12 +325,6 @@ impl RtpsReaderProxy {
         guid_prefix: GuidPrefix,
     ) {
         // a_change_seq_num := the_reader_proxy.next_unsent_change();
-        // if ( a_change_seq_num > the_reader_proxy.higuest_sent_seq_num +1 ) {
-        //      GAP = new GAP(the_reader_locator.higuest_sent_seq_num + 1, a_change_seq_num -1);
-        //      GAP.readerId := ENTITYID_UNKNOWN;
-        //      GAP.filteredCount := 0;
-        //      send GAP;
-        // }
         // a_change := the_writer.writer_cache.get_change(a_change_seq_num );
         // if ( DDS_FILTER(the_reader_proxy, a_change) ) {
         //      DATA = new DATA(a_change);
@@ -338,42 +332,15 @@ impl RtpsReaderProxy {
         //          DATA.inlineQos := the_rtps_writer.related_dds_writer.qos;
         //          DATA.inlineQos += a_change.inlineQos;
         //      }
-        //      DATA.readerId := ENTITYID_UNKNOWN;
+        //      DATA.readerId := the_reader_proxy.remoteReaderGuid.entityId;
         //      send DATA;
         // }
-        // else {
-        //      GAP = new GAP(a_change.sequenceNumber);
-        //      GAP.readerId := ENTITYID_UNKNOWN;
-        //      GAP.filteredCount := 1;
-        //      send GAP;
-        // }
-        // the_reader_proxy.higuest_sent_seq_num := a_change_seq_num;
+        // the_reader_proxy.highest_sent_seq_num := a_change_seq_num;
         while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
-            if next_unsent_change_seq_num > self.highest_sent_seq_num() + 1 {
-                let gap_start_sequence_number = self.highest_sent_seq_num() + 1;
-                let gap_end_sequence_number = next_unsent_change_seq_num - 1;
-                let gap_submessage = GapSubmessage::new(
-                    self.remote_reader_guid().entity_id(),
-                    writer_id,
-                    gap_start_sequence_number,
-                    SequenceNumberSet::new(gap_end_sequence_number + 1, []),
-                );
-                let len = RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
-                    &[&gap_submessage],
-                    guid_prefix,
-                )
-                .buffer()
-                .len();
-                message_writer.write_message(len, self.unicast_locator_list());
-
-                self.set_highest_sent_seq_num(gap_end_sequence_number);
-            }
-
-            if let Some(cache_change) = changes
-                .iter()
-                .find(|cc| cc.sequence_number == next_unsent_change_seq_num)
-            {
+            if let Some(cache_change) = changes.iter().find(|cc| {
+                cc.sequence_number == next_unsent_change_seq_num
+                    && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
+            }) {
                 let number_of_fragments = cache_change
                     .data_value
                     .len()
@@ -431,21 +398,6 @@ impl RtpsReaderProxy {
                     .len();
                     message_writer.write_message(len, self.unicast_locator_list())
                 }
-            } else {
-                let gap_submessage = GapSubmessage::new(
-                    ENTITYID_UNKNOWN,
-                    writer_id,
-                    next_unsent_change_seq_num,
-                    SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
-                );
-                let len = RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
-                    &[&gap_submessage],
-                    guid_prefix,
-                )
-                .buffer()
-                .len();
-                message_writer.write_message(len, self.unicast_locator_list())
             }
 
             self.set_highest_sent_seq_num(next_unsent_change_seq_num);
@@ -896,5 +848,83 @@ mod tests {
         );
 
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_best_effort_reader_no_gap_submessage_on_non_contiguous_sequence_numbers() {
+        struct MockWriter {
+            gap_count: Mutex<usize>,
+            data_count: Mutex<usize>,
+            buffer: [u8; 65535],
+        }
+        impl WriteMessage for MockWriter {
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(
+                &mut self,
+                len: usize,
+                _locator_list: &[crate::transport::types::Locator],
+            ) {
+                let message = RtpsMessageRead::try_from(&self.buffer[..len]).unwrap();
+                for submessage in message.submessages() {
+                    match submessage {
+                        RtpsSubmessageReadKind::Gap(_) => *self.gap_count.lock().unwrap() += 1,
+                        RtpsSubmessageReadKind::Data(_) => *self.data_count.lock().unwrap() += 1,
+                        _ => (),
+                    }
+                }
+            }
+        }
+
+        let data_max_size_serialized = 500;
+        let writer_id = EntityId::new([1; 3], 1);
+        let guid = Guid::new([1; 12], writer_id);
+        let mut writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+
+        let remote_reader_id = EntityId::new([2; 3], 2);
+        let remote_reader_guid = Guid::new([2; 12], remote_reader_id);
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::BestEffort,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        // Add non-contiguous sequence numbers (e.g. 2 and 5)
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 2,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![1, 2, 3].into(),
+        });
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 5,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![4, 5, 6].into(),
+        });
+
+        let mut message_writer = MockWriter {
+            gap_count: Mutex::new(0),
+            data_count: Mutex::new(0),
+            buffer: [0; 65535],
+        };
+
+        writer.write_message(&mut message_writer, Time::new(1, 0));
+
+        assert_eq!(
+            *message_writer.gap_count.lock().unwrap(),
+            0,
+            "Best-effort reader proxy should not receive any GAP submessages"
+        );
+        assert_eq!(*message_writer.data_count.lock().unwrap(), 2);
     }
 }
