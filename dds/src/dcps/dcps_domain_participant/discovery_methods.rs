@@ -252,7 +252,7 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|x| {
                             if now - x.last_received_time_stamp() > deadline {
-                                Some(*x.handle())
+                                Some(x.handle)
                             } else {
                                 None
                             }
@@ -2684,6 +2684,11 @@ impl DcpsDomainParticipant {
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             for data_reader in &mut subscriber.data_reader_list {
+                // Remove samples
+                data_reader
+                    .sample_list
+                    .retain(|sample| sample.writer_guid[..12] != prefix);
+
                 let removed_writer_guids: Vec<_> = data_reader
                     .matched_publication_list
                     .iter()
@@ -2694,7 +2699,6 @@ impl DcpsDomainParticipant {
                     data_reader
                         .transport_reader
                         .delete_matched_writer(key.into());
-                    data_reader.remove_matched_publication(&InstanceHandle::new(key));
                 }
             }
         }

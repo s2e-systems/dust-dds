@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use tracing::info;
 
 use crate::{
@@ -143,7 +143,7 @@ impl DcpsDomainParticipant {
                                     }
                                 }
 
-                                fn compare_string(&self, lhs: &str, rhs: &str) -> bool {
+                                fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
                                     match self {
                                         Self::Equal => lhs == rhs,
                                         Self::LessThan => lhs <= rhs,
@@ -160,32 +160,18 @@ impl DcpsDomainParticipant {
                             let mut operators = [Operator::LessThan, Operator::Equal].iter();
                             let filter = loop {
                                 if let Some(operator) = operators.next() {
-                                    if let Some((variable_name, value_expr)) = content_filtered_topic
+                                    if let Some((variable_name, _)) = content_filtered_topic
                                         .filter_expression
                                         .split_once(operator.to_str())
                                     {
-                                        let trimmed_val = value_expr.trim();
-                                        let value_str = if trimmed_val.starts_with('%') {
-                                            if let Ok(index) = trimmed_val[1..].parse::<usize>() {
-                                                content_filtered_topic
-                                                    .expression_parameters
-                                                    .get(index)
-                                                    .map(|s| s.as_str())
-                                                    .unwrap_or(trimmed_val)
-                                            } else {
-                                                trimmed_val
-                                            }
-                                        } else {
-                                            trimmed_val.trim_matches('\'').trim_matches('"')
-                                        };
-                                        break Some((variable_name, operator, value_str));
+                                        break Some((variable_name, operator));
                                     }
                                 } else {
                                     break None;
                                 };
                             };
 
-                            if let Some((variable_name, comparison_function, value_str)) = filter {
+                            if let Some((variable_name, comparison_function)) = filter {
                                 let Some(member_id) =
                                     data.get_member_id_by_name(variable_name.trim())
                                 else {
@@ -201,12 +187,11 @@ impl DcpsDomainParticipant {
                                     crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::INT32 => {
                                         let member_value = data.get_int32_value(member_id).unwrap();
-                                        let Ok(rhs) = value_str.parse::<i32>() else {
-                                            continue 'data_readers;
-                                        };
                                         if !comparison_function.compare_int32(
                                             member_value,
-                                            &rhs,
+                                            &content_filtered_topic.expression_parameters[0]
+                                                .parse()
+                                                .expect("valid number"),
                                         ) {
                                             continue 'data_readers;
                                         }
@@ -227,8 +212,8 @@ impl DcpsDomainParticipant {
                                         let member_value =
                                             data.get_string_value(member_id).unwrap();
                                         if !comparison_function.compare_string(
-                                            member_value.as_str(),
-                                            value_str,
+                                            member_value,
+                                            &content_filtered_topic.expression_parameters[0],
                                         ) {
                                             continue 'data_readers;
                                         }

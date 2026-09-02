@@ -103,18 +103,6 @@ impl UserDefinedDataReader {
         };
         self.matched_publication_list.remove(i);
 
-        let writer_guid: [u8; 16] = *publication_handle.as_ref();
-        for instance in &mut self.instances {
-            instance.remove_writer(&writer_guid);
-        }
-        if let Some(i) = self
-            .instance_ownership
-            .iter()
-            .position(|x| x.owner_handle == writer_guid)
-        {
-            self.instance_ownership.remove(i);
-        }
-
         self.subscription_matched_status.current_count = self.matched_publication_list.len() as i32;
         self.subscription_matched_status.current_count_change -= 1;
         self.status_condition
