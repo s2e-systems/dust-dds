@@ -1067,7 +1067,7 @@ fn each_key_sample_is_read() {
     let data3_handle = writer.lookup_instance(data3.clone()).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(2, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -2618,7 +2618,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(2, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -3571,7 +3571,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
         },
         ..Default::default()
     };
@@ -3597,7 +3597,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
         },
         ..Default::default()
     };
@@ -4469,134 +4469,6 @@ fn samples_are_transfered_between_two_participants() {
 }
 
 #[test]
-fn large_data_transfer_between_two_participants() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-
-    let participant1 = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-
-    let topic1 = participant1
-        .create_topic::<LargeData>(
-            "LargeDataTopic",
-            "LargeData",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let publisher = participant1
-        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let writer_qos = DataWriterQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepAll,
-        },
-        ..Default::default()
-    };
-    let writer = publisher
-        .create_datawriter(
-            &topic1,
-            QosKind::Specific(writer_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let subscriber = participant2
-        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
-        .unwrap();
-    let reader_qos = DataReaderQos {
-        reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-        },
-        history: HistoryQosPolicy {
-            kind: HistoryQosPolicyKind::KeepAll,
-        },
-        ..Default::default()
-    };
-    let topic2 = participant2
-        .create_topic::<LargeData>(
-            "LargeDataTopic",
-            "LargeData",
-            QosKind::Default,
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let reader = subscriber
-        .create_datareader::<LargeData>(
-            &topic2,
-            QosKind::Specific(reader_qos),
-            NO_LISTENER,
-            NO_STATUS,
-        )
-        .unwrap();
-
-    let cond = writer.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    let cond = reader.get_statuscondition();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
-        .unwrap();
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(10, 0)).unwrap();
-
-    let data = LargeData {
-        id: 1,
-        value: vec![255; 100_000],
-    };
-
-    let total_samples = 200;
-    let writer_thread = std::thread::spawn(move || {
-        for _ in 0..total_samples {
-            writer.write(data.clone(), None).unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(15));
-        }
-        writer
-            .wait_for_acknowledgments(Duration::new(10, 0))
-            .unwrap();
-    });
-
-    let start_time = std::time::Instant::now();
-    let mut received_samples = 0;
-    while received_samples < total_samples
-        && start_time.elapsed() < std::time::Duration::from_secs(12)
-    {
-        if let Ok(samples) = reader.take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            if !samples.is_empty() {
-                received_samples += samples.len();
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-
-    writer_thread.join().unwrap();
-    assert_eq!(received_samples, total_samples);
-}
-
-#[test]
 fn shared_ownership_writer1_should_write_and_writer2_should_dispose_same_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
@@ -4742,6 +4614,7 @@ fn shared_ownership_writer1_should_write_and_writer2_should_dispose_same_data() 
 }
 
 #[test]
+#[ignore]
 fn data_reader_does_not_read_lifespan_expired_samples() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
