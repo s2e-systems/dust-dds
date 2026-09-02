@@ -252,7 +252,7 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|x| {
                             if now - x.last_received_time_stamp() > deadline {
-                                Some(x.handle)
+                                Some(*x.handle())
                             } else {
                                 None
                             }

@@ -2108,10 +2108,8 @@ fn reader_with_minimum_time_separation_qos_taking_samples() {
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
-    let samples = reader
-        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-    assert_eq!(samples.len(), 0);
+    let samples = reader.take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    assert_eq!(samples, Err(DdsError::NoData));
 
     writer
         .write_w_timestamp(data1_3.clone(), None, Time::new(3, 0))
