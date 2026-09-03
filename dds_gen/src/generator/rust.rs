@@ -453,21 +453,19 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn union_def(&mut self, pair: IdlPair) {
-        let identifier = pair
+        let inner_pairs = pair.into_inner();
+        let identifier = inner_pairs
             .clone()
-            .into_inner()
             .find(|x| x.as_rule() == Rule::identifier)
-            .expect("Must have an identifier according to the grammar");
+            .expect("Identifier must exist according to the grammar");
 
-        let switch_type_spec = pair
+        let switch_type_spec = inner_pairs
             .clone()
-            .into_inner()
             .find(|x| x.as_rule() == Rule::switch_type_spec)
             .expect("Must have a switch_type_spec according to the grammar");
 
-        let switch_body = pair
+        let switch_body = inner_pairs
             .clone()
-            .into_inner()
             .find(|x| x.as_rule() == Rule::switch_body)
             .expect("Must have a switch_body according to the grammar");
 
@@ -476,15 +474,45 @@ impl<'a> RustGenerator<'a> {
 
         self.writer.push_str("#[dust_dds(switch(");
         self.generate(switch_type_spec);
-        self.writer.push_str("),");
+        self.writer.push_str("))]\n");
+
+        for annotation_appl in inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+
+            match identifier.as_str() {
+                "final" => self
+                    .writer
+                    .push_str("#[dust_dds(extensibility = \"final\")]\n"),
+                "appendable" => self
+                    .writer
+                    .push_str("#[dust_dds(extensibility = \"appendable\")]\n"),
+                "mutable" => self
+                    .writer
+                    .push_str("#[dust_dds(extensibility = \"mutable\")]\n"),
+                _ => (),
+            }
+        }
+
         if !self.modules.is_empty() {
             let name = format!(
-                "name = \"{}\"",
+                "#[dust_dds(name = \"{}\")]\n",
                 self.hierarchical_type_name(identifier.as_str())
             );
             self.writer.push_str(&name);
         }
-        self.writer.push_str(")]");
 
         self.writer.push_str("pub enum ");
         self.generate(identifier);
