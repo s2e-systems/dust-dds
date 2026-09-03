@@ -158,6 +158,11 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -180,6 +185,11 @@ impl DcpsDomainParticipant {
 
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -556,6 +566,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -580,6 +595,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -692,6 +712,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_reader))]
@@ -716,6 +741,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -770,6 +800,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_topics_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -2058,6 +2093,9 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
+                    type_lookup_reply_writer
+                        .transport_writer
+                        .write_message(self.transport.message_writer.as_mut(), now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2093,6 +2131,9 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
+                        type_lookup_reply_writer
+                            .transport_writer
+                            .write_message(self.transport.message_writer.as_mut(), now);
                     }
                 }
             }
@@ -2484,6 +2525,9 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
+                                type_request_writer
+                                    .transport_writer
+                                    .write_message(self.transport.message_writer.as_mut(), now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2530,6 +2574,9 @@ impl DcpsDomainParticipant {
                                     now,
                                 )
                                 .ok();
+                            type_request_writer
+                                .transport_writer
+                                .write_message(self.transport.message_writer.as_mut(), now);
                             self.domain_participant
                                 .type_register
                                 .add_pending_types_lookup(vec![discovered_type_id.clone()]);
