@@ -1,7 +1,7 @@
 #include "ddsc/dds.h"
 #include "NestedType.h"
 
-int main(int argc, char *argv[])
+int main()
 {
 	const char *topic_name = "Nested";
 

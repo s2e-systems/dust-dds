@@ -5,7 +5,7 @@
 
 #define MAX_SAMPLES 1
 
-int main(int argc, char *argv[])
+int main()
 {
 	const char *topic_name = "DisposeData";
 

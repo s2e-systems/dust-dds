@@ -3,7 +3,7 @@
 #include "ddsc/dds.h"
 #include "Optional.h"
 
-int main(int argx, char *argv[])
+int main()
 {
 	const char *topic_name = "Optional";
 

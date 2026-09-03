@@ -1,6 +1,6 @@
 module interoperability {
     module test {
-
+        @final
         struct Optional {
             @optional
             string maybe_string;
@@ -13,6 +13,5 @@ module interoperability {
             @optional
             sequence<float> maybe_sequence;
         };
-
     };
 };
