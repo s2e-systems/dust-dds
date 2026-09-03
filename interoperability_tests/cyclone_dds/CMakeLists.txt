@@ -17,8 +17,10 @@ set(BUILD_EXAMPLES OFF)
 FetchContent_Declare(
   cyclone_dds
   GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-  GIT_TAG 7ebcd2c9d928c3781a0de6fbb93a2f98e49a2154 # FIXME
-  GIT_SHALLOW ON
+  GIT_TAG 86f92e636fd84c7677a8216b3296a1e83daf2b5b # FIXME
+  # FIXME: uncomment when GIT_TAG is a proper tag and not a commit hash,
+  # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
+  # GIT_SHALLOW ON
   SYSTEM
   FIND_PACKAGE_ARGS 11.0.1 EXACT NAMES CycloneDDS
 )
@@ -49,15 +51,15 @@ function(interoperability_test)
   if(WIN32)
     # Copy runtime dll(s)
     add_custom_command(
-        TARGET ${SUBSCRIBER_TARGET}
-        POST_BUILD
-        COMMAND
-          ${CMAKE_COMMAND} -E
-          $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}>>,copy_if_different,true>
-          $<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}> $<TARGET_FILE_DIR:${SUBSCRIBER_TARGET}>
-        COMMAND_EXPAND_LISTS
-        VERBATIM
-      )
+      TARGET ${SUBSCRIBER_TARGET}
+      POST_BUILD
+      COMMAND
+        ${CMAKE_COMMAND} -E
+        $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}>>,copy_if_different,true>
+        $<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}> $<TARGET_FILE_DIR:${SUBSCRIBER_TARGET}>
+      COMMAND_EXPAND_LISTS
+      VERBATIM
+    )
   endif()
 
   # Publisher
@@ -72,15 +74,15 @@ function(interoperability_test)
   if(WIN32)
     # Copy runtime dll(s)
     add_custom_command(
-        TARGET ${PUBLISHER_TARGET}
-        POST_BUILD
-        COMMAND
-          ${CMAKE_COMMAND} -E
-          $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}>>,copy_if_different,true>
-          $<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}> $<TARGET_FILE_DIR:${PUBLISHER_TARGET}>
-        COMMAND_EXPAND_LISTS
-        VERBATIM
-      )
+      TARGET ${PUBLISHER_TARGET}
+      POST_BUILD
+      COMMAND
+        ${CMAKE_COMMAND} -E
+        $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}>>,copy_if_different,true>
+        $<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}> $<TARGET_FILE_DIR:${PUBLISHER_TARGET}>
+      COMMAND_EXPAND_LISTS
+      VERBATIM
+    )
   endif()
 endfunction()
 
