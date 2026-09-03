@@ -1,4 +1,4 @@
-union TestUnion switch(u8) {
+union TestUnion switch(uint8) {
     case 10:
         uint8 x;
     case 20:
@@ -9,4 +9,34 @@ union TestUnion switch(u8) {
     default:
     case 60:
         int64 z;
+};
+
+@final
+union FinalUnion switch(uint8) {
+    case 0:
+        uint8 x;
+    case 1:
+        uint8 y;
+    case 2:
+        uint8 z;
+};
+
+@appendable
+union AppendableUnion switch(uint8) {
+    case 0:
+        uint8 x;
+    case 1:
+        uint8 y;
+    case 2:
+        uint8 z;
+};
+
+@mutable
+union MutableUnion switch(uint8) {
+    case 0:
+        uint8 x;
+    case 1:
+        uint8 y;
+    case 2:
+        uint8 z;
 };

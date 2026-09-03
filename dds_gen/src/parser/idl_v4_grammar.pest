@@ -416,7 +416,7 @@ union_dcl = {
     | union_forward_dcl
 }
 // (50)
-union_def = { "union" ~ identifier ~ "switch" ~ "(" ~ switch_type_spec ~ ")" ~ "{" ~ switch_body ~ "}" }
+union_def = { annotation_appl* ~ "union" ~ identifier ~ "switch" ~ "(" ~ switch_type_spec ~ ")" ~ "{" ~ switch_body ~ "}" }
 // (51)
 switch_type_spec = {
     integer_type
