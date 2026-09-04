@@ -93,11 +93,11 @@ impl RtpsStatefulWriter {
             DurabilityKind::Volatile => self
                 .changes
                 .last()
-                .map(|cc| cc.sequence_number)
-                .unwrap_or(0),
+                .map(|cc| cc.sequence_number + 1)
+                .unwrap_or(1),
             DurabilityKind::TransientLocal
             | DurabilityKind::Transient
-            | DurabilityKind::Persistent => 0,
+            | DurabilityKind::Persistent => 1,
         };
         let rtps_reader_proxy = RtpsReaderProxy::new(
             reader_proxy.remote_reader_guid,
@@ -339,7 +339,7 @@ impl RtpsReaderProxy {
         while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
             if let Some(cache_change) = changes.iter().find(|cc| {
                 cc.sequence_number == next_unsent_change_seq_num
-                    && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
+                    && next_unsent_change_seq_num >= self.first_relevant_sample_seq_num()
             }) {
                 let number_of_fragments = cache_change
                     .data_value
@@ -444,7 +444,7 @@ impl RtpsReaderProxy {
 
                 if let Some(cache_change) = changes.iter().find(|cc| {
                     cc.sequence_number == next_unsent_change_seq_num
-                        && next_unsent_change_seq_num > self.first_relevant_sample_seq_num()
+                        && next_unsent_change_seq_num >= self.first_relevant_sample_seq_num()
                 }) {
                     let number_of_fragments = cache_change
                         .data_value
@@ -475,9 +475,7 @@ impl RtpsReaderProxy {
                                 let first_sn = seq_num_min
                                     .unwrap_or(1)
                                     .max(self.first_relevant_sample_seq_num());
-                                let last_sn = seq_num_max
-                                    .unwrap_or(0)
-                                    .max(self.first_relevant_sample_seq_num());
+                                let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
                                 let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
                                     writer_id, first_sn, last_sn, now, false,
                                 );
@@ -526,9 +524,7 @@ impl RtpsReaderProxy {
                         let first_sn = seq_num_min
                             .unwrap_or(1)
                             .max(self.first_relevant_sample_seq_num());
-                        let last_sn = seq_num_max
-                            .unwrap_or(0)
-                            .max(self.first_relevant_sample_seq_num());
+                        let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
                         let heartbeat = self
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
@@ -574,9 +570,7 @@ impl RtpsReaderProxy {
             let first_sn = seq_num_min
                 .unwrap_or(1)
                 .max(self.first_relevant_sample_seq_num());
-            let last_sn = seq_num_max
-                .unwrap_or(0)
-                .max(self.first_relevant_sample_seq_num());
+            let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
             let heartbeat_submessage = self
                 .heartbeat_machine()
                 .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
@@ -603,7 +597,7 @@ impl RtpsReaderProxy {
                 // should be full-filled by next_requested_change()
                 if let Some(cache_change) = changes.iter().find(|cc| {
                     cc.sequence_number == next_requested_change_seq_num
-                        && next_requested_change_seq_num > self.first_relevant_sample_seq_num()
+                        && next_requested_change_seq_num >= self.first_relevant_sample_seq_num()
                 }) {
                     let number_of_fragments = cache_change
                         .data_value
@@ -633,9 +627,7 @@ impl RtpsReaderProxy {
                                 let first_sn = seq_num_min
                                     .unwrap_or(1)
                                     .max(self.first_relevant_sample_seq_num());
-                                let last_sn = seq_num_max
-                                    .unwrap_or(0)
-                                    .max(self.first_relevant_sample_seq_num());
+                                let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
                                 let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
                                     writer_id, first_sn, last_sn, now, false,
                                 );
@@ -685,9 +677,7 @@ impl RtpsReaderProxy {
                         let first_sn = seq_num_min
                             .unwrap_or(1)
                             .max(self.first_relevant_sample_seq_num());
-                        let last_sn = seq_num_max
-                            .unwrap_or(0)
-                            .max(self.first_relevant_sample_seq_num());
+                        let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
                         let heartbeat = self
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
