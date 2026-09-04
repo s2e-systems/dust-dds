@@ -119,7 +119,7 @@ impl dust_dds::xtypes::type_support::Type for Duration {
                         id: 0,
                         r#type: <i32 as dust_dds::xtypes::type_support::Type>::TYPE,
                         default_value: None,
-                        index: 0u32 as u32,
+                        index: 0u32,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                         label: &[],
@@ -137,7 +137,7 @@ impl dust_dds::xtypes::type_support::Type for Duration {
                         id: 1,
                         r#type: <u32 as dust_dds::xtypes::type_support::Type>::TYPE,
                         default_value: None,
-                        index: 1u32 as u32,
+                        index: 1u32,
                         try_construct_kind:
                             dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
                         label: &[],
