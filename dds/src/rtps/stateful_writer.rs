@@ -472,8 +472,12 @@ impl RtpsReaderProxy {
                                 };
 
                             let len = if fragment_number == number_of_fragments - 1 {
-                                let first_sn = seq_num_min.unwrap_or(1);
-                                let last_sn = seq_num_max.unwrap_or(0);
+                                let first_sn = seq_num_min
+                                    .unwrap_or(1)
+                                    .max(self.first_relevant_sample_seq_num());
+                                let last_sn = seq_num_max
+                                    .unwrap_or(0)
+                                    .max(self.first_relevant_sample_seq_num());
                                 let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
                                     writer_id, first_sn, last_sn, now, false,
                                 );
@@ -519,8 +523,12 @@ impl RtpsReaderProxy {
                             inline_qos,
                         );
 
-                        let first_sn = seq_num_min.unwrap_or(1);
-                        let last_sn = seq_num_max.unwrap_or(0);
+                        let first_sn = seq_num_min
+                            .unwrap_or(1)
+                            .max(self.first_relevant_sample_seq_num());
+                        let last_sn = seq_num_max
+                            .unwrap_or(0)
+                            .max(self.first_relevant_sample_seq_num());
                         let heartbeat = self
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
@@ -563,8 +571,12 @@ impl RtpsReaderProxy {
             .heartbeat_machine()
             .is_time_for_heartbeat(now, heartbeat_period.into())
         {
-            let first_sn = seq_num_min.unwrap_or(1);
-            let last_sn = seq_num_max.unwrap_or(0);
+            let first_sn = seq_num_min
+                .unwrap_or(1)
+                .max(self.first_relevant_sample_seq_num());
+            let last_sn = seq_num_max
+                .unwrap_or(0)
+                .max(self.first_relevant_sample_seq_num());
             let heartbeat_submessage = self
                 .heartbeat_machine()
                 .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
@@ -618,8 +630,12 @@ impl RtpsReaderProxy {
                                     InfoTimestampSubmessage::new(true, TIME_INVALID)
                                 };
                             let len = if fragment_number == number_of_fragments - 1 {
-                                let first_sn = seq_num_min.unwrap_or(1);
-                                let last_sn = seq_num_max.unwrap_or(0);
+                                let first_sn = seq_num_min
+                                    .unwrap_or(1)
+                                    .max(self.first_relevant_sample_seq_num());
+                                let last_sn = seq_num_max
+                                    .unwrap_or(0)
+                                    .max(self.first_relevant_sample_seq_num());
                                 let heartbeat = self.heartbeat_machine().generate_new_heartbeat(
                                     writer_id, first_sn, last_sn, now, false,
                                 );
@@ -666,8 +682,12 @@ impl RtpsReaderProxy {
                             inline_qos,
                         );
 
-                        let first_sn = seq_num_min.unwrap_or(1);
-                        let last_sn = seq_num_max.unwrap_or(0);
+                        let first_sn = seq_num_min
+                            .unwrap_or(1)
+                            .max(self.first_relevant_sample_seq_num());
+                        let last_sn = seq_num_max
+                            .unwrap_or(0)
+                            .max(self.first_relevant_sample_seq_num());
                         let heartbeat = self
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
