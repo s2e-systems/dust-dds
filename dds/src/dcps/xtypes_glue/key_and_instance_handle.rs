@@ -135,12 +135,16 @@ pub fn get_instance_handle_from_key_holder_data<'a>(
     key_holder_data: &KeyHolderData<'a>,
 ) -> Result<InstanceHandle, XTypesError> {
     let data = serialize_final_without_header(Vec::with_capacity(16), &key_holder_data.0)?;
-    let key = if data.len() <= 16 {
-        let mut key = [0; 16];
-        key[0..data.len()].copy_from_slice(&data);
-        key
-    } else {
-        md5::compute(data).into()
+    let dynamic_type = key_holder_data.0.r#type();
+    let max_size = dynamic_type.max_size_serialized_cdr_be(0);
+    let key = match max_size {
+        Some(size) if size <= 16 => {
+            let mut key = [0; 16];
+            let len = data.len().min(16);
+            key[0..len].copy_from_slice(&data[0..len]);
+            key
+        }
+        _ => md5::compute(data).into(),
     };
 
     Ok(InstanceHandle::new(key))
@@ -162,6 +166,139 @@ pub fn get_instance_handle_from_dynamic_data<'a>(
 ) -> Result<InstanceHandle, XTypesError> {
     let key_holder_type = KeyHolderType::new(&value.r#type());
     get_instance_handle_from_dynamic_data_and_key_holder(value, &key_holder_type)
+}
+
+impl<'a> DynamicType<'a> {
+    /// Computes the maximum serialized size in bytes using CDR Big-Endian encoding.
+    /// Returns `None` if the type has unbounded size (such as unbounded strings or sequences).
+    fn max_size_serialized_cdr_be(&self, current_offset: usize) -> Option<usize> {
+        fn align_to(offset: usize, alignment: usize) -> usize {
+            if alignment <= 1 {
+                offset
+            } else {
+                (offset + alignment - 1) & !(alignment - 1)
+            }
+        }
+
+        match self.get_kind() {
+            TypeKind::NONE => Some(current_offset),
+            TypeKind::BOOLEAN
+            | TypeKind::BYTE
+            | TypeKind::INT8
+            | TypeKind::UINT8
+            | TypeKind::CHAR8 => Some(current_offset.checked_add(1)?),
+            TypeKind::INT16 | TypeKind::UINT16 | TypeKind::CHAR16 => {
+                let aligned = align_to(current_offset, 2);
+                Some(aligned.checked_add(2)?)
+            }
+            TypeKind::INT32 | TypeKind::UINT32 | TypeKind::FLOAT32 | TypeKind::ENUM => {
+                let aligned = align_to(current_offset, 4);
+                Some(aligned.checked_add(4)?)
+            }
+            TypeKind::INT64 | TypeKind::UINT64 | TypeKind::FLOAT64 => {
+                let aligned = align_to(current_offset, 8);
+                Some(aligned.checked_add(8)?)
+            }
+            TypeKind::FLOAT128 => {
+                let aligned = align_to(current_offset, 16);
+                Some(aligned.checked_add(16)?)
+            }
+            TypeKind::STRING8 => {
+                let bound = self.descriptor.bound.first().copied().unwrap_or(0);
+                if bound == 0 || bound == u32::MAX {
+                    None
+                } else {
+                    let aligned = align_to(current_offset, 4);
+                    let size = (bound as usize).checked_add(5)?;
+                    aligned.checked_add(size)
+                }
+            }
+            TypeKind::STRING16 => {
+                let bound = self.descriptor.bound.first().copied().unwrap_or(0);
+                if bound == 0 || bound == u32::MAX {
+                    None
+                } else {
+                    let aligned = align_to(current_offset, 4);
+                    let chars_size = (bound as usize).checked_mul(2)?;
+                    let size = chars_size.checked_add(6)?;
+                    aligned.checked_add(size)
+                }
+            }
+            TypeKind::ALIAS => {
+                if let Some(base_type) = &self.descriptor.base_type {
+                    base_type.max_size_serialized_cdr_be(current_offset)
+                } else {
+                    None
+                }
+            }
+            TypeKind::BITMASK => {
+                let bound = self.descriptor.bound.first().copied().unwrap_or(32);
+                let (align, size) = match bound {
+                    0..=8 => (1, 1),
+                    9..=16 => (2, 2),
+                    17..=32 => (4, 4),
+                    _ => (8, 8),
+                };
+                let aligned = align_to(current_offset, align);
+                aligned.checked_add(size)
+            }
+            TypeKind::STRUCTURE => {
+                let mut offset = current_offset;
+                for member in self.member_list {
+                    offset = member
+                        .descriptor
+                        .r#type
+                        .max_size_serialized_cdr_be(offset)?;
+                }
+                Some(offset)
+            }
+            TypeKind::UNION => {
+                let disc_type = self.descriptor.discriminator_type.as_ref()?;
+                let disc_offset = disc_type.max_size_serialized_cdr_be(current_offset)?;
+                if self.member_list.is_empty() {
+                    Some(disc_offset)
+                } else {
+                    let mut max_offset = disc_offset;
+                    for member in self.member_list {
+                        let member_offset = member
+                            .descriptor
+                            .r#type
+                            .max_size_serialized_cdr_be(disc_offset)?;
+                        if member_offset > max_offset {
+                            max_offset = member_offset;
+                        }
+                    }
+                    Some(max_offset)
+                }
+            }
+            TypeKind::SEQUENCE => {
+                let bound = self.descriptor.bound.first().copied().unwrap_or(0);
+                if bound == 0 || bound == u32::MAX {
+                    None
+                } else {
+                    let elem_type = self.descriptor.element_type.as_ref()?;
+                    let mut offset = align_to(current_offset, 4).checked_add(4)?;
+                    for _ in 0..bound {
+                        offset = elem_type.max_size_serialized_cdr_be(offset)?;
+                    }
+                    Some(offset)
+                }
+            }
+            TypeKind::ARRAY => {
+                let elem_type = self.descriptor.element_type.as_ref()?;
+                let mut total_count: usize = 1;
+                for &dim in self.descriptor.bound {
+                    total_count = total_count.checked_mul(dim as usize)?;
+                }
+                let mut offset = current_offset;
+                for _ in 0..total_count {
+                    offset = elem_type.max_size_serialized_cdr_be(offset)?;
+                }
+                Some(offset)
+            }
+            TypeKind::MAP | TypeKind::ANNOTATION | TypeKind::BITSET => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -232,5 +369,27 @@ mod tests {
             instance_handle,
             InstanceHandle::new([1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         )
+    }
+
+    #[test]
+    fn test_string_key_md5_hash() {
+        #[derive(TypeSupport)]
+        struct ShapeTypeKey {
+            #[dust_dds(key)]
+            color: String,
+        }
+
+        let shape = ShapeTypeKey {
+            color: "BLUE".to_string(),
+        };
+
+        let data = shape.create_dynamic_sample();
+        let instance_handle = get_instance_handle_from_dynamic_data(&data).unwrap();
+
+        // CDR_BE serialized bytes for string "BLUE": [0, 0, 0, 5, 'B', 'L', 'U', 'E', 0]
+        let expected_bytes: [u8; 9] = [0, 0, 0, 5, b'B', b'L', b'U', b'E', 0];
+        let expected_hash = md5::compute(expected_bytes);
+
+        assert_eq!(instance_handle, InstanceHandle::new(expected_hash.0));
     }
 }

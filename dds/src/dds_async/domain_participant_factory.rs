@@ -314,6 +314,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.check_missed_reader_deadline(now);
                                 dp.check_missed_writer_deadline(now);
                                 dp.remove_stale_writer_samples(now);
+                                dp.remove_stale_reader_samples(now);
                                 dp.check_pending_writer_sample_timeout(now);
                                 dp.process_pending_write_samples(now);
                                 dp.announce_participant_if_needed(now);

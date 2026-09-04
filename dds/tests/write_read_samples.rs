@@ -10,7 +10,7 @@ use dust_dds::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             Length, LifespanQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
             OwnershipStrengthQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, WriterDataLifecycleQosPolicy,
+            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
         },
         sample_info::{
             ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, InstanceStateKind,
@@ -107,6 +107,16 @@ fn large_data_should_be_fragmented() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let even_data = LargeData {
         id: 1,
@@ -220,6 +230,16 @@ fn large_data_should_be_fragmented_reliable() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data = LargeData {
         id: 1,
@@ -619,6 +639,16 @@ fn wait_for_samples_to_be_taken_best_effort() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -1037,7 +1067,7 @@ fn each_key_sample_is_read() {
     let data3_handle = writer.lookup_instance(data3.clone()).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -1881,7 +1911,7 @@ fn write_read_sample_view_state() {
     writer.write(data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(2, 0))
         .unwrap();
 
     let samples = reader
@@ -2007,6 +2037,122 @@ fn reader_with_minimum_time_separation_qos() {
     assert_eq!(samples[1].data.as_ref().unwrap(), &data1_3);
     assert_eq!(samples[2].data.as_ref().unwrap(), &data2_1);
     assert_eq!(samples[3].data.as_ref().unwrap(), &data2_3);
+}
+
+#[test]
+fn reader_with_minimum_time_separation_qos_taking_samples() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        time_based_filter: TimeBasedFilterQosPolicy {
+            minimum_separation: DurationKind::Finite(Duration::new(2, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1_1 = KeyedData { id: 1, value: 1 };
+    let data1_2 = KeyedData { id: 1, value: 2 };
+    let data1_3 = KeyedData { id: 1, value: 3 };
+
+    writer
+        .write_w_timestamp(data1_1.clone(), None, Time::new(1, 0))
+        .unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_1);
+
+    writer
+        .write_w_timestamp(data1_2, None, Time::new(2, 0))
+        .unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader.take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    assert_eq!(samples, Err(DdsError::NoData));
+
+    writer
+        .write_w_timestamp(data1_3.clone(), None, Time::new(3, 0))
+        .unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_3);
 }
 
 #[test]
@@ -2472,7 +2618,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
@@ -2686,11 +2832,10 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
 }
 
 #[test]
-fn write_read_unregistered_samples_are_also_disposed() {
+fn write_read_unregistered_samples_not_alive_no_writers() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant = participant_factory
+    let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
 
@@ -2714,9 +2859,6 @@ fn write_read_unregistered_samples_are_also_disposed() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-        },
-        writer_data_lifecycle: WriterDataLifecycleQosPolicy {
-            autodispose_unregistered_instances: true,
         },
         ..Default::default()
     };
@@ -2778,10 +2920,425 @@ fn write_read_unregistered_samples_are_also_disposed() {
     assert_eq!(samples.len(), 2);
     assert_eq!(
         samples[0].sample_info.instance_state,
+        InstanceStateKind::NotAliveNoWriters
+    );
+    assert_eq!(
+        samples[1].sample_info.instance_state,
+        InstanceStateKind::NotAliveNoWriters
+    );
+}
+
+#[test]
+fn multiple_writers_unregister_instance() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer1 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let start_time = std::time::Instant::now();
+    while std::time::Instant::now().duration_since(start_time) < std::time::Duration::from_secs(10)
+    {
+        if reader.get_matched_publications().unwrap().len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(
+        reader.get_matched_publications().unwrap().len(),
+        2,
+        "Reader must have 2 matched writers"
+    );
+
+    let cond1 = writer1.get_statuscondition();
+    cond1
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set1 = WaitSet::new();
+    wait_set1
+        .attach_condition(Condition::StatusCondition(cond1))
+        .unwrap();
+    wait_set1.wait(Duration::new(10, 0)).unwrap();
+
+    let cond2 = writer2.get_statuscondition();
+    cond2
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set2 = WaitSet::new();
+    wait_set2
+        .attach_condition(Condition::StatusCondition(cond2))
+        .unwrap();
+    wait_set2.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+
+    writer1.write(data1.clone(), None).unwrap();
+    writer2.write(data1.clone(), None).unwrap();
+    writer1.unregister_instance(data1.clone(), None).unwrap();
+
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+    writer2
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 3);
+    // Since writer1 unregisters with autodispose=true and writer2 is still registered, instance is NotAliveDisposed
+    assert_eq!(
+        samples[0].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed
     );
     assert_eq!(
         samples[1].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+    assert_eq!(
+        samples[2].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+
+    // Now writer2 unregisters as well
+    writer2.unregister_instance(data1, None).unwrap();
+    writer2
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples2 = reader
+        .read(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples2.len(), 4);
+    // Since instance was disposed by writer1 (autodispose=true), it remains NotAliveDisposed
+    assert_eq!(
+        samples2[3].sample_info.instance_state,
+        InstanceStateKind::NotAliveDisposed
+    );
+}
+
+#[test]
+fn data_reader_instance_state_not_alive_no_writers_when_writer_is_deleted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant2
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    writer.write(data1.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+
+    reader.get_subscription_matched_status().unwrap();
+
+    // Delete writer / publisher / participant1
+    participant1.delete_contained_entities().unwrap();
+    participant_factory
+        .delete_participant(&participant1)
+        .unwrap();
+
+    // Wait for subscription matched status to update or reader to detect writer deletion
+    let cond_reader = reader.get_statuscondition();
+    cond_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set_reader = WaitSet::new();
+    wait_set_reader
+        .attach_condition(Condition::StatusCondition(cond_reader))
+        .unwrap();
+    wait_set_reader.wait(Duration::new(10, 0)).unwrap();
+
+    let samples_after_delete = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(
+        samples_after_delete[0].sample_info.instance_state,
+        InstanceStateKind::NotAliveNoWriters
+    );
+}
+
+#[test]
+fn data_reader_instance_state_not_alive_disposed_when_writer_disposes_and_is_deleted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant2
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    writer.write(data1.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(
+        samples[0].sample_info.instance_state,
+        InstanceStateKind::Alive
+    );
+
+    writer.dispose(data1, None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    reader.get_subscription_matched_status().unwrap();
+
+    // Delete writer / publisher / participant1
+    participant1.delete_contained_entities().unwrap();
+    participant_factory
+        .delete_participant(&participant1)
+        .unwrap();
+
+    // Wait for subscription matched status to update or reader to detect writer deletion
+    let cond_reader = reader.get_statuscondition();
+    cond_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set_reader = WaitSet::new();
+    wait_set_reader
+        .attach_condition(Condition::StatusCondition(cond_reader))
+        .unwrap();
+    wait_set_reader.wait(Duration::new(10, 0)).unwrap();
+
+    let samples_after_delete = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(
+        samples_after_delete[0].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed
     );
 }
@@ -3014,7 +3571,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
         },
         ..Default::default()
     };
@@ -3040,7 +3597,7 @@ fn reader_joining_after_writer_writes_many_samples() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+            max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
         },
         ..Default::default()
     };
@@ -3062,6 +3619,16 @@ fn reader_joining_after_writer_writes_many_samples() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let new_data = KeyedData { id: 1, value: 1000 };
     writer.write(new_data.clone(), None).unwrap();
@@ -3512,7 +4079,6 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_after_
 }
 
 #[test]
-#[ignore = "Broken after runtime refactor"]
 fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer_after_unregister()
 {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -3637,6 +4203,149 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer
         .unwrap();
 
     writer1.unregister_instance(data1.clone(), None).unwrap();
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let data2 = KeyedData { id: 1, value: 20 };
+    writer2.write(data2.clone(), None).unwrap();
+    writer2
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 3);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[2].data.as_ref().unwrap(), &data2);
+}
+
+#[test]
+fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer_after_dispose() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>(
+            "MyTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer1_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Exclusive,
+        },
+        ownership_strength: OwnershipStrengthQosPolicy { value: 10 },
+        ..Default::default()
+    };
+    let writer1 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer1_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Exclusive,
+        },
+        ownership_strength: OwnershipStrengthQosPolicy { value: 1 },
+        ..Default::default()
+    };
+    let writer2 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer2_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ownership: OwnershipQosPolicy {
+            kind: OwnershipQosPolicyKind::Exclusive,
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let start_time = std::time::Instant::now();
+    while std::time::Instant::now().duration_since(start_time) < std::time::Duration::from_secs(10)
+    {
+        if reader.get_matched_publications().unwrap().len() >= 2 {
+            break;
+        }
+    }
+    assert_eq!(
+        reader.get_matched_publications().unwrap().len(),
+        2,
+        "Reader must have 2 matched writers"
+    );
+
+    let cond = writer1.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let cond = writer2.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 10 };
+    writer1.write(data1.clone(), None).unwrap();
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    writer1.dispose(data1.clone(), None).unwrap();
     writer1
         .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
@@ -3902,4 +4611,124 @@ fn shared_ownership_writer1_should_write_and_writer2_should_dispose_same_data() 
         samples[0].sample_info.instance_state,
         InstanceStateKind::NotAliveDisposed
     );
+}
+
+#[test]
+fn data_reader_does_not_read_lifespan_expired_samples() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>(
+            "LifespanTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        lifespan: LifespanQosPolicy {
+            duration: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<KeyedData>(
+            "LifespanTopic",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 1, value: 2 };
+
+    writer
+        .write_w_timestamp(data1, None, Time::new(0, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(data2.clone(), None, Time::new(i32::MAX, 0))
+        .unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }

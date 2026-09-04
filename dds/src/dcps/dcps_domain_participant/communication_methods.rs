@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use tracing::info;
 
 use crate::{
@@ -143,7 +143,7 @@ impl DcpsDomainParticipant {
                                     }
                                 }
 
-                                fn compare_string(&self, lhs: &String, rhs: &String) -> bool {
+                                fn compare_string(&self, lhs: &str, rhs: &str) -> bool {
                                     match self {
                                         Self::Equal => lhs == rhs,
                                         Self::LessThan => lhs <= rhs,
@@ -160,18 +160,34 @@ impl DcpsDomainParticipant {
                             let mut operators = [Operator::LessThan, Operator::Equal].iter();
                             let filter = loop {
                                 if let Some(operator) = operators.next() {
-                                    if let Some((variable_name, _)) = content_filtered_topic
-                                        .filter_expression
-                                        .split_once(operator.to_str())
+                                    if let Some((variable_name, value_expr)) =
+                                        content_filtered_topic
+                                            .filter_expression
+                                            .split_once(operator.to_str())
                                     {
-                                        break Some((variable_name, operator));
+                                        let trimmed_val = value_expr.trim();
+                                        let value_str =
+                                            if let Some(stripped) = trimmed_val.strip_prefix('%') {
+                                                if let Ok(index) = stripped.parse::<usize>() {
+                                                    content_filtered_topic
+                                                        .expression_parameters
+                                                        .get(index)
+                                                        .map(|s| s.as_str())
+                                                        .unwrap_or(trimmed_val)
+                                                } else {
+                                                    trimmed_val
+                                                }
+                                            } else {
+                                                trimmed_val.trim_matches('\'').trim_matches('"')
+                                            };
+                                        break Some((variable_name, operator, value_str));
                                     }
                                 } else {
                                     break None;
                                 };
                             };
 
-                            if let Some((variable_name, comparison_function)) = filter {
+                            if let Some((variable_name, comparison_function, value_str)) = filter {
                                 let Some(member_id) =
                                     data.get_member_id_by_name(variable_name.trim())
                                 else {
@@ -187,12 +203,10 @@ impl DcpsDomainParticipant {
                                     crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
                                     crate::xtypes::dynamic_type::TypeKind::INT32 => {
                                         let member_value = data.get_int32_value(member_id).unwrap();
-                                        if !comparison_function.compare_int32(
-                                            member_value,
-                                            &content_filtered_topic.expression_parameters[0]
-                                                .parse()
-                                                .expect("valid number"),
-                                        ) {
+                                        let Ok(rhs) = value_str.parse::<i32>() else {
+                                            continue 'data_readers;
+                                        };
+                                        if !comparison_function.compare_int32(member_value, &rhs) {
                                             continue 'data_readers;
                                         }
                                     }
@@ -211,10 +225,9 @@ impl DcpsDomainParticipant {
                                     | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
                                         let member_value =
                                             data.get_string_value(member_id).unwrap();
-                                        if !comparison_function.compare_string(
-                                            member_value,
-                                            &content_filtered_topic.expression_parameters[0],
-                                        ) {
+                                        if !comparison_function
+                                            .compare_string(member_value.as_str(), value_str)
+                                        {
                                             continue 'data_readers;
                                         }
                                     }
@@ -878,6 +891,15 @@ impl DcpsDomainParticipant {
     #[tracing::instrument(skip(self, data_message))]
     pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
+            if let Some(matched_participant) = self
+                .domain_participant
+                .discovered_participant_list
+                .iter_mut()
+                .find(|x| x.guid_prefix == rtps_message.header().guid_prefix())
+            {
+                matched_participant.last_communication_timestamp = now;
+            }
+
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
             while let Some(submessage) = message_receiver.next() {
@@ -915,7 +937,7 @@ impl DcpsDomainParticipant {
                             if let Some(writer_proxy) =
                                 dr.transport_reader.matched_writer_lookup(writer_guid)
                             {
-                                if writer_proxy.last_received_heartbeat_count()
+                                if writer_proxy.last_received_heartbeat_frag_count()
                                     < heartbeat_frag_submessage.count()
                                 {
                                     writer_proxy.set_last_received_heartbeat_frag_count(

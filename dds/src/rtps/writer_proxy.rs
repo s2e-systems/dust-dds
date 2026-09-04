@@ -238,6 +238,10 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
     }
 
+    pub fn last_received_heartbeat_frag_count(&self) -> Count {
+        self.last_received_heartbeat_frag_count
+    }
+
     pub fn set_last_received_heartbeat_frag_count(
         &mut self,
         last_received_heartbeat_frag_count: Count,
@@ -253,6 +257,10 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
+    pub fn increment_nack_frag_count(&mut self) {
+        self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
+    }
+
     pub fn write_message(
         &mut self,
         reader_guid: &Guid,
@@ -265,15 +273,11 @@ impl RtpsWriterProxy {
             let info_dst_submessage =
                 InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
 
-            // We report missing changes up to the one where we have received at least one fragment
-            let missing_changes = self.missing_changes().take(256).take_while(|x| {
-                x < &self
-                    .frag_buffer
-                    .iter()
-                    .map(|x| x.writer_sn())
-                    .min()
-                    .unwrap_or(i64::MAX)
-            });
+            // We report missing changes excluding those where we have received at least one fragment
+            let missing_changes = self
+                .missing_changes()
+                .take(256)
+                .filter(|x| !self.frag_buffer.iter().any(|f| &f.writer_sn() == x));
             let acknack_submessage = AckNackSubmessage::new(
                 true,
                 reader_guid.entity_id(),
@@ -282,10 +286,13 @@ impl RtpsWriterProxy {
                 self.acknack_count(),
             );
 
-            let len = if let Some(missing_change_fragments_seq_num) = self
+            let missing_change_fragments_seq_num = self
                 .missing_changes()
                 .take(256)
-                .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s))
+                .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s));
+
+            let len = if let Some(missing_change_fragments_seq_num) =
+                missing_change_fragments_seq_num
             {
                 let frag = self
                     .frag_buffer
@@ -307,6 +314,7 @@ impl RtpsWriterProxy {
                     .peek()
                     .expect("At least a fragment must be missing");
                 let fragment_number_state = FragmentNumberSet::new(base, missing_fragments_iter);
+                self.increment_nack_frag_count();
                 let nack_frag_submessage = NackFragSubmessage::new(
                     reader_guid.entity_id(),
                     self.remote_writer_guid().entity_id(),
