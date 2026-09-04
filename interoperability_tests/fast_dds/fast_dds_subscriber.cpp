@@ -1,4 +1,4 @@
-#include "HelloWorldPubSubTypes.h"
+#include "HelloWorldPubSubTypes.hpp"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
@@ -34,8 +34,8 @@ int main(int argc, char *argv[])
 	WaitSet wait_set_publication_matched;
 	wait_set_publication_matched.attach_condition(reader_condition);
 	ConditionSeq active_conditions;
-	const auto ret_wait_publication = wait_set_publication_matched.wait(active_conditions, eprosima::fastrtps::Duration_t{60, 0});
-	if (ret_wait_publication != ReturnCode_t::RETCODE_OK)
+	const auto ret_wait_publication = wait_set_publication_matched.wait(active_conditions, eprosima::fastdds::dds::Duration_t{60, 0});
+	if (ret_wait_publication != RETCODE_OK)
 	{
 		throw std::runtime_error{"Publication not matched"};
 	}
@@ -43,15 +43,15 @@ int main(int argc, char *argv[])
 	reader_condition.set_enabled_statuses(StatusMask::data_available());
 	WaitSet wait_set_data_available;
 	wait_set_data_available.attach_condition(reader_condition);
-	const auto ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastrtps::Duration_t{30, 0});
-	if (ret_wait_data != ReturnCode_t::RETCODE_OK)
+	const auto ret_wait_data = wait_set_data_available.wait(active_conditions, eprosima::fastdds::dds::Duration_t{30, 0});
+	if (ret_wait_data != RETCODE_OK)
 	{
 		throw std::runtime_error{"No data available on time"};
 	}
 
 	interoperability::test::HelloWorldType sample;
 	SampleInfo info;
-	if (reader->take_next_sample(&sample, &info) != ReturnCode_t::RETCODE_OK)
+	if (reader->take_next_sample(&sample, &info) != RETCODE_OK)
 	{
 		throw std::runtime_error{"take_next_sample failed with"};
 	}
