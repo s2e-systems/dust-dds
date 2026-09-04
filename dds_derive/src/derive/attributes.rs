@@ -1,4 +1,26 @@
+use std::str::FromStr;
 use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
+
+const DUST_DDS_ATTR: &str = "dust_dds";
+
+trait OptionExt {
+    fn err_if_some<E, F>(self, f: F) -> std::result::Result<(), E>
+    where
+        F: FnOnce() -> E;
+}
+
+impl<T> OptionExt for Option<T> {
+    #[inline]
+    fn err_if_some<E, F>(self, f: F) -> std::result::Result<(), E>
+    where
+        F: FnOnce() -> E,
+    {
+        match self {
+            Some(_) => Err(f()),
+            None => Ok(()),
+        }
+    }
+}
 
 struct UnknownAttributeError;
 
@@ -9,11 +31,44 @@ impl std::fmt::Display for UnknownAttributeError {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+struct DuplicateAttributeError;
+
+impl std::fmt::Display for DuplicateAttributeError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        "duplicate attribute".fmt(f)
+    }
+}
+
+#[derive(Default)]
 pub enum TryConstructKind {
+    #[default]
     Discard,
     UseDefault,
     Trim,
+}
+
+pub struct TryConstructKindParseError;
+
+impl std::fmt::Display for TryConstructKindParseError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#
+            .fmt(f)
+    }
+}
+
+impl FromStr for TryConstructKind {
+    type Err = TryConstructKindParseError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "DISCARD" => Ok(Self::Discard),
+            "USE_DEFAULT" => Ok(Self::UseDefault),
+            "TRIM" => Ok(Self::Trim),
+            _ => Err(TryConstructKindParseError),
+        }
+    }
 }
 
 pub struct StructureMemberAttributes {
@@ -24,68 +79,67 @@ pub struct StructureMemberAttributes {
     pub external: bool,
     pub hashid: Option<String>,
     pub default_value: Option<Expr>,
-    pub try_construct: Option<TryConstructKind>,
+    pub try_construct: TryConstructKind,
 }
 
 pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberAttributes> {
     let mut id = None;
-    let mut key = false;
-    let mut optional = false;
+    let mut key = None;
+    let mut optional = None;
     let mut default_value = None;
-    let mut non_serialized = false;
-    let mut external = false;
+    let mut non_serialized = None;
+    let mut external = None;
     let mut hashid = None;
     let mut try_construct = None;
 
-    if let Some(xtypes_attribute) = field
+    for attr in field
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("id") {
-                id = Some(meta.value()?.parse()?);
-                Ok(())
+                id.replace(meta.value()?.parse()?)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("key") {
-                key = true;
-                Ok(())
+                key.replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("default_value") {
-                default_value = Some(meta.value()?.parse()?);
-                Ok(())
+                default_value
+                    .replace(meta.value()?.parse()?)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("optional") {
-                optional = true;
-                Ok(())
+                optional
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("non_serialized") {
-                non_serialized = true;
-                Ok(())
+                non_serialized
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("external") {
-                external = true;
-                Ok(())
+                external
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("hashid") {
-                if let Ok(val) = meta.value() {
-                    let s: syn::LitStr = val.parse()?;
-                    hashid = Some(s.value());
-                } else {
-                    hashid = Some(String::new());
-                }
-                Ok(())
+                let value = match meta.value() {
+                    Ok(value) => value.parse::<syn::LitStr>()?.value(),
+                    Err(_) => String::default(),
+                };
+
+                hashid
+                    .replace(value)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("try_construct") {
-               let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "DISCARD" => {
-                        try_construct = Some(TryConstructKind::Discard);
-                        Ok(())
-                    }
-                    "USE_DEFAULT" => {
-                        try_construct = Some(TryConstructKind::UseDefault);
-                        Ok(())
-                    }
-                    "TRIM" => {
-                        try_construct = Some(TryConstructKind::Trim);
-                        Ok(())
-                    }
-                    _ => Err(meta.error(r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#))
-                }
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                try_construct
+                    .replace(value)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -94,21 +148,45 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
 
     Ok(StructureMemberAttributes {
         id,
-        key,
-        optional,
-        non_serialized,
-        external,
+        key: key.unwrap_or_default(),
+        optional: optional.unwrap_or_default(),
+        non_serialized: non_serialized.unwrap_or_default(),
+        external: external.unwrap_or_default(),
         hashid,
         default_value,
-        try_construct,
+        try_construct: try_construct.unwrap_or_default(),
     })
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub enum Extensibility {
+    #[default]
     Final,
     Appendable,
     Mutable,
+}
+
+pub struct ExtensibilityParseError;
+
+impl std::fmt::Display for ExtensibilityParseError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        r#"Invalid extensibility specified. Valid options are "final", "appendable", "mutable". "#
+            .fmt(f)
+    }
+}
+
+impl FromStr for Extensibility {
+    type Err = ExtensibilityParseError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "final" => Ok(Self::Final),
+            "appendable" => Ok(Self::Appendable),
+            "mutable" => Ok(Self::Mutable),
+            _ => Err(ExtensibilityParseError),
+        }
+    }
 }
 
 pub struct StructAttributes {
@@ -120,50 +198,48 @@ pub struct StructAttributes {
 }
 
 pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
-    let mut name = input.ident.to_string();
-    let mut extensibility = Extensibility::Final;
-    let mut is_nested = false;
-    let mut is_autoid_hash = false;
+    let mut name = None;
+    let mut extensibility = None;
+    let mut is_nested = None;
+    let mut is_autoid_hash = None;
     let mut base_type = None;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
-                name = meta.value()?.parse::<syn::LitStr>()?.value();
-                Ok(())
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("base_type") {
-                base_type = Some(meta.value()?.parse::<syn::Type>()?);
-                Ok(())
+                base_type
+                    .replace(meta.value()?.parse()?)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("extensibility") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "final" => {
-                        extensibility = Extensibility::Final;
-                        Ok(())
-                    }
-                    "appendable" => {
-                        extensibility = Extensibility::Appendable;
-                        Ok(())
-                    }
-                    "mutable" => {
-                        extensibility = Extensibility::Mutable;
-                        Ok(())
-                    }
-                    _ => Err(meta.error(r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#))
-                }
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                extensibility
+                    .replace(value)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("nested") {
-                is_nested = true;
-                Ok(())
+                is_nested
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("autoid") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                if format_str.value().eq_ignore_ascii_case("hash") {
-                    is_autoid_hash = true;
+                match meta.value()?.parse::<syn::LitStr>()?.value().as_str() {
+                    "hash" => is_autoid_hash
+                        .replace(true)
+                        .err_if_some(|| meta.error(DuplicateAttributeError)),
+                    _ => Err(meta
+                        .error(r#"Invalid autoid attribute specified. Valid option is "hash". "#)),
                 }
-                Ok(())
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -171,18 +247,42 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     }
 
     Ok(StructAttributes {
-        name,
-        extensibility,
-        is_nested,
-        is_autoid_hash,
+        name: name.unwrap_or_else(|| input.ident.to_string()),
+        extensibility: extensibility.unwrap_or_default(),
+        is_nested: is_nested.unwrap_or_default(),
+        is_autoid_hash: is_autoid_hash.unwrap_or_default(),
         base_type,
     })
 }
 
+#[derive(Default)]
 pub enum BitBound {
     I8,
     I16,
+    #[default]
     I32,
+}
+
+pub struct BitBoundParseError;
+
+impl std::fmt::Display for BitBoundParseError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#.fmt(f)
+    }
+}
+
+impl FromStr for BitBound {
+    type Err = BitBoundParseError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "8" => Ok(Self::I8),
+            "16" => Ok(Self::I16),
+            "32" => Ok(Self::I32),
+            _ => Err(BitBoundParseError),
+        }
+    }
 }
 
 pub struct EnumeratedTypeAttributes {
@@ -192,41 +292,34 @@ pub struct EnumeratedTypeAttributes {
 }
 
 pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedTypeAttributes> {
-    let mut name = input.ident.to_string();
-    let mut is_nested = false;
-    let mut bit_bound = BitBound::I32;
+    let mut name = None;
+    let mut is_nested = None;
+    let mut bit_bound = None;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
-                name = meta.value()?.parse::<syn::LitStr>()?.value();
-                Ok(())
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("nested") {
-                is_nested = true;
-                Ok(())
+                is_nested
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("bit_bound") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "8" => {
-                        bit_bound = BitBound::I8;
-                        Ok(())
-                    }
-                    "16" => {
-                        bit_bound = BitBound::I16;
-                        Ok(())
-                    }
-                    "32" => {
-                        bit_bound = BitBound::I32;
-                        Ok(())
-                    }
-                    _ => Err(meta.error(
-                        r#"Invalid bit_bound specified. Valid options are "8", "16", "32". "#,
-                    )),
-                }
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                bit_bound
+                    .replace(value)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -234,9 +327,9 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     }
 
     Ok(EnumeratedTypeAttributes {
-        name,
-        is_nested,
-        bit_bound,
+        name: name.unwrap_or_else(|| input.ident.to_string()),
+        is_nested: is_nested.unwrap_or_default(),
+        bit_bound: bit_bound.unwrap_or_default(),
     })
 }
 
@@ -249,59 +342,58 @@ pub struct UnionAttributes {
 }
 
 pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes> {
-    let mut name = input.ident.to_string();
-    let mut extensibility = Extensibility::Final;
-    let mut is_nested = false;
-    let mut is_discriminator_key = false;
+    let mut name = None;
+    let mut extensibility = None;
+    let mut is_nested = None;
+    let mut is_discriminator_key = None;
     let mut discriminator_type = None;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
-                name = meta.value()?.parse::<syn::LitStr>()?.value();
-                Ok(())
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("extensibility") {
-                let format_str: syn::LitStr = meta.value()?.parse()?;
-                match format_str.value().as_ref() {
-                    "final" => {
-                        extensibility = Extensibility::Final;
-                        Ok(())
-                    }
-                    "appendable" => {
-                        extensibility = Extensibility::Appendable;
-                        Ok(())
-                    }
-                    "mutable" => {
-                        extensibility = Extensibility::Mutable;
-                        Ok(())
-                    }
-                    _ => Err(meta.error(r#"Invalid format specified. Valid options are "final", "appendable", "mutable". "#)),
-                }
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                extensibility
+                    .replace(value)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("nested") {
-                is_nested = true;
-                Ok(())
+                is_nested
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else if meta.path.is_ident("switch") {
                 let content;
                 syn::parenthesized!(content in meta.input);
                 let fork = content.fork();
                 if let Ok(ident) = fork.parse::<syn::Ident>() {
                     if ident == "key" && fork.parse::<syn::Token![,]>().is_ok() {
-                        is_discriminator_key = true;
+                        is_discriminator_key
+                            .replace(true)
+                            .err_if_some(|| meta.error(DuplicateAttributeError))?;
                         let _: syn::Ident = content.parse()?;
                         let _: syn::Token![,] = content.parse()?;
                     }
                 }
-                discriminator_type = Some(content.parse::<syn::Type>()?);
-                Ok(())
+
+                discriminator_type
+                    .replace(content.parse()?)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
         })?;
-    };
+    }
 
     let discriminator_type = discriminator_type.ok_or(syn::Error::new(
         input.span(),
@@ -309,11 +401,11 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     ))?;
 
     Ok(UnionAttributes {
-        name,
-        extensibility,
-        is_nested,
+        name: name.unwrap_or_else(|| input.ident.to_string()),
+        extensibility: extensibility.unwrap_or_default(),
+        is_nested: is_nested.unwrap_or_default(),
         discriminator_type,
-        is_discriminator_key,
+        is_discriminator_key: is_discriminator_key.unwrap_or_default(),
     })
 }
 
@@ -324,25 +416,29 @@ pub struct UnionVariantAttributes {
 
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
     let mut case = Vec::new();
-    let mut is_default = false;
+    let mut is_default = None;
 
-    if let Some(xtypes_attribute) = variant
+    for attr in variant
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
                 case.push(meta.value()?.parse()?);
                 Ok(())
             } else if meta.path.is_ident("default") {
-                is_default = true;
-                Ok(())
+                is_default
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
         })?;
     }
 
-    Ok(UnionVariantAttributes { case, is_default })
+    Ok(UnionVariantAttributes {
+        case,
+        is_default: is_default.unwrap_or_default(),
+    })
 }
