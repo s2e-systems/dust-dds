@@ -84,7 +84,7 @@ impl Index<usize> for InstanceHandle {
 impl core::fmt::LowerHex for InstanceHandle {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for byte in self.0 {
-            f.write_fmt(format_args!("{:x}", byte))?;
+            f.write_fmt(format_args!("{:02x}", byte))?;
         }
         Ok(())
     }
@@ -96,6 +96,9 @@ mod tests {
     #[test]
     fn lower_hex_instance_handle() {
         let h = InstanceHandle::new([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-        assert_eq!(format!("{:x}", h), "0123456789abcdef")
+        assert_eq!(
+            format!("{:x}", h),
+            "000102030405060708090a0b0c0d0e0f"
+        );
     }
 }

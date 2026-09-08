@@ -977,7 +977,7 @@ impl DcpsDomainParticipant {
                                                             .guid(),
                                                         sequence_number: (type_request_writer
                                                             .last_change_sequence_number
-                                                            + 1)
+                                                            )
                                                         .into(),
                                                     },
                                                     instance_name: format!(
@@ -1025,7 +1025,7 @@ impl DcpsDomainParticipant {
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
-                                                        + 1)
+                                                        )
                                                         .into(),
                                                 },
                                                 instance_name: format!(
@@ -1635,7 +1635,7 @@ impl DcpsDomainParticipant {
                                                             .guid(),
                                                         sequence_number: (type_request_writer
                                                             .last_change_sequence_number
-                                                            + 1)
+                                                            )
                                                         .into(),
                                                     },
                                                     instance_name: format!(
@@ -1683,7 +1683,7 @@ impl DcpsDomainParticipant {
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
-                                                        + 1)
+                                                        )
                                                         .into(),
                                                 },
                                                 instance_name: format!(
@@ -2191,9 +2191,8 @@ impl DcpsDomainParticipant {
                                 request_id: SampleIdentity {
                                     writer_guid: type_request_writer.transport_writer.guid(),
                                     sequence_number: (type_request_writer
-                                        .last_change_sequence_number
-                                        + 1)
-                                    .into(),
+                                        .last_change_sequence_number)
+                                        .into(),
                                 },
                                 instance_name: format!(
                                     "dds.builtin.TOS.{:x}",
@@ -2505,9 +2504,8 @@ impl DcpsDomainParticipant {
                                                 .transport_writer
                                                 .guid(),
                                             sequence_number: (type_request_writer
-                                                .last_change_sequence_number
-                                                + 1)
-                                            .into(),
+                                                .last_change_sequence_number)
+                                                .into(),
                                         },
                                         instance_name: format!(
                                             "dds.builtin.TOS.{:x}",
@@ -2555,9 +2553,8 @@ impl DcpsDomainParticipant {
                                     request_id: SampleIdentity {
                                         writer_guid: type_request_writer.transport_writer.guid(),
                                         sequence_number: (type_request_writer
-                                            .last_change_sequence_number
-                                            + 1)
-                                        .into(),
+                                            .last_change_sequence_number)
+                                            .into(),
                                     },
                                     instance_name: format!(
                                         "dds.builtin.TOS.{:x}",
@@ -3250,7 +3247,7 @@ impl DcpsDomainParticipant {
                 header: RequestHeader {
                     request_id: SampleIdentity {
                         writer_guid: w.transport_writer.guid(),
-                        sequence_number: (w.last_change_sequence_number + 1).into(),
+                        sequence_number: (w.last_change_sequence_number).into(),
                     },
                     instance_name: String::from(""),
                 },

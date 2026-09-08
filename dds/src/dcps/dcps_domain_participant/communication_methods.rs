@@ -41,7 +41,7 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    transport::types::{ChangeKind, Guid},
+    transport::types::{ChangeKind, Guid, TopicKind},
     xtypes::{
         deserializer::deserialize_top_level_type,
         type_support::{Type, TypeSupport},
@@ -250,60 +250,63 @@ impl DcpsDomainParticipant {
                         }
                     }
 
-                    let change_instance_handle = if let Some(i) = cache_change.instance_handle {
-                        InstanceHandle::new(i)
-                    } else {
-                        match cache_change.kind {
-                            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                                let Some(data_value) = deserialize_topic_type(
-                                    &data_reader.topic_name,
-                                    type_support,
-                                    cache_change.data_value.as_ref(),
-                                ) else {
-                                    tracing::warn!("Failed to deserialize user defined data");
-                                    continue 'data_readers;
-                                };
-                                let Ok(instance_handle) =
-                                    get_instance_handle_from_dynamic_data(&data_value)
-                                else {
-                                    tracing::warn!(
-                                        "Failed to get instance handle from dynamic_data"
-                                    );
-                                    continue 'data_readers;
-                                };
-                                instance_handle
-                            }
-                            ChangeKind::NotAliveDisposed
-                            | ChangeKind::NotAliveUnregistered
-                            | ChangeKind::NotAliveDisposedUnregistered => {
-                                let key_holder = KeyHolderType::new(&type_support);
-                                let Some(dynamic_type) = key_holder.as_dynamic_type() else {
-                                    tracing::warn!("Failed to create key holder");
-                                    continue 'data_readers;
-                                };
+                    let change_instance_handle =
+                        if TopicKind::from(&type_support) == TopicKind::NoKey {
+                            InstanceHandle::default()
+                        } else if let Some(i) = cache_change.instance_handle {
+                            InstanceHandle::new(i)
+                        } else {
+                            match cache_change.kind {
+                                ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                                    let Some(data_value) = deserialize_topic_type(
+                                        &data_reader.topic_name,
+                                        type_support,
+                                        cache_change.data_value.as_ref(),
+                                    ) else {
+                                        tracing::warn!("Failed to deserialize user defined data");
+                                        continue 'data_readers;
+                                    };
+                                    let Ok(instance_handle) =
+                                        get_instance_handle_from_dynamic_data(&data_value)
+                                    else {
+                                        tracing::warn!(
+                                            "Failed to get instance handle from dynamic_data"
+                                        );
+                                        continue 'data_readers;
+                                    };
+                                    instance_handle
+                                }
+                                ChangeKind::NotAliveDisposed
+                                | ChangeKind::NotAliveUnregistered
+                                | ChangeKind::NotAliveDisposedUnregistered => {
+                                    let key_holder = KeyHolderType::new(&type_support);
+                                    let Some(dynamic_type) = key_holder.as_dynamic_type() else {
+                                        tracing::warn!("Failed to create key holder");
+                                        continue 'data_readers;
+                                    };
 
-                                let Ok(data_value) = deserialize_top_level_type(
-                                    dynamic_type,
-                                    cache_change.data_value.as_ref(),
-                                ) else {
-                                    tracing::warn!(
-                                        "Failed to deserialize disposed user defined data"
-                                    );
-                                    continue 'data_readers;
-                                };
+                                    let Ok(data_value) = deserialize_top_level_type(
+                                        dynamic_type,
+                                        cache_change.data_value.as_ref(),
+                                    ) else {
+                                        tracing::warn!(
+                                            "Failed to deserialize disposed user defined data"
+                                        );
+                                        continue 'data_readers;
+                                    };
 
-                                let Ok(instance_handle) =
-                                    get_instance_handle_from_dynamic_data(&data_value)
-                                else {
-                                    tracing::warn!(
-                                        "Failed to deserialize disposed key user defined data"
-                                    );
-                                    continue 'data_readers;
-                                };
-                                instance_handle
+                                    let Ok(instance_handle) =
+                                        get_instance_handle_from_dynamic_data(&data_value)
+                                    else {
+                                        tracing::warn!(
+                                            "Failed to deserialize disposed key user defined data"
+                                        );
+                                        continue 'data_readers;
+                                    };
+                                    instance_handle
+                                }
                             }
-                        }
-                    };
+                        };
 
                     match data_reader.add_reader_change(
                         cache_change.writer_guid,
