@@ -31,12 +31,12 @@ impl std::fmt::Display for UnknownAttributeError {
     }
 }
 
-struct DuplicateAttributeError;
+struct DuplicateAttributeMetaError;
 
-impl std::fmt::Display for DuplicateAttributeError {
+impl std::fmt::Display for DuplicateAttributeMetaError {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        "duplicate attribute".fmt(f)
+        "duplicate attribute meta".fmt(f)
     }
 }
 
@@ -100,26 +100,26 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("id") {
                 id.replace(meta.value()?.parse()?)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("key") {
                 key.replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("default_value") {
                 default_value
                     .replace(meta.value()?.parse()?)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("optional") {
                 optional
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("non_serialized") {
                 non_serialized
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("external") {
                 external
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("hashid") {
                 let value = match meta.value() {
                     Ok(value) => value.parse::<syn::LitStr>()?.value(),
@@ -128,7 +128,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
 
                 hashid
                     .replace(value)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("try_construct") {
                 let value = meta
                     .value()?
@@ -139,7 +139,7 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
 
                 try_construct
                     .replace(value)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -212,11 +212,11 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("base_type") {
                 base_type
                     .replace(meta.value()?.parse()?)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("extensibility") {
                 let value = meta
                     .value()?
@@ -227,16 +227,16 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
 
                 extensibility
                     .replace(value)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("nested") {
                 is_nested
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("autoid") {
                 match meta.value()?.parse::<syn::LitStr>()?.value().as_str() {
                     "hash" => is_autoid_hash
                         .replace(true)
-                        .err_if_some(|| meta.error(DuplicateAttributeError)),
+                        .err_if_some(|| meta.error(DuplicateAttributeMetaError)),
                     _ => Err(meta
                         .error(r#"Invalid autoid attribute specified. Valid option is "hash". "#)),
                 }
@@ -304,11 +304,11 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("nested") {
                 is_nested
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("bit_bound") {
                 let value = meta
                     .value()?
@@ -319,7 +319,7 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
 
                 bit_bound
                     .replace(value)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -356,7 +356,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("extensibility") {
                 let value = meta
                     .value()?
@@ -367,11 +367,11 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 
                 extensibility
                     .replace(value)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("nested") {
                 is_nested
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("switch") {
                 let content;
                 syn::parenthesized!(content in meta.input);
@@ -380,7 +380,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
                     if ident == "key" && fork.parse::<syn::Token![,]>().is_ok() {
                         is_discriminator_key
                             .replace(true)
-                            .err_if_some(|| meta.error(DuplicateAttributeError))?;
+                            .err_if_some(|| meta.error(DuplicateAttributeMetaError))?;
                         let _: syn::Ident = content.parse()?;
                         let _: syn::Token![,] = content.parse()?;
                     }
@@ -388,7 +388,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 
                 discriminator_type
                     .replace(content.parse()?)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
@@ -430,7 +430,7 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
             } else if meta.path.is_ident("default") {
                 is_default
                     .replace(true)
-                    .err_if_some(|| meta.error(DuplicateAttributeError))
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else {
                 Err(meta.error(UnknownAttributeError))
             }
