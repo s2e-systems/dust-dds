@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
@@ -7,7 +6,7 @@ fn basic_types() {
     let idl_file = Path::new("tests/basic_types.idl");
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             pub struct BasicTypes {
                 pub a: bool,
                 pub b: char,
