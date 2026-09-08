@@ -1,6 +1,8 @@
 use crate::parser::{IdlPair, Rule};
 use std::borrow::Cow;
 
+const MODULE_SEP: &str = "::";
+
 /// _Rust_ generator.
 #[derive(Debug)]
 pub struct RustGenerator<'a> {
@@ -1173,11 +1175,17 @@ impl<'a> RustGenerator<'a> {
     fn compute_scoped_name<'pair>(&self, pair: IdlPair<'pair>) -> Cow<'pair, str> {
         let pair_str = pair.as_str();
 
-        if pair_str.starts_with("::") {
-            // A fully-qualified name is resolved relative to the current module nesting.
-            // To reach the root, prepend "super" for each nesting level, then append the name itself
-            let supers = vec!["super"; self.modules.len()].join("::");
-            Cow::Owned(format!("{supers}{pair_str}"))
+        if pair_str.starts_with(MODULE_SEP) {
+            // A fully-qualified name is resolved relative to the current module nesting
+
+            if self.modules.is_empty() {
+                // Already at the root, trim the fully qualified name prefix
+                Cow::Borrowed(pair_str.trim_start_matches(MODULE_SEP))
+            } else {
+                // To reach the root, prepend "super" for each nesting level, then append the name itself
+                let supers = vec!["super"; self.modules.len()].join(MODULE_SEP);
+                Cow::Owned(format!("{supers}{pair_str}"))
+            }
         } else {
             Cow::Borrowed(pair_str)
         }
@@ -1237,8 +1245,6 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn hierarchical_type_name<'ident>(&self, ident: &'ident str) -> Cow<'ident, str> {
-        const MODULE_SEP: &str = "::";
-
         if self.modules.is_empty() {
             Cow::Borrowed(ident)
         } else {
