@@ -1,4 +1,5 @@
 use crate::parser::{IdlPair, Rule};
+use std::borrow::Cow;
 
 /// _Rust_ generator.
 #[derive(Debug)]
@@ -318,10 +319,13 @@ impl<'a> RustGenerator<'a> {
         let identifier = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::identifier)
-            .expect("Identifier must exist according to the grammar");
+            .expect("Must have an identifier according to the grammar");
 
         self.writer
-            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
+            .push_str("#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n");
+
+        let mut attr_meta = Vec::new();
+
         for annotation_appl in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::annotation_appl)
@@ -337,41 +341,40 @@ impl<'a> RustGenerator<'a> {
                 .into_inner()
                 .next()
                 .expect("Must have an identifier according to the grammar");
+            let identifier_str = identifier.as_str();
 
-            match identifier.as_str() {
-                "final" => self
-                    .writer
-                    .push_str("#[dust_dds(extensibility = \"final\")]\n"),
-                "appendable" => self
-                    .writer
-                    .push_str("#[dust_dds(extensibility = \"appendable\")]\n"),
-                "mutable" => self
-                    .writer
-                    .push_str("#[dust_dds(extensibility = \"mutable\")]\n"),
+            match identifier_str {
+                "final" | "appendable" | "mutable" => {
+                    attr_meta.push(format!("extensibility = \"{identifier_str}\""));
+                }
                 _ => (),
             }
         }
 
         if !self.modules.is_empty() {
-            let name = format!(
-                "#[dust_dds(name = \"{}\")]\n",
+            attr_meta.push(format!(
+                "name = \"{}\"",
                 self.hierarchical_type_name(identifier.as_str())
-            );
-            self.writer.push_str(&name);
+            ));
         }
 
         if let Some(base_type) = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::scoped_name)
         {
-            self.writer.push_str("#[dust_dds(base_type =");
-            self.scoped_name(base_type);
-            self.writer.push_str(")]");
+            attr_meta.push(format!(
+                "base_type = {}",
+                self.compute_scoped_name(base_type)
+            ));
+        }
+
+        if !attr_meta.is_empty() {
+            let attr = format!("#[dust_dds({})]\n", attr_meta.join(", "));
+            self.writer.push_str(&attr);
         }
 
         self.writer.push_str("pub struct ");
         self.generate(identifier);
-
         self.writer.push_str(" {");
 
         if let Some(base_type) = inner_pairs
@@ -391,23 +394,20 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn enum_dcl(&mut self, pair: IdlPair) {
-        let inner_pairs = pair.clone().into_inner();
+        let inner_pairs = pair.into_inner();
         let identifier = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::identifier)
             .expect("Must have an identifier according to the grammar");
+
         self.writer
-            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
-        if !self.modules.is_empty() {
-            let name = format!(
-                "#[dust_dds(name = \"{}\")]\n",
-                self.hierarchical_type_name(identifier.as_str())
-            );
-            self.writer.push_str(&name);
-        }
-        for annotation_appl in pair
-            .into_inner()
-            .filter(|x| x.as_rule() == Rule::annotation_appl)
+            .push_str("#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n");
+
+        let mut attr_meta = Vec::new();
+
+        for annotation_appl in inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
         {
             let inner_pairs = annotation_appl.into_inner();
 
@@ -420,23 +420,38 @@ impl<'a> RustGenerator<'a> {
                 .into_inner()
                 .next()
                 .expect("Must have an identifier according to the grammar");
+            let identifier_str = identifier.as_str();
 
-            if identifier.as_str() == "bit_bound" {
-                if let Some(annotation_appl_params) = inner_pairs
-                    .clone()
-                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
-                {
-                    if let Some(expr) = annotation_appl_params
-                        .into_inner()
-                        .find(|p| p.as_rule() == Rule::const_expr)
+            match identifier_str {
+                "bit_bound" => {
+                    if let Some(annotation_appl_params) = inner_pairs
+                        .clone()
+                        .find(|p| p.as_rule() == Rule::annotation_appl_params)
                     {
-                        self.writer.push_str("#[dust_dds(bit_bound( ");
-                        self.writer.push_str(expr.as_str());
-                        self.writer.push_str("))]");
+                        if let Some(expr) = annotation_appl_params
+                            .into_inner()
+                            .find(|p| p.as_rule() == Rule::const_expr)
+                        {
+                            attr_meta.push(format!("bit_bound = \"{}\"", expr.as_str()));
+                        }
                     }
                 }
+                _ => (),
             }
         }
+
+        if !self.modules.is_empty() {
+            attr_meta.push(format!(
+                "name = \"{}\"",
+                self.hierarchical_type_name(identifier.as_str())
+            ));
+        }
+
+        if !attr_meta.is_empty() {
+            let attr = format!("#[dust_dds({})]\n", attr_meta.join(", "));
+            self.writer.push_str(&attr);
+        }
+
         self.writer.push_str("pub enum ");
         self.generate(identifier);
         self.writer.push_str(" {");
@@ -453,57 +468,34 @@ impl<'a> RustGenerator<'a> {
     }
 
     fn union_def(&mut self, pair: IdlPair) {
-        let identifier = pair
+        let inner_pairs = pair.into_inner();
+        let identifier = inner_pairs
             .clone()
-            .into_inner()
-            .find(|x| x.as_rule() == Rule::identifier)
+            .find(|p| p.as_rule() == Rule::identifier)
             .expect("Must have an identifier according to the grammar");
 
-        let switch_type_spec = pair
+        let switch_type_spec = inner_pairs
             .clone()
-            .into_inner()
             .find(|x| x.as_rule() == Rule::switch_type_spec)
             .expect("Must have a switch_type_spec according to the grammar");
 
-        let switch_body = pair
+        let switch_body = inner_pairs
             .clone()
-            .into_inner()
             .find(|x| x.as_rule() == Rule::switch_body)
             .expect("Must have a switch_body according to the grammar");
 
         self.writer
-            .push_str("#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n");
+            .push_str("#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n");
 
         self.writer.push_str("#[dust_dds(switch(");
         self.generate(switch_type_spec);
-        self.writer.push_str("),");
-        if !self.modules.is_empty() {
-            let name = format!(
-                "name = \"{}\"",
-                self.hierarchical_type_name(identifier.as_str())
-            );
-            self.writer.push_str(&name);
-        }
-        self.writer.push_str(")]");
+        self.writer.push(')');
 
-        self.writer.push_str("pub enum ");
-        self.generate(identifier);
-        self.writer.push_str(" {");
-        self.generate(switch_body);
-        self.writer.push_str("}\n");
-    }
+        let mut attr_meta = Vec::new();
 
-    #[inline]
-    fn enumerator(&mut self, pair: IdlPair) {
-        let identifier = pair
+        for annotation_appl in inner_pairs
             .clone()
-            .into_inner()
-            .find(|x| x.as_rule() == Rule::identifier)
-            .expect("Must have an identifier according to the grammar");
-        self.writer.push_str(identifier.as_str());
-        for annotation_appl in pair
-            .into_inner()
-            .filter(|x| x.as_rule() == Rule::annotation_appl)
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
         {
             let inner_pairs = annotation_appl.into_inner();
 
@@ -516,20 +508,78 @@ impl<'a> RustGenerator<'a> {
                 .into_inner()
                 .next()
                 .expect("Must have an identifier according to the grammar");
+            let identifier_str = identifier.as_str();
 
-            if identifier.as_str() == "value" {
-                if let Some(annotation_appl_params) = inner_pairs
-                    .clone()
-                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
-                {
-                    if let Some(expr) = annotation_appl_params
-                        .into_inner()
-                        .find(|p| p.as_rule() == Rule::const_expr)
+            match identifier_str {
+                "final" | "appendable" | "mutable" => {
+                    attr_meta.push(format!("extensibility = \"{identifier_str}\""));
+                }
+                _ => (),
+            }
+        }
+
+        if !self.modules.is_empty() {
+            attr_meta.push(format!(
+                "name = \"{}\"",
+                self.hierarchical_type_name(identifier.as_str())
+            ));
+        }
+
+        if !attr_meta.is_empty() {
+            let attr_meta = format!(", {}", attr_meta.join(", "));
+            self.writer.push_str(&attr_meta);
+        }
+        self.writer.push_str(")]\n");
+
+        self.writer.push_str("pub enum ");
+        self.generate(identifier);
+        self.writer.push_str(" {\n");
+        self.generate(switch_body);
+        self.writer.push_str("}\n");
+    }
+
+    fn enumerator(&mut self, pair: IdlPair) {
+        let inner_pairs = pair.into_inner();
+        let identifier = inner_pairs
+            .clone()
+            .find(|x| x.as_rule() == Rule::identifier)
+            .expect("Must have an identifier according to the grammar");
+
+        self.writer.push_str(identifier.as_str());
+
+        for annotation_appl in inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
+        {
+            let inner_pairs = annotation_appl.into_inner();
+
+            let scoped_name = inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let identifier = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+            let identifier_str = identifier.as_str();
+
+            match identifier_str {
+                "value" => {
+                    if let Some(annotation_appl_params) = inner_pairs
+                        .clone()
+                        .find(|p| p.as_rule() == Rule::annotation_appl_params)
                     {
-                        self.writer.push_str(" = ");
-                        self.writer.push_str(expr.as_str());
+                        if let Some(expr) = annotation_appl_params
+                            .into_inner()
+                            .find(|p| p.as_rule() == Rule::const_expr)
+                        {
+                            self.writer.push_str(" = ");
+                            self.writer.push_str(expr.as_str());
+                        }
                     }
                 }
+                _ => (),
             }
         }
     }
@@ -643,13 +693,16 @@ impl<'a> RustGenerator<'a> {
         let type_spec = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::type_spec)
-            .expect("Type spec must exist according to grammar");
+            .expect("Must have a type_spec according to the grammar");
+
         let declarators = inner_pairs
             .clone()
             .find(|p| p.as_rule() == Rule::declarators)
-            .expect("Declarator must exist according to grammar");
+            .expect("Must have a declarators according to the grammar");
 
         let mut is_optional = false;
+        let mut attr_meta = Vec::new();
+
         for annotation_appl in inner_pairs
             .clone()
             .filter(|p| p.as_rule() == Rule::annotation_appl)
@@ -665,26 +718,36 @@ impl<'a> RustGenerator<'a> {
                 .into_inner()
                 .next()
                 .expect("Must have an identifier according to the grammar");
+            let identifier_str = identifier.as_str();
 
-            if identifier.as_str() == "key" {
-                self.writer.push_str("#[dust_dds(key)]");
-            } else if identifier.as_str() == "id" {
-                if let Some(annotation_appl_params) = inner_pairs
-                    .clone()
-                    .find(|p| p.as_rule() == Rule::annotation_appl_params)
-                {
-                    if let Some(const_expr) = annotation_appl_params
-                        .into_inner()
-                        .find(|p| p.as_rule() == Rule::const_expr)
+            match identifier_str {
+                "key" => {
+                    attr_meta.push("key".to_string());
+                }
+                "id" => {
+                    if let Some(annotation_appl_params) = inner_pairs
+                        .clone()
+                        .find(|p| p.as_rule() == Rule::annotation_appl_params)
                     {
-                        self.writer
-                            .push_str(&format!("#[dust_dds(id = {})]", const_expr.as_str()));
+                        if let Some(expr) = annotation_appl_params
+                            .into_inner()
+                            .find(|p| p.as_rule() == Rule::const_expr)
+                        {
+                            attr_meta.push(format!("id = {}", expr.as_str()));
+                        }
                     }
                 }
-            } else if identifier.as_str() == "optional" {
-                is_optional = true;
-                self.writer.push_str("#[dust_dds(optional)]");
+                "optional" => {
+                    is_optional = true;
+                    attr_meta.push("optional".to_string());
+                }
+                _ => (),
             }
+        }
+
+        if !attr_meta.is_empty() {
+            let attr = format!("#[dust_dds({})]\n", attr_meta.join(", "));
+            self.writer.push_str(&attr);
         }
 
         for declarator in declarators.into_inner() {
@@ -692,6 +755,7 @@ impl<'a> RustGenerator<'a> {
                 .into_inner()
                 .next()
                 .expect("Must have an element according to the grammar");
+
             self.writer.push_str("pub ");
             match array_or_simple_declarator.as_rule() {
                 Rule::array_declarator => {
@@ -708,7 +772,7 @@ impl<'a> RustGenerator<'a> {
                     self.generate(identifier);
                     self.writer.push(':');
                     if is_optional {
-                        self.writer.push_str(" Option<");
+                        self.writer.push_str(" ::core::option::Option<");
                     }
                     self.writer.push('[');
                     self.generate(type_spec.clone());
@@ -723,7 +787,7 @@ impl<'a> RustGenerator<'a> {
                     self.generate(array_or_simple_declarator);
                     self.writer.push(':');
                     if is_optional {
-                        self.writer.push_str(" Option<");
+                        self.writer.push_str(" ::core::option::Option<");
                     }
                     self.generate(type_spec.clone());
                     if is_optional {
@@ -1099,19 +1163,22 @@ impl<'a> RustGenerator<'a> {
         self.writer.push_str(pair.as_str())
     }
 
+    #[inline]
     fn scoped_name(&mut self, pair: IdlPair) {
+        self.writer.push_str(&self.compute_scoped_name(pair));
+    }
+
+    fn compute_scoped_name<'pair>(&self, pair: IdlPair<'pair>) -> Cow<'pair, str> {
         let pair_str = pair.as_str();
+
         if pair_str.starts_with("::") {
-            // The :: is added as part of the pair so make sure it doesn't start with ::
-            // and that the last iteration doesn't get ::
-            for i in 0..self.modules.len() {
-                if i > 0 {
-                    self.writer.push_str("::");
-                }
-                self.writer.push_str("super");
-            }
+            // A fully-qualified name is resolved relative to the current module nesting.
+            // To reach the root, prepend "super" for each nesting level, then append the name itself
+            let supers = vec!["super"; self.modules.len()].join("::");
+            Cow::Owned(format!("{supers}{pair_str}"))
+        } else {
+            Cow::Borrowed(pair_str)
         }
-        self.writer.push_str(pair.as_str())
     }
 
     fn const_dcl(&mut self, pair: IdlPair) {
@@ -1167,12 +1234,16 @@ impl<'a> RustGenerator<'a> {
         self.writer.push_str("bool")
     }
 
-    fn hierarchical_type_name(&self, ident: &str) -> String {
+    fn hierarchical_type_name<'ident>(&self, ident: &'ident str) -> Cow<'ident, str> {
         const MODULE_SEP: &str = "::";
+
         if self.modules.is_empty() {
-            ident.to_owned()
+            Cow::Borrowed(ident)
         } else {
-            format!("{}{}{ident}", self.modules.join(MODULE_SEP), MODULE_SEP)
+            Cow::Owned(format!(
+                "{}{MODULE_SEP}{ident}",
+                self.modules.join(MODULE_SEP)
+            ))
         }
     }
 }
@@ -1202,7 +1273,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            "#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
         );
     }
 
@@ -1225,7 +1296,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\npub enum MyEnum {A,B,C,}\n",
+            "#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\npub enum MyEnum {A,B,C,}\n",
         );
     }
 
@@ -1241,7 +1312,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
+            "#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(extensibility = \"appendable\")]\npub struct MyStruct {pub a:i32,}\n",
         );
     }
 
@@ -1255,7 +1326,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "#[dust_dds(key)]pub a:i32,");
+        assert_eq!(&writer, "#[dust_dds(key)]\npub a:i32,");
     }
 
     #[test]
@@ -1376,7 +1447,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "pub mod root{pub mod a{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
+            "pub mod root{pub mod a{#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::a::A\")]\npub struct A {pub x:u8,pub y:u16,pub z:u32,}\n}pub mod b{#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n#[dust_dds(name = \"root::b::B\")]\npub enum B {X,Y,Z,}\n}}",
         );
     }
 
