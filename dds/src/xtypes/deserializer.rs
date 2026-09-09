@@ -105,7 +105,7 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
-const PID_SENTINEL: u16 = 1;
+const PID_LIST_END: u16 = 0x3F02;
 
 trait EncodingVersion: Sized {
     fn align<'a, E: EndiannessRead>(
@@ -217,8 +217,8 @@ impl EncodingVersion for EncodingVersion1 {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let current_pid_without_flags = current_pid & 0b00111111_11111111;
             let length: u16 = deserializer.deserialize_primitive_type()?;
-            if current_pid_without_flags == PID_SENTINEL && length == 0 {
-                if pid == PID_SENTINEL as u32 {
+            if current_pid_without_flags == PID_LIST_END && length == 0 {
+                if pid == PID_LIST_END as u32 {
                     return Ok(0);
                 } else {
                     return Err(PidNotFound(pid as u16));
@@ -293,7 +293,7 @@ impl EncodingVersion for EncodingVersion1 {
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
         deserializer.deserialize_members(dynamic_data)?;
-        Self::seek_to_pid(deserializer, PID_SENTINEL as u32)?;
+        Self::seek_to_pid(deserializer, PID_LIST_END as u32)?;
         Ok(())
     }
 
@@ -1791,7 +1791,7 @@ mod tests {
                     1, 2, 3, 0, // m1 | padding (1 bytres)
                     0x00, 42, 0, 4, // PID, length
                     0, 0, 0, 6, // m2
-                    0, 1, 0, 0, // Sentinel
+                    0x3F, 0x02, 0, 0, // Sentinel
                 ]
             )
             .unwrap(),
@@ -1806,7 +1806,7 @@ mod tests {
                     1, 2, 3, 0, // m1 | padding (2 bytres)
                     42, 0x00, 4, 0, // PID, length
                     6, 0, 0, 0, // m2
-                    1, 0, 0, 0, // Sentinel
+                    0x02, 0x3F, 0, 0, // Sentinel
                 ]
             )
             .unwrap(),
@@ -1965,7 +1965,7 @@ mod tests {
                     7, 0, 0, 0, // key | padding
                     0x00, 0x050, 0, 4, // PID | length
                     0, 0, 0, 8, // participant_key
-                    0, 1, 0, 0, // Sentinel
+                    0x3F, 0x02, 0, 0, // Sentinel
                 ],
             )
             .unwrap(),
