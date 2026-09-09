@@ -46,20 +46,34 @@ jobs:
         include:
         - publisher: dust_dds
           subscriber: dust_dds
+          xcdr: 1
         - publisher: dust_dds
           subscriber: connext_dds
-        # - publisher: dust_dds
-        #   subscriber: toc_coredx_dds
-        # - publisher: dust_dds
-        #   subscriber: eclipse_cyclone
-
-
+          xcdr: 1
+        - publisher: dust_dds
+          subscriber: eclipse_cyclone
+          xcdr: 1
         - publisher: connext_dds
           subscriber: dust_dds
-        # - publisher: toc_coredx_dds
-        #   subscriber: dust_dds
-        # - publisher: eclipse_cyclone
-        #   subscriber: dust_dds
+          xcdr: 1
+        - publisher: eclipse_cyclone
+          subscriber: dust_dds
+          xcdr: 1
+        - publisher: dust_dds
+          subscriber: dust_dds
+          xcdr: 2
+        - publisher: dust_dds
+          subscriber: connext_dds
+          xcdr: 2
+        - publisher: dust_dds
+          subscriber: eclipse_cyclone
+          xcdr: 2
+        - publisher: connext_dds
+          subscriber: dust_dds
+          xcdr: 2
+        - publisher: eclipse_cyclone
+          subscriber: dust_dds
+          xcdr: 2
 
     steps:
     - name: Checkout omg dds-xtypes
@@ -94,17 +108,9 @@ jobs:
       run: pip install --requirement requirements.txt
     - name: Create reports directory
       run: mkdir reports
-    # - name: Run Interoperability script
-    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 1
-    - name: Run Interoperability script XCDR1 TypeObject V2
-      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr1_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 1
-    # - name: Run Interoperability script
-    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 1 -x 2
-    - name: Run Interoperability_report.py XCDR2 TypeObject V2
-      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr2_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x 2
-    # - name: Run Interoperability script
-    #   run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to1-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 1
-    - name: Run Interoperability script enable-typeid-tests TypeObject V2
+    - name: Run Interoperability script
+      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr${{ matrix.xcdr }}_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x ${{ matrix.xcdr }}
+    - name: Run Interoperability script enable-typeid-tests
       run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 2
 
     - name: Upload reports
