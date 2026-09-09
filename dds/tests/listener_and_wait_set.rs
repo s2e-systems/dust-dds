@@ -215,8 +215,17 @@ fn reader_on_data_available_matched_listener_and_wait_set_should_both_trigger() 
     wait_set
         .attach_condition(Condition::StatusCondition(condition))
         .unwrap();
-
     wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_condition = reader.get_statuscondition();
+    reader_condition
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_condition))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(MyData { id: 1, value: 1 }, None).unwrap();
 
