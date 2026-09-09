@@ -3175,7 +3175,7 @@ fn data_reader_instance_state_not_alive_no_writers_when_writer_is_deleted() {
         .unwrap();
 
     let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(samples.len(), 1);
     assert_eq!(

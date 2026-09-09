@@ -53,11 +53,15 @@ impl CacheChange {
         writer_id: EntityId,
         inline_qos: &'a [ParameterWrite<'a>],
     ) -> DataSubmessageWrite<'a> {
-        let (data_flag, key_flag) = match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
-            ChangeKind::NotAliveDisposed
-            | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => (false, true),
+        let (data_flag, key_flag) = if self.data_value.is_empty() {
+            (false, false)
+        } else {
+            match self.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => (false, true),
+            }
         };
 
         let inline_qos_flag = !inline_qos.is_empty();
