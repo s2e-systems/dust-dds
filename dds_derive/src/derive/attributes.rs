@@ -1,5 +1,7 @@
 use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
 
+const DUST_DDS_ATTR: &str = "dust_dds";
+
 struct UnknownAttributeError;
 
 impl std::fmt::Display for UnknownAttributeError {
@@ -37,12 +39,12 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     let mut hashid = None;
     let mut try_construct = None;
 
-    if let Some(xtypes_attribute) = field
+    for attr in field
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("id") {
                 id = Some(meta.value()?.parse()?);
                 Ok(())
@@ -126,12 +128,12 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     let mut is_autoid_hash = false;
     let mut base_type = None;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
                 Ok(())
@@ -196,12 +198,12 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     let mut is_nested = false;
     let mut bit_bound = BitBound::I32;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
                 Ok(())
@@ -255,12 +257,12 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     let mut is_discriminator_key = false;
     let mut discriminator_type = None;
 
-    if let Some(xtypes_attribute) = input
+    for attr in input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name = meta.value()?.parse::<syn::LitStr>()?.value();
                 Ok(())
@@ -301,7 +303,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
                 Err(meta.error(UnknownAttributeError))
             }
         })?;
-    };
+    }
 
     let discriminator_type = discriminator_type.ok_or(syn::Error::new(
         input.span(),
@@ -326,12 +328,12 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     let mut case = Vec::new();
     let mut is_default = false;
 
-    if let Some(xtypes_attribute) = variant
+    for attr in variant
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("dust_dds"))
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
-        xtypes_attribute.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("case") {
                 case.push(meta.value()?.parse()?);
                 Ok(())
