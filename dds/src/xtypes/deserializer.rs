@@ -315,8 +315,10 @@ impl EncodingVersion for EncodingVersion1 {
         Self::align(deserializer, 4)?;
         let pid = member.get_id();
         let orig_pos = deserializer.reader.pos;
+        let orig_origin = deserializer.reader.origin;
         let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
             if length > 0 {
+                deserializer.reader.origin = deserializer.reader.pos;
                 deserializer.deserialize_value(member, dynamic_data)
             } else {
                 Ok(())
@@ -325,6 +327,7 @@ impl EncodingVersion for EncodingVersion1 {
             Ok(())
         };
         deserializer.reader.pos = orig_pos;
+        deserializer.reader.origin = orig_origin;
         result
 
         // TODO (25) using long PL encoding
@@ -715,7 +718,11 @@ fn is_element_type_kind_primitive(member: &DynamicTypeMember) -> XTypesResult<bo
 impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     fn new(buffer: &'a [u8], encoding_version: V, endianness: E) -> Self {
         Self {
-            reader: Reader { buffer, pos: 0 },
+            reader: Reader {
+                buffer,
+                pos: 0,
+                origin: 0,
+            },
             _endianness: endianness,
             _encoding_version: encoding_version,
         }
@@ -1334,6 +1341,7 @@ impl AsBytes for char {
 struct Reader<'a> {
     buffer: &'a [u8],
     pos: usize,
+    origin: usize,
 }
 
 impl<'a> Reader<'a> {
@@ -1366,7 +1374,8 @@ impl<'a> Reader<'a> {
 
     fn seek_padding(&mut self, alignment: usize) -> XTypesResult<()> {
         let mask = alignment - 1;
-        self.seek(((self.pos + mask) & !mask) - self.pos)
+        let offset = self.pos - self.origin;
+        self.seek(((offset + mask) & !mask) - offset)
     }
 }
 
@@ -1934,6 +1943,31 @@ mod tests {
                     0, 0, 0, 6, // DHEADER
                     0, 0, 0, 2, // length
                     1, 2, 77
+                ],
+            )
+            .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_mutable_struct_primitive() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(extensibility = "mutable")]
+        struct MutableType {
+            #[dust_dds(id = 3)]
+            uint64: u64,
+        }
+        let expected = MutableType { uint64: 73 }.create_dynamic_sample();
+        assert_eq!(
+            deserialize_top_level_type(
+                MutableType::TYPE,
+                &[
+                    0x00, 0x02, 0x00, 0x00, // PL_CDR_BE
+                    0x00, 3, 0, 8, // PID | length
+                    0, 0, 0, 0, // uint64
+                    0, 0, 0, 73, // uint64
+                    0x3F, 0x02, 0, 0, // Sentinel
                 ],
             )
             .unwrap(),
