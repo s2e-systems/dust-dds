@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
         ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
@@ -35,7 +35,7 @@ use crate::{
         interface::RtpsTransportParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
-    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
+    xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
     collections::BTreeSet,
@@ -51,12 +51,6 @@ pub struct DiscoveredParticipantInfo {
     pub default_multicast_locator_list: Vec<Locator>,
     pub lease_duration: Duration,
     pub last_communication_timestamp: Time,
-}
-
-#[derive(Debug, Clone, TypeSupport)]
-pub struct BuiltInKeyHolder {
-    #[dust_dds(key)]
-    pub key: BuiltInTopicKey,
 }
 
 pub struct DcpsDomainParticipant {
