@@ -2632,8 +2632,9 @@ impl TypeIdentifier {
         match self {
             TypeIdentifier::TkNone => todo!(),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
-            TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => match other {
-                TypeIdentifier::TkByteType | TypeIdentifier::TkUint8Type => true,
+            TypeIdentifier::TkByteType => matches!(other, TypeIdentifier::TkByteType),
+            TypeIdentifier::TkUint8Type => match other {
+                TypeIdentifier::TkUint8Type => true,
                 TypeIdentifier::EkComplete { .. } | TypeIdentifier::EkMinimal { .. } => {
                     if let Some(obj) = type_resolver(other) {
                         match obj {
