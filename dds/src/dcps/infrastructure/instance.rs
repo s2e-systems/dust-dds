@@ -96,9 +96,6 @@ mod tests {
     #[test]
     fn lower_hex_instance_handle() {
         let h = InstanceHandle::new([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-        assert_eq!(
-            format!("{:x}", h),
-            "000102030405060708090a0b0c0d0e0f"
-        );
+        assert_eq!(format!("{:x}", h), "000102030405060708090a0b0c0d0e0f");
     }
 }
