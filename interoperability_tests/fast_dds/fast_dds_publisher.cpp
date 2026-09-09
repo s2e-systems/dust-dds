@@ -1,4 +1,4 @@
-#include "HelloWorldPubSubTypes.h"
+#include "HelloWorldPubSubTypes.hpp"
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
 {
 	const std::string topic_name = "HelloWorld";
 
-	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
+	DomainParticipantQos participant_qos;
+	participant_qos.properties().properties().emplace_back("fastdds.type_propagation", "disabled");
+
+	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, participant_qos);
 	TypeSupport hello_world_type{new interoperability::test::HelloWorldTypePubSubType()};
 	hello_world_type.register_type(participant);
 	auto topic = participant->create_topic(topic_name, hello_world_type.get_type_name(), TOPIC_QOS_DEFAULT);
@@ -33,8 +36,8 @@ int main(int argc, char *argv[])
 	WaitSet wait_set;
 	wait_set.attach_condition(writer_condition);
 	ConditionSeq active_conditions;
-	auto ret_wait = wait_set.wait(active_conditions, eprosima::fastrtps::Duration_t{60, 0});
-	if (ret_wait != ReturnCode_t::RETCODE_OK)
+	auto ret_wait = wait_set.wait(active_conditions, Duration_t{60, 0});
+	if (ret_wait != RETCODE_OK)
 	{
 		throw std::runtime_error{"Subscription not matched"};
 	}
@@ -44,8 +47,8 @@ int main(int argc, char *argv[])
 	hello.msg('a');
 	writer->write(&hello);
 
-	auto ret_ack = writer->wait_for_acknowledgments(eprosima::fastrtps::Duration_t{30, 0});
-	if (ret_ack != ReturnCode_t::RETCODE_OK)
+	auto ret_ack = writer->wait_for_acknowledgments(Duration_t{30, 0});
+	if (ret_ack != RETCODE_OK)
 	{
 		throw std::runtime_error{"Acknowledgements did not arrive in time"};
 	}
