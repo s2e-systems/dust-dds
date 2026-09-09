@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
@@ -9,7 +8,7 @@ fn module_generation() {
     let expected_string = r#"
         pub mod Game {
             pub mod Chess {
-                #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+                #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "Game::Chess::ChessPiece")]
                 pub enum ChessPiece {
                     Pawn,
@@ -19,7 +18,7 @@ fn module_generation() {
                     Queen,
                     King,
                 }
-                #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+                #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "Game::Chess::ChessSquare")]
                 pub struct ChessSquare {
                     pub column: char,
@@ -27,7 +26,7 @@ fn module_generation() {
                 }
             }
             pub mod Cards {
-                #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+                #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "Game::Cards::Suit")]
                 pub enum Suit {
                     Spades,
@@ -37,7 +36,7 @@ fn module_generation() {
                 }
             }
         }
-        #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+        #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
         pub struct Point {
             pub x: f64,
             pub y: f64,
@@ -47,7 +46,7 @@ fn module_generation() {
             pub type Bar=i32;
             pub type Car=i32;
             pub mod frob{
-                #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+                #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
                 #[dust_dds(name = "foo::frob::Baz")]
                 pub struct Baz {
                     #[dust_dds(key)]
