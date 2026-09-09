@@ -110,9 +110,6 @@ jobs:
       run: mkdir reports
     - name: Run Interoperability script
       run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_report_xcdr${{ matrix.xcdr }}_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --type-object-version 2 -x ${{ matrix.xcdr }}
-    - name: Run Interoperability script enable-typeid-tests
-      run: python3 ./interoperability_report.py --pub-exe ./executables/${{ matrix.publisher }}*test_main_linux --sub-exe ./executables/${{ matrix.subscriber }}*test_main_linux --output-name reports/junit_typeid_report_to2-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml --enable-typeid-tests --type-object-version 2
-
     - name: Upload reports
       uses: actions/upload-artifact@v7
       with:
@@ -142,10 +139,14 @@ jobs:
         python-version: '3.11.4'
     - name: Install omg-dds dds-xtypes Python requirements
       run: pip install --requirement dds-xtypes/requirements.txt
-    - name: merge reports
-      run: junitparser merge *.xml junit_interoperability_report.xml
-    - name: Generate xlsx report
-      run: python3 ./dds-xtypes/generate_xlsx_report.py --input junit_interoperability_report.xml --output interoperability_report.xlsx
+    - name: merge reports xcdr1
+      run: junitparser merge junit_report_xcdr1_to2*.xml junit_xtypes_interoperability_report_xcdr1_to2.xml
+    - name: merge reports xcdr2
+      run: junitparser merge junit_report_xcdr2_to2*.xml junit_xtypes_interoperability_report_xcdr2_to2.xml
+    - name: Generate xlsx report xcdr1
+      run: python3 ./dds-xtypes/generate_xlsx_report.py --input junit_xtypes_interoperability_report_xcdr1_to2.xml --output xtypes_interoperability_report_xcdr1_to2.xlsx
+    - name: Generate xlsx report xcdr2
+      run: python3 ./dds-xtypes/generate_xlsx_report.py --input junit_xtypes_interoperability_report_xcdr2_to2.xml --output xtypes_interoperability_report_xcdr2_to2.xlsx
     - name: Upload report
       uses: actions/upload-artifact@v7
       with:
