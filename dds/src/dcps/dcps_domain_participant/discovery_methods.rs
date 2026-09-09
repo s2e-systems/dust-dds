@@ -2045,8 +2045,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-
-
     pub fn handle_type_lookup_request(
         &mut self,
         type_lookup_request: TypeLookupRequest,
