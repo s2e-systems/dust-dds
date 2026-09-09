@@ -197,9 +197,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
         instance_info.last_write_time = None;
 
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
-
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
             kind: ChangeKind::NotAliveDisposed,
@@ -207,7 +204,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: Default::default(),
         };
         self.transport_writer.add_change(cache_change);
 
@@ -280,9 +277,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
         instance_info.last_write_time = None;
 
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
-
         self.last_change_sequence_number += 1;
         let kind = if self
             .qos
@@ -299,7 +293,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
-            data_value: serialized_key.into(),
+            data_value: Default::default(),
         };
         self.transport_writer.add_change(cache_change);
         Ok(())
