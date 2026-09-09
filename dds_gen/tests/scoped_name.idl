@@ -1,0 +1,30 @@
+module first {
+    enum MyEnum {
+        A,
+        B,
+        C
+    };
+
+    module second {
+        enum ColorRGB {
+            RED,
+            GREEN,
+            BLUE
+        };
+
+        struct MyStruct {
+            ::first::MyEnum my_enum_fqn;
+            ::first::second::ColorRGB color_rgb_fqn;
+            ColorRGB color_rgb;
+        };
+    };
+};
+
+struct Wrapper {
+    first::MyEnum my_enum;
+    first::second::ColorRGB color_rgb;
+    first::second::MyStruct my_struct;
+    ::first::MyEnum my_enum_fqn;
+    ::first::second::ColorRGB color_rgb_fqn;
+    ::first::second::MyStruct my_struct_fqn;
+};

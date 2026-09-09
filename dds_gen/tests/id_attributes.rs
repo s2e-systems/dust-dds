@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
@@ -8,7 +7,7 @@ fn id_attributes() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             pub struct Person {
                 #[dust_dds(id = 1)]
                 pub name: String,
@@ -18,10 +17,9 @@ fn id_attributes() {
                 pub height: f64,
             }
 
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             pub struct Message {
-                #[dust_dds(key)]
-                #[dust_dds(id = 1)]
+                #[dust_dds(key, id = 1)]
                 pub id: i32,
                 #[dust_dds(id = 2)]
                 pub content: String,
