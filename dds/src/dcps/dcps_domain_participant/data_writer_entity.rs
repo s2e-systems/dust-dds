@@ -170,22 +170,13 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
     pub fn dispose_w_timestamp(
         &mut self,
-        dynamic_data: &DynamicData<'static>,
-        type_support: &DynamicType<'static>,
+        instance_handle: InstanceHandle,
+        serialized_key: Vec<u8>,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
-
-        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
-
-        if TopicKind::from(type_support) == TopicKind::NoKey {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
 
         let Some(instance_info) = self
             .registered_instance_info
@@ -196,9 +187,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         };
 
         instance_info.last_write_time = None;
-
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChange {
@@ -254,22 +242,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
     pub fn unregister_w_timestamp(
         &mut self,
-        dynamic_data: &DynamicData<'static>,
-        type_support: &DynamicType<'static>,
+        instance_handle: InstanceHandle,
+        serialized_key: Vec<u8>,
         timestamp: Time,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
         }
 
-        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
-        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
-
-        if TopicKind::from(type_support) == TopicKind::NoKey {
-            return Err(DdsError::IllegalOperation);
-        }
-
-        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
         let Some(instance_info) = self
             .registered_instance_info
             .iter_mut()
@@ -279,9 +259,6 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         };
 
         instance_info.last_write_time = None;
-
-        let serialized_key =
-            serialize(key_holder_data.as_dynamic_data(), &self.qos.representation)?;
 
         self.last_change_sequence_number += 1;
         let kind = if self

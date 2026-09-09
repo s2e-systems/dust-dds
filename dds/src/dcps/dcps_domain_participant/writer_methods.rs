@@ -10,7 +10,10 @@ use crate::{
         },
         listeners::data_writer_listener::DcpsDataWriterListener,
         status_mask::StatusMask,
-        xtypes_glue::key_and_instance_handle::get_instance_handle_from_dynamic_data_and_key_holder,
+        xtypes_glue::key_and_instance_handle::{
+            KeyHolderData, KeyHolderType, get_instance_handle_from_dynamic_data_and_key_holder,
+            get_instance_handle_from_key_holder_data,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -21,6 +24,7 @@ use crate::{
         time::{DurationKind, Time},
     },
     runtime::DdsRuntime,
+    transport::types::TopicKind,
     xtypes::dynamic_type::DynamicData,
 };
 
@@ -244,7 +248,19 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        let res = data_writer.unregister_w_timestamp(dynamic_data, &type_support, timestamp);
+        if TopicKind::from(&type_support) == TopicKind::NoKey {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
+        let serialized_key = serialize(
+            key_holder_data.as_dynamic_data(),
+            &data_writer.qos.representation,
+        )?;
+
+        let res = data_writer.unregister_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
             data_writer
                 .transport_writer
@@ -452,7 +468,19 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        let res = data_writer.dispose_w_timestamp(dynamic_data, &type_support, timestamp);
+        if TopicKind::from(&type_support) == TopicKind::NoKey {
+            return Err(DdsError::IllegalOperation);
+        }
+
+        let key_holder_type = KeyHolderType::new(&dynamic_data.r#type());
+        let key_holder_data = KeyHolderData::from_dynamic_data(dynamic_data, &key_holder_type)?;
+        let instance_handle = get_instance_handle_from_key_holder_data(&key_holder_data)?;
+        let serialized_key = serialize(
+            key_holder_data.as_dynamic_data(),
+            &data_writer.qos.representation,
+        )?;
+
+        let res = data_writer.dispose_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
             data_writer
                 .transport_writer
