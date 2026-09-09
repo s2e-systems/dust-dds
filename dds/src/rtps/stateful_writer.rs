@@ -169,6 +169,14 @@ impl RtpsStatefulWriter {
 
                     reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
 
+                    let is_preemptive = acknack_submessage.reader_sn_state().base() <= 0
+                        || (acknack_submessage.reader_sn_state().base() == 1
+                            && reader_proxy.highest_acked_seq_num() == 0
+                            && acknack_submessage.reader_sn_state().set().next().is_none());
+                    if is_preemptive {
+                        reader_proxy.heartbeat_machine().reset_heartbeat_time();
+                    }
+
                     reader_proxy.write_message_reliable(
                         self.guid.entity_id(),
                         &self.changes,

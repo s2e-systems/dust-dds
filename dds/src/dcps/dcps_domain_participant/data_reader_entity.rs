@@ -145,6 +145,7 @@ pub struct ReaderSample {
     pub writer_guid: [u8; 16],
     pub instance_handle: InstanceHandle,
     pub source_timestamp: Option<Time>,
+    pub reception_timestamp: Time,
     pub data_value: Arc<[u8]>,
     pub sample_state: SampleStateKind,
     pub disposed_generation_count: i32,
@@ -190,8 +191,15 @@ impl<T> DataReaderEntity<T> {
     }
 
     pub fn remove_stale_samples(&mut self, now: Time) {
+        let destination_order = self.qos.destination_order.kind;
         self.sample_list.retain(|sample| {
-            if let Some(source_timestamp) = sample.source_timestamp {
+            let timestamp = match destination_order {
+                DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
+                DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
+                    Some(sample.reception_timestamp)
+                }
+            };
+            if let Some(timestamp) = timestamp {
                 if let Some(matched_publication) = self
                     .matched_publication_list
                     .iter()
@@ -200,7 +208,7 @@ impl<T> DataReaderEntity<T> {
                     if let DurationKind::Finite(lifespan_duration) =
                         matched_publication.lifespan().duration
                     {
-                        if now >= source_timestamp + lifespan_duration {
+                        if now >= timestamp + lifespan_duration {
                             return false;
                         }
                     }
@@ -634,6 +642,7 @@ impl<T> DataReaderEntity<T> {
             writer_guid: writer_guid.into(),
             instance_handle,
             source_timestamp: change_source_timestamp,
+            reception_timestamp,
             data_value,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count,

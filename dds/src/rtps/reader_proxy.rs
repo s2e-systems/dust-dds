@@ -28,6 +28,10 @@ impl HeartbeatMachine {
         now - self.last_heartbeat_time >= heartbeat_period
     }
 
+    pub fn reset_heartbeat_time(&mut self) {
+        self.last_heartbeat_time = Time::new(0, 0);
+    }
+
     pub fn time_until_heartbeat(&self, now: Time, heartbeat_period: Duration) -> Duration {
         let elapsed = now - self.last_heartbeat_time;
         if elapsed >= heartbeat_period {

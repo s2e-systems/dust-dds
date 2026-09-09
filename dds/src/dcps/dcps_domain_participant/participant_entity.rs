@@ -28,7 +28,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, DurationKind, Time},
     },
     transport::{
@@ -167,7 +167,13 @@ impl DcpsDomainParticipant {
                 }
 
                 for sample in &data_reader.sample_list {
-                    if let Some(source_timestamp) = sample.source_timestamp {
+                    let timestamp = match data_reader.qos.destination_order.kind {
+                        DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
+                        DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
+                            Some(sample.reception_timestamp)
+                        }
+                    };
+                    if let Some(timestamp) = timestamp {
                         if let Some(matched_publication) = data_reader
                             .matched_publication_list
                             .iter()
@@ -176,7 +182,7 @@ impl DcpsDomainParticipant {
                             if let DurationKind::Finite(lifespan) =
                                 matched_publication.lifespan().duration
                             {
-                                let expiry = source_timestamp + lifespan;
+                                let expiry = timestamp + lifespan;
                                 let remaining = if expiry > now {
                                     expiry - now
                                 } else {

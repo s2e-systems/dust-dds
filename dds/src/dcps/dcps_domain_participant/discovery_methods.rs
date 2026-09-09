@@ -2619,20 +2619,6 @@ impl DcpsDomainParticipant {
 
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
             if !is_participant_discovered {
-                self.add_matched_publications_detector(discovered_participant_data);
-                self.add_matched_publications_announcer(discovered_participant_data);
-                self.add_matched_subscriptions_detector(discovered_participant_data);
-                self.add_matched_subscriptions_announcer(discovered_participant_data);
-                self.add_matched_topics_detector(discovered_participant_data);
-                self.add_matched_topics_announcer(discovered_participant_data);
-
-                self.add_matched_service_request_data_reader(discovered_participant_data);
-                self.add_matched_service_request_data_writer(discovered_participant_data);
-                self.add_matched_service_reply_data_reader(discovered_participant_data);
-                self.add_matched_service_reply_data_writer(discovered_participant_data);
-
-                self.announce_participant(now);
-
                 let discovered_participant_info = DiscoveredParticipantInfo {
                     dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
                     guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
@@ -2650,6 +2636,20 @@ impl DcpsDomainParticipant {
                 self.domain_participant
                     .discovered_participant_list
                     .push(discovered_participant_info);
+
+                self.announce_participant(now);
+
+                self.add_matched_publications_detector(discovered_participant_data);
+                self.add_matched_publications_announcer(discovered_participant_data);
+                self.add_matched_subscriptions_detector(discovered_participant_data);
+                self.add_matched_subscriptions_announcer(discovered_participant_data);
+                self.add_matched_topics_detector(discovered_participant_data);
+                self.add_matched_topics_announcer(discovered_participant_data);
+
+                self.add_matched_service_request_data_reader(discovered_participant_data);
+                self.add_matched_service_request_data_writer(discovered_participant_data);
+                self.add_matched_service_reply_data_reader(discovered_participant_data);
+                self.add_matched_service_reply_data_writer(discovered_participant_data);
             } else if let Some(p) = self
                 .domain_participant
                 .discovered_participant_list
