@@ -126,7 +126,7 @@ impl<'a> KeyHolderData<'a> {
         Ok(Self(key_holder_data))
     }
 
-    pub fn _as_dynamic_data(&self) -> &DynamicData<'a> {
+    pub fn as_dynamic_data(&self) -> &DynamicData<'a> {
         &self.0
     }
 }
