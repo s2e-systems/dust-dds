@@ -1,15 +1,13 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
-#[ignore]
 fn union_types() {
     let idl_file = Path::new("tests/union_types.idl");
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(switch(u8))]
             pub enum TestUnion {
                 #[dust_dds(case = 10, )]
@@ -18,6 +16,39 @@ fn union_types() {
                 Case20{y:i32},
                 #[dust_dds(case = 50, default, case = 60, )]
                 Case50{z: i64},
+            }
+
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(switch(u8), extensibility = "final")]
+            pub enum FinalUnion {
+                #[dust_dds(case = 0, )]
+            	Case0{x:u8},
+                #[dust_dds(case = 1, )]
+            	Case1{y:u8},
+                #[dust_dds(case = 2, )]
+            	Case2{z:u8},
+            }
+
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(switch(u8), extensibility = "appendable")]
+            pub enum AppendableUnion {
+                #[dust_dds(case = 0, )]
+                Case0{x:u8},
+                #[dust_dds(case = 1, )]
+                Case1{y:u8},
+                #[dust_dds(case = 2, )]
+                Case2{z:u8},
+            }
+
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(switch(u8), extensibility = "mutable")]
+            pub enum MutableUnion {
+                #[dust_dds(case = 0, )]
+            	Case0{x:u8},
+                #[dust_dds(case = 1, )]
+            	Case1{y:u8},
+                #[dust_dds(case = 2, )]
+            	Case2{z:u8},
             }
             "#
         .parse()
