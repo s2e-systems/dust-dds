@@ -6,9 +6,91 @@ use super::super::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
         WriteIntoBytes,
     },
-    submessage_elements::{ParameterList, SerializedDataFragment},
+    submessage_elements::{ParameterList, ParameterListWrite, SerializedDataFragment},
     types::{FragmentNumber, SubmessageFlag, SubmessageKind},
 };
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DataFragSubmessageWrite<'a> {
+    inline_qos_flag: bool,
+    non_standard_payload_flag: SubmessageFlag,
+    key_flag: bool,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_starting_num: FragmentNumber,
+    fragments_in_submessage: u16,
+    fragment_size: u16,
+    data_size: u32,
+    inline_qos: ParameterListWrite<'a>,
+    serialized_payload: &'a [u8],
+}
+
+impl<'a> DataFragSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        inline_qos_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        fragment_starting_num: FragmentNumber,
+        fragments_in_submessage: u16,
+        fragment_size: u16,
+        data_size: u32,
+        inline_qos: ParameterListWrite<'a>,
+        serialized_payload: &'a [u8],
+    ) -> Self {
+        Self {
+            inline_qos_flag,
+            non_standard_payload_flag,
+            key_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_starting_num,
+            fragments_in_submessage,
+            fragment_size,
+            data_size,
+            inline_qos,
+            serialized_payload,
+        }
+    }
+}
+
+impl Submessage for DataFragSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA_FRAG,
+            &[
+                self.inline_qos_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 28;
+        EXTRA_FLAGS.write_into_bytes(buf);
+        OCTETS_TO_INLINE_QOS.write_into_bytes(buf);
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        self.fragment_starting_num.write_into_bytes(buf);
+        self.fragments_in_submessage.write_into_bytes(buf);
+        self.fragment_size.write_into_bytes(buf);
+        self.data_size.write_into_bytes(buf);
+        if self.inline_qos_flag {
+            self.inline_qos.write_into_bytes(buf);
+        }
+        self.serialized_payload.write_into_bytes(buf);
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessage {
     inline_qos_flag: bool,
@@ -215,6 +297,40 @@ mod tests {
         },
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
+
+    #[test]
+    fn serialize_data_frag_write_no_inline_qos_with_payload() {
+        let inline_qos = ParameterListWrite::empty();
+        let payload = [1, 2, 3];
+        let submessage = DataFragSubmessageWrite::new(
+            false,
+            false,
+            false,
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            5,
+            2,
+            3,
+            5,
+            4,
+            inline_qos,
+            &payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+                0x16_u8, 0b_0000_0001, 35, 0, // Submessage header
+                0, 0, 28, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                2, 0, 0, 0, // fragmentStartingNum
+                3, 0, 5, 0, // fragmentsInSubmessage | fragmentSize
+                4, 0, 0, 0, // sampleSize
+                1, 2, 3,    // serialized payload
+            ]
+        );
+    }
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {

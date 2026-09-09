@@ -159,8 +159,8 @@ impl CdrSerialize for BuiltinEndpointSet {
 }
 impl CdrSerialize for Duration {
     fn cdr_serialize(&self, ser: &mut CdrSerializer) {
-        self.sec.cdr_serialize(ser);
-        self.nanosec.cdr_serialize(ser);
+        self.sec().cdr_serialize(ser);
+        self.nanosec().cdr_serialize(ser);
     }
 }
 impl CdrSerialize for EntityId {

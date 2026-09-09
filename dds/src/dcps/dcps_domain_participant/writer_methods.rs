@@ -215,6 +215,7 @@ impl DcpsDomainParticipant {
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -243,7 +244,13 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        data_writer.unregister_w_timestamp(dynamic_data, &type_support, timestamp)
+        let res = data_writer.unregister_w_timestamp(dynamic_data, &type_support, timestamp);
+        if res.is_ok() {
+            data_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut(), now);
+        }
+        res
     }
 
     #[tracing::instrument(skip(self))]
@@ -403,6 +410,10 @@ impl DcpsDomainParticipant {
         }
 
         reply_sender.send(Ok(()));
+
+        data_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -412,6 +423,7 @@ impl DcpsDomainParticipant {
         data_writer_handle: &InstanceHandle,
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
+        now: Time,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -440,7 +452,13 @@ impl DcpsDomainParticipant {
             .get_dynamic_type(&topic.type_information.complete.typeid_with_size.type_id)
             .expect("Type must exist in type_register");
 
-        data_writer.dispose_w_timestamp(dynamic_data, &type_support, timestamp)
+        let res = data_writer.dispose_w_timestamp(dynamic_data, &type_support, timestamp);
+        if res.is_ok() {
+            data_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut(), now);
+        }
+        res
     }
 
     #[tracing::instrument(skip(self))]
@@ -495,6 +513,23 @@ impl DcpsDomainParticipant {
 
             self.announce_data_writer(publisher_handle, data_writer_handle, now);
             self.process_discovered_readers(now);
+
+            if let Some(publisher) = self
+                .domain_participant
+                .user_defined_publisher_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == publisher_handle)
+            {
+                if let Some(data_writer) = publisher
+                    .data_writer_list
+                    .iter_mut()
+                    .find(|x| &x.instance_handle == data_writer_handle)
+                {
+                    data_writer
+                        .transport_writer
+                        .write_message(self.transport.message_writer.as_mut(), now);
+                }
+            }
         }
         Ok(())
     }
@@ -659,6 +694,9 @@ impl DcpsDomainParticipant {
                             pending.reply_sender.send(write_result);
                         } else {
                             pending.reply_sender.send(Ok(()));
+                            data_writer
+                                .transport_writer
+                                .write_message(self.transport.message_writer.as_mut(), now);
                         }
                     }
                 }

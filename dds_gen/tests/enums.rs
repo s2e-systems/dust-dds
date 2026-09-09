@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
@@ -8,7 +7,7 @@ fn enums() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             pub enum Suits {
                 Spades,
                 Hearts,
@@ -16,8 +15,8 @@ fn enums() {
                 Clubs,
             }
 
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
-            #[dust_dds(bit_bound(16))]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[dust_dds(bit_bound = "16")]
             pub enum HttpStatusCode {
                 CONTINUE = 100,
                 OK = 200,

@@ -158,6 +158,11 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -180,6 +185,11 @@ impl DcpsDomainParticipant {
 
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
+            self.domain_participant
+                .builtin_publisher
+                .dcps_participant_writer
+                .transport_writer
+                .write_message(self.transport.message_writer.as_mut());
         }
     }
 
@@ -242,7 +252,7 @@ impl DcpsDomainParticipant {
                         .iter()
                         .filter_map(|x| {
                             if now - x.last_received_time_stamp() > deadline {
-                                Some(x.handle)
+                                Some(*x.handle())
                             } else {
                                 None
                             }
@@ -466,6 +476,14 @@ impl DcpsDomainParticipant {
         }
     }
 
+    pub fn remove_stale_reader_samples(&mut self, now: Time) {
+        for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+            for data_reader in &mut subscriber.data_reader_list {
+                data_reader.remove_stale_samples(now);
+            }
+        }
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn announce_data_writer(
         &mut self,
@@ -556,6 +574,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -580,6 +603,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_publications_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -692,6 +720,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self, data_reader))]
@@ -716,6 +749,11 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
                 .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_subscriptions_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -770,6 +808,11 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        self.domain_participant
+            .builtin_publisher
+            .dcps_topics_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut(), now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -939,7 +982,12 @@ impl DcpsDomainParticipant {
                                                     },
                                                     instance_name: format!(
                                                         "dds.builtin.TOS.{:x}",
-                                                        participant_instance_handle,
+                                                        InstanceHandle::new(
+                                                            discovered_reader_data
+                                                                .dds_subscription_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
                                                 },
                                                 call:
@@ -987,7 +1035,12 @@ impl DcpsDomainParticipant {
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
-                                                    participant_instance_handle,
+                                                    InstanceHandle::new(
+                                                        discovered_reader_data
+                                                            .dds_subscription_data
+                                                            .participant_key()
+                                                            .value
+                                                    ),
                                                 ),
                                             },
                                             call: TypeLookupCall::TypeLookupGetTypesHashId {
@@ -1597,7 +1650,12 @@ impl DcpsDomainParticipant {
                                                     },
                                                     instance_name: format!(
                                                         "dds.builtin.TOS.{:x}",
-                                                        participant_instance_handle,
+                                                        InstanceHandle::new(
+                                                            discovered_writer_data
+                                                                .dds_publication_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
                                                 },
                                                 call:
@@ -1645,7 +1703,12 @@ impl DcpsDomainParticipant {
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
-                                                    participant_instance_handle,
+                                                    InstanceHandle::new(
+                                                        discovered_writer_data
+                                                            .dds_publication_data
+                                                            .participant_key()
+                                                            .value
+                                                    ),
                                                 ),
                                             },
                                             call: TypeLookupCall::TypeLookupGetTypesHashId {
@@ -2058,6 +2121,9 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
+                    type_lookup_reply_writer
+                        .transport_writer
+                        .write_message(self.transport.message_writer.as_mut(), now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2093,6 +2159,9 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
+                        type_lookup_reply_writer
+                            .transport_writer
+                            .write_message(self.transport.message_writer.as_mut(), now);
                     }
                 }
             }
@@ -2484,6 +2553,9 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
+                                type_request_writer
+                                    .transport_writer
+                                    .write_message(self.transport.message_writer.as_mut(), now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2530,6 +2602,9 @@ impl DcpsDomainParticipant {
                                     now,
                                 )
                                 .ok();
+                            type_request_writer
+                                .transport_writer
+                                .write_message(self.transport.message_writer.as_mut(), now);
                             self.domain_participant
                                 .type_register
                                 .add_pending_types_lookup(vec![discovered_type_id.clone()]);
@@ -2575,52 +2650,59 @@ impl DcpsDomainParticipant {
             .iter()
             .any(|handle| handle == &discovered_participant_data.dds_participant_data.key.value);
 
-        if is_domain_id_matching
-            && is_domain_tag_matching
-            && !is_participant_discovered
-            && !is_participant_ignored
-        {
-            self.add_matched_publications_detector(discovered_participant_data);
-            self.add_matched_publications_announcer(discovered_participant_data);
-            self.add_matched_subscriptions_detector(discovered_participant_data);
-            self.add_matched_subscriptions_announcer(discovered_participant_data);
-            self.add_matched_topics_detector(discovered_participant_data);
-            self.add_matched_topics_announcer(discovered_participant_data);
+        if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+            if !is_participant_discovered {
+                self.add_matched_publications_detector(discovered_participant_data);
+                self.add_matched_publications_announcer(discovered_participant_data);
+                self.add_matched_subscriptions_detector(discovered_participant_data);
+                self.add_matched_subscriptions_announcer(discovered_participant_data);
+                self.add_matched_topics_detector(discovered_participant_data);
+                self.add_matched_topics_announcer(discovered_participant_data);
 
-            self.add_matched_service_request_data_reader(discovered_participant_data);
-            self.add_matched_service_request_data_writer(discovered_participant_data);
-            self.add_matched_service_reply_data_reader(discovered_participant_data);
-            self.add_matched_service_reply_data_writer(discovered_participant_data);
+                self.add_matched_service_request_data_reader(discovered_participant_data);
+                self.add_matched_service_request_data_writer(discovered_participant_data);
+                self.add_matched_service_reply_data_reader(discovered_participant_data);
+                self.add_matched_service_reply_data_writer(discovered_participant_data);
 
-            self.announce_participant(now);
+                self.announce_participant(now);
 
-            let discovered_participant_info = DiscoveredParticipantInfo {
-                dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
-                guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
-                default_unicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .default_unicast_locator_list
-                    .clone(),
-                default_multicast_locator_list: discovered_participant_data
-                    .participant_proxy
-                    .default_multicast_locator_list
-                    .clone(),
-                lease_duration: discovered_participant_data.lease_duration,
-                last_communication_timestamp: now,
-            };
-            match self
+                let discovered_participant_info = DiscoveredParticipantInfo {
+                    dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
+                    guid_prefix: discovered_participant_data.participant_proxy.guid_prefix,
+                    default_unicast_locator_list: discovered_participant_data
+                        .participant_proxy
+                        .default_unicast_locator_list
+                        .clone(),
+                    default_multicast_locator_list: discovered_participant_data
+                        .participant_proxy
+                        .default_multicast_locator_list
+                        .clone(),
+                    lease_duration: discovered_participant_data.lease_duration,
+                    last_communication_timestamp: now,
+                };
+                self.domain_participant
+                    .discovered_participant_list
+                    .push(discovered_participant_info);
+            } else if let Some(p) = self
                 .domain_participant
                 .discovered_participant_list
                 .iter_mut()
                 .find(|p| {
-                    p.dds_participant_data.key()
-                        == discovered_participant_info.dds_participant_data.key()
-                }) {
-                Some(x) => *x = discovered_participant_info,
-                None => self
-                    .domain_participant
-                    .discovered_participant_list
-                    .push(discovered_participant_info),
+                    p.dds_participant_data.key().value
+                        == discovered_participant_data.dds_participant_data.key.value
+                })
+            {
+                p.dds_participant_data = discovered_participant_data.dds_participant_data.clone();
+                p.default_unicast_locator_list = discovered_participant_data
+                    .participant_proxy
+                    .default_unicast_locator_list
+                    .clone();
+                p.default_multicast_locator_list = discovered_participant_data
+                    .participant_proxy
+                    .default_multicast_locator_list
+                    .clone();
+                p.lease_duration = discovered_participant_data.lease_duration;
+                p.last_communication_timestamp = now;
             }
         }
     }
@@ -2637,11 +2719,6 @@ impl DcpsDomainParticipant {
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             for data_reader in &mut subscriber.data_reader_list {
-                // Remove samples
-                data_reader
-                    .sample_list
-                    .retain(|sample| sample.writer_guid[..12] != prefix);
-
                 let removed_writer_guids: Vec<_> = data_reader
                     .matched_publication_list
                     .iter()
@@ -2652,6 +2729,7 @@ impl DcpsDomainParticipant {
                     data_reader
                         .transport_reader
                         .delete_matched_writer(key.into());
+                    data_reader.remove_matched_publication(&InstanceHandle::new(key));
                 }
             }
         }

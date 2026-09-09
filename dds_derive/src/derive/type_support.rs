@@ -120,13 +120,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let is_external = struct_member_attributes.external;
                 let default_value = struct_member_attributes.default_value.map(|x| quote! {#x});
                 let try_construct = match struct_member_attributes.try_construct {
-                    Some(TryConstructKind::Discard) | None => {
+                    TryConstructKind::Discard => {
                         quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::Discard}
                     }
-                    Some(TryConstructKind::UseDefault) => {
+                    TryConstructKind::UseDefault => {
                         quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::UseDefault}
                     }
-                    Some(TryConstructKind::Trim) => {
+                    TryConstructKind::Trim => {
                         quote! { dust_dds::xtypes::dynamic_type::TryConstructKind::Trim}
                     }
                 };
@@ -246,7 +246,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     });
                             } else {
                                 member_sample_seq.push(
-                                    if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
+                                    if matches!(struct_member_attributes.try_construct, TryConstructKind::UseDefault) {
                                         quote! {
                                             #member_ident: src.remove_value(#member_id).ok().map_or(
                                                 #member_default_value,
@@ -280,16 +280,18 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     }
                                 })
                             } else {
-                                member_sample_seq.push(if struct_member_attributes.try_construct == Some(TryConstructKind::UseDefault) {
-                                    quote! {
-                                        src.remove_value(#member_id).ok().map_or(
-                                            #member_default_value,
-                                            |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).unwrap_or(#member_default_value)
-                                        ),
+                                member_sample_seq.push(
+                                    if matches!(struct_member_attributes.try_construct, TryConstructKind::UseDefault) {
+                                        quote! {
+                                            src.remove_value(#member_id).ok().map_or(
+                                                #member_default_value,
+                                                |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).unwrap_or(#member_default_value)
+                                            ),
+                                        }
+                                    } else {
+                                        quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).ok()?).ok()?,}
                                     }
-                                } else {
-                                     quote! { dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(src.remove_value(#member_id).ok()?).ok()?,}
-                                });
+                                );
 
                                 member_dynamic_sample_seq.push(quote! {
                                     data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));

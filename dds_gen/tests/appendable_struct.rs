@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use syn::File;
 
 #[test]
@@ -8,14 +7,14 @@ fn appendable_struct() {
 
     let expected = syn::parse2::<File>(
         r#"
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "appendable")]
             pub struct Point {
                 pub x: f64,
                 pub y: f64,
             }
 
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "mutable")]
             pub struct Data {
                 #[dust_dds(key)]
@@ -23,13 +22,13 @@ fn appendable_struct() {
                 pub x: f64,
             }
 
-            #[derive(Debug, Clone, dust_dds::infrastructure::type_support::DdsType)]
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             #[dust_dds(extensibility = "appendable")]
             pub struct MultiDimensionalPoint {
                 pub x: f64,
                 pub y: f64,
                 #[dust_dds(optional)]
-                pub z: Option<f64>,
+                pub z: ::core::option::Option<f64>,
             }
     "#
         .parse()

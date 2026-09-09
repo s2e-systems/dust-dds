@@ -304,6 +304,97 @@ fn xtypes_v2_extensibility_test_suite_ext_final_struct_2() {
     wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
 }
 
+/// 'struct_uint8_byte': {
+///     'common_args': ['--type-folder types --type-file primitives'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_primitive_uint8 --data-folder data --data-file struct_num_x1',
+///              'sub-exe -S -t test -y Test::struct_primitive_byte --data-folder data --data-file struct_num_x1'],
+///     'expected_codes': [ReturnCode.INCONSISTENT_TOPIC, ReturnCode.INCONSISTENT_TOPIC],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'No type assignability between struct_primitive_uint8 and struct_primitive_byte',
+///     'description' : 'Verifies no type assignability between `struct_primitive_uint8` and `struct_primitive_byte`:\n\n'
+///                     ' * Publisher uses `struct_primitive_uint8` from `primitives`.\n'
+///                     ' * Subscriber uses `struct_primitive_byte` from `primitives`.\n'
+///                     ' * Both are final structs with a single member `x1`, but publisher declares it as `uint8` and subscriber as `byte`. Primitive types must match exactly for assignability.\n'
+///                     '**Test passes if:** Discovery fails due to type incompatibility.\n'
+/// },
+#[test]
+fn xtypes_v2_array_test_suite_struct_uint8_byte() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_primitive_uint8"   extensibility="final">
+                    <member name="x1" type="uint8"/>
+                </struct>
+                <struct name="struct_primitive_byte"   extensibility="final">
+                    <member name="x1"  type="byte"/>
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let publisher_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitive_uint8",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitive_uint8",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_dynamic_type = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitive_byte",
+        vec![],
+    )
+    .unwrap()
+    .build();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitive_byte",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            subscriber_dynamic_type,
+        )
+        .unwrap();
+
+    let status_cond_publisher = publisher_topic.get_statuscondition();
+    status_cond_publisher
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_publisher = WaitSet::new();
+    wait_set_publisher
+        .attach_condition(Condition::StatusCondition(status_cond_publisher))
+        .unwrap();
+    let status_cond_subscriber = subscriber_topic.get_statuscondition();
+    status_cond_subscriber
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+    let mut wait_set_subscriber = WaitSet::new();
+    wait_set_subscriber
+        .attach_condition(Condition::StatusCondition(status_cond_subscriber))
+        .unwrap();
+    wait_set_publisher.wait(Duration::new(10, 0)).unwrap();
+    wait_set_subscriber.wait(Duration::new(10, 0)).unwrap();
+}
+
 /// 'int32[10]_uint32[10]' : {
 ///     'common_args' : ['--type-folder types --type-file arrays'],
 ///     'apps' : ['pub-exe -P -t test -y Test::int32x10 --data-folder data --data-file array_num_10',

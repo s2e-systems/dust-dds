@@ -4,10 +4,90 @@ use super::super::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
         WriteIntoBytes,
     },
-    submessage_elements::{Data, ParameterList},
+    submessage_elements::{Data, ParameterList, ParameterListWrite},
     types::{SubmessageFlag, SubmessageKind},
 };
 use crate::transport::types::{EntityId, SequenceNumber};
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DataSubmessageWrite<'a> {
+    inline_qos_flag: bool,
+    data_flag: bool,
+    key_flag: bool,
+    non_standard_payload_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    inline_qos: ParameterListWrite<'a>,
+    serialized_payload: &'a [u8],
+}
+
+impl<'a> DataSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        inline_qos_flag: SubmessageFlag,
+        data_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        inline_qos: ParameterListWrite<'a>,
+        serialized_payload: &'a [u8],
+    ) -> Self {
+        Self {
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
+    }
+
+    pub fn inline_qos(&self) -> &ParameterListWrite<'a> {
+        &self.inline_qos
+    }
+
+    pub fn serialized_payload(&self) -> &'a [u8] {
+        self.serialized_payload
+    }
+}
+
+impl Submessage for DataSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA,
+            &[
+                self.inline_qos_flag,
+                self.data_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf)
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        const EXTRA_FLAGS: u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
+        EXTRA_FLAGS.write_into_bytes(buf);
+        OCTETS_TO_INLINE_QOS.write_into_bytes(buf);
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        if self.inline_qos_flag {
+            self.inline_qos.write_into_bytes(buf);
+        }
+        if self.data_flag || self.key_flag {
+            self.serialized_payload.write_into_bytes(buf);
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataSubmessage {
@@ -181,10 +261,87 @@ mod tests {
     use super::*;
     use crate::{
         rtps_messages::{
-            overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
+            overall_structure::write_submessage_into_bytes_vec,
+            submessage_elements::{Parameter, ParameterWrite},
         },
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
+
+    #[test]
+    fn serialize_data_write_no_inline_qos_with_serialized_payload() {
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let inline_qos = ParameterListWrite::empty();
+        let payload = [1, 2, 3];
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            &payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+                0x15, 0b_0000_0101, 23, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, // serialized payload
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_data_write_with_inline_qos() {
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let parameter_1 = ParameterWrite::new(6, &[10, 11, 12, 13]);
+        let parameter_2 = ParameterWrite::new(7, &[20, 21, 22, 23]);
+        let parameters = [parameter_1, parameter_2];
+        let inline_qos = ParameterListWrite::new(&parameters);
+        let submessage = DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            &[],
+        );
+        #[rustfmt::skip]
+        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
+                0x15, 0b_0000_0011, 40, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ]
+        );
+    }
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {

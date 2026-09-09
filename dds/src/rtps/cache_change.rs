@@ -2,13 +2,15 @@ use super::error::RtpsError;
 use crate::{
     rtps_messages::{
         self,
-        submessage_elements::{Parameter, ParameterList, SerializedDataFragment},
-        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
+        submessage_elements::{ParameterListWrite, ParameterWrite},
+        submessages::{
+            data::{DataSubmessage, DataSubmessageWrite},
+            data_frag::DataFragSubmessageWrite,
+        },
         types::ParameterId,
     },
     transport::types::{CacheChange, ChangeKind, EntityId, Guid, GuidPrefix},
 };
-use alloc::{sync::Arc, vec::Vec};
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
 pub const PID_STATUS_INFO: ParameterId = 0x0071;
@@ -21,7 +23,36 @@ const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b000
 const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
 
 impl CacheChange {
-    pub fn as_data_submessage(&self, reader_id: EntityId, writer_id: EntityId) -> DataSubmessage {
+    pub fn status_info_parameter(&self) -> Option<ParameterWrite<'static>> {
+        match self.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
+            ChangeKind::NotAliveDisposed => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_DISPOSED.0,
+            )),
+            ChangeKind::NotAliveUnregistered => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_UNREGISTERED.0,
+            )),
+            ChangeKind::NotAliveDisposedUnregistered => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_DISPOSED_UNREGISTERED.0,
+            )),
+        }
+    }
+
+    pub fn key_hash_parameter<'a>(&'a self) -> Option<ParameterWrite<'a>> {
+        self.instance_handle
+            .as_ref()
+            .map(|i| ParameterWrite::new(PID_KEY_HASH, i))
+    }
+
+    pub fn as_data_submessage<'a>(
+        &'a self,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        inline_qos: &'a [ParameterWrite<'a>],
+    ) -> DataSubmessageWrite<'a> {
         let (data_flag, key_flag) = match self.kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
             ChangeKind::NotAliveDisposed
@@ -29,34 +60,14 @@ impl CacheChange {
             | ChangeKind::NotAliveDisposedUnregistered => (false, true),
         };
 
-        let mut parameters = Vec::with_capacity(2);
-        match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
-            ChangeKind::NotAliveDisposed => parameters.push(Parameter::new(
-                PID_STATUS_INFO,
-                Arc::from(STATUS_INFO_DISPOSED.0),
-            )),
-            ChangeKind::NotAliveUnregistered => parameters.push(Parameter::new(
-                PID_STATUS_INFO,
-                Arc::from(STATUS_INFO_UNREGISTERED.0),
-            )),
-            ChangeKind::NotAliveDisposedUnregistered => parameters.push(Parameter::new(
-                PID_STATUS_INFO,
-                Arc::from(STATUS_INFO_DISPOSED_UNREGISTERED.0),
-            )),
-        }
-
-        if let Some(i) = self.instance_handle {
-            parameters.push(Parameter::new(PID_KEY_HASH, Arc::from(i)));
-        }
-        let inline_qos_flag = !parameters.is_empty();
+        let inline_qos_flag = !inline_qos.is_empty();
         let parameter_list = if inline_qos_flag {
-            ParameterList::new(parameters)
+            ParameterListWrite::new(inline_qos)
         } else {
-            ParameterList::empty()
+            ParameterListWrite::empty()
         };
 
-        DataSubmessage::new(
+        DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -65,7 +76,7 @@ impl CacheChange {
             writer_id,
             self.sequence_number,
             parameter_list,
-            self.data_value.clone().into(),
+            self.data_value.as_ref(),
         )
     }
 
@@ -121,13 +132,13 @@ impl CacheChange {
         })
     }
 
-    pub fn as_data_frag_submessage(
-        &self,
+    pub fn as_data_frag_submessage<'a>(
+        &'a self,
         reader_id: EntityId,
         writer_id: EntityId,
         data_max_size_serialized: usize,
         fragment_number: usize,
-    ) -> DataFragSubmessage {
+    ) -> DataFragSubmessageWrite<'a> {
         let inline_qos_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
@@ -143,10 +154,9 @@ impl CacheChange {
             self.data_value.len(),
         );
 
-        let serialized_payload =
-            SerializedDataFragment::new(self.data_value.clone().into(), start..end);
+        let serialized_payload = &self.data_value.as_ref()[start..end];
 
-        DataFragSubmessage::new(
+        DataFragSubmessageWrite::new(
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
@@ -157,7 +167,7 @@ impl CacheChange {
             fragments_in_submessage,
             fragment_size,
             data_size,
-            ParameterList::empty(),
+            ParameterListWrite::empty(),
             serialized_payload,
         )
     }

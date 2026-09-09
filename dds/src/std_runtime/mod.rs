@@ -1,10 +1,8 @@
 pub mod executor;
-pub mod timer;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use executor::{Executor, ExecutorHandle};
-use timer::{TimerDriver, TimerHandle};
+use executor::{Executor, ExecutorHandle, TimerHandle};
 
 use crate::{
     infrastructure::time::Time,
@@ -26,15 +24,13 @@ impl Clock for StdClock {
 
 #[derive(Default)]
 pub struct StdRuntime {
-    timer_driver: TimerDriver,
     executor: Executor,
 }
 
 impl StdRuntime {
-    pub fn new(executor: Executor, timer_driver: TimerDriver) -> Self {
+    pub fn new() -> Self {
         Self {
-            executor,
-            timer_driver,
+            executor: Executor::new(),
         }
     }
 }
@@ -45,7 +41,7 @@ impl DdsRuntime for StdRuntime {
     type SpawnerHandle = ExecutorHandle;
 
     fn timer(&self) -> Self::TimerHandle {
-        self.timer_driver.handle()
+        self.executor.timer_handle()
     }
 
     fn clock(&self) -> Self::ClockHandle {

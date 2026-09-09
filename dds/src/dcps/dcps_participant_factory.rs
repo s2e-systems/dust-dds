@@ -97,7 +97,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         }
         let mut participant = self.domain_participant_list.remove(index);
         participant.announce_deleted_participant(now);
-        participant.poke(now);
         Ok(())
     }
 
@@ -143,7 +142,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         self.qos.clone()
     }
 
-    pub(crate) fn time_until_next_event(&self, now: Time) -> Option<Duration> {
+    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
         self.domain_participant_list
             .iter()
             .filter_map(|x| x.time_until_next_event(now))

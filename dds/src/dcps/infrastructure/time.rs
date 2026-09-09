@@ -57,11 +57,100 @@ impl PartialOrd<DurationKind> for DurationKind {
 }
 
 /// Structure representing a time interval with a nanosecond resolution.
-#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy, TypeSupport)]
-#[dust_dds(extensibility = "final", nested)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Duration {
-    pub(crate) sec: i32,
-    pub(crate) nanosec: u32,
+    sec: i32,
+    nanosec: u32,
+}
+
+impl dust_dds::xtypes::type_support::TypeSupport for Duration {
+    fn create_sample(
+        src: &mut dust_dds::xtypes::dynamic_type::DynamicData,
+    ) -> ::core::option::Option<Self> {
+        Some(Self {
+            sec: dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(
+                src.remove_value(0).ok()?,
+            )
+            .ok()?,
+            nanosec: fraction_to_nanosec(
+                dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(
+                    src.remove_value(1).ok()?,
+                )
+                .ok()?,
+            ),
+        })
+    }
+    fn create_dynamic_sample(self) -> dust_dds::xtypes::dynamic_type::DynamicData<'static> {
+        let mut data =
+            dust_dds::xtypes::dynamic_type::DynamicDataFactory::create_data(Self::get_type());
+        data.set_value(
+            0,
+            dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.sec),
+        );
+        data.set_value(
+            1,
+            dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(nanosec_to_fraction(
+                self.nanosec,
+            )),
+        );
+        data
+    }
+}
+
+impl dust_dds::xtypes::type_support::Type for Duration {
+    const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
+        dust_dds::xtypes::dynamic_type::DynamicType {
+            descriptor: &dust_dds::xtypes::dynamic_type::TypeDescriptor {
+                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
+                name: "Duration",
+                base_type: None,
+                discriminator_type: None,
+                bound: &[],
+                element_type: None,
+                key_element_type: None,
+                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                is_nested: true,
+                is_autoid_hash: false,
+            },
+            member_list: &[
+                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: "sec",
+                        id: 0,
+                        r#type: <i32 as dust_dds::xtypes::type_support::Type>::TYPE,
+                        default_value: None,
+                        index: 0u32,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                        label: &[],
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label: false,
+                        is_external: false,
+                    },
+                },
+                dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                    descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                        name: "fraction",
+                        id: 1,
+                        r#type: <u32 as dust_dds::xtypes::type_support::Type>::TYPE,
+                        default_value: None,
+                        index: 1u32,
+                        try_construct_kind:
+                            dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                        label: &[],
+                        is_key: false,
+                        is_optional: false,
+                        is_must_understand: false,
+                        is_shared: false,
+                        is_default_label: false,
+                        is_external: false,
+                    },
+                },
+            ],
+        };
 }
 
 impl Duration {
@@ -115,11 +204,11 @@ impl Sub<Duration> for Duration {
     }
 }
 
-fn fraction_to_nanosec(fraction: u32) -> u32 {
+const fn fraction_to_nanosec(fraction: u32) -> u32 {
     ((fraction as u64 * 1_000_000_000) / (1u64 << 32)) as u32
 }
 
-fn nanosec_to_fraction(nanosec: u32) -> u32 {
+const fn nanosec_to_fraction(nanosec: u32) -> u32 {
     (((nanosec as u64 * (1u64 << 32)) + (500_000_000)) / 1_000_000_000) as u32
 }
 

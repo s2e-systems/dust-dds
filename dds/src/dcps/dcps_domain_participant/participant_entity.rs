@@ -151,8 +151,10 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list()
         {
-            if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
-                min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+            if !dw.transport_writer.changes().is_empty() {
+                if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                }
             }
         }
 
@@ -167,6 +169,29 @@ impl DcpsDomainParticipant {
                             Duration::new(0, 0)
                         };
                         min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                    }
+                }
+
+                for sample in &data_reader.sample_list {
+                    if let Some(source_timestamp) = sample.source_timestamp {
+                        if let Some(matched_publication) = data_reader
+                            .matched_publication_list
+                            .iter()
+                            .find(|x| x.key().value == sample.writer_guid)
+                        {
+                            if let DurationKind::Finite(lifespan) =
+                                matched_publication.lifespan().duration
+                            {
+                                let expiry = source_timestamp + lifespan;
+                                let remaining = if expiry > now {
+                                    expiry - now
+                                } else {
+                                    Duration::new(0, 0)
+                                };
+                                min_time =
+                                    min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                            }
+                        }
                     }
                 }
             }
@@ -189,7 +214,7 @@ impl DcpsDomainParticipant {
                 }
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    for cc in data_writer.transport_writer.changes() {
+                    if let Some(cc) = data_writer.transport_writer.changes().first() {
                         if let Some(source_timestamp) = cc.source_timestamp {
                             let expiry = Time::from(source_timestamp) + lifespan;
                             let remaining = if expiry > now {
@@ -213,7 +238,9 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable {
+                if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
+                    && !data_writer.transport_writer.changes().is_empty()
+                {
                     if let Some(hb_time) =
                         data_writer.transport_writer.time_until_next_heartbeat(now)
                     {
