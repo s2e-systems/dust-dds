@@ -129,7 +129,11 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
             source_timestamp: Some(sample_timestamp.into()),
-            instance_handle: Some(sample_instance_handle.into()),
+            instance_handle: if self.key_holder_type.is_empty() {
+                None
+            } else {
+                Some(sample_instance_handle.into())
+            },
             data_value: serialized_data.into(),
         };
 

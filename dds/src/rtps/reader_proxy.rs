@@ -202,6 +202,7 @@ impl RtpsReaderProxy {
             .rev()
             .map(|cc| cc.sequence_number)
             .filter(|cc_sn| cc_sn > &self.highest_sent_seq_num)
+            .filter(|cc_sn| cc_sn >= &self.first_relevant_sample_seq_num)
             .min()
     }
 
@@ -274,10 +275,6 @@ impl RtpsReaderProxy {
 
     pub fn first_relevant_sample_seq_num(&self) -> SequenceNumber {
         self.first_relevant_sample_seq_num
-    }
-
-    pub fn _set_first_relevant_sample_seq_num(&mut self, seq_num: SequenceNumber) {
-        self.first_relevant_sample_seq_num = seq_num;
     }
 
     pub fn last_received_acknack_count(&self) -> Count {

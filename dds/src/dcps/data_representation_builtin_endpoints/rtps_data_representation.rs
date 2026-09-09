@@ -314,10 +314,10 @@ impl CdrDeserialize for BuiltinEndpointSet {
 }
 impl CdrDeserialize for Duration {
     fn cdr_deserialize<'a>(de: &mut CdrDeserializer<'a>) -> CdrResult<Self> {
-        Ok(Duration {
-            sec: CdrDeserialize::cdr_deserialize(de)?,
-            nanosec: CdrDeserialize::cdr_deserialize(de)?,
-        })
+        Ok(Duration::new(
+            CdrDeserialize::cdr_deserialize(de)?,
+            CdrDeserialize::cdr_deserialize(de)?,
+        ))
     }
 }
 impl CdrDeserialize for EntityId {
