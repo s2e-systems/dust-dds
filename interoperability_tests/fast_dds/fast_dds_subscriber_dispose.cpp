@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
 {
 	const std::string topic_name = "DisposeData";
 
-	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, PARTICIPANT_QOS_DEFAULT);
+	DomainParticipantQos participant_qos;
+	participant_qos.properties().properties().emplace_back("fastdds.type_propagation", "disabled");
+
+	auto participant = DomainParticipantFactory::get_instance()->create_participant(0, participant_qos);
 	TypeSupport dispose_data_type{new interoperability::test::DisposeDataTypePubSubType()};
 	dispose_data_type.register_type(participant);
 	auto topic = participant->create_topic(topic_name, dispose_data_type.get_type_name(), TOPIC_QOS_DEFAULT);
