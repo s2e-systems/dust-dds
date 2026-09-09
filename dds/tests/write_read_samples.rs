@@ -673,6 +673,7 @@ fn wait_for_samples_to_be_taken_best_effort() {
         if samples.len() >= 5 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
     assert_eq!(samples.len(), 5);
@@ -3005,6 +3006,7 @@ fn multiple_writers_unregister_instance() {
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -3736,6 +3738,7 @@ fn reader_with_exclusive_ownership_should_not_read_samples_from_second_weaker_wr
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -3875,6 +3878,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_with_h
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -4023,6 +4027,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_writer_after_
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -4171,6 +4176,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -4314,6 +4320,7 @@ fn reader_with_exclusive_ownership_should_read_samples_from_second_weaker_writer
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
@@ -4555,6 +4562,7 @@ fn shared_ownership_writer1_should_write_and_writer2_should_dispose_same_data() 
         if reader.get_matched_publications().unwrap().len() >= 2 {
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(
         reader.get_matched_publications().unwrap().len(),
