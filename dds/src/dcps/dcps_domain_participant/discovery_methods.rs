@@ -236,7 +236,7 @@ impl DcpsDomainParticipant {
                 }
             })
         {
-            self.remove_discovered_participant(&handle);
+            self.remove_discovered_participant(&handle, now);
         }
     }
 
@@ -2045,36 +2045,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub(crate) fn remove_discovered_writer(
-        &mut self,
-        publication_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    ) {
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
-        else {
-            return;
-        };
-        if data_reader
-            .matched_publication_list
-            .iter()
-            .any(|x| &x.key().value == publication_handle.as_ref())
-        {
-            data_reader.remove_matched_publication(&publication_handle);
-        }
-    }
+
 
     pub fn handle_type_lookup_request(
         &mut self,
@@ -2708,7 +2679,7 @@ impl DcpsDomainParticipant {
     }
 
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
-    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle) {
+    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle, now: Time) {
         self.domain_participant
             .discovered_participant_list
             .retain(|domain_participant| {
@@ -2718,7 +2689,11 @@ impl DcpsDomainParticipant {
         let prefix = Guid::from(<[u8; 16]>::from(*handle)).prefix();
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            for data_reader in &mut subscriber.data_reader_list {
+            let (subscriber_status_condition, data_reader_list) = (
+                &mut subscriber.status_condition,
+                &mut subscriber.data_reader_list,
+            );
+            for data_reader in data_reader_list {
                 let removed_writer_guids: Vec<_> = data_reader
                     .matched_publication_list
                     .iter()
@@ -2729,7 +2704,8 @@ impl DcpsDomainParticipant {
                     data_reader
                         .transport_reader
                         .delete_matched_writer(key.into());
-                    data_reader.remove_matched_publication(&InstanceHandle::new(key));
+                    data_reader.remove_matched_publication(&InstanceHandle::new(key), now);
+                    subscriber_status_condition.add_communication_state(StatusKind::DataOnReaders);
                 }
             }
         }
