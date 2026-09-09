@@ -1107,6 +1107,49 @@ fn reader_requesting_exclusive_ownership_should_not_match_writer_offering_shared
 }
 
 #[test]
+fn two_participants_stay_discovered() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let start = Instant::now();
+    loop {
+        if participant1.get_discovered_participants().unwrap().len() == 2
+            && participant2.get_discovered_participants().unwrap().len() == 2
+        {
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Participants not discovered within timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 2);
+    assert_eq!(participant2.get_discovered_participants().unwrap().len(), 2);
+
+    let discovered = participant1.get_discovered_participants().unwrap();
+    let remote_handle = discovered
+        .into_iter()
+        .find(|h| h.as_ref() == participant2.get_instance_handle().as_ref())
+        .expect("Participant 2 must be in discovered list");
+    let participant_data = participant1
+        .get_discovered_participant_data(remote_handle)
+        .unwrap();
+    assert_eq!(
+        participant_data.key().value,
+        *participant2.get_instance_handle().as_ref()
+    );
+}
+
+#[test]
 #[ignore]
 fn participant_removed_after_lease_duration() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
