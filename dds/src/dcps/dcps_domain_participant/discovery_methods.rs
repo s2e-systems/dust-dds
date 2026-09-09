@@ -977,12 +977,17 @@ impl DcpsDomainParticipant {
                                                             .guid(),
                                                         sequence_number: (type_request_writer
                                                             .last_change_sequence_number
-                                                            )
+                                                            + 1)
                                                         .into(),
                                                     },
                                                     instance_name: format!(
                                                         "dds.builtin.TOS.{:x}",
-                                                        participant_instance_handle,
+                                                        InstanceHandle::new(
+                                                            discovered_reader_data
+                                                                .dds_subscription_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
                                                 },
                                                 call:
@@ -1025,12 +1030,17 @@ impl DcpsDomainParticipant {
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
-                                                        )
+                                                        + 1)
                                                         .into(),
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
-                                                    participant_instance_handle,
+                                                    InstanceHandle::new(
+                                                        discovered_reader_data
+                                                            .dds_subscription_data
+                                                            .participant_key()
+                                                            .value
+                                                    ),
                                                 ),
                                             },
                                             call: TypeLookupCall::TypeLookupGetTypesHashId {
@@ -1635,12 +1645,17 @@ impl DcpsDomainParticipant {
                                                             .guid(),
                                                         sequence_number: (type_request_writer
                                                             .last_change_sequence_number
-                                                            )
+                                                            + 1)
                                                         .into(),
                                                     },
                                                     instance_name: format!(
                                                         "dds.builtin.TOS.{:x}",
-                                                        participant_instance_handle,
+                                                        InstanceHandle::new(
+                                                            discovered_writer_data
+                                                                .dds_publication_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
                                                 },
                                                 call:
@@ -1683,12 +1698,17 @@ impl DcpsDomainParticipant {
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
-                                                        )
+                                                        + 1)
                                                         .into(),
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
-                                                    participant_instance_handle,
+                                                    InstanceHandle::new(
+                                                        discovered_writer_data
+                                                            .dds_publication_data
+                                                            .participant_key()
+                                                            .value
+                                                    ),
                                                 ),
                                             },
                                             call: TypeLookupCall::TypeLookupGetTypesHashId {
@@ -2191,8 +2211,9 @@ impl DcpsDomainParticipant {
                                 request_id: SampleIdentity {
                                     writer_guid: type_request_writer.transport_writer.guid(),
                                     sequence_number: (type_request_writer
-                                        .last_change_sequence_number)
-                                        .into(),
+                                        .last_change_sequence_number
+                                        + 1)
+                                    .into(),
                                 },
                                 instance_name: format!(
                                     "dds.builtin.TOS.{:x}",
@@ -2504,8 +2525,9 @@ impl DcpsDomainParticipant {
                                                 .transport_writer
                                                 .guid(),
                                             sequence_number: (type_request_writer
-                                                .last_change_sequence_number)
-                                                .into(),
+                                                .last_change_sequence_number
+                                                + 1)
+                                            .into(),
                                         },
                                         instance_name: format!(
                                             "dds.builtin.TOS.{:x}",
@@ -2553,8 +2575,9 @@ impl DcpsDomainParticipant {
                                     request_id: SampleIdentity {
                                         writer_guid: type_request_writer.transport_writer.guid(),
                                         sequence_number: (type_request_writer
-                                            .last_change_sequence_number)
-                                            .into(),
+                                            .last_change_sequence_number
+                                            + 1)
+                                        .into(),
                                     },
                                     instance_name: format!(
                                         "dds.builtin.TOS.{:x}",
@@ -3247,7 +3270,7 @@ impl DcpsDomainParticipant {
                 header: RequestHeader {
                     request_id: SampleIdentity {
                         writer_guid: w.transport_writer.guid(),
-                        sequence_number: (w.last_change_sequence_number).into(),
+                        sequence_number: (w.last_change_sequence_number + 1).into(),
                     },
                     instance_name: String::from(""),
                 },
