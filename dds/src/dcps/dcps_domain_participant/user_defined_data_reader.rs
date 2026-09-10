@@ -16,13 +16,15 @@ use crate::{
             QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
+        time::Time,
     },
     rtps::stateful_reader::RtpsStatefulReader,
+    transport::types::ChangeKind,
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
-use super::data_reader_entity::{DataReaderEntity, SampleList};
+use super::data_reader_entity::{AddChangeResult, DataReaderEntity, SampleList};
 
 pub struct UserDefinedDataReader {
     pub reader: DataReaderEntity<RtpsStatefulReader>,
@@ -93,7 +95,11 @@ impl UserDefinedDataReader {
         self.subscription_matched_status.total_count_change += 1;
     }
 
-    pub fn remove_matched_publication(&mut self, publication_handle: &InstanceHandle) {
+    pub fn remove_matched_publication(
+        &mut self,
+        publication_handle: &InstanceHandle,
+        timestamp: Time,
+    ) {
         let Some(i) = self
             .matched_publication_list
             .iter()
@@ -101,12 +107,36 @@ impl UserDefinedDataReader {
         else {
             return;
         };
-        self.matched_publication_list.remove(i);
 
         let writer_guid: [u8; 16] = *publication_handle.as_ref();
+
+        let instance_handles: Vec<InstanceHandle> = self
+            .instances
+            .iter()
+            .filter(|x| x.has_registered_writer(&writer_guid))
+            .map(|x| *x.handle())
+            .collect();
+
+        for instance_handle in instance_handles {
+            if let Ok(AddChangeResult::Added) = self.add_reader_change(
+                writer_guid.into(),
+                Arc::from([]),
+                ChangeKind::NotAliveUnregistered,
+                *instance_handle.as_ref(),
+                None,
+                timestamp,
+            ) {
+                self.status_condition
+                    .add_communication_state(StatusKind::DataAvailable);
+            }
+        }
+
         for instance in &mut self.instances {
             instance.remove_writer(&writer_guid);
         }
+
+        self.matched_publication_list.remove(i);
+
         if let Some(i) = self
             .instance_ownership
             .iter()

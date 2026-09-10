@@ -475,7 +475,7 @@ impl DcpsDomainParticipant {
                 } else {
                     let instance_handle =
                         InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
-                    self.remove_discovered_participant(&instance_handle);
+                    self.remove_discovered_participant(&instance_handle, reception_timestamp);
                     self.domain_participant
                         .builtin_subscriber
                         .dcps_participant_reader
@@ -639,19 +639,25 @@ impl DcpsDomainParticipant {
                     self.domain_participant
                         .remove_discovered_writer(&instance_handle);
 
-                    let mut handle_list = Vec::new();
-                    for subscriber in &self.domain_participant.user_defined_subscriber_list {
-                        for data_reader in subscriber.data_reader_list.iter() {
-                            handle_list
-                                .push((subscriber.instance_handle, data_reader.instance_handle));
-                        }
-                    }
-                    for (subscriber_handle, data_reader_handle) in handle_list {
-                        self.remove_discovered_writer(
-                            instance_handle,
-                            subscriber_handle,
-                            data_reader_handle,
+                    for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
+                        let (subscriber_status_condition, data_reader_list) = (
+                            &mut subscriber.status_condition,
+                            &mut subscriber.data_reader_list,
                         );
+                        for data_reader in data_reader_list {
+                            if data_reader
+                                .matched_publication_list
+                                .iter()
+                                .any(|x| &x.key().value == instance_handle.as_ref())
+                            {
+                                data_reader.remove_matched_publication(
+                                    &instance_handle,
+                                    reception_timestamp,
+                                );
+                                subscriber_status_condition
+                                    .add_communication_state(StatusKind::DataOnReaders);
+                            }
+                        }
                     }
                     self.domain_participant
                         .builtin_subscriber

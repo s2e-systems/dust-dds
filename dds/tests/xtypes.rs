@@ -11,7 +11,7 @@ use dust_dds::{
         qos_policy::{
             DataRepresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
             TypeConsistencyEnforcementQosPolicy, TypeConsistencyKind::AllowTypeCoercion,
-            XCDR2_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
@@ -87,6 +87,164 @@ impl DomainParticipantListener for Listener {
         core::future::ready(())
     }
 }
+
+/// 'primitives_struct_mutable': {
+///     'common_args': ['--type-folder types --type-file primitives'],
+///     'apps': ['pub-exe -P -t test -y Test::struct_primitives_mutable --data-folder data --data-file struct_primitives',
+///                 'sub-exe -S -t test -y Test::struct_primitives_mutable --data-folder data --data-file struct_primitives'],
+///     'expected_codes': [ReturnCode.OK, ReturnCode.OK],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between identical struct_primitives_mutable',
+///     'description' : 'Verifies identical mutable primitive structs communicate:\n\n'
+///                     ' * Publisher and Subscriber use `struct_primitives_mutable` (mutable) from `primitives`.\n'
+///                     ' * Both use the same mutable struct with 14 primitive members.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// },
+#[test]
+fn xcdr1_xtypes_v2_struct_test_suite_primitives_struct_mutable() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let (sender, receiver) = channel();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::PublicationMatched],
+        )
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <struct name="struct_primitives_mutable"   extensibility="mutable">
+                    <member name="x1"   type="uint8"   />
+                    <member name="x2"   type="uint16"  />
+                    <member name="x3"   type="uint32"  />
+                    <member name="x4"   type="uint64"  />
+                    <member name="x5"   type="int8"   />
+                    <member name="x6"   type="int16"   />
+                    <member name="x7"   type="int32"   />
+                    <member name="x8"   type="int64"   />
+                    <member name="x9"   type="boolean" />
+                    <member name="x10"  type="float32" />
+                    <member name="x11"  type="float64" />
+                    <member name="x12"  type="float128"/>
+                    <member name="x13"  type="byte"    />
+                    <member name="x14"  type="char8"   />
+                </struct>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let type_builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_mutable",
+        vec![],
+    )
+    .unwrap();
+    let publisher_dynamic_type = type_builder.build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_mutable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&publisher_topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::SubscriptionMatched],
+        )
+        .unwrap();
+    let type_builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::struct_primitives_mutable",
+        vec![],
+    )
+    .unwrap();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::struct_primitives_mutable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            type_builder.build(),
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
+    reader_qos.representation.value = vec![XCDR_DATA_REPRESENTATION];
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Note: In the OMG XTYpes tests the DomainParticipantListener is used to check
+    // if the publication or subscriptions are matched. To mimic that test even closer here
+    // the (actually better fitting) status condition is not used
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<struct_primitives>
+            <x1>0x01</x1>
+            <x2>2</x2>
+            <x3>3</x3>
+            <x4>4</x4>
+            <x5>0x05</x5>
+            <x6>6</x6>
+            <x7>7</x7>
+            <x8>8</x8>
+            <x9>true</x9>
+            <x10>10.100000</x10>
+            <x11>11.200000</x11>
+            <x12>12.300000</x12>
+            <x13>13</x13>
+            <x14>0x0e</x14>
+        </struct_primitives>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
+
 /// 'ext_final_struct_1' : {
 ///     'common_args' : ['--type-folder types --type-file extensibility'],
 ///     'apps' : ['pub-exe -P -t test -y Test::struct_f1 --data-folder data --data-file struct_num_x1',
