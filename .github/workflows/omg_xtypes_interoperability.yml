@@ -152,5 +152,7 @@ jobs:
       with:
         name: interoperability_report_complete
         path: |
-          ./junit_interoperability_report.xml
-          ./interoperability_report.xlsx
+          ./junit_xtypes_interoperability_report_xcdr1_to2.xml
+          ./junit_xtypes_interoperability_report_xcdr2_to2.xlsx
+          ./xtypes_interoperability_report_xcdr1_to2.xml
+          ./xtypes_interoperability_report_xcdr2_to2.xlsx
