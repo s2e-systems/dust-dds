@@ -1195,6 +1195,19 @@ impl DcpsDomainParticipant {
     }
 
     pub fn poke(&mut self, now: Time) {
+        self.domain_participant
+            .builtin_publisher
+            .dcps_participant_writer
+            .transport_writer
+            .write_message(self.transport.message_writer.as_mut());
+        for dw in self
+            .domain_participant
+            .builtin_publisher
+            .stateful_data_writer_list_mut()
+        {
+            dw.transport_writer
+                .write_message(self.transport.message_writer.as_mut(), now);
+        }
         for dw in self
             .domain_participant
             .user_defined_publisher_list
@@ -1204,18 +1217,5 @@ impl DcpsDomainParticipant {
             dw.transport_writer
                 .write_message(self.transport.message_writer.as_mut(), now);
         }
-        for dw in self
-            .domain_participant
-            .builtin_publisher
-            .stateful_data_writer_list_mut()
-        {
-            dw.transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
-        }
-        self.domain_participant
-            .builtin_publisher
-            .dcps_participant_writer
-            .transport_writer
-            .write_message(self.transport.message_writer.as_mut());
     }
 }

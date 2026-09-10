@@ -28,6 +28,10 @@ impl HeartbeatMachine {
         now - self.last_heartbeat_time >= heartbeat_period
     }
 
+    pub fn reset_heartbeat_time(&mut self) {
+        self.last_heartbeat_time = Time::new(0, 0);
+    }
+
     pub fn time_until_heartbeat(&self, now: Time, heartbeat_period: Duration) -> Duration {
         let elapsed = now - self.last_heartbeat_time;
         if elapsed >= heartbeat_period {
@@ -121,6 +125,7 @@ impl RtpsReaderProxy {
         reliability: ReliabilityKind,
         first_relevant_sample_seq_num: SequenceNumber,
         durability: DurabilityKind,
+        highest_sent_seq_num: SequenceNumber,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -129,7 +134,7 @@ impl RtpsReaderProxy {
             remote_group_entity_id,
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
-            highest_sent_seq_num: 0,
+            highest_sent_seq_num,
             highest_acked_seq_num: 0,
             requested_changes: Vec::new(),
             expects_inline_qos,
