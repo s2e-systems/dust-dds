@@ -471,7 +471,7 @@ impl DcpsDomainParticipant {
 
     /// Ignore participant with the specified [`handle`](InstanceHandle).
     #[tracing::instrument(skip(self))]
-    pub fn ignore_participant(&mut self, handle: &InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_participant(&mut self, handle: &InstanceHandle, now: Time) -> DdsResult<()> {
         // Check enabled
         if !self.domain_participant.enabled {
             return Err(DdsError::NotEnabled);
@@ -484,7 +484,7 @@ impl DcpsDomainParticipant {
         }
 
         // Remove participant
-        self.remove_discovered_participant(handle);
+        self.remove_discovered_participant(handle, now);
 
         Ok(())
     }

@@ -178,7 +178,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 participant_handle,
                 handle,
             }) => match self.find_participant(&participant_handle) {
-                Ok(p) => DcpsReply::Ok(p.ignore_participant(&handle)),
+                Ok(p) => DcpsReply::Ok(p.ignore_participant(&handle, now)),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::IgnoreSubscription {

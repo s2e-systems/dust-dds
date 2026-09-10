@@ -126,6 +126,10 @@ impl InstanceState {
         }
     }
 
+    pub fn has_registered_writer(&self, writer_guid: &[u8; 16]) -> bool {
+        self.registered_writers.contains(writer_guid)
+    }
+
     pub fn handle(&self) -> &InstanceHandle {
         &self.handle
     }

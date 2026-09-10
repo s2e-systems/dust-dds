@@ -8,6 +8,8 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            parameter_id_values::PID_ENDPOINT_GUID,
+            rtps_data_representation_serialization::ParameterListSerializer,
             spdp_discovered_participant_data::{
                 BuiltinEndpointQos, BuiltinEndpointSet, ParticipantProxy,
                 SpdpDiscoveredParticipantData,
@@ -32,8 +34,7 @@ use crate::{
             data_reader_entity::DataReaderEntity,
             data_writer_entity::IncompatibleSubscriptions,
             participant_entity::{
-                BuiltInKeyHolder, DcpsDomainParticipant, DiscoveredParticipantInfo,
-                DomainParticipantEntity,
+                DcpsDomainParticipant, DiscoveredParticipantInfo, DomainParticipantEntity,
             },
             user_defined_data_reader::UserDefinedDataReader,
             user_defined_data_writer::UserDefinedDataWriter,
@@ -69,10 +70,9 @@ use crate::{
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
     },
     xtypes::{
-        dynamic_type::DynamicDataFactory,
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
-        type_support::{_String, Type, TypeSupport},
+        type_support::{_String, TypeSupport},
     },
 };
 use alloc::{
@@ -176,14 +176,14 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .dcps_participant_writer;
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
-            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
+
             let topic_key_data = BuiltInTopicKey {
                 value: builtin_topic_key,
-            }
-            .create_dynamic_sample();
-            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
+            };
+            let instance_handle = InstanceHandle::new(topic_key_data.value);
+            let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
             self.domain_participant
                 .builtin_publisher
@@ -236,7 +236,7 @@ impl DcpsDomainParticipant {
                 }
             })
         {
-            self.remove_discovered_participant(&handle);
+            self.remove_discovered_participant(&handle, now);
         }
     }
 
@@ -593,14 +593,13 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_publisher
                 .dcps_publications_writer;
-            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
-            }
-            .create_dynamic_sample();
-            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
+            };
+            let instance_handle = InstanceHandle::new(topic_key_data.value);
+            let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
         }
         self.domain_participant
@@ -739,14 +738,13 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .builtin_publisher
                 .dcps_subscriptions_writer;
-            let mut dynamic_data = DynamicDataFactory::create_data(BuiltInKeyHolder::TYPE);
             let topic_key_data = BuiltInTopicKey {
                 value: data_reader.transport_reader.guid().into(),
-            }
-            .create_dynamic_sample();
-            dynamic_data.set_complex_value(0, topic_key_data).unwrap();
+            };
+            let instance_handle = InstanceHandle::new(topic_key_data.value);
+            let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(&dynamic_data, &BuiltInKeyHolder::TYPE, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
         }
         self.domain_participant
@@ -2045,37 +2043,6 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub(crate) fn remove_discovered_writer(
-        &mut self,
-        publication_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    ) {
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| x.instance_handle == subscriber_handle)
-        else {
-            return;
-        };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| x.instance_handle == data_reader_handle)
-        else {
-            return;
-        };
-        if data_reader
-            .matched_publication_list
-            .iter()
-            .any(|x| &x.key().value == publication_handle.as_ref())
-        {
-            data_reader.remove_matched_publication(&publication_handle);
-        }
-    }
-
     pub fn handle_type_lookup_request(
         &mut self,
         type_lookup_request: TypeLookupRequest,
@@ -2708,7 +2675,7 @@ impl DcpsDomainParticipant {
     }
 
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
-    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle) {
+    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle, now: Time) {
         self.domain_participant
             .discovered_participant_list
             .retain(|domain_participant| {
@@ -2718,7 +2685,11 @@ impl DcpsDomainParticipant {
         let prefix = Guid::from(<[u8; 16]>::from(*handle)).prefix();
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            for data_reader in &mut subscriber.data_reader_list {
+            let (subscriber_status_condition, data_reader_list) = (
+                &mut subscriber.status_condition,
+                &mut subscriber.data_reader_list,
+            );
+            for data_reader in data_reader_list {
                 let removed_writer_guids: Vec<_> = data_reader
                     .matched_publication_list
                     .iter()
@@ -2729,7 +2700,8 @@ impl DcpsDomainParticipant {
                     data_reader
                         .transport_reader
                         .delete_matched_writer(key.into());
-                    data_reader.remove_matched_publication(&InstanceHandle::new(key));
+                    data_reader.remove_matched_publication(&InstanceHandle::new(key), now);
+                    subscriber_status_condition.add_communication_state(StatusKind::DataOnReaders);
                 }
             }
         }
@@ -3599,5 +3571,16 @@ impl InconsistentTopicStatus {
         self.total_count_change = 0;
 
         status
+    }
+}
+
+impl BuiltInTopicKey {
+    fn into_bytes(self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut pl = ParameterListSerializer::new(&mut buffer);
+        pl.write_header();
+        pl.write_xcdr1_parameter(PID_ENDPOINT_GUID, self);
+        pl.write_sentinel();
+        buffer
     }
 }
