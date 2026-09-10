@@ -393,7 +393,7 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        deserializer.deserialize_fstruct_type(dynamic_data)
+        deserializer.deserialize_t_as_final(dynamic_data)
     }
 }
 
@@ -622,8 +622,8 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let _dheader = deserializer.deserialize_primitive_type::<u32>();
-        deserializer.deserialize_fstruct_type(dynamic_data)
+        let _dheader = deserializer.deserialize_primitive_type::<u32>()?;
+        deserializer.deserialize_t_as_final(dynamic_data)
     }
 }
 
@@ -877,6 +877,16 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
         }
     }
 
+    /// Serialization Rule: { O : AsFinal(O.type) }
+    fn deserialize_t_as_final(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        match dynamic_data.r#type().get_kind() {
+            TypeKind::ENUM => self.deserialize_enum_type(dynamic_data),
+            TypeKind::STRUCTURE => self.deserialize_fstruct_type(dynamic_data),
+            TypeKind::UNION => self.deserialize_funion_type(dynamic_data),
+            kind => unimplemented!("Should not reach for {kind:?}"),
+        }
+    }
+
     /// Serialization rule: { O : AsNested(O.type) }
     fn deserialize_as_nested<'b>(
         &mut self,
@@ -897,8 +907,7 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             TypeKind::UNION => match descriptor.extensibility_kind {
                 ExtensibilityKind::Final => self.deserialize_funion_type(&mut dynamic_data)?,
                 ExtensibilityKind::Appendable => {
-                    let _dheader = self.deserialize_primitive_type::<u32>()?;
-                    self.deserialize_funion_type(&mut dynamic_data)?
+                    V::deserialize_appendable_type(self, &mut dynamic_data)?
                 }
                 ExtensibilityKind::Mutable => V::deserialize_munion_type(self, &mut dynamic_data)?,
             },

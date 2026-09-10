@@ -245,6 +245,152 @@ fn xcdr1_xtypes_v2_struct_test_suite_primitives_struct_mutable() {
     );
 }
 
+/// 'union_primitives_appendable': {
+///     'common_args': ['--type-folder types --type-file unions'],
+///     'apps': ['pub-exe -P -t test -y Test::union_primitives_appendable --data-folder data --data-file union_primitive',
+///              'sub-exe -S -t test -y Test::union_primitives_appendable --data-folder data --data-file union_primitive'],
+///     'expected_codes': [ReturnCode.OK, ReturnCode.OK],
+///     'check_function': tsf.data_is_correct,
+///     'title' : 'Communication between identical union_primitives_appendable',
+///     'description' : 'Verifies identical appendable primitive unions communicate:\n\n'
+///                     ' * Publisher and Subscriber use `union_primitives_appendable` (appendable) from `unions`.\n'
+///                     ' * Both use the same appendable union with 14 cases.\n'
+///                     '**Test passes if:** Discovery succeeds and the subscriber receives the sample.\n'
+/// }
+#[test]
+fn xcdr1_xtypes_v2_struct_test_suite_union_primitives_appendable() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let (sender, receiver) = channel();
+    let publisher_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::PublicationMatched],
+        )
+        .unwrap();
+
+    let type_xml = r#"
+    <dds>
+        <types>
+            <module name="Test">
+                <union name="union_primitives_appendable" extensibility="appendable" >
+                    <discriminator type="uint8"/>
+                    <case><caseDiscriminator value="0x01"/><member name="x1"  type="uint8"    /></case>
+                    <case><caseDiscriminator value="0x02"/><member name="x2"  type="uint16"  /></case>
+                    <case><caseDiscriminator value="0x03"/><member name="x3"  type="uint32"  /></case>
+                    <case><caseDiscriminator value="0x04"/><member name="x4"  type="uint64"  /></case>
+                    <case><caseDiscriminator value="0x05"/><member name="x5"  type="int8"   /></case>
+                    <case><caseDiscriminator value="0x06"/><member name="x6"  type="int16"   /></case>
+                    <case><caseDiscriminator value="0x07"/><member name="x7"  type="int32"   /></case>
+                    <case><caseDiscriminator value="0x08"/><member name="x8"  type="int64"   /></case>
+                    <case><caseDiscriminator value="0x09"/><member name="x9"  type="boolean" /></case>
+                    <case><caseDiscriminator value="0x0a"/><member name="x10" type="float32" /></case>
+                    <case><caseDiscriminator value="0x0b"/><member name="x11" type="float64" /></case>
+                    <case><caseDiscriminator value="0x0c"/><member name="x12" type="float128" /></case>
+                    <case><caseDiscriminator value="0x0d"/><member name="x13" type="byte" /></case>
+                    <case><caseDiscriminator value="0x0e"/><member name="x14" type="char8" /></case>
+                </union>
+            </module>
+        </types>
+    </dds>
+    "#;
+    let type_builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_primitives_appendable",
+        vec![],
+    )
+    .unwrap();
+    let publisher_dynamic_type = type_builder.build();
+    let publisher_topic = publisher_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_primitives_appendable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            publisher_dynamic_type,
+        )
+        .unwrap();
+    let publisher = publisher_participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&publisher_topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let subscriber_participant = DomainParticipantFactory::get_instance()
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Listener {
+                sender: sender.clone(),
+            }),
+            &[StatusKind::SubscriptionMatched],
+        )
+        .unwrap();
+    let type_builder = DynamicTypeBuilderFactory::create_type_w_document(
+        type_xml,
+        "Test::union_primitives_appendable",
+        vec![],
+    )
+    .unwrap();
+    let subscriber_topic = subscriber_participant
+        .create_dynamic_topic(
+            "test",
+            "Test::union_primitives_appendable",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+            type_builder.build(),
+        )
+        .unwrap();
+    let subscriber = subscriber_participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let mut reader_qos = reader_qos();
+    reader_qos.type_consistency.ignore_member_names = false;
+    reader_qos.representation.value = vec![XCDR_DATA_REPRESENTATION];
+    let reader = subscriber
+        .create_datareader::<DynamicData<'static>>(
+            &subscriber_topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Note: In the OMG XTYpes tests the DomainParticipantListener is used to check
+    // if the publication or subscriptions are matched. To mimic that test even closer here
+    // the (actually better fitting) status condition is not used
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .unwrap();
+
+    let mut data = DynamicDataFactory::create_data(publisher_dynamic_type);
+    data.from_xml(
+        "<union_primitives>
+            <discriminator>0x05</discriminator>
+            <x5>5</x5>
+        </union_primitives>",
+    )
+    .unwrap();
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
+
 /// 'ext_final_struct_1' : {
 ///     'common_args' : ['--type-folder types --type-file extensibility'],
 ///     'apps' : ['pub-exe -P -t test -y Test::struct_f1 --data-folder data --data-file struct_num_x1',
