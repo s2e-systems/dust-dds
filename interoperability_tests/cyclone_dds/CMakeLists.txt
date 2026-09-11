@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
 project(DustDDSCycloneDDSInteroperability LANGUAGES C)
 
@@ -17,11 +17,14 @@ set(BUILD_EXAMPLES OFF)
 FetchContent_Declare(
   cyclone_dds
   GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-  GIT_TAG 86f92e636fd84c7677a8216b3296a1e83daf2b5b # FIXME
-  # FIXME: uncomment when GIT_TAG is a proper tag and not a commit hash,
+  GIT_TAG 2f0d07d241f62f7121749b46721049e4dea5c58b # FIXME
+  # FIXME: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
   # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
   # GIT_SHALLOW ON
-  SYSTEM
+  #
+  # FIXME: uncomment when `cmake_minimum_required` >= 3.25,
+  # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
+  # SYSTEM
   FIND_PACKAGE_ARGS 11.0.1 EXACT NAMES CycloneDDS
 )
 FetchContent_MakeAvailable(cyclone_dds)
