@@ -1,11 +1,13 @@
 module interoperability {
 	module test {
+        @final
         struct Inner {
             uint8 a;
             uint32 b;
             uint16 c;
         };
 
+        @final
         struct Nested {
             Inner inner;
             int64 level;

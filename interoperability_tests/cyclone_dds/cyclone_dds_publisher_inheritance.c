@@ -1,7 +1,7 @@
 #include "ddsc/dds.h"
 #include "Inheritance.h"
 
-int main(int argx, char *argv[])
+int main()
 {
 	const char *topic_name = "Inheritance";
 

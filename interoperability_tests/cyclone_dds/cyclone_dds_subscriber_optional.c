@@ -8,7 +8,7 @@
 
 #define MAX_SAMPLES 1
 
-int main(int argc, char *argv[]) {
+int main() {
   const char *topic_name = "Optional";
 
   const dds_entity_t participant = dds_create_participant(

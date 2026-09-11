@@ -2,7 +2,7 @@
 #include "ddsc/dds.h"
 #include "BigData.h"
 
-int main(int argc, char *argv[])
+int main()
 {
 	const char *topic_name = "BigData";
 
@@ -55,13 +55,13 @@ int main(int argc, char *argv[])
 	}
 
 	uint8_t data_bytes[15001];
-	for (int i = 0; i<sizeof(data_bytes); i++) {
-		data_bytes[i] = i;
+	for (uint32_t i = 0; i<sizeof(data_bytes); i++) {
+		data_bytes[i] = (uint8_t) i % 256;
 	};
 	const struct dds_sequence_octet msg = {
 		._length = sizeof(data_bytes),
 		._buffer = data_bytes,
-		._release = true};
+		._release = false};
 	const interoperability_test_BigDataType data = {msg};
 	dds_write(data_writer, &data);
 
