@@ -99,6 +99,14 @@ impl RtpsStatefulWriter {
             | DurabilityKind::Transient
             | DurabilityKind::Persistent => 1,
         };
+        let highest_sent_seq_num = match reader_proxy.reliability_kind {
+            ReliabilityKind::BestEffort => 0,
+            ReliabilityKind::Reliable => self
+                .changes
+                .last()
+                .map(|cc| cc.sequence_number)
+                .unwrap_or(0),
+        };
         let rtps_reader_proxy = RtpsReaderProxy::new(
             reader_proxy.remote_reader_guid,
             reader_proxy.remote_group_entity_id,
@@ -109,6 +117,7 @@ impl RtpsStatefulWriter {
             reader_proxy.reliability_kind,
             first_relevant_sample_seq_num,
             reader_proxy.durability_kind,
+            highest_sent_seq_num,
         );
         if let Some(rp) = self
             .matched_readers
@@ -168,6 +177,14 @@ impl RtpsStatefulWriter {
                     reader_proxy.requested_changes_set(acknack_submessage.reader_sn_state().set());
 
                     reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
+
+                    let is_preemptive = acknack_submessage.reader_sn_state().base() <= 0
+                        || (acknack_submessage.reader_sn_state().base() == 1
+                            && reader_proxy.highest_acked_seq_num() == 0
+                            && acknack_submessage.reader_sn_state().set().next().is_none());
+                    if is_preemptive {
+                        reader_proxy.heartbeat_machine().reset_heartbeat_time();
+                    }
 
                     reader_proxy.write_message_reliable(
                         self.guid.entity_id(),
@@ -936,5 +953,162 @@ mod tests {
             "Best-effort reader proxy should not receive any GAP submessages"
         );
         assert_eq!(*message_writer.data_count.lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_reliable_reader_receives_heartbeat_first_for_historical_data() {
+        struct MockWriter {
+            heartbeat_count: Mutex<usize>,
+            data_count: Mutex<usize>,
+            buffer: [u8; 65535],
+        }
+        impl WriteMessage for MockWriter {
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(
+                &mut self,
+                len: usize,
+                _locator_list: &[crate::transport::types::Locator],
+            ) {
+                let message = RtpsMessageRead::try_from(&self.buffer[..len]).unwrap();
+                for submessage in message.submessages() {
+                    match submessage {
+                        RtpsSubmessageReadKind::Heartbeat(_) => {
+                            *self.heartbeat_count.lock().unwrap() += 1
+                        }
+                        RtpsSubmessageReadKind::Data(_) => *self.data_count.lock().unwrap() += 1,
+                        _ => (),
+                    }
+                }
+            }
+        }
+
+        let data_max_size_serialized = 500;
+        let writer_id = EntityId::new([1; 3], 1);
+        let guid = Guid::new([1; 12], writer_id);
+        let mut writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+
+        // Add historical data before reader matches
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![1, 2, 3].into(),
+        });
+
+        // Now match a Reliable reader
+        let remote_reader_id = EntityId::new([2; 3], 2);
+        let remote_reader_guid_prefix = [2; 12];
+        let remote_reader_guid = Guid::new(remote_reader_guid_prefix, remote_reader_id);
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        let mut message_writer = MockWriter {
+            heartbeat_count: Mutex::new(0),
+            data_count: Mutex::new(0),
+            buffer: [0; 65535],
+        };
+
+        // write_message should send HEARTBEAT, not DATA
+        writer.write_message(&mut message_writer, Time::new(1, 0));
+
+        assert_eq!(*message_writer.heartbeat_count.lock().unwrap(), 1);
+        assert_eq!(*message_writer.data_count.lock().unwrap(), 0);
+
+        // Simulate receiving an AckNack requesting sequence number 1
+        let acknack_submessage = AckNackSubmessage::new(
+            true,
+            remote_reader_id,
+            writer_id,
+            SequenceNumberSet::new(1, [1]),
+            1,
+        );
+        let mut ack_response_writer = MockWriter {
+            heartbeat_count: Mutex::new(0),
+            data_count: Mutex::new(0),
+            buffer: [0; 65535],
+        };
+        writer.on_acknack_submessage_received(
+            &acknack_submessage,
+            remote_reader_guid_prefix,
+            &mut ack_response_writer,
+            Time::new(1, 0),
+        );
+
+        // Now DATA should have been sent in response to the AckNack
+        assert_eq!(*ack_response_writer.data_count.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_best_effort_reader_receives_historical_data_immediately() {
+        struct MockWriter {
+            data_count: Mutex<usize>,
+            buffer: [u8; 65535],
+        }
+        impl WriteMessage for MockWriter {
+            fn write_buffer_mut(&mut self) -> &mut [u8] {
+                &mut self.buffer
+            }
+            fn write_message(
+                &mut self,
+                len: usize,
+                _locator_list: &[crate::transport::types::Locator],
+            ) {
+                let message = RtpsMessageRead::try_from(&self.buffer[..len]).unwrap();
+                for submessage in message.submessages() {
+                    if let RtpsSubmessageReadKind::Data(_) = submessage {
+                        *self.data_count.lock().unwrap() += 1;
+                    }
+                }
+            }
+        }
+
+        let data_max_size_serialized = 500;
+        let writer_id = EntityId::new([1; 3], 1);
+        let guid = Guid::new([1; 12], writer_id);
+        let mut writer = RtpsStatefulWriter::new(guid, data_max_size_serialized);
+
+        // Add historical data before reader matches
+        writer.add_change(CacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: guid,
+            sequence_number: 1,
+            source_timestamp: None,
+            instance_handle: Some([10; 16]),
+            data_value: vec![1, 2, 3].into(),
+        });
+
+        // Match a BestEffort reader
+        let remote_reader_id = EntityId::new([2; 3], 2);
+        let remote_reader_guid = Guid::new([2; 12], remote_reader_id);
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::BestEffort,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        let mut message_writer = MockWriter {
+            data_count: Mutex::new(0),
+            buffer: [0; 65535],
+        };
+
+        // write_message should send DATA immediately for BestEffort
+        writer.write_message(&mut message_writer, Time::new(1, 0));
+
+        assert_eq!(*message_writer.data_count.lock().unwrap(), 1);
     }
 }
