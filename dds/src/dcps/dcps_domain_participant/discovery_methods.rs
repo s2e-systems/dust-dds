@@ -2051,6 +2051,7 @@ impl DcpsDomainParticipant {
         match type_lookup_request.call {
             TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
                 let mut types = Vec::new();
+                let mut complete_to_minimal = Vec::new();
                 for type_id in get_types.type_ids {
                     if let Some(type_object) = self
                         .domain_participant
@@ -2058,9 +2059,18 @@ impl DcpsDomainParticipant {
                         .get_type_object(&type_id)
                     {
                         types.push(TypeIdentifierTypeObjectPair {
-                            type_identifier: type_id,
+                            type_identifier: type_id.clone(),
                             type_object,
                         });
+                        if let Some(pair) = self
+                            .domain_participant
+                            .type_register
+                            .get_complete_to_minimal(&type_id)
+                        {
+                            if !complete_to_minimal.contains(&pair) {
+                                complete_to_minimal.push(pair);
+                            }
+                        }
                     }
                 }
                 if !types.is_empty() {
@@ -2077,7 +2087,7 @@ impl DcpsDomainParticipant {
                             get_type: TypeLookupGetTypesResult::Ok {
                                 result: TypeLookupGetTypesOut {
                                     types,
-                                    complete_to_minimal: Vec::new(),
+                                    complete_to_minimal,
                                 },
                             },
                         },
@@ -2219,6 +2229,12 @@ impl DcpsDomainParticipant {
                             type_identifier_pair.type_object.clone(),
                         );
                     type_lookup_reply_received = true;
+
+                    for pair in &result.complete_to_minimal {
+                        self.domain_participant
+                            .type_register
+                            .register_complete_to_minimal(pair.clone());
+                    }
 
                     for topic in &mut self.domain_participant.locally_created_topic_list {
                         let matches_discovered_topic = self

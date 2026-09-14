@@ -2563,6 +2563,33 @@ pub fn get_type_dependencies_with_size(dynamic_type: DynamicType) -> Vec<TypeIde
         .collect()
 }
 
+/// Returns the sequence of dependent [`TypeIdentifierWithSize`] for all constructed minimal dependencies of `dynamic_type`.
+pub fn get_minimal_type_dependencies_with_size(
+    dynamic_type: DynamicType,
+) -> Vec<TypeIdentifierWithSize> {
+    let deps = dynamic_type.get_dependencies();
+    deps.into_iter()
+        .map(|dep| {
+            let minimal_type_object = TypeObject::EkMinimal {
+                minimal: MinimalTypeObject::from(dep),
+            };
+            let data = minimal_type_object.create_dynamic_sample();
+            let serialized =
+                serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+            let hash = md5::compute(&serialized);
+            TypeIdentifierWithSize {
+                type_id: TypeIdentifier::EkMinimal {
+                    equivalence_hash: [
+                        hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+                        hash[8], hash[9], hash[10], hash[11], hash[12], hash[13],
+                    ],
+                },
+                typeobject_serialized_size: serialized.len() as u32,
+            }
+        })
+        .collect()
+}
+
 impl From<TryConstructKind> for MemberFlag {
     fn from(value: TryConstructKind) -> Self {
         match value {
