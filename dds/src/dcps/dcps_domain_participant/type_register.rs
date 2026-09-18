@@ -1,8 +1,8 @@
 use crate::xtypes::{
     dynamic_type::DynamicType,
     type_object::{
-        CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierPair,
-        TypeIdentifierWithSize, TypeInformation, TypeObject,
+        CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierWithSize,
+        TypeInformation, TypeObject,
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -26,7 +26,6 @@ pub enum TypeLookupPendingState {
 pub struct TypeRegister {
     types: Vec<RegisteredType>,
     pending_lookups: Vec<TypeLookupPendingState>,
-    complete_to_minimal: Vec<TypeIdentifierPair>,
 }
 
 impl TypeRegister {
@@ -34,7 +33,6 @@ impl TypeRegister {
         Self {
             types: Vec::new(),
             pending_lookups: Vec::new(),
-            complete_to_minimal: Vec::new(),
         }
     }
 
@@ -62,14 +60,6 @@ impl TypeRegister {
                 minimal: MinimalTypeObject::from(dep),
             };
             let dep_minimal_deps = dep_type_info.minimal.dependent_typeids.clone();
-
-            let dep_pair = TypeIdentifierPair {
-                type_identifier1: dep_complete_id.clone(),
-                type_identifier2: dep_minimal_id.clone(),
-            };
-            if !self.complete_to_minimal.contains(&dep_pair) {
-                self.complete_to_minimal.push(dep_pair);
-            }
 
             if let Some(existing) = self
                 .types
@@ -125,14 +115,6 @@ impl TypeRegister {
             minimal: MinimalTypeObject::from(dynamic_type),
         };
         let root_minimal_deps = type_information.minimal.dependent_typeids.clone();
-
-        let root_pair = TypeIdentifierPair {
-            type_identifier1: root_complete_id.clone(),
-            type_identifier2: root_minimal_id.clone(),
-        };
-        if !self.complete_to_minimal.contains(&root_pair) {
-            self.complete_to_minimal.push(root_pair);
-        }
 
         if let Some(existing) = self
             .types
@@ -260,13 +242,6 @@ impl TypeRegister {
                 dependencies: None,
                 dynamic_type: None,
             });
-        }
-    }
-
-    /// Registers a Complete-to-Minimal `TypeIdentifierPair` mapping.
-    pub fn register_complete_to_minimal(&mut self, pair: TypeIdentifierPair) {
-        if !self.complete_to_minimal.contains(&pair) {
-            self.complete_to_minimal.push(pair);
         }
     }
 
