@@ -3,7 +3,6 @@ use crate::xtypes::{
     type_object::{
         CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierPair,
         TypeIdentifierWithSize, TypeInformation, TypeObject,
-        get_minimal_type_dependencies_with_size, get_type_dependencies_with_size,
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -56,13 +55,13 @@ impl TypeRegister {
             let dep_complete_obj = TypeObject::EkComplete {
                 complete: CompleteTypeObject::from(dep),
             };
-            let dep_complete_deps = get_type_dependencies_with_size(dep);
+            let dep_complete_deps = dep_type_info.complete.dependent_typeids.clone();
 
             let dep_minimal_id = dep_type_info.minimal.typeid_with_size.type_id;
             let dep_minimal_obj = TypeObject::EkMinimal {
                 minimal: MinimalTypeObject::from(dep),
             };
-            let dep_minimal_deps = get_minimal_type_dependencies_with_size(dep);
+            let dep_minimal_deps = dep_type_info.minimal.dependent_typeids.clone();
 
             let dep_pair = TypeIdentifierPair {
                 type_identifier1: dep_complete_id.clone(),
@@ -119,13 +118,13 @@ impl TypeRegister {
         let root_complete_obj = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(dynamic_type),
         };
-        let root_complete_deps = get_type_dependencies_with_size(dynamic_type);
+        let root_complete_deps = type_information.complete.dependent_typeids.clone();
 
         let root_minimal_id = type_information.minimal.typeid_with_size.type_id.clone();
         let root_minimal_obj = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(dynamic_type),
         };
-        let root_minimal_deps = get_minimal_type_dependencies_with_size(dynamic_type);
+        let root_minimal_deps = type_information.minimal.dependent_typeids.clone();
 
         let root_pair = TypeIdentifierPair {
             type_identifier1: root_complete_id.clone(),
@@ -264,14 +263,6 @@ impl TypeRegister {
         }
     }
 
-    /// Gets the `TypeIdentifierPair` mapping for a given `TypeIdentifier` if available.
-    pub fn get_complete_to_minimal(&self, type_id: &TypeIdentifier) -> Option<TypeIdentifierPair> {
-        self.complete_to_minimal
-            .iter()
-            .find(|pair| &pair.type_identifier1 == type_id || &pair.type_identifier2 == type_id)
-            .cloned()
-    }
-
     /// Registers a Complete-to-Minimal `TypeIdentifierPair` mapping.
     pub fn register_complete_to_minimal(&mut self, pair: TypeIdentifierPair) {
         if !self.complete_to_minimal.contains(&pair) {
@@ -398,6 +389,8 @@ mod tests {
 
         let deps = register.get_type_dependencies_with_size(struct_id).unwrap();
         assert_eq!(deps.len(), 1);
+        assert_eq!(type_info.complete.dependent_typeid_count, 1);
+        assert_eq!(&type_info.complete.dependent_typeids, &deps);
 
         let enum_id = &deps[0].type_id;
         assert!(register.contains_type_id(enum_id));
@@ -419,6 +412,8 @@ mod tests {
             .get_type_dependencies_with_size(struct_minimal_id)
             .unwrap();
         assert_eq!(minimal_deps.len(), 1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, 1);
+        assert_eq!(&type_info.minimal.dependent_typeids, &minimal_deps);
 
         let enum_minimal_id = &minimal_deps[0].type_id;
         assert!(register.contains_type_id(enum_minimal_id));
@@ -433,9 +428,7 @@ mod tests {
         assert_eq!(&mapping.type_identifier1, struct_id);
         assert_eq!(&mapping.type_identifier2, struct_minimal_id);
 
-        let mapping_from_min = register
-            .get_complete_to_minimal(struct_minimal_id)
-            .unwrap();
+        let mapping_from_min = register.get_complete_to_minimal(struct_minimal_id).unwrap();
         assert_eq!(mapping, mapping_from_min);
     }
 

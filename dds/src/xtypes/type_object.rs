@@ -2463,7 +2463,11 @@ impl From<&DynamicTypeMember> for CompleteBitflag {
 
 impl<'a> From<DynamicType<'a>> for TypeInformation {
     fn from(value: DynamicType<'a>) -> Self {
-        let dependent_typeid_count = if value.has_dependencies() { -1 } else { 0 };
+        let minimal_dependent_typeids = get_minimal_type_dependencies_with_size(value);
+        let minimal_dependent_typeid_count = minimal_dependent_typeids.len() as i32;
+
+        let complete_dependent_typeids = get_type_dependencies_with_size(value);
+        let complete_dependent_typeid_count = complete_dependent_typeids.len() as i32;
 
         let minimal_type_object = TypeObject::EkMinimal {
             minimal: MinimalTypeObject::from(value),
@@ -2506,8 +2510,8 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_minimal_type_object.len() as u32,
                 },
-                dependent_typeid_count,
-                dependent_typeids: Vec::new(),
+                dependent_typeid_count: minimal_dependent_typeid_count,
+                dependent_typeids: minimal_dependent_typeids,
             },
             complete: TypeIdentifierWithDependencies {
                 typeid_with_size: TypeIdentifierWithSize {
@@ -2531,8 +2535,8 @@ impl<'a> From<DynamicType<'a>> for TypeInformation {
                     },
                     typeobject_serialized_size: serialized_complete_type_object.len() as u32,
                 },
-                dependent_typeid_count,
-                dependent_typeids: Vec::new(),
+                dependent_typeid_count: complete_dependent_typeid_count,
+                dependent_typeids: complete_dependent_typeids,
             },
         }
     }
@@ -3517,6 +3521,8 @@ mod tests {
             Inactive,
         }
 
+        let status_type_info = TypeInformation::from(Status::get_type());
+
         #[derive(Debug, PartialEq, TypeSupport)]
         struct StructWithEnum {
             id: u32,
@@ -3524,8 +3530,18 @@ mod tests {
         }
 
         let type_info = TypeInformation::from(StructWithEnum::get_type());
-        assert_eq!(type_info.complete.dependent_typeid_count, -1);
-        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+        assert_eq!(type_info.complete.dependent_typeid_count, 1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, 1);
+        assert_eq!(type_info.complete.dependent_typeids.len(), 1);
+        assert_eq!(
+            type_info.complete.dependent_typeids[0].type_id,
+            status_type_info.complete.typeid_with_size.type_id
+        );
+        assert_eq!(type_info.minimal.dependent_typeids.len(), 1);
+        assert_eq!(
+            type_info.minimal.dependent_typeids[0].type_id,
+            status_type_info.minimal.typeid_with_size.type_id
+        );
 
         #[derive(Debug, PartialEq, TypeSupport)]
         struct StructWithArrayOfEnum {
@@ -3533,17 +3549,53 @@ mod tests {
         }
 
         let type_info = TypeInformation::from(StructWithArrayOfEnum::get_type());
-        assert_eq!(type_info.complete.dependent_typeid_count, -1);
-        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+        assert_eq!(type_info.complete.dependent_typeid_count, 1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, 1);
+        assert_eq!(type_info.complete.dependent_typeids.len(), 1);
+        assert_eq!(
+            type_info.complete.dependent_typeids[0].type_id,
+            status_type_info.complete.typeid_with_size.type_id
+        );
+        assert_eq!(type_info.minimal.dependent_typeids.len(), 1);
+        assert_eq!(
+            type_info.minimal.dependent_typeids[0].type_id,
+            status_type_info.minimal.typeid_with_size.type_id
+        );
 
         #[derive(Debug, PartialEq, TypeSupport)]
         struct NestedStruct {
             nested: StructWithEnum,
         }
 
+        let struct_with_enum_type_info = TypeInformation::from(StructWithEnum::get_type());
+
         let type_info = TypeInformation::from(NestedStruct::get_type());
-        assert_eq!(type_info.complete.dependent_typeid_count, -1);
-        assert_eq!(type_info.minimal.dependent_typeid_count, -1);
+        assert_eq!(type_info.complete.dependent_typeid_count, 2);
+        assert_eq!(type_info.minimal.dependent_typeid_count, 2);
+        assert_eq!(type_info.complete.dependent_typeids.len(), 2);
+        assert_eq!(type_info.minimal.dependent_typeids.len(), 2);
+        assert!(type_info.complete.dependent_typeids.iter().any(|d| {
+            d.type_id == struct_with_enum_type_info.complete.typeid_with_size.type_id
+        }));
+        assert!(
+            type_info
+                .complete
+                .dependent_typeids
+                .iter()
+                .any(|d| { d.type_id == status_type_info.complete.typeid_with_size.type_id })
+        );
+        assert!(
+            type_info.minimal.dependent_typeids.iter().any(|d| {
+                d.type_id == struct_with_enum_type_info.minimal.typeid_with_size.type_id
+            })
+        );
+        assert!(
+            type_info
+                .minimal
+                .dependent_typeids
+                .iter()
+                .any(|d| { d.type_id == status_type_info.minimal.typeid_with_size.type_id })
+        );
     }
 
     #[test]

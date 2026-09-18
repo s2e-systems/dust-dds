@@ -884,18 +884,11 @@ impl DcpsDomainParticipant {
                             .dds_subscription_data
                             .type_information
                         {
-                            Some(discovered_type_information)
-                            // This additional check is done for interoperability with implementations that
-                            // do not communicate the correct type information.
-                            // In that case we fallback to matching on type name
-                                if discovered_type_information
+                            Some(discovered_type_information) => {
+                                let discovered_type_id = &discovered_type_information
                                     .complete
                                     .typeid_with_size
-                                    .typeobject_serialized_size
-                                    > 0 =>
-                            {
-                                let discovered_type_id =
-                                    &discovered_type_information.complete.typeid_with_size.type_id;
+                                    .type_id;
 
                                 // If the minimal hash match it is guaranteed compatible
                                 if writer_associated_topic
@@ -920,8 +913,9 @@ impl DcpsDomainParticipant {
                                                     .type_id,
                                             ) {
                                                 let resolver = |id: &TypeIdentifier| {
-                                                    if let Some(TypeObject::EkComplete { complete }) =
-                                                        type_register.get_type_object(id)
+                                                    if let Some(TypeObject::EkComplete {
+                                                        complete,
+                                                    }) = type_register.get_type_object(id)
                                                     {
                                                         Some(complete)
                                                     } else {
@@ -956,16 +950,14 @@ impl DcpsDomainParticipant {
                                         }
                                     }
                                 } else {
-                                    if discovered_type_information
-                                        .complete
-                                        .dependent_typeid_count
+                                    if discovered_type_information.complete.dependent_typeid_count
                                         != 0
                                     {
                                         if !type_register
                                             .is_dependencies_lookup_pending(discovered_type_id)
                                         {
-                                            let type_request_writer = &mut builtin_publisher
-                                                .type_lookup_request_writer;
+                                            let type_request_writer =
+                                                &mut builtin_publisher.type_lookup_request_writer;
 
                                             let type_lookup_request = TypeLookupRequest {
                                                 header: RequestHeader {
@@ -993,7 +985,7 @@ impl DcpsDomainParticipant {
                                                         get_type_dependencies:
                                                             TypeLookupGetTypeDependenciesIn {
                                                                 type_ids: vec![
-                                                                    discovered_type_id.clone()
+                                                                    discovered_type_id.clone(),
                                                                 ],
                                                                 continuation_point: Vec::new(),
                                                             },
@@ -1016,20 +1008,22 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(core::slice::from_ref(discovered_type_id)) {
-                                        let type_request_writer = &mut builtin_publisher
-                                            .type_lookup_request_writer;
+                                    } else if !type_register.is_types_lookup_pending(
+                                        core::slice::from_ref(discovered_type_id),
+                                    ) {
+                                        let type_request_writer =
+                                            &mut builtin_publisher.type_lookup_request_writer;
 
                                         let type_lookup_request = TypeLookupRequest {
                                             header: RequestHeader {
                                                 request_id: SampleIdentity {
                                                     writer_guid: type_request_writer
-                                                         .transport_writer
+                                                        .transport_writer
                                                         .guid(),
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
                                                         + 1)
-                                                        .into(),
+                                                    .into(),
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
@@ -1553,18 +1547,11 @@ impl DcpsDomainParticipant {
                             .dds_publication_data
                             .type_information
                         {
-                            Some(discovered_type_information)
-                            // This additional check is done for interoperability with implementations that
-                            // do not communicate the correct type information.
-                            // In that case we fallback to matching on type name
-                                if discovered_type_information
+                            Some(discovered_type_information) => {
+                                let discovered_type_id = &discovered_type_information
                                     .complete
                                     .typeid_with_size
-                                    .typeobject_serialized_size
-                                    > 0 =>
-                            {
-                                let discovered_type_id =
-                                    &discovered_type_information.complete.typeid_with_size.type_id;
+                                    .type_id;
 
                                 // If the minimal hash match it is guaranteed compatible
                                 if reader_associated_topic
@@ -1589,8 +1576,9 @@ impl DcpsDomainParticipant {
                                                     .type_id,
                                             ) {
                                                 let resolver = |id: &TypeIdentifier| {
-                                                    if let Some(TypeObject::EkComplete { complete }) =
-                                                        type_register.get_type_object(id)
+                                                    if let Some(TypeObject::EkComplete {
+                                                        complete,
+                                                    }) = type_register.get_type_object(id)
                                                     {
                                                         Some(complete)
                                                     } else {
@@ -1624,16 +1612,14 @@ impl DcpsDomainParticipant {
                                         }
                                     }
                                 } else {
-                                    if discovered_type_information
-                                        .complete
-                                        .dependent_typeid_count
+                                    if discovered_type_information.complete.dependent_typeid_count
                                         != 0
                                     {
                                         if !type_register
                                             .is_dependencies_lookup_pending(discovered_type_id)
                                         {
-                                            let type_request_writer = &mut builtin_publisher
-                                                .type_lookup_request_writer;
+                                            let type_request_writer =
+                                                &mut builtin_publisher.type_lookup_request_writer;
 
                                             let type_lookup_request = TypeLookupRequest {
                                                 header: RequestHeader {
@@ -1661,7 +1647,7 @@ impl DcpsDomainParticipant {
                                                         get_type_dependencies:
                                                             TypeLookupGetTypeDependenciesIn {
                                                                 type_ids: vec![
-                                                                    discovered_type_id.clone()
+                                                                    discovered_type_id.clone(),
                                                                 ],
                                                                 continuation_point: Vec::new(),
                                                             },
@@ -1684,9 +1670,11 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(core::slice::from_ref(discovered_type_id)) {
-                                        let type_request_writer = &mut builtin_publisher
-                                            .type_lookup_request_writer;
+                                    } else if !type_register.is_types_lookup_pending(
+                                        core::slice::from_ref(discovered_type_id),
+                                    ) {
+                                        let type_request_writer =
+                                            &mut builtin_publisher.type_lookup_request_writer;
 
                                         let type_lookup_request = TypeLookupRequest {
                                             header: RequestHeader {
@@ -1697,7 +1685,7 @@ impl DcpsDomainParticipant {
                                                     sequence_number: (type_request_writer
                                                         .last_change_sequence_number
                                                         + 1)
-                                                        .into(),
+                                                    .into(),
                                                 },
                                                 instance_name: format!(
                                                     "dds.builtin.TOS.{:x}",
@@ -2051,7 +2039,6 @@ impl DcpsDomainParticipant {
         match type_lookup_request.call {
             TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
                 let mut types = Vec::new();
-                let mut complete_to_minimal = Vec::new();
                 for type_id in get_types.type_ids {
                     if let Some(type_object) = self
                         .domain_participant
@@ -2059,18 +2046,9 @@ impl DcpsDomainParticipant {
                         .get_type_object(&type_id)
                     {
                         types.push(TypeIdentifierTypeObjectPair {
-                            type_identifier: type_id.clone(),
+                            type_identifier: type_id,
                             type_object,
                         });
-                        if let Some(pair) = self
-                            .domain_participant
-                            .type_register
-                            .get_complete_to_minimal(&type_id)
-                        {
-                            if !complete_to_minimal.contains(&pair) {
-                                complete_to_minimal.push(pair);
-                            }
-                        }
                     }
                 }
                 if !types.is_empty() {
@@ -2087,7 +2065,7 @@ impl DcpsDomainParticipant {
                             get_type: TypeLookupGetTypesResult::Ok {
                                 result: TypeLookupGetTypesOut {
                                     types,
-                                    complete_to_minimal,
+                                    complete_to_minimal: Vec::new(),
                                 },
                             },
                         },
