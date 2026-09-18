@@ -952,7 +952,7 @@ impl From<&DynamicTypeMember> for CommonUnionMember {
         CommonUnionMember {
             member_id: value.get_id(),
             member_flags,
-            type_id: (&value.descriptor.r#type).into(),
+            type_id: to_complete_type_identifier(&value.descriptor.r#type),
             label_seq: value.descriptor.label.to_vec(),
         }
     }
@@ -995,7 +995,8 @@ pub struct MinimalUnionMember {
 
 impl From<&DynamicTypeMember> for MinimalUnionMember {
     fn from(value: &DynamicTypeMember) -> Self {
-        let common = value.into();
+        let mut common = CommonUnionMember::from(value);
+        common.type_id = to_minimal_type_identifier(&value.descriptor.r#type);
         let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
         let detail = MinimalMemberDetail {
             name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
@@ -1983,7 +1984,7 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                         MinimalDiscriminatorMember {
                             common: CommonDiscriminatorMember {
                                 member_flags,
-                                type_id: (&d.descriptor.r#type).into(),
+                                type_id: to_minimal_type_identifier(&d.descriptor.r#type),
                             },
                         }
                     }
@@ -2168,156 +2169,285 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
     }
 }
 
+fn primitive_or_string_type_identifier(value: &DynamicType) -> Option<TypeIdentifier> {
+    match value.descriptor.kind {
+        TypeKind::NONE => Some(TypeIdentifier::TkNone),
+        TypeKind::BOOLEAN => Some(TypeIdentifier::TkBoolean),
+        TypeKind::BYTE => Some(TypeIdentifier::TkByteType),
+        TypeKind::INT16 => Some(TypeIdentifier::TkInt16Type),
+        TypeKind::INT32 => Some(TypeIdentifier::TkInt32Type),
+        TypeKind::INT64 => Some(TypeIdentifier::TkInt64Type),
+        TypeKind::UINT16 => Some(TypeIdentifier::TkUint16Type),
+        TypeKind::UINT32 => Some(TypeIdentifier::TkUint32Type),
+        TypeKind::UINT64 => Some(TypeIdentifier::TkUint64Type),
+        TypeKind::FLOAT32 => Some(TypeIdentifier::TkFloat32Type),
+        TypeKind::FLOAT64 => Some(TypeIdentifier::TkFloat64Type),
+        TypeKind::FLOAT128 => Some(TypeIdentifier::TkFloat128Type),
+        TypeKind::INT8 => Some(TypeIdentifier::TkInt8Type),
+        TypeKind::UINT8 => Some(TypeIdentifier::TkUint8Type),
+        TypeKind::CHAR8 => Some(TypeIdentifier::TkChar8Type),
+        TypeKind::CHAR16 => Some(TypeIdentifier::TkChar16Type),
+        TypeKind::STRING8 => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&0);
+            if bound <= u8::MAX as u32 {
+                Some(TypeIdentifier::TiString8Small {
+                    string_sdefn: StringSTypeDefn { bound: bound as u8 },
+                })
+            } else {
+                Some(TypeIdentifier::TiString8Large {
+                    string_ldefn: StringLTypeDefn { bound },
+                })
+            }
+        }
+        TypeKind::STRING16 => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&0);
+            if bound <= u8::MAX as u32 {
+                Some(TypeIdentifier::TiString16Small {
+                    string_sdefn: StringSTypeDefn { bound: bound as u8 },
+                })
+            } else {
+                Some(TypeIdentifier::TiString16Large {
+                    string_ldefn: StringLTypeDefn { bound },
+                })
+            }
+        }
+        _ => None,
+    }
+}
+
+fn to_minimal_type_identifier(value: &DynamicType) -> TypeIdentifier {
+    if let Some(id) = primitive_or_string_type_identifier(value) {
+        return id;
+    }
+    match value.descriptor.kind {
+        TypeKind::ALIAS => todo!(),
+        TypeKind::ANNOTATION => todo!(),
+        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
+            let minimal_type_object = TypeObject::EkMinimal {
+                minimal: MinimalTypeObject::from(*value),
+            };
+            let data = minimal_type_object.create_dynamic_sample();
+            let serialized_minimal_type_object =
+                serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+
+            let hash_minimal_type_object = md5::compute(&serialized_minimal_type_object);
+            TypeIdentifier::EkMinimal {
+                equivalence_hash: [
+                    hash_minimal_type_object[0],
+                    hash_minimal_type_object[1],
+                    hash_minimal_type_object[2],
+                    hash_minimal_type_object[3],
+                    hash_minimal_type_object[4],
+                    hash_minimal_type_object[5],
+                    hash_minimal_type_object[6],
+                    hash_minimal_type_object[7],
+                    hash_minimal_type_object[8],
+                    hash_minimal_type_object[9],
+                    hash_minimal_type_object[10],
+                    hash_minimal_type_object[11],
+                    hash_minimal_type_object[12],
+                    hash_minimal_type_object[13],
+                ],
+            }
+        }
+        TypeKind::BITSET => todo!(),
+        TypeKind::SEQUENCE => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&0);
+            let element_identifier = Box::new(
+                value
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map(to_minimal_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone),
+            );
+            let equiv_kind = if element_identifier.is_fully_descriptive() {
+                EK_BOTH
+            } else {
+                EK_MINIMAL
+            };
+            let header = PlainCollectionHeader {
+                equiv_kind,
+                element_flags: MemberFlag::from(TryConstructKind::Discard),
+            };
+            if bound <= u8::MAX as u32 {
+                TypeIdentifier::TiPlainSequenceSmall {
+                    seq_sdefn: PlainSequenceSElemDefn {
+                        header,
+                        bound: bound as u8,
+                        element_identifier,
+                    },
+                }
+            } else {
+                TypeIdentifier::TiPlainSequenceLarge {
+                    seq_ldefn: PlainSequenceLElemDefn {
+                        header,
+                        bound,
+                        element_identifier,
+                    },
+                }
+            }
+        }
+        TypeKind::ARRAY => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
+            let element_identifier = Box::new(
+                value
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map(to_minimal_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone),
+            );
+            let equiv_kind = if element_identifier.is_fully_descriptive() {
+                EK_BOTH
+            } else {
+                EK_MINIMAL
+            };
+            let header = PlainCollectionHeader {
+                equiv_kind,
+                element_flags: MemberFlag::from(TryConstructKind::Discard),
+            };
+            if bound <= u8::MAX as u32 {
+                TypeIdentifier::TiPlainArraySmall {
+                    array_sdefn: PlainArraySElemDefn {
+                        header,
+                        array_bound_seq: vec![bound as u8],
+                        element_identifier,
+                    },
+                }
+            } else {
+                TypeIdentifier::TiPlainArrayLarge {
+                    array_ldefn: PlainArrayLElemDefn {
+                        header,
+                        array_bound_seq: vec![bound],
+                        element_identifier,
+                    },
+                }
+            }
+        }
+        TypeKind::MAP => todo!(),
+        _ => unreachable!(),
+    }
+}
+
+fn to_complete_type_identifier(value: &DynamicType) -> TypeIdentifier {
+    if let Some(id) = primitive_or_string_type_identifier(value) {
+        return id;
+    }
+    match value.descriptor.kind {
+        TypeKind::ALIAS => todo!(),
+        TypeKind::ANNOTATION => todo!(),
+        TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
+            let complete_type_object = TypeObject::EkComplete {
+                complete: CompleteTypeObject::from(*value),
+            };
+            let data = complete_type_object.create_dynamic_sample();
+            let serialized_complete_type_object =
+                serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
+
+            let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
+            TypeIdentifier::EkComplete {
+                equivalence_hash: [
+                    hash_complete_type_object[0],
+                    hash_complete_type_object[1],
+                    hash_complete_type_object[2],
+                    hash_complete_type_object[3],
+                    hash_complete_type_object[4],
+                    hash_complete_type_object[5],
+                    hash_complete_type_object[6],
+                    hash_complete_type_object[7],
+                    hash_complete_type_object[8],
+                    hash_complete_type_object[9],
+                    hash_complete_type_object[10],
+                    hash_complete_type_object[11],
+                    hash_complete_type_object[12],
+                    hash_complete_type_object[13],
+                ],
+            }
+        }
+        TypeKind::BITSET => todo!(),
+        TypeKind::SEQUENCE => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&0);
+            let element_identifier = Box::new(
+                value
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map(to_complete_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone),
+            );
+            let equiv_kind = if element_identifier.is_fully_descriptive() {
+                EK_BOTH
+            } else {
+                EK_COMPLETE
+            };
+            let header = PlainCollectionHeader {
+                equiv_kind,
+                element_flags: MemberFlag::from(TryConstructKind::Discard),
+            };
+            if bound <= u8::MAX as u32 {
+                TypeIdentifier::TiPlainSequenceSmall {
+                    seq_sdefn: PlainSequenceSElemDefn {
+                        header,
+                        bound: bound as u8,
+                        element_identifier,
+                    },
+                }
+            } else {
+                TypeIdentifier::TiPlainSequenceLarge {
+                    seq_ldefn: PlainSequenceLElemDefn {
+                        header,
+                        bound,
+                        element_identifier,
+                    },
+                }
+            }
+        }
+        TypeKind::ARRAY => {
+            let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
+            let element_identifier = Box::new(
+                value
+                    .descriptor
+                    .element_type
+                    .as_ref()
+                    .map(to_complete_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone),
+            );
+            let equiv_kind = if element_identifier.is_fully_descriptive() {
+                EK_BOTH
+            } else {
+                EK_COMPLETE
+            };
+            let header = PlainCollectionHeader {
+                equiv_kind,
+                element_flags: MemberFlag::from(TryConstructKind::Discard),
+            };
+            if bound <= u8::MAX as u32 {
+                TypeIdentifier::TiPlainArraySmall {
+                    array_sdefn: PlainArraySElemDefn {
+                        header,
+                        array_bound_seq: vec![bound as u8],
+                        element_identifier,
+                    },
+                }
+            } else {
+                TypeIdentifier::TiPlainArrayLarge {
+                    array_ldefn: PlainArrayLElemDefn {
+                        header,
+                        array_bound_seq: vec![bound],
+                        element_identifier,
+                    },
+                }
+            }
+        }
+        TypeKind::MAP => todo!(),
+        _ => unreachable!(),
+    }
+}
+
 impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
     fn from(value: &DynamicType<'a>) -> Self {
-        match value.descriptor.kind {
-            TypeKind::NONE => TypeIdentifier::TkNone,
-            TypeKind::BOOLEAN => TypeIdentifier::TkBoolean,
-            TypeKind::BYTE => TypeIdentifier::TkByteType,
-            TypeKind::INT16 => TypeIdentifier::TkInt16Type,
-            TypeKind::INT32 => TypeIdentifier::TkInt32Type,
-            TypeKind::INT64 => TypeIdentifier::TkInt64Type,
-            TypeKind::UINT16 => TypeIdentifier::TkUint16Type,
-            TypeKind::UINT32 => TypeIdentifier::TkUint32Type,
-            TypeKind::UINT64 => TypeIdentifier::TkUint64Type,
-            TypeKind::FLOAT32 => TypeIdentifier::TkFloat32Type,
-            TypeKind::FLOAT64 => TypeIdentifier::TkFloat64Type,
-            TypeKind::FLOAT128 => TypeIdentifier::TkFloat128Type,
-            TypeKind::INT8 => TypeIdentifier::TkInt8Type,
-            TypeKind::UINT8 => TypeIdentifier::TkUint8Type,
-            TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
-            TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
-            TypeKind::STRING8 => {
-                let bound = *value.descriptor.bound.first().unwrap_or(&0);
-                if bound <= u8::MAX as u32 {
-                    TypeIdentifier::TiString8Small {
-                        string_sdefn: StringSTypeDefn { bound: bound as u8 },
-                    }
-                } else {
-                    TypeIdentifier::TiString8Large {
-                        string_ldefn: StringLTypeDefn { bound },
-                    }
-                }
-            }
-            TypeKind::STRING16 => {
-                let bound = *value.descriptor.bound.first().unwrap_or(&0);
-                if bound <= u8::MAX as u32 {
-                    TypeIdentifier::TiString16Small {
-                        string_sdefn: StringSTypeDefn { bound: bound as u8 },
-                    }
-                } else {
-                    TypeIdentifier::TiString16Large {
-                        string_ldefn: StringLTypeDefn { bound },
-                    }
-                }
-            }
-            TypeKind::ALIAS => todo!(),
-            TypeKind::ANNOTATION => todo!(),
-            TypeKind::STRUCTURE | TypeKind::UNION | TypeKind::ENUM | TypeKind::BITMASK => {
-                let complete_type_object = TypeObject::EkComplete {
-                    complete: CompleteTypeObject::from(*value),
-                };
-                let data = complete_type_object.create_dynamic_sample();
-                let serialized_complete_type_object =
-                    serialize_without_header_cdr2_le(Vec::new(), &data).expect("Not fallible");
-
-                let hash_complete_type_object = md5::compute(&serialized_complete_type_object);
-                TypeIdentifier::EkComplete {
-                    equivalence_hash: [
-                        hash_complete_type_object[0],
-                        hash_complete_type_object[1],
-                        hash_complete_type_object[2],
-                        hash_complete_type_object[3],
-                        hash_complete_type_object[4],
-                        hash_complete_type_object[5],
-                        hash_complete_type_object[6],
-                        hash_complete_type_object[7],
-                        hash_complete_type_object[8],
-                        hash_complete_type_object[9],
-                        hash_complete_type_object[10],
-                        hash_complete_type_object[11],
-                        hash_complete_type_object[12],
-                        hash_complete_type_object[13],
-                    ],
-                }
-            }
-            TypeKind::BITSET => todo!(),
-            TypeKind::SEQUENCE => {
-                let bound = *value.descriptor.bound.first().unwrap_or(&0);
-                let element_identifier = Box::new(
-                    value
-                        .descriptor
-                        .element_type
-                        .as_ref()
-                        .map(From::from)
-                        .unwrap_or(TypeIdentifier::TkNone),
-                );
-                let equiv_kind = if element_identifier.is_fully_descriptive() {
-                    EK_BOTH
-                } else {
-                    EK_COMPLETE
-                };
-                let header = PlainCollectionHeader {
-                    equiv_kind,
-                    element_flags: MemberFlag::from(TryConstructKind::Discard),
-                };
-                if bound <= u8::MAX as u32 {
-                    TypeIdentifier::TiPlainSequenceSmall {
-                        seq_sdefn: PlainSequenceSElemDefn {
-                            header,
-                            bound: bound as u8,
-                            element_identifier,
-                        },
-                    }
-                } else {
-                    TypeIdentifier::TiPlainSequenceLarge {
-                        seq_ldefn: PlainSequenceLElemDefn {
-                            header,
-                            bound,
-                            element_identifier,
-                        },
-                    }
-                }
-            }
-            TypeKind::ARRAY => {
-                let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
-                let element_identifier = Box::new(
-                    value
-                        .descriptor
-                        .element_type
-                        .as_ref()
-                        .map(From::from)
-                        .unwrap_or(TypeIdentifier::TkNone),
-                );
-                let equiv_kind = if element_identifier.is_fully_descriptive() {
-                    EK_BOTH
-                } else {
-                    EK_COMPLETE
-                };
-                let header = PlainCollectionHeader {
-                    equiv_kind,
-                    element_flags: MemberFlag::from(TryConstructKind::Discard),
-                };
-                if bound <= u8::MAX as u32 {
-                    TypeIdentifier::TiPlainArraySmall {
-                        array_sdefn: PlainArraySElemDefn {
-                            header,
-                            array_bound_seq: vec![bound as u8],
-                            element_identifier,
-                        },
-                    }
-                } else {
-                    TypeIdentifier::TiPlainArrayLarge {
-                        array_ldefn: PlainArrayLElemDefn {
-                            header,
-                            array_bound_seq: vec![bound],
-                            element_identifier,
-                        },
-                    }
-                }
-            }
-            TypeKind::MAP => todo!(),
-        }
+        to_complete_type_identifier(value)
     }
 }
 
@@ -2337,14 +2467,15 @@ impl From<&DynamicTypeMember> for CommonStructMember {
         CommonStructMember {
             member_id: value.get_id(),
             member_flags,
-            member_type_id: TypeIdentifier::from(&value.descriptor.r#type),
+            member_type_id: to_complete_type_identifier(&value.descriptor.r#type),
         }
     }
 }
 
 impl From<&DynamicTypeMember> for MinimalStructMember {
     fn from(value: &DynamicTypeMember) -> Self {
-        let common = value.into();
+        let mut common = CommonStructMember::from(value);
+        common.member_type_id = to_minimal_type_identifier(&value.descriptor.r#type);
         let name_hash = <[u8; 16]>::from(md5::compute(value.get_name().as_bytes()));
         let detail = MinimalMemberDetail {
             name_hash: [name_hash[0], name_hash[1], name_hash[2], name_hash[3]],
