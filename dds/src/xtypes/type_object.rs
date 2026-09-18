@@ -2188,36 +2188,26 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             TypeKind::CHAR8 => TypeIdentifier::TkChar8Type,
             TypeKind::CHAR16 => TypeIdentifier::TkChar16Type,
             TypeKind::STRING8 => {
-                if let Some(&b) = value.descriptor.bound.first() {
-                    if b <= u8::MAX as u32 {
-                        TypeIdentifier::TiString8Small {
-                            string_sdefn: StringSTypeDefn { bound: b as u8 },
-                        }
-                    } else {
-                        TypeIdentifier::TiString8Large {
-                            string_ldefn: StringLTypeDefn { bound: b },
-                        }
+                let bound = *value.descriptor.bound.first().unwrap_or(&0);
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiString8Small {
+                        string_sdefn: StringSTypeDefn { bound: bound as u8 },
                     }
                 } else {
                     TypeIdentifier::TiString8Large {
-                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                        string_ldefn: StringLTypeDefn { bound },
                     }
                 }
             }
             TypeKind::STRING16 => {
-                if let Some(&b) = value.descriptor.bound.first() {
-                    if b <= u8::MAX as u32 {
-                        TypeIdentifier::TiString16Small {
-                            string_sdefn: StringSTypeDefn { bound: b as u8 },
-                        }
-                    } else {
-                        TypeIdentifier::TiString16Large {
-                            string_ldefn: StringLTypeDefn { bound: b },
-                        }
+                let bound = *value.descriptor.bound.first().unwrap_or(&0);
+                if bound <= u8::MAX as u32 {
+                    TypeIdentifier::TiString16Small {
+                        string_sdefn: StringSTypeDefn { bound: bound as u8 },
                     }
                 } else {
                     TypeIdentifier::TiString16Large {
-                        string_ldefn: StringLTypeDefn { bound: u32::MAX },
+                        string_ldefn: StringLTypeDefn { bound },
                     }
                 }
             }
@@ -2253,7 +2243,7 @@ impl<'a> From<&DynamicType<'a>> for TypeIdentifier {
             }
             TypeKind::BITSET => todo!(),
             TypeKind::SEQUENCE => {
-                let bound = *value.descriptor.bound.first().unwrap_or(&u32::MAX);
+                let bound = *value.descriptor.bound.first().unwrap_or(&0);
                 let element_identifier = Box::new(
                     value
                         .descriptor

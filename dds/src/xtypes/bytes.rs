@@ -131,7 +131,7 @@ impl Type for Vec<Byte> {
             name: "",
             base_type: None,
             discriminator_type: None,
-            bound: &[u32::MAX],
+            bound: &[0],
             element_type: Some(Byte::TYPE),
             key_element_type: None,
             extensibility_kind: ExtensibilityKind::Final,
