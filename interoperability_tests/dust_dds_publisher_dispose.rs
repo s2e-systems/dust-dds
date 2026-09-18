@@ -72,7 +72,7 @@ fn main() {
         .write(
             DisposeDataType {
                 name: "No Padding Str".to_string(),
-                value: 1,
+                value: 1.into(),
             },
             None,
         )
@@ -86,7 +86,7 @@ fn main() {
         .dispose(
             DisposeDataType {
                 name: "No Padding Str".to_string(),
-                value: 1,
+                value: 1.into(),
             },
             None,
         )

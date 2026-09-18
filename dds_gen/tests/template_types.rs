@@ -9,7 +9,7 @@ fn template_types() {
         r#"
             #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
             pub struct TemplateTypes {
-                pub a: Vec<Vec<u8>>,
+                pub a: Vec<Vec<dust_dds::xtypes::bytes::Byte>>,
                 pub b: String,
                 pub c: Vec<i16>,
                 pub d: String,
