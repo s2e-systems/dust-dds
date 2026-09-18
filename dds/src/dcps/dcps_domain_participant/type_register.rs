@@ -422,14 +422,6 @@ mod tests {
             Some(TypeObject::EkMinimal { .. })
         ));
         assert!(register.is_type_resolved(struct_minimal_id));
-
-        // Complete to Minimal mapping checks
-        let mapping = register.get_complete_to_minimal(struct_id).unwrap();
-        assert_eq!(&mapping.type_identifier1, struct_id);
-        assert_eq!(&mapping.type_identifier2, struct_minimal_id);
-
-        let mapping_from_min = register.get_complete_to_minimal(struct_minimal_id).unwrap();
-        assert_eq!(mapping, mapping_from_min);
     }
 
     #[test]

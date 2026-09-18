@@ -951,7 +951,7 @@ impl DcpsDomainParticipant {
                                     }
                                 } else {
                                     if discovered_type_information.complete.dependent_typeid_count
-                                        != 0
+                                        < 0
                                     {
                                         if !type_register
                                             .is_dependencies_lookup_pending(discovered_type_id)
@@ -1008,55 +1008,64 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(
-                                        core::slice::from_ref(discovered_type_id),
-                                    ) {
-                                        let type_request_writer =
-                                            &mut builtin_publisher.type_lookup_request_writer;
+                                    } else {
+                                        type_register.register_type_dependencies(
+                                            discovered_type_id,
+                                            discovered_type_information
+                                                .complete
+                                                .dependent_typeids
+                                                .clone(),
+                                        );
+                                        let unresolved = type_register
+                                            .get_unresolved_type_ids(discovered_type_id);
+                                        if !unresolved.is_empty()
+                                            && !type_register.is_types_lookup_pending(&unresolved)
+                                        {
+                                            let type_request_writer =
+                                                &mut builtin_publisher.type_lookup_request_writer;
 
-                                        let type_lookup_request = TypeLookupRequest {
-                                            header: RequestHeader {
-                                                request_id: SampleIdentity {
-                                                    writer_guid: type_request_writer
-                                                        .transport_writer
-                                                        .guid(),
-                                                    sequence_number: (type_request_writer
-                                                        .last_change_sequence_number
-                                                        + 1)
-                                                    .into(),
-                                                },
-                                                instance_name: format!(
-                                                    "dds.builtin.TOS.{:x}",
-                                                    InstanceHandle::new(
-                                                        discovered_reader_data
-                                                            .dds_subscription_data
-                                                            .participant_key()
-                                                            .value
+                                            let type_lookup_request = TypeLookupRequest {
+                                                header: RequestHeader {
+                                                    request_id: SampleIdentity {
+                                                        writer_guid: type_request_writer
+                                                            .transport_writer
+                                                            .guid(),
+                                                        sequence_number: (type_request_writer
+                                                            .last_change_sequence_number
+                                                            + 1)
+                                                        .into(),
+                                                    },
+                                                    instance_name: format!(
+                                                        "dds.builtin.TOS.{:x}",
+                                                        InstanceHandle::new(
+                                                            discovered_reader_data
+                                                                .dds_subscription_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
-                                                ),
-                                            },
-                                            call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                                get_types: TypeLookupGetTypesIn {
-                                                    type_ids: vec![discovered_type_id.clone()],
                                                 },
-                                            },
-                                        };
-                                        let sample_instance_handle = InstanceHandle::default();
-                                        let serialized_data = serialize_cdr2_le(
-                                            &type_lookup_request.create_dynamic_sample(),
-                                        )
-                                        .unwrap();
-                                        type_request_writer
-                                            .write_w_timestamp(
-                                                sample_instance_handle,
-                                                serialized_data,
-                                                now,
-                                                now,
+                                                call: TypeLookupCall::TypeLookupGetTypesHashId {
+                                                    get_types: TypeLookupGetTypesIn {
+                                                        type_ids: unresolved.clone(),
+                                                    },
+                                                },
+                                            };
+                                            let sample_instance_handle = InstanceHandle::default();
+                                            let serialized_data = serialize_cdr2_le(
+                                                &type_lookup_request.create_dynamic_sample(),
                                             )
-                                            .ok();
-                                        type_register.add_pending_types_lookup(vec![
-                                            discovered_type_id.clone(),
-                                        ]);
+                                            .unwrap();
+                                            type_request_writer
+                                                .write_w_timestamp(
+                                                    sample_instance_handle,
+                                                    serialized_data,
+                                                    now,
+                                                    now,
+                                                )
+                                                .ok();
+                                            type_register.add_pending_types_lookup(unresolved);
+                                        }
                                     }
                                     continue;
                                 }
@@ -1613,7 +1622,7 @@ impl DcpsDomainParticipant {
                                     }
                                 } else {
                                     if discovered_type_information.complete.dependent_typeid_count
-                                        != 0
+                                        < 0
                                     {
                                         if !type_register
                                             .is_dependencies_lookup_pending(discovered_type_id)
@@ -1670,55 +1679,64 @@ impl DcpsDomainParticipant {
                                                 discovered_type_id.clone(),
                                             );
                                         }
-                                    } else if !type_register.is_types_lookup_pending(
-                                        core::slice::from_ref(discovered_type_id),
-                                    ) {
-                                        let type_request_writer =
-                                            &mut builtin_publisher.type_lookup_request_writer;
+                                    } else {
+                                        type_register.register_type_dependencies(
+                                            discovered_type_id,
+                                            discovered_type_information
+                                                .complete
+                                                .dependent_typeids
+                                                .clone(),
+                                        );
+                                        let unresolved = type_register
+                                            .get_unresolved_type_ids(discovered_type_id);
+                                        if !unresolved.is_empty()
+                                            && !type_register.is_types_lookup_pending(&unresolved)
+                                        {
+                                            let type_request_writer =
+                                                &mut builtin_publisher.type_lookup_request_writer;
 
-                                        let type_lookup_request = TypeLookupRequest {
-                                            header: RequestHeader {
-                                                request_id: SampleIdentity {
-                                                    writer_guid: type_request_writer
-                                                        .transport_writer
-                                                        .guid(),
-                                                    sequence_number: (type_request_writer
-                                                        .last_change_sequence_number
-                                                        + 1)
-                                                    .into(),
-                                                },
-                                                instance_name: format!(
-                                                    "dds.builtin.TOS.{:x}",
-                                                    InstanceHandle::new(
-                                                        discovered_writer_data
-                                                            .dds_publication_data
-                                                            .participant_key()
-                                                            .value
+                                            let type_lookup_request = TypeLookupRequest {
+                                                header: RequestHeader {
+                                                    request_id: SampleIdentity {
+                                                        writer_guid: type_request_writer
+                                                            .transport_writer
+                                                            .guid(),
+                                                        sequence_number: (type_request_writer
+                                                            .last_change_sequence_number
+                                                            + 1)
+                                                        .into(),
+                                                    },
+                                                    instance_name: format!(
+                                                        "dds.builtin.TOS.{:x}",
+                                                        InstanceHandle::new(
+                                                            discovered_writer_data
+                                                                .dds_publication_data
+                                                                .participant_key()
+                                                                .value
+                                                        ),
                                                     ),
-                                                ),
-                                            },
-                                            call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                                get_types: TypeLookupGetTypesIn {
-                                                    type_ids: vec![discovered_type_id.clone()],
                                                 },
-                                            },
-                                        };
-                                        let sample_instance_handle = InstanceHandle::default();
-                                        let serialized_data = serialize_cdr2_le(
-                                            &type_lookup_request.create_dynamic_sample(),
-                                        )
-                                        .unwrap();
-                                        type_request_writer
-                                            .write_w_timestamp(
-                                                sample_instance_handle,
-                                                serialized_data,
-                                                now,
-                                                now,
+                                                call: TypeLookupCall::TypeLookupGetTypesHashId {
+                                                    get_types: TypeLookupGetTypesIn {
+                                                        type_ids: unresolved.clone(),
+                                                    },
+                                                },
+                                            };
+                                            let sample_instance_handle = InstanceHandle::default();
+                                            let serialized_data = serialize_cdr2_le(
+                                                &type_lookup_request.create_dynamic_sample(),
                                             )
-                                            .ok();
-                                        type_register.add_pending_types_lookup(vec![
-                                            discovered_type_id.clone(),
-                                        ]);
+                                            .unwrap();
+                                            type_request_writer
+                                                .write_w_timestamp(
+                                                    sample_instance_handle,
+                                                    serialized_data,
+                                                    now,
+                                                    now,
+                                                )
+                                                .ok();
+                                            type_register.add_pending_types_lookup(unresolved);
+                                        }
                                     }
                                     continue;
                                 }
@@ -2207,13 +2225,15 @@ impl DcpsDomainParticipant {
                             type_identifier_pair.type_object.clone(),
                         );
                     type_lookup_reply_received = true;
+                }
 
-                    for pair in &result.complete_to_minimal {
-                        self.domain_participant
-                            .type_register
-                            .register_complete_to_minimal(pair.clone());
-                    }
+                for pair in &result.complete_to_minimal {
+                    self.domain_participant
+                        .type_register
+                        .register_complete_to_minimal(pair.clone());
+                }
 
+                for type_identifier_pair in &result.types {
                     for topic in &mut self.domain_participant.locally_created_topic_list {
                         let matches_discovered_topic = self
                             .domain_participant
@@ -2468,7 +2488,7 @@ impl DcpsDomainParticipant {
                             .type_register
                             .is_type_resolved(discovered_type_id)
                     {
-                        if discovered_type_information.complete.dependent_typeid_count != 0 {
+                        if discovered_type_information.complete.dependent_typeid_count < 0 {
                             if !self
                                 .domain_participant
                                 .type_register
@@ -2521,54 +2541,72 @@ impl DcpsDomainParticipant {
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
                             }
-                        } else if !self
-                            .domain_participant
-                            .type_register
-                            .is_types_lookup_pending(core::slice::from_ref(discovered_type_id))
-                        {
-                            let type_request_writer = &mut self
-                                .domain_participant
-                                .builtin_publisher
-                                .type_lookup_request_writer;
-
-                            let type_lookup_request = TypeLookupRequest {
-                                header: RequestHeader {
-                                    request_id: SampleIdentity {
-                                        writer_guid: type_request_writer.transport_writer.guid(),
-                                        sequence_number: (type_request_writer
-                                            .last_change_sequence_number
-                                            + 1)
-                                        .into(),
-                                    },
-                                    instance_name: format!(
-                                        "dds.builtin.TOS.{:x}",
-                                        self.domain_participant.instance_handle,
-                                    ),
-                                },
-                                call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                    get_types: TypeLookupGetTypesIn {
-                                        type_ids: vec![discovered_type_id.clone()],
-                                    },
-                                },
-                            };
-                            let sample_instance_handle = InstanceHandle::default();
-                            let serialized_data =
-                                serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
-                                    .unwrap();
-                            type_request_writer
-                                .write_w_timestamp(
-                                    sample_instance_handle,
-                                    serialized_data,
-                                    now,
-                                    now,
-                                )
-                                .ok();
-                            type_request_writer
-                                .transport_writer
-                                .write_message(self.transport.message_writer.as_mut(), now);
+                        } else {
                             self.domain_participant
                                 .type_register
-                                .add_pending_types_lookup(vec![discovered_type_id.clone()]);
+                                .register_type_dependencies(
+                                    discovered_type_id,
+                                    discovered_type_information
+                                        .complete
+                                        .dependent_typeids
+                                        .clone(),
+                                );
+                            let unresolved = self
+                                .domain_participant
+                                .type_register
+                                .get_unresolved_type_ids(discovered_type_id);
+                            if !unresolved.is_empty()
+                                && !self
+                                    .domain_participant
+                                    .type_register
+                                    .is_types_lookup_pending(&unresolved)
+                            {
+                                let type_request_writer = &mut self
+                                    .domain_participant
+                                    .builtin_publisher
+                                    .type_lookup_request_writer;
+
+                                let type_lookup_request = TypeLookupRequest {
+                                    header: RequestHeader {
+                                        request_id: SampleIdentity {
+                                            writer_guid: type_request_writer
+                                                .transport_writer
+                                                .guid(),
+                                            sequence_number: (type_request_writer
+                                                .last_change_sequence_number
+                                                + 1)
+                                            .into(),
+                                        },
+                                        instance_name: format!(
+                                            "dds.builtin.TOS.{:x}",
+                                            self.domain_participant.instance_handle,
+                                        ),
+                                    },
+                                    call: TypeLookupCall::TypeLookupGetTypesHashId {
+                                        get_types: TypeLookupGetTypesIn {
+                                            type_ids: unresolved.clone(),
+                                        },
+                                    },
+                                };
+                                let sample_instance_handle = InstanceHandle::default();
+                                let serialized_data =
+                                    serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
+                                        .unwrap();
+                                type_request_writer
+                                    .write_w_timestamp(
+                                        sample_instance_handle,
+                                        serialized_data,
+                                        now,
+                                        now,
+                                    )
+                                    .ok();
+                                type_request_writer
+                                    .transport_writer
+                                    .write_message(self.transport.message_writer.as_mut(), now);
+                                self.domain_participant
+                                    .type_register
+                                    .add_pending_types_lookup(unresolved);
+                            }
                         }
                     }
                 }
