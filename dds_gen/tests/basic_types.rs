@@ -11,7 +11,7 @@ fn basic_types() {
                 pub a: bool,
                 pub b: char,
                 pub c: char,
-                pub d: u8,
+                pub d: dust_dds::xtypes::bytes::Byte,
                 pub e: String,
                 pub f: String,
                 pub g: i16,

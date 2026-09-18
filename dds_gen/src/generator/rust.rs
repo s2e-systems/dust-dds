@@ -1109,7 +1109,7 @@ impl<'a> RustGenerator<'a> {
 
     #[inline]
     fn octet_type(&mut self, _pair: IdlPair) {
-        self.writer.push_str("u8")
+        self.writer.push_str("dust_dds::xtypes::bytes::Byte")
     }
 
     #[inline]
@@ -1208,12 +1208,23 @@ impl<'a> RustGenerator<'a> {
             .find(|p| p.as_rule() == Rule::const_expr)
             .expect("Must have a const_expr according to the grammar");
 
+        let is_octet = match const_type.clone().into_inner().next() {
+            Some(p) => p.as_rule() == Rule::octet_type,
+            None => false,
+        };
+
         self.writer.push_str("pub const ");
         self.generate(identifier);
         self.writer.push(':');
         self.generate(const_type);
         self.writer.push('=');
-        self.generate(const_expr);
+        if is_octet {
+            self.writer.push_str("dust_dds::xtypes::bytes::Byte(");
+            self.generate(const_expr);
+            self.writer.push(')');
+        } else {
+            self.generate(const_expr);
+        }
         self.writer.push_str(";\n");
     }
 
@@ -1281,7 +1292,7 @@ mod tests {
 
         assert_eq!(
             &writer,
-            "#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[u8;32],pub yary:[u8;64],}\n",
+            "#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\npub struct MyStruct {pub a:i32,pub b:i64,pub c:i64,pub xary:[dust_dds::xtypes::bytes::Byte;32],pub yary:[dust_dds::xtypes::bytes::Byte;64],}\n",
         );
     }
 
@@ -1347,7 +1358,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "pub a:Vec<u8>,");
+        assert_eq!(&writer, "pub a:Vec<dust_dds::xtypes::bytes::Byte>,");
     }
 
     #[test]
@@ -1360,7 +1371,7 @@ mod tests {
         let mut rust_generator = RustGenerator::new(&mut writer);
         rust_generator.generate(p);
 
-        assert_eq!(&writer, "pub a:Vec<Vec<u8>>,");
+        assert_eq!(&writer, "pub a:Vec<Vec<dust_dds::xtypes::bytes::Byte>>,");
     }
 
     #[test]

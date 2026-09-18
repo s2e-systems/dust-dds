@@ -1,8 +1,8 @@
 use crate::xtypes::{
     dynamic_type::DynamicType,
     type_object::{
-        CompleteTypeObject, TypeIdentifier, TypeIdentifierWithSize, TypeInformation, TypeObject,
-        get_type_dependencies_with_size,
+        CompleteTypeObject, MinimalTypeObject, TypeIdentifier, TypeIdentifierWithSize,
+        TypeInformation, TypeObject,
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -49,47 +49,107 @@ impl TypeRegister {
         let deps = dynamic_type.get_dependencies();
         for dep in deps {
             let dep_type_info = TypeInformation::from(dep);
-            let dep_id = dep_type_info.complete.typeid_with_size.type_id;
-            let dep_obj = TypeObject::EkComplete {
+            let dep_complete_id = dep_type_info.complete.typeid_with_size.type_id;
+            let dep_complete_obj = TypeObject::EkComplete {
                 complete: CompleteTypeObject::from(dep),
             };
-            let dep_deps = get_type_dependencies_with_size(dep);
+            let dep_complete_deps = dep_type_info.complete.dependent_typeids.clone();
 
-            if let Some(existing) = self.types.iter_mut().find(|t| t.type_identifier == dep_id) {
-                existing.type_object = Some(dep_obj);
-                existing.dependencies = Some(dep_deps);
+            let dep_minimal_id = dep_type_info.minimal.typeid_with_size.type_id;
+            let dep_minimal_obj = TypeObject::EkMinimal {
+                minimal: MinimalTypeObject::from(dep),
+            };
+            let dep_minimal_deps = dep_type_info.minimal.dependent_typeids.clone();
+
+            if let Some(existing) = self
+                .types
+                .iter_mut()
+                .find(|t| t.type_identifier == dep_complete_id)
+            {
+                existing.type_object = Some(dep_complete_obj);
+                existing.dependencies = Some(dep_complete_deps);
                 existing.dynamic_type = Some(dep);
                 if existing.type_name.is_none() {
                     existing.type_name = Some(Arc::from(dep.descriptor.name));
                 }
             } else {
                 self.types.push(RegisteredType {
-                    type_identifier: dep_id,
+                    type_identifier: dep_complete_id,
                     type_name: Some(Arc::from(dep.descriptor.name)),
-                    type_object: Some(dep_obj),
-                    dependencies: Some(dep_deps),
+                    type_object: Some(dep_complete_obj),
+                    dependencies: Some(dep_complete_deps),
+                    dynamic_type: Some(dep),
+                });
+            }
+
+            if let Some(existing) = self
+                .types
+                .iter_mut()
+                .find(|t| t.type_identifier == dep_minimal_id)
+            {
+                existing.type_object = Some(dep_minimal_obj);
+                existing.dependencies = Some(dep_minimal_deps);
+                existing.dynamic_type = Some(dep);
+                if existing.type_name.is_none() {
+                    existing.type_name = Some(Arc::from(dep.descriptor.name));
+                }
+            } else {
+                self.types.push(RegisteredType {
+                    type_identifier: dep_minimal_id,
+                    type_name: Some(Arc::from(dep.descriptor.name)),
+                    type_object: Some(dep_minimal_obj),
+                    dependencies: Some(dep_minimal_deps),
                     dynamic_type: Some(dep),
                 });
             }
         }
 
-        let root_id = type_information.complete.typeid_with_size.type_id.clone();
-        let root_obj = TypeObject::EkComplete {
+        let root_complete_id = type_information.complete.typeid_with_size.type_id.clone();
+        let root_complete_obj = TypeObject::EkComplete {
             complete: CompleteTypeObject::from(dynamic_type),
         };
-        let root_deps = get_type_dependencies_with_size(dynamic_type);
+        let root_complete_deps = type_information.complete.dependent_typeids.clone();
 
-        if let Some(existing) = self.types.iter_mut().find(|t| t.type_identifier == root_id) {
-            existing.type_name = Some(type_name);
-            existing.type_object = Some(root_obj);
-            existing.dependencies = Some(root_deps);
+        let root_minimal_id = type_information.minimal.typeid_with_size.type_id.clone();
+        let root_minimal_obj = TypeObject::EkMinimal {
+            minimal: MinimalTypeObject::from(dynamic_type),
+        };
+        let root_minimal_deps = type_information.minimal.dependent_typeids.clone();
+
+        if let Some(existing) = self
+            .types
+            .iter_mut()
+            .find(|t| t.type_identifier == root_complete_id)
+        {
+            existing.type_name = Some(type_name.clone());
+            existing.type_object = Some(root_complete_obj);
+            existing.dependencies = Some(root_complete_deps);
             existing.dynamic_type = Some(dynamic_type);
         } else {
             self.types.push(RegisteredType {
-                type_identifier: root_id,
+                type_identifier: root_complete_id,
+                type_name: Some(type_name.clone()),
+                type_object: Some(root_complete_obj),
+                dependencies: Some(root_complete_deps),
+                dynamic_type: Some(dynamic_type),
+            });
+        }
+
+        if let Some(existing) = self
+            .types
+            .iter_mut()
+            .find(|t| t.type_identifier == root_minimal_id)
+        {
+            existing.type_name = Some(type_name);
+            existing.type_object = Some(root_minimal_obj);
+            existing.dependencies = Some(root_minimal_deps);
+            existing.dynamic_type = Some(dynamic_type);
+        } else {
+            self.types.push(RegisteredType {
+                type_identifier: root_minimal_id,
                 type_name: Some(type_name),
-                type_object: Some(root_obj),
-                dependencies: Some(root_deps),
+                type_object: Some(root_minimal_obj),
+                dependencies: Some(root_minimal_deps),
                 dynamic_type: Some(dynamic_type),
             });
         }
@@ -297,15 +357,46 @@ mod tests {
 
         let struct_id = &type_info.complete.typeid_with_size.type_id;
         assert!(register.contains_type_id(struct_id));
-        assert!(register.get_type_object(struct_id).is_some());
+        assert!(matches!(
+            register.get_type_object(struct_id),
+            Some(TypeObject::EkComplete { .. })
+        ));
 
         let deps = register.get_type_dependencies_with_size(struct_id).unwrap();
         assert_eq!(deps.len(), 1);
+        assert_eq!(type_info.complete.dependent_typeid_count, 1);
+        assert_eq!(&type_info.complete.dependent_typeids, &deps);
 
         let enum_id = &deps[0].type_id;
         assert!(register.contains_type_id(enum_id));
-        assert!(register.get_type_object(enum_id).is_some());
+        assert!(matches!(
+            register.get_type_object(enum_id),
+            Some(TypeObject::EkComplete { .. })
+        ));
         assert!(register.is_type_resolved(struct_id));
+
+        // Minimal representation checks
+        let struct_minimal_id = &type_info.minimal.typeid_with_size.type_id;
+        assert!(register.contains_type_id(struct_minimal_id));
+        assert!(matches!(
+            register.get_type_object(struct_minimal_id),
+            Some(TypeObject::EkMinimal { .. })
+        ));
+
+        let minimal_deps = register
+            .get_type_dependencies_with_size(struct_minimal_id)
+            .unwrap();
+        assert_eq!(minimal_deps.len(), 1);
+        assert_eq!(type_info.minimal.dependent_typeid_count, 1);
+        assert_eq!(&type_info.minimal.dependent_typeids, &minimal_deps);
+
+        let enum_minimal_id = &minimal_deps[0].type_id;
+        assert!(register.contains_type_id(enum_minimal_id));
+        assert!(matches!(
+            register.get_type_object(enum_minimal_id),
+            Some(TypeObject::EkMinimal { .. })
+        ));
+        assert!(register.is_type_resolved(struct_minimal_id));
     }
 
     #[test]
