@@ -2227,12 +2227,6 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_received = true;
                 }
 
-                for pair in &result.complete_to_minimal {
-                    self.domain_participant
-                        .type_register
-                        .register_complete_to_minimal(pair.clone());
-                }
-
                 for type_identifier_pair in &result.types {
                     for topic in &mut self.domain_participant.locally_created_topic_list {
                         let matches_discovered_topic = self
