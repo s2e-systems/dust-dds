@@ -5,7 +5,6 @@ project(DustDDSCycloneDDSInteroperability LANGUAGES C)
 # Settings
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
 
 # Cyclone DDS
 find_package(CycloneDDS 11.0.1 EXACT QUIET)
@@ -34,6 +33,11 @@ if(NOT CycloneDDS_FOUND)
     # FIND_PACKAGE_ARGS 11.0.1 EXACT
   )
   FetchContent_MakeAvailable(CycloneDDS)
+
+  # FIXME: remove when using `SYSTEM` in `FetchContent_Declare`
+  get_target_property(_cyclone_dds_ddsc_aliased_target CycloneDDS::ddsc ALIASED_TARGET)
+  get_target_property(_cyclone_dds_ddsc_interface_include_dirs ${_cyclone_dds_ddsc_aliased_target} INTERFACE_INCLUDE_DIRECTORIES)
+  set_target_properties(${_cyclone_dds_ddsc_aliased_target} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_cyclone_dds_ddsc_interface_include_dirs}")
 endif()
 
 # Generate subscriber and publisher same idl
@@ -52,6 +56,11 @@ function(interoperability_test)
   # Subscriber
   add_executable(${SUBSCRIBER_TARGET} "${_SUBSCRIBER}")
   target_link_libraries(${SUBSCRIBER_TARGET} PRIVATE CycloneDDS::ddsc ${IDL_TARGET})
+  set_target_properties(
+    ${SUBSCRIBER_TARGET}
+    PROPERTIES
+      C_EXTENSIONS OFF
+  )
   target_compile_options(
     ${SUBSCRIBER_TARGET}
     PRIVATE
@@ -75,6 +84,11 @@ function(interoperability_test)
   # Publisher
   add_executable(${PUBLISHER_TARGET} "${_PUBLISHER}")
   target_link_libraries(${PUBLISHER_TARGET} PRIVATE CycloneDDS::ddsc ${IDL_TARGET})
+  set_target_properties(
+    ${PUBLISHER_TARGET}
+    PROPERTIES
+      C_EXTENSIONS OFF
+  )
   target_compile_options(
     ${PUBLISHER_TARGET}
     PRIVATE

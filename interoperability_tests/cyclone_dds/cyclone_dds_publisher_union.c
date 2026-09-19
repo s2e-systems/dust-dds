@@ -48,7 +48,7 @@ int main()
 	}
 
 	dds_attach_t wsresults[1];
-	const size_t wsresultsize = 1U;
+	const dds_return_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(60));
 	if (rc == 0)
 	{
