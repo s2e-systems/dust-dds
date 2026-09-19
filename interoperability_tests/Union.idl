@@ -1,5 +1,6 @@
 module interoperability {
     module test {
+        @final
         union VariantUnion switch (uint16) {
             case 1:
                 uint8 x;
