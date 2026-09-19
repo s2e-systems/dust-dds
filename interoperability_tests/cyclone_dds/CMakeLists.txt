@@ -8,26 +8,33 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 # Cyclone DDS
-include(FetchContent)
-set(ENABLE_SSL OFF)
-set(ENABLE_SECURITY OFF)
-set(BUILD_TESTING OFF)
-set(BUILD_DDSPERF OFF)
-set(BUILD_EXAMPLES OFF)
-FetchContent_Declare(
-  cyclone_dds
-  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-  GIT_TAG 2f0d07d241f62f7121749b46721049e4dea5c58b # FIXME
-  # FIXME: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
-  # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
-  # GIT_SHALLOW ON
-  #
-  # FIXME: uncomment when `cmake_minimum_required` >= 3.25,
-  # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
-  # SYSTEM
-  FIND_PACKAGE_ARGS 11.0.1 EXACT NAMES CycloneDDS
-)
-FetchContent_MakeAvailable(cyclone_dds)
+find_package(CycloneDDS 11.0.1 EXACT QUIET)
+if(NOT CycloneDDS_FOUND)
+  set(ENABLE_SSL OFF CACHE BOOL "" FORCE)
+  set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+  include(FetchContent)
+  FetchContent_Declare(
+    CycloneDDS
+    GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+    # FIXME: proper tag and not a commit hash
+    GIT_TAG 2f0d07d241f62f7121749b46721049e4dea5c58b
+    # FIXME: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
+    # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
+    # GIT_SHALLOW ON
+    #
+    # FIXME: uncomment when `cmake_minimum_required` >= 3.25,
+    # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
+    # SYSTEM
+    #
+    # FIXME: uncomment when `cmake_minimum_required` >= 3.24,
+    # FIND_PACKAGE_ARGS 11.0.1 EXACT
+  )
+  FetchContent_MakeAvailable(CycloneDDS)
+endif()
 
 # Generate subscriber and publisher same idl
 function(interoperability_test)
