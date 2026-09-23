@@ -9,7 +9,7 @@ parameters:
     default: false
 
 orbs:
-  rust: circleci/rust@1.6.2
+  rust: circleci/rust@2.0.0
 
 jobs:
   hello_world_on_macos:
