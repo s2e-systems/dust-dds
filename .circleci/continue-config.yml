@@ -161,6 +161,16 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - run:
+          name: enable ipv6
+          command: |
+            cat <<'EOF' | sudo tee /etc/docker/daemon.json
+            {
+              "ipv6": true,
+              "fixed-cidr-v6": "2001:db8:1::/64"
+            }
+            EOF
+            sudo service docker restart
       - restore_cache:
           keys:
             - cargo-bloat-bin-v1-{{ arch }}
@@ -206,6 +216,16 @@ jobs:
       CYCLONEDDS_URI: <CycloneDDS><Domain Id="any"><Compatibility><IgnoreTypeInformation>1.20</IgnoreTypeInformation></Compatibility></Domain></CycloneDDS>
     steps:
       - checkout
+      - run:
+          name: enable ipv6
+          command: |
+            cat <<'EOF' | sudo tee /etc/docker/daemon.json
+            {
+              "ipv6": true,
+              "fixed-cidr-v6": "2001:db8:1::/64"
+            }
+            EOF
+            sudo service docker restart
       - run:
           name: Build FastDDS Interoperability tests
           command: |
