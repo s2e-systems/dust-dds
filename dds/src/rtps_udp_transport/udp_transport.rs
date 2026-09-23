@@ -25,8 +25,9 @@ type LocatorAddress = [u8; 16];
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
-const DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6: LocatorAddress =
-    [0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 239, 255, 0, 1];
+const DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6: LocatorAddress = [
+    0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 239, 255, 0, 1,
+];
 
 const PB: i32 = 7400;
 const DG: i32 = 250;
@@ -237,13 +238,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             interfaces
                 .iter()
                 .flat_map(|interface| {
-                    interface
-                        .addr
-                        .iter()
-                        .filter_map(|a| match a {
-                            Addr::V4(v4) => Some(v4.ip),
-                            Addr::V6(_) => None,
-                        })
+                    interface.addr.iter().filter_map(|a| match a {
+                        Addr::V4(v4) => Some(v4.ip),
+                        Addr::V6(_) => None,
+                    })
                 })
                 .collect()
         } else {
@@ -413,13 +411,10 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             let v6_addresses: Vec<Ipv6Addr> = interfaces
                 .iter()
                 .flat_map(|interface| {
-                    interface
-                        .addr
-                        .iter()
-                        .filter_map(|a| match a {
-                            Addr::V4(_) => None,
-                            Addr::V6(v6) => Some(v6.ip),
-                        })
+                    interface.addr.iter().filter_map(|a| match a {
+                        Addr::V4(_) => None,
+                        Addr::V6(v6) => Some(v6.ip),
+                    })
                 })
                 .collect();
 
@@ -437,8 +432,11 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             }
 
             let default_unicast_socket_v6 = std::net::UdpSocket::from(default_unicast_socket_v6);
-            let user_defined_unicast_port =
-                default_unicast_socket_v6.local_addr().unwrap().port().into();
+            let user_defined_unicast_port = default_unicast_socket_v6
+                .local_addr()
+                .unwrap()
+                .port()
+                .into();
             for addr in &v6_addresses {
                 default_unicast_locator_list.push(Locator::new(
                     LOCATOR_KIND_UDP_V6,
@@ -453,7 +451,9 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
             metatraffic_unicast_socket_v6
                 .bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)).into())
                 .unwrap();
-            metatraffic_unicast_socket_v6.set_nonblocking(false).unwrap();
+            metatraffic_unicast_socket_v6
+                .set_nonblocking(false)
+                .unwrap();
             let metatraffic_unicast_socket_v6 =
                 std::net::UdpSocket::from(metatraffic_unicast_socket_v6);
             let metatraffic_unicast_port = metatraffic_unicast_socket_v6
@@ -484,7 +484,11 @@ impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
                 DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6,
             ));
 
-            socket_v6 = Some(default_unicast_socket_v6.try_clone().expect("Socket cloning"));
+            socket_v6 = Some(
+                default_unicast_socket_v6
+                    .try_clone()
+                    .expect("Socket cloning"),
+            );
 
             let data_channel_sender_clone = data_channel_sender.clone();
             std::thread::Builder::new()
@@ -607,12 +611,8 @@ impl ToSocketAddrs for UdpLocator {
                 Ok(Some(SocketAddr::V4(address)).into_iter())
             }
             LOCATOR_KIND_UDP_V6 => {
-                let address = SocketAddrV6::new(
-                    Ipv6Addr::from(locator_address),
-                    self.0.port() as u16,
-                    0,
-                    0,
-                );
+                let address =
+                    SocketAddrV6::new(Ipv6Addr::from(locator_address), self.0.port() as u16, 0, 0);
                 Ok(Some(SocketAddr::V6(address)).into_iter())
             }
             _ => Err(std::io::ErrorKind::InvalidInput.into()),
@@ -790,8 +790,11 @@ mod tests {
         );
         assert!(!UdpLocator(v4_unicast).is_multicast());
 
-        let v6_multicast =
-            Locator::new(LOCATOR_KIND_UDP_V6, 7400, DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6);
+        let v6_multicast = Locator::new(
+            LOCATOR_KIND_UDP_V6,
+            7400,
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6,
+        );
         assert!(UdpLocator(v6_multicast).is_multicast());
 
         let v6_unicast = Locator::new(
