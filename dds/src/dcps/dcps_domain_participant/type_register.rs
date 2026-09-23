@@ -400,6 +400,68 @@ mod tests {
     }
 
     #[test]
+    fn register_local_type_with_inheritance() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct ParentStruct {
+            x: i32,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(base_type = ParentStruct)]
+        struct ChildStruct {
+            y: i32,
+        }
+
+        let mut register = TypeRegister::new();
+        let type_info =
+            register.register_local_type(Arc::from("ChildStruct"), ChildStruct::get_type());
+
+        let child_complete_id = &type_info.complete.typeid_with_size.type_id;
+        let child_minimal_id = &type_info.minimal.typeid_with_size.type_id;
+
+        // Base type should be in dependencies
+        let complete_deps = register
+            .get_type_dependencies_with_size(child_complete_id)
+            .unwrap();
+        assert_eq!(complete_deps.len(), 1);
+        let parent_complete_id = &complete_deps[0].type_id;
+
+        let minimal_deps = register
+            .get_type_dependencies_with_size(child_minimal_id)
+            .unwrap();
+        assert_eq!(minimal_deps.len(), 1);
+        let parent_minimal_id = &minimal_deps[0].type_id;
+
+        // Parent should also be registered in register
+        assert!(register.contains_type_id(parent_complete_id));
+        assert!(register.contains_type_id(parent_minimal_id));
+
+        // Child's TypeObjects should have parent's TypeIdentifier as base_type
+        if let Some(TypeObject::EkComplete { complete }) =
+            register.get_type_object(child_complete_id)
+        {
+            if let CompleteTypeObject::TkStructure { struct_type } = complete {
+                assert_eq!(&struct_type.header.base_type, parent_complete_id);
+            } else {
+                panic!("Expected CompleteTypeObject::TkStructure");
+            }
+        } else {
+            panic!("Expected TypeObject::EkComplete");
+        }
+
+        if let Some(TypeObject::EkMinimal { minimal }) = register.get_type_object(child_minimal_id)
+        {
+            if let MinimalTypeObject::TkStructure { struct_type } = minimal {
+                assert_eq!(&struct_type.header.base_type, parent_minimal_id);
+            } else {
+                panic!("Expected MinimalTypeObject::TkStructure");
+            }
+        } else {
+            panic!("Expected TypeObject::EkMinimal");
+        }
+    }
+
+    #[test]
     fn register_discovered_type_resolution() {
         let mut register = TypeRegister::new();
         let main_id = TypeIdentifier::EkComplete {

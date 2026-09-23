@@ -1921,8 +1921,14 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
                 }
 
+                let base_type = value
+                    .descriptor
+                    .base_type
+                    .as_ref()
+                    .map(to_minimal_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone);
                 let header = MinimalStructHeader {
-                    base_type: TypeIdentifier::TkNone, // TODO: Include base type
+                    base_type,
                     detail: MinimalTypeDetail {},
                 };
                 let member_seq = value.member_list.iter().map(From::from).collect();
@@ -2042,8 +2048,14 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                     struct_flags |= TYPE_FLAG_IS_AUTOID_HASH;
                 }
 
+                let base_type = value
+                    .descriptor
+                    .base_type
+                    .as_ref()
+                    .map(to_complete_type_identifier)
+                    .unwrap_or(TypeIdentifier::TkNone);
                 let header = CompleteStructHeader {
-                    base_type: TypeIdentifier::TkNone, // TODO: Include base type
+                    base_type,
                     detail: CompleteTypeDetail {
                         type_name: String::from(value.get_name()),
                         ann_builtin: None,
@@ -3717,6 +3729,57 @@ mod tests {
                 .iter()
                 .any(|d| { d.type_id == status_type_info.minimal.typeid_with_size.type_id })
         );
+    }
+
+    #[test]
+    fn type_with_inheritance_base_type() {
+        #[derive(Debug, PartialEq, TypeSupport)]
+        struct BaseStruct {
+            id: u32,
+        }
+
+        #[derive(Debug, PartialEq, TypeSupport)]
+        #[dust_dds(base_type = BaseStruct)]
+        struct DerivedStruct {
+            value: f32,
+        }
+
+        let base_type_info = TypeInformation::from(BaseStruct::get_type());
+        let derived_type_info = TypeInformation::from(DerivedStruct::get_type());
+
+        // Derived struct should have BaseStruct as dependency
+        assert_eq!(derived_type_info.complete.dependent_typeid_count, 1);
+        assert_eq!(derived_type_info.minimal.dependent_typeid_count, 1);
+        assert_eq!(
+            derived_type_info.complete.dependent_typeids[0].type_id,
+            base_type_info.complete.typeid_with_size.type_id
+        );
+        assert_eq!(
+            derived_type_info.minimal.dependent_typeids[0].type_id,
+            base_type_info.minimal.typeid_with_size.type_id
+        );
+
+        // Minimal TypeObject should have base_type filled with base minimal type identifier
+        let minimal_obj = MinimalTypeObject::from(DerivedStruct::get_type());
+        if let MinimalTypeObject::TkStructure { struct_type } = minimal_obj {
+            assert_eq!(
+                struct_type.header.base_type,
+                base_type_info.minimal.typeid_with_size.type_id
+            );
+        } else {
+            panic!("Expected MinimalTypeObject::TkStructure");
+        }
+
+        // Complete TypeObject should have base_type filled with base complete type identifier
+        let complete_obj = CompleteTypeObject::from(DerivedStruct::get_type());
+        if let CompleteTypeObject::TkStructure { struct_type } = complete_obj {
+            assert_eq!(
+                struct_type.header.base_type,
+                base_type_info.complete.typeid_with_size.type_id
+            );
+        } else {
+            panic!("Expected CompleteTypeObject::TkStructure");
+        }
     }
 
     #[test]

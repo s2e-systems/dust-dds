@@ -996,7 +996,18 @@ impl<'a> DynamicType<'a> {
 
     fn collect_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
         match self.get_kind() {
-            TypeKind::STRUCTURE | TypeKind::UNION => {
+            TypeKind::STRUCTURE => {
+                if let Some(base_type) = &self.descriptor.base_type {
+                    base_type.collect_type_and_nested_dependencies(out);
+                }
+                for member in self.member_list {
+                    member
+                        .descriptor
+                        .r#type
+                        .collect_type_and_nested_dependencies(out);
+                }
+            }
+            TypeKind::UNION => {
                 for member in self.member_list {
                     member
                         .descriptor
