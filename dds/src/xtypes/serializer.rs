@@ -1,7 +1,7 @@
 use super::dynamic_type::ExtensibilityKind;
 use crate::xtypes::{
     data_storage::DataStorage,
-    dynamic_type::{DynamicData, MemberDescriptor, TypeKind},
+    dynamic_type::{DynamicData, DynamicType, MemberDescriptor, TypeKind},
     error::{XTypesError, XTypesResult},
     type_object::TypeIdentifier,
     type_support::TypeSupport,
@@ -341,8 +341,12 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     }
 
     /// Serialization Rule { M: FMEMBER }
-    fn serialize_fmember(&mut self, v: &DynamicData, member_id: u32) -> XTypesResult<()> {
-        let dynamic_type = v.r#type();
+    fn serialize_fmember(
+        &mut self,
+        dynamic_type: &DynamicType,
+        v: &DynamicData,
+        member_id: u32,
+    ) -> XTypesResult<()> {
         if dynamic_type.get_member(member_id)?.descriptor.is_optional {
             V::serialize_opt_fmember(self, v, member_id)
         } else {
@@ -477,14 +481,24 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     /// XCDR << {O : FSTRUCT_TYPE} =
     ///           XCDR
     ///           << { O.member[i] : FMEMBER }*
-    fn serialize_fstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
-        let dynamic_type = v.r#type();
-
+    fn serialize_fstruct_members(
+        &mut self,
+        v: &DynamicData,
+        dynamic_type: &DynamicType,
+    ) -> Result<(), XTypesError> {
+        if let Some(base_type) = &dynamic_type.descriptor.base_type {
+            self.serialize_fstruct_members(v, base_type)?;
+        }
         for field_index in 0..dynamic_type.get_member_count() {
             let member_id = dynamic_type.get_member_by_index(field_index)?.get_id();
-            self.serialize_fmember(v, member_id)?;
+            self.serialize_fmember(dynamic_type, v, member_id)?;
         }
         Ok(())
+    }
+
+    fn serialize_fstruct_type(&mut self, v: &DynamicData) -> Result<(), XTypesError> {
+        let dynamic_type = v.r#type();
+        self.serialize_fstruct_members(v, &dynamic_type)
     }
 
     /// Non-optional member of final Aggregated type (structure, union)
@@ -515,7 +529,7 @@ impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
         self.serialize_nopt_fmember(v, 0)?;
 
         if let Ok(member_id) = v.get_member_id_at_index(1) {
-            self.serialize_fmember(v, member_id)
+            self.serialize_fmember(&v.r#type, v, member_id)
         } else {
             Ok(())
         }
@@ -714,6 +728,12 @@ trait EncodingVersion: Sized {
         v: &DynamicData,
     ) -> Result<(), XTypesError>;
 
+    fn serialize_mstruct_members<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        dynamic_type: &DynamicType,
+    ) -> Result<(), XTypesError>;
+
     /// Serialization Rule (22) & (24) & (25)
     fn serialize_mmember<'a, E: EndiannessWrite>(
         serializer: &mut XTypesSerializer<'a, E, Self>,
@@ -819,11 +839,14 @@ impl EncodingVersion for EncodingVersion1 {
     ///                 << { O.member[i] : MMEMBER }*
     ///                 << { PID_SENTINEL : UInt16 }
     ///                                      << { length = 0 : UInt16 }
-    fn serialize_mstruct_type<'a, E: EndiannessWrite>(
+    fn serialize_mstruct_members<'a, E: EndiannessWrite>(
         serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
+        dynamic_type: &DynamicType,
     ) -> Result<(), XTypesError> {
-        let dynamic_type = v.r#type();
+        if let Some(base_type) = &dynamic_type.descriptor.base_type {
+            Self::serialize_mstruct_members(serializer, v, base_type)?;
+        }
         for field_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(field_index)?;
             let member_id = member.get_id();
@@ -831,6 +854,15 @@ impl EncodingVersion for EncodingVersion1 {
                 Self::serialize_mmember(serializer, v, member_id)?;
             }
         }
+        Ok(())
+    }
+
+    fn serialize_mstruct_type<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+    ) -> Result<(), XTypesError> {
+        let dynamic_type = v.r#type();
+        Self::serialize_mstruct_members(serializer, v, &dynamic_type)?;
         // TODO: The alignment is not done in the Xtypes specification (possibly this needs to be deleted)
         Self::align(serializer, 4);
         serializer.serialize_primitive_type(&PID_LIST_END);
@@ -1011,19 +1043,31 @@ impl EncodingVersion for EncodingVersion2 {
     ///             XCDR
     ///               << { DHEADER(O) : UInt32 }
     ///               << { O.member[i] : MMEMBER }*
+    fn serialize_mstruct_members<'a, E: EndiannessWrite>(
+        serializer: &mut XTypesSerializer<'a, E, Self>,
+        v: &DynamicData,
+        dynamic_type: &DynamicType,
+    ) -> Result<(), XTypesError> {
+        if let Some(base_type) = &dynamic_type.descriptor.base_type {
+            Self::serialize_mstruct_members(serializer, v, base_type)?;
+        }
+        for field_index in 0..dynamic_type.get_member_count() {
+            let member = dynamic_type.get_member_by_index(field_index)?;
+            let member_id = member.get_id();
+            if v.get_value(member_id).is_ok() {
+                Self::serialize_mmember(serializer, v, member_id)?;
+            }
+        }
+        Ok(())
+    }
+
     fn serialize_mstruct_type<'a, E: EndiannessWrite>(
         serializer: &mut XTypesSerializer<'a, E, Self>,
         v: &DynamicData,
     ) -> Result<(), XTypesError> {
         let dheader = Dheader::new(serializer);
         let dynamic_type = v.r#type();
-        for field_index in 0..dynamic_type.get_member_count() {
-            let member = dynamic_type.get_member_by_index(field_index)?;
-            let member_id = member.get_id();
-            if v.get_value(member_id).is_ok() {
-                Self::serialize_mmember(dheader.serializer, v, member_id)?;
-            }
-        }
+        Self::serialize_mstruct_members(dheader.serializer, v, &dynamic_type)?;
         dheader.write_header();
         Ok(())
     }

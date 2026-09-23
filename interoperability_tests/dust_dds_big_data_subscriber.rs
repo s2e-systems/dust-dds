@@ -82,9 +82,9 @@ fn main() {
     let big_data = samples[0].data.as_ref().unwrap();
     println!("Received total msg length: {:?}", big_data.msg.len());
 
-    let mut expected_msg = vec![0u8; 15001];
+    let mut expected_msg: Vec<dust_dds::xtypes::bytes::Byte> = vec![0u8.into(); 15001];
     for (i, item) in expected_msg.iter_mut().enumerate() {
-        *item = (i % 256) as u8;
+        *item = ((i % 256) as u8).into();
     }
     assert_eq!(big_data.msg, expected_msg);
 

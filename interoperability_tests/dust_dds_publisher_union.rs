@@ -69,7 +69,7 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let data = VariantUnion::Case1 { x: 10 };
+    let data = VariantUnion::x(10);
     println!("write: {data:?}");
     writer.write(data, None).unwrap();
 

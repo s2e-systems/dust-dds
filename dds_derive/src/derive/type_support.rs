@@ -30,7 +30,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let is_nested = r#struct.is_nested;
-            let base_type = match r#struct.base_type {
+            let base_type = match &r#struct.base_type {
                 Some(t) => quote! {Some(<#t as dust_dds::xtypes::type_support::Type>::TYPE)},
                 None => quote! {None},
             };
@@ -55,16 +55,40 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
             let mut member_sample_seq = Vec::new();
             let mut member_dynamic_sample_seq = Vec::new();
 
+            let has_base_type = r#struct.base_type.is_some();
+            let mut found_parent = false;
+            let mut direct_member_index = 0u32;
             let mut next_auto_id = 0;
-            for (member_index, member) in xtypes_struct.fields.iter().enumerate() {
-                let index = member_index as u32;
+
+            for member in xtypes_struct.fields.iter() {
+                if has_base_type
+                    && member
+                        .ident
+                        .as_ref()
+                        .map(|i| i == "parent")
+                        .unwrap_or(false)
+                {
+                    found_parent = true;
+                    let base_type_ty = r#struct.base_type.as_ref().unwrap();
+                    member_sample_seq.push(quote! {
+                        parent: <#base_type_ty as dust_dds::xtypes::type_support::TypeSupport>::create_sample(src)?,
+                    });
+                    member_dynamic_sample_seq.push(quote! {
+                        data.extend(self.parent.create_dynamic_sample());
+                    });
+                    continue;
+                }
+
+                let index = direct_member_index;
+                direct_member_index += 1;
+
                 let struct_member_attributes = get_structure_member_attributes(member)?;
 
                 let member_name = member
                     .ident
                     .as_ref()
                     .map(|i| i.to_string())
-                    .unwrap_or(member_index.to_string());
+                    .unwrap_or(index.to_string());
 
                 let member_id = if let Some(ref hashid_name) = struct_member_attributes.hashid {
                     let target = if hashid_name.is_empty() {
@@ -92,16 +116,22 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 } else {
                     match r#struct.extensibility {
                         Extensibility::Final | Extensibility::Appendable => {
-                            syn::parse_str(&member_index.to_string())
+                            if let Some(t) = &r#struct.base_type {
+                                syn::parse_quote! { <#t as dust_dds::xtypes::type_support::Type>::TYPE.next_member_id() + #index }
+                            } else {
+                                syn::parse_str(&index.to_string())?
+                            }
                         }
                         Extensibility::Mutable => {
                             if let Some(provided_id) = struct_member_attributes.id {
-                                Ok(provided_id)
+                                provided_id
+                            } else if let Some(t) = &r#struct.base_type {
+                                syn::parse_quote! { <#t as dust_dds::xtypes::type_support::Type>::TYPE.next_member_id() + #index }
                             } else {
-                                syn::parse_str(&next_auto_id.to_string())
+                                syn::parse_str(&next_auto_id.to_string())?
                             }
                         }
-                    }?
+                    }
                 };
 
                 if struct_member_attributes.hashid.is_none() && !r#struct.is_autoid_hash {
@@ -265,7 +295,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                             }
                         }
                         None => {
-                            let index = Index::from(member_index);
+                            let tuple_index = Index::from(index as usize);
                             // In Mutable structs every member is optional even when not explicitly marked as such
                             if r#struct.extensibility == Extensibility::Mutable || is_optional {
                                 member_sample_seq.push(quote! {
@@ -275,8 +305,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     )?,
                                 });
                                 member_dynamic_sample_seq.push(quote! {
-                                    if self.#index != #member_default_value {
-                                        data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
+                                    if self.#tuple_index != #member_default_value {
+                                        data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#tuple_index));
                                     }
                                 })
                             } else {
@@ -294,13 +324,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                 );
 
                                 member_dynamic_sample_seq.push(quote! {
-                                    data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#index));
+                                    data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#tuple_index));
                                 })
                             }
                         }
                     }
                 }
             }
+
+            if has_base_type && !found_parent {
+                return Err(syn::Error::new(
+                    input.span(),
+                    "Types with a base_type must have a 'parent' field representing the base type",
+                ));
+            }
+
             let is_tuple = match xtypes_struct.fields.iter().next() {
                 Some(s) => s.ident.is_none(),
                 None => false,
@@ -318,9 +356,13 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 #(#member_dynamic_sample_seq)*
             };
             let create_sample_quote = if is_tuple {
-                quote! {Some(Self(#(#member_sample_seq)*))}
+                quote! {
+                    Some(Self(#(#member_sample_seq)*))
+                }
             } else {
-                quote! {Some(Self{#(#member_sample_seq)*})}
+                quote! {
+                    Some(Self{#(#member_sample_seq)*})
+                }
             };
             Ok((
                 get_type_quote,
@@ -665,7 +707,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
     Ok(quote! {
         #[automatically_derived]
         impl #impl_generics dust_dds::xtypes::type_support::TypeSupport for #ident #type_generics #where_clause {
-            fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData) -> ::core::option::Option<Self> {
+            fn create_sample(src: &mut dust_dds::xtypes::dynamic_type::DynamicData<'static>) -> ::core::option::Option<Self> {
                 #create_sample_quote
             }
 

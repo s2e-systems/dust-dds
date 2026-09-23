@@ -29,12 +29,14 @@ impl Default for KeyHolderType {
 
 impl KeyHolderType {
     pub fn new(value: &DynamicType<'_>) -> Self {
-        let mut member_list = Vec::new();
         fn fill_struct_key_holder_type(
             value: &DynamicType<'_>,
             member_list: &mut Vec<DynamicTypeMember>,
         ) {
             if value.get_kind() == TypeKind::STRUCTURE {
+                if let Some(base_type) = &value.descriptor.base_type {
+                    fill_struct_key_holder_type(base_type, member_list);
+                }
                 for member in value.member_list {
                     if member.descriptor.is_key {
                         member_list.push(member.clone());
@@ -47,9 +49,12 @@ impl KeyHolderType {
             }
         }
 
+        let mut member_list = Vec::new();
         fill_struct_key_holder_type(value, &mut member_list);
+        let mut descriptor = value.descriptor.clone();
+        descriptor.base_type = None;
         Self {
-            descriptor: Some(value.descriptor.clone()),
+            descriptor: Some(descriptor),
             key_members: member_list.into_boxed_slice(),
         }
     }
@@ -69,6 +74,11 @@ impl KeyHolderType {
 impl From<&DynamicType<'_>> for TopicKind {
     fn from(value: &DynamicType<'_>) -> Self {
         if value.get_kind() == TypeKind::STRUCTURE {
+            if let Some(base_type) = &value.descriptor.base_type {
+                if TopicKind::from(base_type) == TopicKind::WithKey {
+                    return TopicKind::WithKey;
+                }
+            }
             for member in value.member_list {
                 if member.descriptor.is_key {
                     return TopicKind::WithKey;
@@ -96,9 +106,12 @@ impl<'a> KeyHolderData<'a> {
         fn fill_struct_key_holder_data<'a>(
             value: &DynamicData<'a>,
             key_holder_data: &mut DynamicData,
+            dynamic_type: &DynamicType,
         ) -> XTypesResult<()> {
-            let dynamic_type = value.r#type();
             if dynamic_type.get_kind() == TypeKind::STRUCTURE {
+                if let Some(base_type) = &dynamic_type.descriptor.base_type {
+                    fill_struct_key_holder_data(value, key_holder_data, base_type)?;
+                }
                 for member_index in 0..dynamic_type.get_member_count() {
                     let dynamic_type_member = dynamic_type.get_member_by_index(member_index)?;
                     let key_member_id = dynamic_type_member.get_id();
@@ -112,6 +125,7 @@ impl<'a> KeyHolderData<'a> {
                         fill_struct_key_holder_data(
                             value.get_complex_value(key_member_id)?,
                             key_holder_data,
+                            &dynamic_type_member.descriptor.r#type,
                         )?;
                     }
                 }
@@ -122,7 +136,7 @@ impl<'a> KeyHolderData<'a> {
             .as_dynamic_type()
             .ok_or(XTypesError::InvalidType)?;
         let mut key_holder_data = DynamicDataFactory::create_data(dynamic_type);
-        fill_struct_key_holder_data(value, &mut key_holder_data)?;
+        fill_struct_key_holder_data(value, &mut key_holder_data, &value.r#type())?;
         Ok(Self(key_holder_data))
     }
 
