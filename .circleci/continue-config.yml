@@ -253,6 +253,15 @@ jobs:
             build/fast_dds/FastDdsPublisherDispose
             wait $pid
       - run:
+          name: Cyclone publisher v6 interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_v6 &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisher
+            wait $pid
+          environment:
+            CYCLONEDDS_URI: <CycloneDDS><Domain><General><Transport>udp6</Transport></General></Domain></CycloneDDS>
+      - run:
           name: Cyclone publisher interoperability test
           command: |
             cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
