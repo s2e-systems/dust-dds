@@ -3741,6 +3741,7 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(base_type = BaseStruct)]
         struct DerivedStruct {
+            parent: BaseStruct,
             value: f32,
         }
 

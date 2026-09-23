@@ -409,6 +409,7 @@ mod tests {
         #[derive(Debug, PartialEq, TypeSupport)]
         #[dust_dds(base_type = ParentStruct)]
         struct ChildStruct {
+            parent: ParentStruct,
             y: i32,
         }
 
