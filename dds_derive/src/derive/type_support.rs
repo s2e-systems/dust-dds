@@ -346,7 +346,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 }
             };
             let is_nested = union_attributes.is_nested;
-            if xtypes_union.variants.len() > (u32::MAX as usize + 1) {
+            if xtypes_union.variants.len() > ((u32::MAX as usize) + 1) {
                 return Err(syn::Error::new(
                     input.span(),
                     "Union can hold at most `u32::MAX + 1` variants",
