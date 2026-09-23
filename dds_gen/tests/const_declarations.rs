@@ -16,7 +16,7 @@ fn const_declarations() {
         pub const MY_DOUBLE: f64 = 2.5;
         pub const MY_CHAR: char = 'a';
         pub const MY_BOOL: bool = TRUE;
-        pub const MY_OCTET: u8 = 7;
+        pub const MY_OCTET: dust_dds::xtypes::bytes::Byte = dust_dds::xtypes::bytes::Byte(7);
         pub const MY_INT8: i8 = -8;
         pub const MY_UINT8: u8 = 8;
         pub const MY_INT16: i16 = -16;

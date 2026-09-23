@@ -69,7 +69,7 @@ fn main() {
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
     let data = BigDataType {
-        msg: (0..15001).map(|i| (i % 256) as u8).collect(),
+        msg: (0..15001).map(|i| ((i % 256) as u8).into()).collect(),
     };
     writer.write(data, None).unwrap();
 

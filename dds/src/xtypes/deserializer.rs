@@ -1151,8 +1151,14 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
     /// (17) XCDR << {O : FSTRUCT_TYPE} =
     ///               XCDR
     ///                << { O.member[i] : FMEMBER }*
-    fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
-        let dynamic_type = dynamic_data.r#type();
+    fn deserialize_fstruct_members(
+        &mut self,
+        dynamic_type: &DynamicType,
+        dynamic_data: &mut DynamicData,
+    ) -> XTypesResult<()> {
+        if let Some(base_type) = &dynamic_type.descriptor.base_type {
+            self.deserialize_fstruct_members(base_type, dynamic_data)?;
+        }
         let is_appendable =
             dynamic_type.descriptor.extensibility_kind == ExtensibilityKind::Appendable;
         for member_index in 0..dynamic_type.get_member_count() {
@@ -1169,6 +1175,10 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
             }
         }
         Ok(())
+    }
+
+    fn deserialize_fstruct_type(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        self.deserialize_fstruct_members(&dynamic_data.r#type(), dynamic_data)
     }
 
     /// Non-optional member of final Aggregated type (structure, union)
