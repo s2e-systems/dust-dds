@@ -623,22 +623,6 @@ impl<'a> RustGenerator<'a> {
         }
         self.writer.push_str(")]\n");
 
-        let first_case_label = pair
-            .clone()
-            .into_inner()
-            .find(|x| x.as_rule() == Rule::case_label)
-            .expect("Must have at least one case_label according to grammar");
-        if let Some(c) = first_case_label
-            .into_inner()
-            .find(|x| x.as_rule() == Rule::const_expr)
-        {
-            self.writer.push_str("\tCase");
-            self.writer.push_str(c.as_str());
-        } else {
-            self.writer.push_str("Default");
-        }
-        self.writer.push('{');
-
         let element_spec = pair
             .into_inner()
             .find(|x| x.as_rule() == Rule::element_spec)
@@ -671,24 +655,22 @@ impl<'a> RustGenerator<'a> {
                     .find(|p| p.as_rule() == Rule::fixed_array_size)
                     .expect("Identifier must exist according to grammar");
                 self.generate(identifier);
-                self.writer.push(':');
-
+                self.writer.push('(');
                 self.writer.push('[');
                 self.generate(type_spec.clone());
                 self.writer.push(';');
                 self.generate(fixed_array_size);
                 self.writer.push(']');
+                self.writer.push_str("),\n");
             }
             Rule::simple_declarator => {
                 self.generate(array_or_simple_declarator);
-                self.writer.push(':');
-
+                self.writer.push('(');
                 self.generate(type_spec.clone());
+                self.writer.push_str("),\n");
             }
             _ => panic!("Not allowed by the grammar"),
         }
-
-        self.writer.push_str("},\n");
     }
 
     fn member(&mut self, pair: IdlPair) {
