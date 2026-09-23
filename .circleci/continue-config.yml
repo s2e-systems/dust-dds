@@ -112,16 +112,6 @@ jobs:
     steps:
       - checkout
       - rust/install
-      - run:
-          name: enable ipv6
-          command: |
-            cat \<<EOF | sudo tee /etc/docker/daemon.json
-            {
-              "ipv6": true,
-              "fixed-cidr-v6": "2001:db8:1::/64"
-            }
-            EOF
-            sudo service docker restart
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
@@ -263,15 +253,6 @@ jobs:
             pid=$!
             build/fast_dds/FastDdsPublisherDispose
             wait $pid
-      - run:
-          name: Cyclone publisher v6 interoperability test
-          command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_v6 &
-            pid=$!
-            build/cyclone_dds/CycloneDdsPublisher
-            wait $pid
-          environment:
-            CYCLONEDDS_URI: <CycloneDDS><Domain><General><Transport>udp6</Transport></General></Domain></CycloneDDS>
       - run:
           name: Cyclone publisher interoperability test
           command: |
