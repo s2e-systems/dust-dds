@@ -8,6 +8,7 @@ fn union_types() {
     let expected = syn::parse2::<File>(
         r#"
             #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[allow(non_camel_case_types)]
             #[dust_dds(switch(u8))]
             pub enum TestUnion {
                 #[dust_dds(case = 10, )]
@@ -19,6 +20,7 @@ fn union_types() {
             }
 
             #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[allow(non_camel_case_types)]
             #[dust_dds(switch(u8), extensibility = "final")]
             pub enum FinalUnion {
                 #[dust_dds(case = 0, )]
@@ -30,6 +32,7 @@ fn union_types() {
             }
 
             #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[allow(non_camel_case_types)]
             #[dust_dds(switch(u8), extensibility = "appendable")]
             pub enum AppendableUnion {
                 #[dust_dds(case = 0, )]
@@ -41,6 +44,7 @@ fn union_types() {
             }
 
             #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            #[allow(non_camel_case_types)]
             #[dust_dds(switch(u8), extensibility = "mutable")]
             pub enum MutableUnion {
                 #[dust_dds(case = 0, )]

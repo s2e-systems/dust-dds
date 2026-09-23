@@ -489,6 +489,8 @@ impl<'a> RustGenerator<'a> {
 
         self.writer
             .push_str("#[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]\n");
+        self.writer
+            .push_str("#[allow(non_camel_case_types)]\n");
 
         self.writer.push_str("#[dust_dds(switch(");
         self.generate(switch_type_spec);
