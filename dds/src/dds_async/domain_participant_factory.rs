@@ -238,13 +238,24 @@ impl
                 .flat_map(|i| {
                     i.addr
                         .into_iter()
-                        .filter(|a| matches!(a, Addr::V4(v4) if !v4.ip.is_loopback()))
+                        .filter(|a| match a {
+                            Addr::V4(v4) => !v4.ip.is_loopback(),
+                            Addr::V6(v6) => !v6.ip.is_loopback(),
+                        })
                 })
                 .next();
             let host_id = if let Some(interface) = interface_address {
                 match interface.ip() {
                     IpAddr::V4(a) => a.octets(),
-                    IpAddr::V6(_) => unimplemented!("IPv6 not yet implemented"),
+                    IpAddr::V6(a) => {
+                        let oct = a.octets();
+                        [
+                            oct[0] ^ oct[4] ^ oct[8] ^ oct[12],
+                            oct[1] ^ oct[5] ^ oct[9] ^ oct[13],
+                            oct[2] ^ oct[6] ^ oct[10] ^ oct[14],
+                            oct[3] ^ oct[7] ^ oct[11] ^ oct[15],
+                        ]
+                    }
                 }
             } else {
                 warn!("Failed to get Host ID from IP address, use 0 instead");

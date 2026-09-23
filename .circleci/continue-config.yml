@@ -9,7 +9,7 @@ parameters:
     default: false
 
 orbs:
-  rust: circleci/rust@1.6.2
+  rust: circleci/rust@2.0.0
 
 jobs:
   hello_world_on_macos:
@@ -106,11 +106,12 @@ jobs:
       - store_artifacts:
           path: massif_report.txt
   tests:
-    docker:
-      - image: cimg/rust:1.87.0
+    machine:
+      image: ubuntu-2604:current
     resource_class: large
     steps:
       - checkout
+      - rust/install
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
