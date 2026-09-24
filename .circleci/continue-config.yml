@@ -17,33 +17,33 @@ jobs:
       xcode: 16.4.0
     resource_class: m4pro.medium
     steps:
-    - checkout
-    - rust/install
-    - run:
-        name: Run Hello world example
-        command: |
-          cargo run --example hello_world_publisher &
-          pid=$!
-          cargo run --example hello_world_subscriber
-          wait $pid
+      - checkout
+      - rust/install
+      - run:
+          name: Run Hello world example
+          command: |
+            cargo run --example hello_world_publisher &
+            pid=$!
+            cargo run --example hello_world_subscriber
+            wait $pid
   hello_world_on_windows:
     machine:
-      image: 'windows-server-2019-vs2019:2024.05.1'
+      image: "windows-server-2019-vs2019:2024.05.1"
       resource_class: windows.medium
       shell: powershell.exe -ExecutionPolicy Bypass
     steps:
-    - checkout
-    - run:
-        name: Install Rust
-        command: |
-          curl -o rustup.sh https://sh.rustup.rs
-          bash rustup.sh -y
-    - run:
-        name: Run Hello world example
-        command: |
-          $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru
-          cargo run --example hello_world_subscriber
-          $publisher.WaitForExit()
+      - checkout
+      - run:
+          name: Install Rust
+          command: |
+            curl -o rustup.sh https://sh.rustup.rs
+            bash rustup.sh -y
+      - run:
+          name: Run Hello world example
+          command: |
+            $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru
+            cargo run --example hello_world_subscriber
+            $publisher.WaitForExit()
 
   build_and_push_docker_image:
     docker:
@@ -223,32 +223,32 @@ jobs:
             cargo update --package dust_dds_interoperability
             cargo build --package dust_dds_interoperability
       - run:
-          name: Fast DDS publisher interoperability test
+          name: Fast DDS publisher hello world interoperability test
           command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_hello_world &
             pid=$!
             build/fast_dds/FastDdsPublisher
             wait $pid
       - run:
-          name: Fast DDS subscriber interoperability test
+          name: Fast DDS subscriber hello world interoperability test
           command: |
             build/fast_dds/FastDdsSubscriber &
             pid=$!
-            cargo run --package dust_dds_interoperability --bin dust_dds_publisher
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_hello_world
             wait $pid
       - run:
           name: Fast DDS publisher dispose interoperability test
           command: |
-            build/fast_dds/FastDdsSubscriberDispose &
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
             pid=$!
-            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            build/fast_dds/FastDdsPublisherDispose
             wait $pid
       - run:
           name: Fast DDS subscriber dispose interoperability test
           command: |
-            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            build/fast_dds/FastDdsSubscriberDispose &
             pid=$!
-            build/fast_dds/FastDdsPublisherDispose
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
             wait $pid
       - run:
           name: Cyclone DDS publisher hello world interoperability test
