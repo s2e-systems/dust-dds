@@ -940,6 +940,48 @@ impl<'a> DynamicType<'a> {
             .ok_or(XTypesError::InvalidIndex(index))
     }
 
+    /// Returns the next available sequential member ID across this type and its base hierarchy.
+    pub const fn next_member_id(&self) -> MemberId {
+        let mut max_id: Option<MemberId> = None;
+        let mut i = 0;
+        while i < self.member_list.len() {
+            let id = self.member_list[i].descriptor.id;
+            match max_id {
+                Some(current_max) => {
+                    if id > current_max {
+                        max_id = Some(id);
+                    }
+                }
+                None => {
+                    max_id = Some(id);
+                }
+            }
+            i += 1;
+        }
+
+        if let Some(base_type) = &self.descriptor.base_type {
+            let base_next = base_type.next_member_id();
+            if base_next > 0 {
+                let base_max = base_next - 1;
+                match max_id {
+                    Some(current_max) => {
+                        if base_max > current_max {
+                            max_id = Some(base_max);
+                        }
+                    }
+                    None => {
+                        max_id = Some(base_max);
+                    }
+                }
+            }
+        }
+
+        match max_id {
+            Some(max) => max + 1,
+            None => 0,
+        }
+    }
+
     /// Returns true if this type is a constructed / non-primitive dependent type.
     pub fn is_dependent_type(&self) -> bool {
         match self.get_kind() {
@@ -996,7 +1038,18 @@ impl<'a> DynamicType<'a> {
 
     fn collect_dependencies(&self, out: &mut Vec<DynamicType<'a>>) {
         match self.get_kind() {
-            TypeKind::STRUCTURE | TypeKind::UNION => {
+            TypeKind::STRUCTURE => {
+                if let Some(base_type) = &self.descriptor.base_type {
+                    base_type.collect_type_and_nested_dependencies(out);
+                }
+                for member in self.member_list {
+                    member
+                        .descriptor
+                        .r#type
+                        .collect_type_and_nested_dependencies(out);
+                }
+            }
+            TypeKind::UNION => {
                 for member in self.member_list {
                     member
                         .descriptor
@@ -1714,6 +1767,13 @@ impl<'a> DynamicData<'a> {
     /// Removes and returns the raw data storage for the specified member.
     pub fn remove_value(&mut self, id: MemberId) -> XTypesResult<DataStorage> {
         self.remove_storage(id).ok_or(XTypesError::InvalidId(id))
+    }
+
+    /// Extends this dynamic data with the member values from another dynamic data.
+    pub fn extend(&mut self, other: DynamicData<'a>) {
+        for m in other.abstract_data {
+            self.insert_storage(m.id, m.value);
+        }
     }
 }
 

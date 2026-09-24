@@ -437,7 +437,7 @@ case_label = {
     | "default" ~ ":"
 }
 // (55)
-element_spec = { type_spec ~ declarator }
+element_spec = { annotation_appl* ~ type_spec ~ declarator }
 // (56)
 union_forward_dcl = { "union" ~ identifier }
 // (57)
