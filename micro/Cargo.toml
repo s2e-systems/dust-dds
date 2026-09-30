@@ -1,6 +1,5 @@
 [package]
 name = "micro-dust-dds-tests"
-description = "Micro Dust DDS Tests"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

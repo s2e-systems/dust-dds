@@ -1,7 +1,5 @@
 [package]
 name = "micro_dust_dds_interface"
-description = "Micro Dust DDS Demo Interface"
-version = "0.0.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
