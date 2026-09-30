@@ -1,20 +1,8 @@
-use alloc::string::String;
-
+use super::types::{IdentityHandle, SecurityException};
 use crate::{
     infrastructure::{domain::DomainId, qos::DomainParticipantQos},
     transport::types::Guid,
 };
-
-/// SecurityException data type used to hold error information as defined in Section 9.2.1 of the DDS Security specification.
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
-pub struct SecurityException {
-    /// Error message.
-    pub message: String,
-    /// Error code.
-    pub code: i32,
-    /// Minor error code.
-    pub minor_code: i32,
-}
 
 /// Outcome of validation operations as defined in Table 30 of Section 9.3.1 of the DDS Security specification (excluding `VALIDATION_OK` which maps to [`Ok`]).
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -30,9 +18,6 @@ pub enum ValidationResult {
     /// Indicates that validation has succeeded but the DDS Implementation shall send a final message.
     ValidationOkFinalMessage,
 }
-
-/// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
-pub type IdentityHandle = usize;
 
 /// Output parameters for [`Authentication::validate_local_identity`].
 #[derive(Debug, PartialEq, Eq, Clone)]
