@@ -7,14 +7,15 @@ use super::{
     error::{RtpsMessageError, RtpsMessageResult},
     submessages::{
         ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-        gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-        heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
-        info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
-        info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage, pad::PadSubmessage,
+        gap::GapSubmessage, header_extension::HeaderExtensionSubmessage,
+        heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
+        info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
+        info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
+        nack_frag::NackFragSubmessage, pad::PadSubmessage,
     },
     types::{
         ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-        INFO_TS, NACK_FRAG, PAD, ProtocolId, SubmessageFlag, SubmessageKind,
+        INFO_TS, NACK_FRAG, PAD, ProtocolId, RTPS_HE, SubmessageFlag, SubmessageKind,
     },
 };
 use alloc::vec::Vec;
@@ -432,6 +433,10 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::NackFrag),
                             PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
+                            RTPS_HE => {
+                                HeaderExtensionSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::HeaderExtension)
+                            }
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
@@ -534,6 +539,7 @@ pub enum RtpsSubmessageReadKind {
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
+    HeaderExtension(HeaderExtensionSubmessage),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
@@ -950,5 +956,29 @@ mod tests {
         let submessages = rtps_message.submessages();
         assert_eq!(submessages.len(), 1);
         assert!(matches!(submessages[0], RtpsSubmessageReadKind::Data(..)));
+    }
+
+    #[test]
+    fn deserialize_rtps_message_with_header_extension() {
+        #[rustfmt::skip]
+        let data = [
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 5, 9, 8, // ProtocolVersion 2.5 | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x00, 0b_0000_0011, 4, 0, // HeaderExtension submessage: ID=0, LengthFlag=1, length=4
+            64, 0, 0, 0, // messageLength = 64
+            0x01, 0b_0000_0001, 0, 0, // Pad submessage
+        ];
+
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
+        let submessages = rtps_message.submessages();
+        assert_eq!(submessages.len(), 2);
+        assert!(matches!(
+            submessages[0],
+            RtpsSubmessageReadKind::HeaderExtension(..)
+        ));
+        assert!(matches!(submessages[1], RtpsSubmessageReadKind::Pad(..)));
     }
 }
