@@ -1,7 +1,4 @@
 use alloc::{borrow::ToOwned, boxed::Box, sync::Arc};
-use core::ops::DerefMut;
-
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
@@ -75,8 +72,8 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     entity_counter: core::sync::atomic::AtomicU32,
     app_id: [u8; 4],
     host_id: [u8; 4],
-    transport: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, T>,
-    configuration: embassy_sync::mutex::Mutex<CriticalSectionRawMutex, DustDdsConfiguration>,
+    transport: T,
+    configuration: DustDdsConfiguration,
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
@@ -90,17 +87,17 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let configuration = self.configuration.lock().await;
         let guid_prefix = self.create_new_guid_prefix();
         let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport_participant = self.transport.lock().await.create_participant(
+        let transport_participant = self.transport.create_participant(
             domain_id,
             TransportDataReceiver::new(participant_handle, self.wire_sender.clone()),
         );
 
-        let domain_tag = configuration.domain_tag().to_owned();
-        let participant_announcement_interval = configuration.participant_announcement_interval();
-        let enable_type_information = configuration.enable_type_information();
+        let domain_tag = self.configuration.domain_tag().to_owned();
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
+        let enable_type_information = self.configuration.enable_type_information();
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
 
@@ -197,74 +194,75 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             .await?
             .expect_factory_qos()
     }
+}
 
-    /// Get a mutable reference to the transport object
-    pub async fn get_mut_transport(&self) -> impl DerefMut<Target = T> + '_ {
-        self.transport.lock().await
-    }
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub fn get_host_id() -> [u8; 4] {
+    use core::net::IpAddr;
+    use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+    use tracing::warn;
 
-    /// Get a mutable reference to the configuration object
-    pub async fn get_mut_configuration(&self) -> impl DerefMut<Target = DustDdsConfiguration> + '_ {
-        self.configuration.lock().await
+    let interface_address = NetworkInterface::show()
+        .expect("Could not scan interfaces")
+        .into_iter()
+        .flat_map(|i| {
+            i.addr.into_iter().filter(|a| match a {
+                Addr::V4(v4) => !v4.ip.is_loopback(),
+                Addr::V6(v6) => !v6.ip.is_loopback(),
+            })
+        })
+        .next();
+    if let Some(interface) = interface_address {
+        match interface.ip() {
+            IpAddr::V4(a) => a.octets(),
+            IpAddr::V6(a) => {
+                let oct = a.octets();
+                [
+                    oct[0] ^ oct[4] ^ oct[8] ^ oct[12],
+                    oct[1] ^ oct[5] ^ oct[9] ^ oct[13],
+                    oct[2] ^ oct[6] ^ oct[10] ^ oct[14],
+                    oct[3] ^ oct[7] ^ oct[11] ^ oct[15],
+                ]
+            }
+        }
+    } else {
+        warn!("Failed to get Host ID from IP address, use 0 instead");
+        [0; 4]
     }
 }
 
 #[cfg(feature = "std")]
 impl
     DomainParticipantFactoryAsync<
-        crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+        crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
     >
 {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        use core::net::IpAddr;
-        use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
+        Self::get_custom_instance(Default::default(), Default::default())
+    }
+
+    /// This operation returns the [`DomainParticipantFactoryAsync`] singleton initialized with a custom transport and configuration.
+    /// The operation is idempotent, returning the existing instance if it has already been initialized.
+    #[tracing::instrument(skip(transport, configuration))]
+    pub fn get_custom_instance(
+        transport: crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
+        configuration: DustDdsConfiguration,
+    ) -> &'static Self {
         use std::sync::OnceLock;
-        use tracing::warn;
 
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<
             DomainParticipantFactoryAsync<
-                crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory,
+                crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
             >,
         > = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
-
             let runtime = crate::std_runtime::StdRuntime::default();
-            let interface_address = NetworkInterface::show()
-                .expect("Could not scan interfaces")
-                .into_iter()
-                .flat_map(|i| {
-                    i.addr
-                        .into_iter()
-                        .filter(|a| match a {
-                            Addr::V4(v4) => !v4.ip.is_loopback(),
-                            Addr::V6(v6) => !v6.ip.is_loopback(),
-                        })
-                })
-                .next();
-            let host_id = if let Some(interface) = interface_address {
-                match interface.ip() {
-                    IpAddr::V4(a) => a.octets(),
-                    IpAddr::V6(a) => {
-                        let oct = a.octets();
-                        [
-                            oct[0] ^ oct[4] ^ oct[8] ^ oct[12],
-                            oct[1] ^ oct[5] ^ oct[9] ^ oct[13],
-                            oct[2] ^ oct[6] ^ oct[10] ^ oct[14],
-                            oct[3] ^ oct[7] ^ oct[11] ^ oct[15],
-                        ]
-                    }
-                }
-            } else {
-                warn!("Failed to get Host ID from IP address, use 0 instead");
-                [0; 4]
-            };
-
+            let host_id = get_host_id();
             let app_id = std::process::id().to_ne_bytes();
-            let transport = crate::rtps_udp_transport::udp_transport::RtpsUdpTransportParticipantFactory::default();
-            let configuration = Default::default();
             Self::new(runtime, app_id, host_id, transport, configuration)
         })
     }
@@ -379,8 +377,8 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             app_id,
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),
-            transport: Mutex::new(transport),
-            configuration: Mutex::new(configuration),
+            transport,
+            configuration,
             worker_task: Box::new(worker_task),
             run_loop,
         }

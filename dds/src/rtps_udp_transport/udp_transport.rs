@@ -137,14 +137,14 @@ pub enum IpVersion {
     Both,
 }
 
-pub struct RtpsUdpTransportParticipantFactory {
+pub struct RtpsUdpTransport {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
 }
 
-impl RtpsUdpTransportParticipantFactory {
+impl RtpsUdpTransport {
     /// Set the name of the specific interface to use or None for communicating
     /// through all available interfaces
     pub fn set_interface_name(&mut self, interface_name: Option<String>) -> &mut Self {
@@ -200,7 +200,7 @@ impl RtpsUdpTransportParticipantFactory {
     }
 }
 
-impl Default for RtpsUdpTransportParticipantFactory {
+impl Default for RtpsUdpTransport {
     fn default() -> Self {
         Self {
             interface_name: None,
@@ -211,7 +211,7 @@ impl Default for RtpsUdpTransportParticipantFactory {
     }
 }
 
-impl TransportParticipantFactory for RtpsUdpTransportParticipantFactory {
+impl TransportParticipantFactory for RtpsUdpTransport {
     fn create_participant(
         &self,
         domain_id: i32,
@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn default_ip_version_is_v4() {
         assert_eq!(IpVersion::default(), IpVersion::V4);
-        let factory = RtpsUdpTransportParticipantFactory::default();
+        let factory = RtpsUdpTransport::default();
         assert_eq!(factory.ip_version(), IpVersion::V4);
     }
 }

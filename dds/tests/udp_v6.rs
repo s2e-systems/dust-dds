@@ -26,12 +26,11 @@ struct UdpV6Data {
 #[test]
 fn udp_v6_locators_and_communication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
 
-    // Set transport to IPv6
-    participant_factory
-        .get_mut_transport()
-        .set_ip_version(IpVersion::V6);
+    let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
+    transport.set_ip_version(IpVersion::V6);
+    let participant_factory =
+        DomainParticipantFactory::get_custom_instance(transport, Default::default());
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -122,16 +121,11 @@ fn udp_v6_locators_and_communication() {
     participant_factory
         .delete_participant(&participant)
         .unwrap();
-
-    // Reset transport back to default V4
-    participant_factory
-        .get_mut_transport()
-        .set_ip_version(IpVersion::V4);
 }
 
 #[test]
 fn udp_transport_factory_ip_version_configuration() {
-    let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransportParticipantFactory::default();
+    let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
     assert_eq!(transport.ip_version(), IpVersion::V4);
 
     transport.set_ip_version(IpVersion::V6);
@@ -144,12 +138,11 @@ fn udp_transport_factory_ip_version_configuration() {
 #[test]
 fn udp_both_locators_and_communication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let participant_factory = DomainParticipantFactory::get_instance();
 
-    // Set transport to Both (IPv4 and IPv6)
-    participant_factory
-        .get_mut_transport()
-        .set_ip_version(IpVersion::Both);
+    let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
+    transport.set_ip_version(IpVersion::Both);
+    let participant_factory =
+        DomainParticipantFactory::get_custom_instance(transport, Default::default());
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -240,9 +233,4 @@ fn udp_both_locators_and_communication() {
     participant_factory
         .delete_participant(&participant)
         .unwrap();
-
-    // Reset transport back to default V4
-    participant_factory
-        .get_mut_transport()
-        .set_ip_version(IpVersion::V4);
 }

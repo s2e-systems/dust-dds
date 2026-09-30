@@ -15,13 +15,13 @@ struct HelloWorldType {
 
 fn main() {
     let domain_id = 0;
-    let participant_factory = DomainParticipantFactory::get_instance();
     let configuration = DustDdsConfigurationBuilder::new()
         .domain_tag("abc".to_string())
         .build()
         .unwrap();
 
-    *participant_factory.get_mut_configuration() = configuration;
+    let participant_factory =
+        DomainParticipantFactory::get_custom_instance(Default::default(), configuration);
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
