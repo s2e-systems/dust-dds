@@ -67,19 +67,17 @@ impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         domain_id: DomainId,
-        guid_prefix: GuidPrefix,
+        guid: Guid,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
     ) -> Self {
-        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-
         let participant_handle = InstanceHandle::new(guid.into());
 
-        let builtin_subscriber = BuiltinSubscriber::new(guid_prefix);
-        let builtin_publisher = BuiltinPublisher::new(guid_prefix, &transport);
+        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix());
+        let builtin_publisher = BuiltinPublisher::new(guid.prefix(), &transport);
 
         let domain_participant = DomainParticipantEntity::new(
             domain_id,

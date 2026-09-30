@@ -14,7 +14,11 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::DdsRuntime,
-    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
+    security::plugins::authentication::Authentication,
+    transport::{
+        interface::RtpsTransportParticipant,
+        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
+    },
 };
 use alloc::{string::String, vec::Vec};
 
@@ -48,6 +52,7 @@ impl DcpsParticipantFactory {
         transport_participant: RtpsTransportParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
+        authentication: &mut Option<impl Authentication>,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -56,9 +61,19 @@ impl DcpsParticipantFactory {
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
+        let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
+        if let Some(a) = authentication {
+            a.validate_local_identity(
+                domain_id,
+                &domain_participant_qos,
+                candidate_participant_guid,
+            )
+            .unwrap();
+        }
+
         let mut dcps_participant = DcpsDomainParticipant::new(
             domain_id,
-            guid_prefix,
+            candidate_participant_guid,
             domain_participant_qos,
             listener_sender,
             listener_mask,

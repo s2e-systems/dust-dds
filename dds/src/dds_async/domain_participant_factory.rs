@@ -271,7 +271,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         host_id: [u8; 4],
         transport: T,
         configuration: DustDdsConfiguration,
-        _security: DdsSecurityPlugins<Auth, Access>,
+        mut security: DdsSecurityPlugins<Auth, Access>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());
@@ -309,7 +309,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     {
                         Either3::A(user_mail) => {
                             let now = runtime.clock().now();
-                            let reply = domain_participant_factory.handle(user_mail, now, &runtime);
+                            let reply = domain_participant_factory.handle(
+                                user_mail,
+                                now,
+                                &runtime,
+                                &mut security.authentication_plugin,
+                            );
                             rpc_mailbox.send_reply(reply).await;
                         }
                         Either3::B(_) => {
@@ -363,7 +368,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     {
                         Either::A(user_mail) => {
                             let now = runtime.clock().now();
-                            let reply = domain_participant_factory.handle(user_mail, now, &runtime);
+                            let reply = domain_participant_factory.handle(
+                                user_mail,
+                                now,
+                                &runtime,
+                                &mut security.authentication_plugin,
+                            );
                             rpc_mailbox.send_reply(reply).await;
                         }
                         Either::B(wire_mail) => {

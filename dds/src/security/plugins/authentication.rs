@@ -29,7 +29,7 @@ pub struct ValidateLocalIdentityOut<I> {
 }
 
 /// Authentication plugin interface as defined in Section 9.3.2 of the DDS Security specification.
-pub trait Authentication: Send + Sync {
+pub trait Authentication: Send + 'static {
     /// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
     type IdentityHandle;
 
@@ -67,7 +67,7 @@ pub trait Authentication: Send + Sync {
     /// * [`ValidationResult::ValidationPendingRetry`] - If verification has not completed and the operation should be retried later.
     /// * Other [`ValidationResult`] variants for handshake states.
     fn validate_local_identity(
-        &self,
+        &mut self,
         domain_id: DomainId,
         participant_qos: &DomainParticipantQos,
         candidate_participant_guid: Guid,
@@ -78,7 +78,7 @@ impl Authentication for () {
     type IdentityHandle = ();
 
     fn validate_local_identity(
-        &self,
+        &mut self,
         _domain_id: DomainId,
         _participant_qos: &DomainParticipantQos,
         _candidate_participant_guid: Guid,
