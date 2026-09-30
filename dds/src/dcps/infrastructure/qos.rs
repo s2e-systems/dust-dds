@@ -1,6 +1,9 @@
 use crate::{
     dcps::infrastructure::error::{DdsError, DdsResult},
-    infrastructure::{qos_policy::TypeConsistencyEnforcementQosPolicy, time::Duration},
+    infrastructure::{
+        qos_policy::{DataTagQosPolicy, PropertyQosPolicy, TypeConsistencyEnforcementQosPolicy},
+        time::Duration,
+    },
 };
 
 use super::{
@@ -39,6 +42,8 @@ pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     /// Value of the entity factory QoS policy.
     pub entity_factory: EntityFactoryQosPolicy,
+    /// Value of the property list QoS policy.
+    pub property: PropertyQosPolicy,
 }
 
 /// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)
@@ -105,6 +110,10 @@ pub struct DataWriterQos {
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
     /// Value of the data representation QoS policy.
     pub representation: DataRepresentationQosPolicy,
+    /// Value of the property list QoS policy.
+    pub property: PropertyQosPolicy,
+    /// Value of the data tags QoS policy,
+    pub data_tags: DataTagQosPolicy,
 }
 
 impl DataWriterQos {
@@ -132,6 +141,8 @@ impl DataWriterQos {
             transport_priority: TransportPriorityQosPolicy::const_default(),
             writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
             representation: DataRepresentationQosPolicy::const_default(),
+            property: PropertyQosPolicy::const_default(),
+            data_tags: DataTagQosPolicy::const_default(),
         }
     }
 }
@@ -254,6 +265,10 @@ pub struct DataReaderQos {
     pub representation: DataRepresentationQosPolicy,
     /// Value of the type consistency enforcement QoS policy,
     pub type_consistency: TypeConsistencyEnforcementQosPolicy,
+    /// Value of the property list QoS policy.
+    pub property: PropertyQosPolicy,
+    /// Value of the data tags QoS policy,
+    pub data_tags: DataTagQosPolicy,
 }
 
 impl DataReaderQos {
@@ -280,6 +295,8 @@ impl DataReaderQos {
             reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
             representation: DataRepresentationQosPolicy::const_default(),
             type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
+            property: PropertyQosPolicy::const_default(),
+            data_tags: DataTagQosPolicy::const_default(),
         }
     }
 }
