@@ -278,7 +278,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
-                runtime,
                 configuration,
                 dcps_sender.clone(),
             );
@@ -288,7 +287,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             let span = tracing::trace_span!("dds_actor_loop");
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
-                let now = domain_participant_factory.runtime.clock().now();
+                let now = runtime.clock().now();
                 let next_task_time = domain_participant_factory.time_until_next_event(now);
 
                 if let Some(next_task_time) = next_task_time {
@@ -300,12 +299,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     .await
                     {
                         Either3::A(user_mail) => {
-                            let now = domain_participant_factory.runtime.clock().now();
-                            let reply = domain_participant_factory.handle(user_mail, now);
+                            let now = runtime.clock().now();
+                            let reply = domain_participant_factory.handle(user_mail, now, &runtime);
                             rpc_mailbox.send_reply(reply).await;
                         }
                         Either3::B(_) => {
-                            let now = domain_participant_factory.runtime.clock().now();
+                            let now = runtime.clock().now();
                             for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.remove_stale_participants(now);
                                 dp.check_missed_reader_deadline(now);
@@ -330,7 +329,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                             }
                         }
                         Either3::C(wire_mail) => {
-                            let now = domain_participant_factory.runtime.clock().now();
+                            let now = runtime.clock().now();
                             if let Some(dp) = domain_participant_factory
                                 .domain_participant_list
                                 .iter_mut()
@@ -354,12 +353,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                         .await
                     {
                         Either::A(user_mail) => {
-                            let now = domain_participant_factory.runtime.clock().now();
-                            let reply = domain_participant_factory.handle(user_mail, now);
+                            let now = runtime.clock().now();
+                            let reply = domain_participant_factory.handle(user_mail, now, &runtime);
                             rpc_mailbox.send_reply(reply).await;
                         }
                         Either::B(wire_mail) => {
-                            let now = domain_participant_factory.runtime.clock().now();
+                            let now = runtime.clock().now();
                             if let Some(dp) = domain_participant_factory
                                 .domain_participant_list
                                 .iter_mut()

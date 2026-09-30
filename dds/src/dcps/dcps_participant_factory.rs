@@ -18,22 +18,20 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 
-pub struct DcpsParticipantFactory<R: DdsRuntime> {
+pub struct DcpsParticipantFactory {
     pub domain_participant_list: Vec<DcpsDomainParticipant>,
     pub qos: DomainParticipantFactoryQos,
     pub default_participant_qos: DomainParticipantQos,
     pub configuration: DustDdsConfiguration,
-    pub runtime: R,
     pub dcps_sender: DcpsSender,
 }
 
-impl<R: DdsRuntime> DcpsParticipantFactory<R> {
-    pub fn new(runtime: R, configuration: DustDdsConfiguration, dcps_sender: DcpsSender) -> Self {
+impl DcpsParticipantFactory {
+    pub fn new(configuration: DustDdsConfiguration, dcps_sender: DcpsSender) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
-            runtime,
             configuration,
             dcps_sender,
         }
@@ -49,13 +47,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         listener_mask: StatusMask,
         transport_participant: RtpsTransportParticipant,
         now: Time,
+        runtime: &impl DdsRuntime,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
         };
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&self.runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let mut dcps_participant = DcpsDomainParticipant::new(
             domain_id,

@@ -13,8 +13,8 @@ use crate::{
     runtime::DdsRuntime,
 };
 
-impl<R: DdsRuntime> DcpsParticipantFactory<R> {
-    pub fn handle(&mut self, message: DcpsMail, now: Time) -> DcpsReply {
+impl DcpsParticipantFactory {
+    pub fn handle(&mut self, message: DcpsMail, now: Time, runtime: &impl DdsRuntime) -> DcpsReply {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant(p)) => {
                 DcpsReply::InstanceHandle(self.create_participant(
@@ -25,6 +25,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     p.listener_mask,
                     p.transport_participant,
                     now,
+                    runtime,
                 ))
             }
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
@@ -60,12 +61,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
                     .and_then(|p| {
-                        p.create_user_defined_publisher(
-                            qos,
-                            dcps_listener,
-                            listener_mask,
-                            &self.runtime,
-                        )
+                        p.create_user_defined_publisher(qos, dcps_listener, listener_mask, runtime)
                     }),
             ),
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedPublisher {
@@ -86,12 +82,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
                     .and_then(|p| {
-                        p.create_user_defined_subscriber(
-                            qos,
-                            dcps_listener,
-                            listener_mask,
-                            &self.runtime,
-                        )
+                        p.create_user_defined_subscriber(qos, dcps_listener, listener_mask, runtime)
                     }),
             ),
             DcpsMail::Participant(ParticipantServiceMail::DeleteUserDefinedSubscriber {
@@ -115,7 +106,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.dcps_listener,
                         p.listener_mask,
                         p.type_support,
-                        &self.runtime,
+                        runtime,
                         now,
                         self.configuration.enable_type_information(),
                     )),
@@ -312,11 +303,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
                     .and_then(|p| {
-                        p.set_domain_participant_listener(
-                            dcps_listener,
-                            listener_mask,
-                            &self.runtime,
-                        )
+                        p.set_domain_participant_listener(dcps_listener, listener_mask, runtime)
                     }),
             ),
             DcpsMail::Participant(ParticipantServiceMail::Enable { participant_handle }) => {
@@ -393,7 +380,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.qos,
                         p.dcps_listener,
                         p.listener_mask,
-                        &self.runtime,
+                        runtime,
                         now,
                         self.configuration.enable_type_information(),
                     )),
@@ -462,7 +449,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                             &publisher_handle,
                             dcps_listener,
                             listener_mask,
-                            &self.runtime,
+                            runtime,
                         )
                     }),
             ),
@@ -483,7 +470,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                             &data_writer_handle,
                             dcps_listener,
                             listener_mask,
-                            &self.runtime,
+                            runtime,
                         )
                     }),
             ),
@@ -702,7 +689,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.qos,
                         p.dcps_listener,
                         p.listener_mask,
-                        &self.runtime,
+                        runtime,
                         now,
                         self.configuration.enable_type_information(),
                     )),
@@ -779,7 +766,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                             &subscriber_handle,
                             dcps_listener,
                             listener_mask,
-                            &self.runtime,
+                            runtime,
                         )
                     }),
             ),
@@ -958,7 +945,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                             &data_reader_handle,
                             dcps_listener,
                             listener_mask,
-                            &self.runtime,
+                            runtime,
                         )
                     }),
             ),
