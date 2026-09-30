@@ -11,7 +11,9 @@ use crate::{
         PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY,
         PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
         PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
+        PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
         PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+        PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
         PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PARTITION, PID_PERMISSIONS_TOKEN,
         PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
         PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
@@ -23,7 +25,8 @@ use crate::{
     },
     security::types::{
         BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityDigitalSignatureAlgorithmInfo,
-        ParticipantSecurityProtectionInfo, PermissionsToken,
+        ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
+        ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
     },
     xtypes::{
         type_object::TypeInformation,
@@ -69,6 +72,10 @@ pub struct ParticipantBuiltinTopicData {
     pub(crate) available_builtin_endpoints_ext: BuiltinEndpointSetExt,
     #[dust_dds(id=PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO as u32, optional)]
     pub(crate) digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO as u32, optional)]
+    pub(crate) key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO as u32, optional)]
+    pub(crate) symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -105,6 +112,16 @@ impl ParticipantBuiltinTopicData {
     /// Get the digital signature value of the discovered participant.
     pub fn digital_signature(&self) -> &ParticipantSecurityDigitalSignatureAlgorithmInfo {
         &self.digital_signature
+    }
+
+    /// Get the key establishment value of the discovered participant.
+    pub fn key_establishment(&self) -> &ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+        &self.key_establishment
+    }
+
+    /// Get the symmetric cipher value of the discovered participant.
+    pub fn symmetric_cipher(&self) -> &ParticipantSecuritySymmetricCipherAlgorithmInfo {
+        &self.symmetric_cipher
     }
 }
 

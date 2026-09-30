@@ -230,6 +230,22 @@ pub const CRYPTO_ALGORITHM_SET_EMPTY: CryptoAlgorithmSet = 0x0000_0000;
 /// Bit indicating compatibility mode in CryptoAlgorithmRequirements.
 pub const CRYPTO_ALGORITHM_COMPATIBILITY_MODE: CryptoAlgorithmBit = 0x8000_0000;
 
+/// Predefined CryptoAlgorithmBit value for DHE+MODP-2048-256.
+pub const CBIT_DHE_MODP_2048_256: CryptoAlgorithmBit = 1 << 0;
+/// Predefined CryptoAlgorithmBit value for ECDHE-CEUM+P256.
+pub const CBIT_ECDHE_CEUM_P256: CryptoAlgorithmBit = 1 << 1;
+/// Predefined CryptoAlgorithmBit value for ECDHE-CEUM+P384.
+pub const CBIT_ECDHE_CEUM_P384: CryptoAlgorithmBit = 1 << 2;
+
+/// Predefined CryptoAlgorithmBit value for AES128+GMAC.
+pub const CBIT_AES128_GMAC: CryptoAlgorithmBit = 1 << 0;
+/// Predefined CryptoAlgorithmBit value for AES128+GCM.
+pub const CBIT_AES128_GCM: CryptoAlgorithmBit = 1 << 0;
+/// Predefined CryptoAlgorithmBit value for AES256+GMAC.
+pub const CBIT_AES256_GMAC: CryptoAlgorithmBit = 1 << 1;
+/// Predefined CryptoAlgorithmBit value for AES256+GCM.
+pub const CBIT_AES256_GCM: CryptoAlgorithmBit = 1 << 1;
+
 /// CryptoAlgorithmRequirements type as defined in Section 7.3.10 of the DDS Security specification.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
 #[dust_dds(extensibility = "final")]
@@ -270,5 +286,79 @@ impl ParticipantSecurityDigitalSignatureAlgorithmInfo {
     pub fn is_compatible_with(&self, other: &Self) -> bool {
         self.trust_chain.is_compatible_with(&other.trust_chain)
             && self.message_auth.is_compatible_with(&other.message_auth)
+    }
+}
+
+/// ParticipantSecurityKeyEstablishmentAlgorithmInfo type as defined in Section 7.3.12 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+    /// Shared secret algorithm requirements.
+    pub shared_secret: CryptoAlgorithmRequirements,
+}
+
+impl Default for ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+    fn default() -> Self {
+        Self {
+            shared_secret: CryptoAlgorithmRequirements {
+                supported_mask: CBIT_DHE_MODP_2048_256 | CBIT_ECDHE_CEUM_P256,
+                required_mask: CBIT_ECDHE_CEUM_P256,
+            },
+        }
+    }
+}
+
+impl ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+    /// Checks whether two [`ParticipantSecurityKeyEstablishmentAlgorithmInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        self.shared_secret.is_compatible_with(&other.shared_secret)
+    }
+}
+
+/// ParticipantSecuritySymmetricCipherAlgorithmInfo type as defined in Section 7.3.13 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecuritySymmetricCipherAlgorithmInfo {
+    /// Supported algorithms mask.
+    pub supported_mask: CryptoAlgorithmSet,
+    /// Required algorithms mask for builtin endpoints.
+    pub builtin_endpoints_required_mask: CryptoAlgorithmSet,
+    /// Required algorithms mask for builtin key exchange endpoints.
+    pub builtin_kx_endpoints_required_mask: CryptoAlgorithmSet,
+    /// Default required algorithms mask for user endpoints.
+    pub user_endpoints_default_required_mask: CryptoAlgorithmSet,
+}
+
+impl Default for ParticipantSecuritySymmetricCipherAlgorithmInfo {
+    fn default() -> Self {
+        Self {
+            supported_mask: CBIT_AES128_GCM | CBIT_AES256_GCM,
+            builtin_endpoints_required_mask: CBIT_AES256_GCM,
+            builtin_kx_endpoints_required_mask: CBIT_AES256_GCM,
+            user_endpoints_default_required_mask: CBIT_AES256_GCM,
+        }
+    }
+}
+
+impl ParticipantSecuritySymmetricCipherAlgorithmInfo {
+    /// Checks whether two [`ParticipantSecuritySymmetricCipherAlgorithmInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        let check_compatibility =
+            |supported_mask: CryptoAlgorithmSet, required_mask: CryptoAlgorithmSet| {
+                ((required_mask & supported_mask) == required_mask)
+                    || (((required_mask & supported_mask) != 0)
+                        && ((required_mask & CRYPTO_ALGORITHM_COMPATIBILITY_MODE) != 0))
+            };
+
+        check_compatibility(other.supported_mask, self.builtin_endpoints_required_mask)
+            && check_compatibility(
+                other.supported_mask,
+                self.builtin_kx_endpoints_required_mask,
+            )
+            && check_compatibility(self.supported_mask, other.builtin_endpoints_required_mask)
+            && check_compatibility(
+                self.supported_mask,
+                other.builtin_kx_endpoints_required_mask,
+            )
     }
 }

@@ -71,11 +71,13 @@ pub const _PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
 // Table 10 – Additional parameter IDs in ParticipantBuiltinTopicData
 pub const PID_IDENTITY_TOKEN: ParameterId = 0x1001;
 pub const PID_PERMISSIONS_TOKEN: ParameterId = 0x1002;
+pub const PID_ENDPOINT_SECURITY_PROTECTION_INFO: ParameterId = 0x1004;
 pub const PID_PARTICIPANT_SECURITY_PROTECTION_INFO: ParameterId = 0x1005;
 pub const PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT: ParameterId = 0x1007;
 pub const PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO: ParameterId = 0x1010;
 pub const PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO: ParameterId = 0x1011;
 pub const PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO: ParameterId = 0x1012;
+pub const PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO: ParameterId = 0x1013;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification

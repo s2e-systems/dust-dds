@@ -108,6 +108,8 @@ impl DcpsDomainParticipant {
                 protection_info: Default::default(),
                 available_builtin_endpoints_ext: Default::default(),
                 digital_signature: Default::default(),
+                key_establishment: Default::default(),
+                symmetric_cipher: Default::default(),
             };
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),
