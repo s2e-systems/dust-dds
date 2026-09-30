@@ -1,8 +1,8 @@
 use dust_dds::{
-    configuration::DustDdsConfigurationBuilder,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NO_LISTENER, qos::QosKind, status::NO_STATUS, type_support::DdsType,
+        configuration::DustDdsConfigurationBuilder, listener::NO_LISTENER, qos::QosKind,
+        status::NO_STATUS, type_support::DdsType,
     },
 };
 

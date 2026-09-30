@@ -7,10 +7,9 @@ use crate::{
         dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail, WireMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
-    dds_async::{
-        configuration::DustDdsConfiguration, domain_participant_listener::DomainParticipantListener,
-    },
+    dds_async::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
+        configuration::DustDdsConfiguration,
         domain::DomainId,
         error::DdsResult,
         instance::InstanceHandle,
@@ -233,11 +232,7 @@ pub fn get_host_id() -> [u8; 4] {
 }
 
 #[cfg(feature = "std")]
-impl
-    DomainParticipantFactoryAsync<
-        crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
-    >
-{
+impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::RtpsUdpTransport> {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
