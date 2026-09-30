@@ -1,6 +1,8 @@
 use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
+use crate::rtps::types::PropertySeq;
+
 /// BinaryProperty type as defined in Section 7.3.3 of the DDS Security specification.
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
@@ -25,7 +27,7 @@ pub struct DataHolder {
     /// Class ID.
     pub class_id: String,
     /// Sequence of properties.
-    pub properties: crate::rtps::types::PropertySeq,
+    pub properties: PropertySeq,
     /// Sequence of binary properties.
     pub binary_properties: BinaryPropertySeq,
 }

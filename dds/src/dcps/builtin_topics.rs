@@ -8,16 +8,18 @@ use super::infrastructure::qos_policy::{
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
         PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-        PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
-        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
-        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
+        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET,
+        PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
+        PID_PARTITION, PID_PERMISSIONS_TOKEN, PID_PRESENTATION, PID_RELIABILITY,
+        PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
+        PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT, PID_TYPE_INFORMATION,
+        PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
     },
+    security::types::{IdentityToken, PermissionsToken},
     xtypes::{
         type_object::TypeInformation,
         type_support::{_String, TypeSupport},
@@ -52,6 +54,10 @@ pub struct ParticipantBuiltinTopicData {
     pub(crate) key: BuiltInTopicKey,
     #[dust_dds(id=PID_USER_DATA as u32)]
     pub(crate) user_data: UserDataQosPolicy,
+    #[dust_dds(id=PID_IDENTITY_TOKEN as u32, optional)]
+    pub(crate) identity_token: IdentityToken,
+    #[dust_dds(id=PID_PERMISSIONS_TOKEN as u32, optional)]
+    pub(crate) permissions_token: PermissionsToken,
 }
 
 impl ParticipantBuiltinTopicData {

@@ -11,13 +11,17 @@ use super::{
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
-        parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
+        parameter_id_values::{
+            DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_IDENTITY_TOKEN,
+            PID_PERMISSIONS_TOKEN,
+        },
         rtps_data_representation::ParameterList,
         rtps_data_representation_serialization::ParameterListSerializer,
     },
     infrastructure::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
     },
+    security::types::{IdentityToken, PermissionsToken},
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
 };
@@ -216,6 +220,10 @@ impl SpdpDiscoveredParticipantData {
             key: pl.get_non_optional_parameter_xdcr(PID_PARTICIPANT_GUID)?,
             user_data: pl
                 .get_optional_parameter_xdcr(PID_USER_DATA, UserDataQosPolicy::default())?,
+            identity_token: pl
+                .get_optional_parameter_xdcr(PID_IDENTITY_TOKEN, IdentityToken::default())?,
+            permissions_token: pl
+                .get_optional_parameter_xdcr(PID_PERMISSIONS_TOKEN, PermissionsToken::default())?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -260,6 +268,7 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy, rtps::types::PROTOCOLVERSION_2_4,
+        security::types::DataHolder,
     };
 
     #[test]
@@ -275,6 +284,8 @@ mod tests {
                 user_data: UserDataQosPolicy {
                     value: vec![97, 53],
                 },
+                identity_token: IdentityToken::default(),
+                permissions_token: PermissionsToken::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -378,6 +389,8 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy::default(),
+                identity_token: IdentityToken::default(),
+                permissions_token: PermissionsToken::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -451,6 +464,8 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
+                identity_token: IdentityToken::default(),
+                permissions_token: PermissionsToken::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),
