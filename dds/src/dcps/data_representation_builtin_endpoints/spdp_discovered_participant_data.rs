@@ -14,6 +14,7 @@ use crate::{
         parameter_id_values::{
             DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION,
             PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT, PID_IDENTITY_TOKEN,
+            PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
             PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN,
         },
         rtps_data_representation::ParameterList,
@@ -23,7 +24,8 @@ use crate::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
     },
     security::types::{
-        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken,
+        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityDigitalSignatureAlgorithmInfo,
+        ParticipantSecurityProtectionInfo, PermissionsToken,
     },
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
@@ -295,6 +297,10 @@ impl SpdpDiscoveredParticipantData {
                 PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT,
                 BuiltinEndpointSetExt::default(),
             )?,
+            digital_signature: pl.get_optional_parameter_xdcr(
+                PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+                ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
+            )?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -358,6 +364,7 @@ mod tests {
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
                 available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
+                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -465,6 +472,7 @@ mod tests {
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
                 available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
+                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -542,6 +550,7 @@ mod tests {
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
                 available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
+                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),

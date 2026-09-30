@@ -10,18 +10,20 @@ use crate::{
         PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT, PID_DATA_REPRESENTATION, PID_DEADLINE,
         PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY,
         PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
-        PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTICIPANT_SECURITY_PROTECTION_INFO,
-        PID_PARTITION, PID_PERMISSIONS_TOKEN, PID_PRESENTATION, PID_RELIABILITY,
-        PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT, PID_TYPE_INFORMATION,
-        PID_TYPE_NAME, PID_USER_DATA,
+        PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
+        PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+        PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PARTITION, PID_PERMISSIONS_TOKEN,
+        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
+        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
     },
     security::types::{
-        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken,
+        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityDigitalSignatureAlgorithmInfo,
+        ParticipantSecurityProtectionInfo, PermissionsToken,
     },
     xtypes::{
         type_object::TypeInformation,
@@ -65,6 +67,8 @@ pub struct ParticipantBuiltinTopicData {
     pub(crate) protection_info: ParticipantSecurityProtectionInfo,
     #[dust_dds(id=PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT as u32, optional)]
     pub(crate) available_builtin_endpoints_ext: BuiltinEndpointSetExt,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO as u32, optional)]
+    pub(crate) digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -96,6 +100,11 @@ impl ParticipantBuiltinTopicData {
     /// Get the available builtin endpoints ext value of the discovered participant.
     pub fn available_builtin_endpoints_ext(&self) -> &BuiltinEndpointSetExt {
         &self.available_builtin_endpoints_ext
+    }
+
+    /// Get the digital signature value of the discovered participant.
+    pub fn digital_signature(&self) -> &ParticipantSecurityDigitalSignatureAlgorithmInfo {
+        &self.digital_signature
     }
 }
 

@@ -214,3 +214,61 @@ impl BuiltinEndpointSetExt {
         (self.0 & endpoint) == endpoint
     }
 }
+
+/// CryptoAlgorithmSet type as defined in Section 7.3.10 of the DDS Security specification.
+pub type CryptoAlgorithmSet = u32;
+
+/// CryptoAlgorithmBit type as defined in Section 7.3.10 of the DDS Security specification.
+pub type CryptoAlgorithmBit = u32;
+
+/// Bitmask value representing all cryptographic algorithms set.
+pub const CRYPTO_ALGORITHM_SET_ALL: CryptoAlgorithmSet = 0xffff_ffff;
+
+/// Bitmask value representing an empty set of cryptographic algorithms.
+pub const CRYPTO_ALGORITHM_SET_EMPTY: CryptoAlgorithmSet = 0x0000_0000;
+
+/// Bit indicating compatibility mode in CryptoAlgorithmRequirements.
+pub const CRYPTO_ALGORITHM_COMPATIBILITY_MODE: CryptoAlgorithmBit = 0x8000_0000;
+
+/// CryptoAlgorithmRequirements type as defined in Section 7.3.10 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "final")]
+pub struct CryptoAlgorithmRequirements {
+    /// Bitmask of supported algorithms.
+    pub supported_mask: CryptoAlgorithmSet,
+    /// Bitmask of required algorithms.
+    pub required_mask: CryptoAlgorithmSet,
+}
+
+impl CryptoAlgorithmRequirements {
+    /// Checks whether two [`CryptoAlgorithmRequirements`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        let check_compatibility =
+            |supported_mask: CryptoAlgorithmSet, required_mask: CryptoAlgorithmSet| {
+                ((required_mask & supported_mask) == required_mask)
+                    || (((required_mask & supported_mask) != 0)
+                        && ((required_mask & CRYPTO_ALGORITHM_COMPATIBILITY_MODE) != 0))
+            };
+
+        check_compatibility(other.supported_mask, self.required_mask)
+            && check_compatibility(self.supported_mask, other.required_mask)
+    }
+}
+
+/// ParticipantSecurityDigitalSignatureAlgorithmInfo type as defined in Section 7.5.1.4 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityDigitalSignatureAlgorithmInfo {
+    /// Trust chain algorithm requirements.
+    pub trust_chain: CryptoAlgorithmRequirements,
+    /// Message authentication algorithm requirements.
+    pub message_auth: CryptoAlgorithmRequirements,
+}
+
+impl ParticipantSecurityDigitalSignatureAlgorithmInfo {
+    /// Checks whether two [`ParticipantSecurityDigitalSignatureAlgorithmInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        self.trust_chain.is_compatible_with(&other.trust_chain)
+            && self.message_auth.is_compatible_with(&other.message_auth)
+    }
+}
