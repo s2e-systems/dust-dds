@@ -15,11 +15,7 @@ use std::process::Command;
 fn sample_published_on_target_should_be_received_on_host() {
     let status = Command::new("cargo")
         .current_dir("micro_app")
-        .args([
-            "build",
-            "--profile",
-            "micro-dev",
-        ])
+        .args(["build", "--profile", "micro-dev"])
         .status()
         .expect("Failed to execute cargo build for micro_app");
     if !status.success() {

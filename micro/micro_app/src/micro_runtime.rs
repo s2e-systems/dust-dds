@@ -47,7 +47,7 @@ impl Spawner for MicroSpawner {
     fn spawn(&self, f: impl Future<Output = ()> + Send + 'static) -> Self::TaskHandle {
         let token = unwrap!(future_function(Box::pin(f)));
         self.spawner.spawn(token);
-        MicrotaskHandle{}
+        MicrotaskHandle {}
     }
 }
 

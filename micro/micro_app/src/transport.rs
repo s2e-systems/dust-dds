@@ -120,11 +120,12 @@ async fn writer_task(stack: Stack<'static>) -> ! {
             let udp_locator = UdpLocator(destination_locator);
             let addr = Ipv4Addr::from(&udp_locator);
             if own_address.contains_addr(&addr.into()) || addr.is_multicast() {
-                info!("Send data to: {:?}, port: {}", destination_locator.address(), destination_locator.port());
-                socket
-                    .send_to(datagram.as_ref(), &udp_locator)
-                    .await
-                    .ok();
+                info!(
+                    "Send data to: {:?}, port: {}",
+                    destination_locator.address(),
+                    destination_locator.port()
+                );
+                socket.send_to(datagram.as_ref(), &udp_locator).await.ok();
             }
         }
     }
