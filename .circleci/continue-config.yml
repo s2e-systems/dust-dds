@@ -416,6 +416,7 @@ workflows:
       - hello_world_on_windows
       - performance_benchmark
       - memory_benchmark
+      - micro_compile_check
       - build_metrics
       - code_checks
       - multi_machine_tests
