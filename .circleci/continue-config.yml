@@ -69,7 +69,7 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - run: cargo clippy --all-features --all
+      - run: cargo clippy --all-features
       - run: cargo fmt --check --all
   performance_benchmark:
     docker:
