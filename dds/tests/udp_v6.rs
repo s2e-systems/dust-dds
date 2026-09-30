@@ -10,6 +10,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     rtps_udp_transport::IpVersion,
+    security::plugins::types::DdsSecurityPlugins,
     wait_set::{Condition, WaitSet},
 };
 
@@ -29,8 +30,11 @@ fn udp_v6_locators_and_communication() {
 
     let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
     transport.set_ip_version(IpVersion::V6);
-    let participant_factory =
-        DomainParticipantFactory::get_custom_instance(transport, Default::default());
+    let participant_factory = DomainParticipantFactory::get_custom_instance(
+        transport,
+        Default::default(),
+        DdsSecurityPlugins::disabled(),
+    );
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
@@ -141,8 +145,11 @@ fn udp_both_locators_and_communication() {
 
     let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
     transport.set_ip_version(IpVersion::Both);
-    let participant_factory =
-        DomainParticipantFactory::get_custom_instance(transport, Default::default());
+    let participant_factory = DomainParticipantFactory::get_custom_instance(
+        transport,
+        Default::default(),
+        DdsSecurityPlugins::disabled(),
+    );
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)

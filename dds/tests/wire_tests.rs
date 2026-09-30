@@ -9,6 +9,7 @@ use dust_dds::{
         submessage_elements::{Data, ParameterList},
         submessages::data::DataSubmessage,
     },
+    security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{
             RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
@@ -65,6 +66,7 @@ fn detect_stale_participant() {
         host_id,
         MockTransport(data_receiver_send),
         configuration,
+        DdsSecurityPlugins::disabled(),
     );
 
     let participant = DomainParticipant::from(
@@ -159,6 +161,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         host_id,
         MockTransport(data_receiver_send),
         configuration,
+        DdsSecurityPlugins::disabled(),
     );
 
     let participant = DomainParticipant::from(

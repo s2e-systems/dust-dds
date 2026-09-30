@@ -73,3 +73,16 @@ pub trait Authentication: Send + Sync {
         candidate_participant_guid: Guid,
     ) -> Result<ValidateLocalIdentityOut<Self::IdentityHandle>, ValidationResult>;
 }
+
+impl Authentication for () {
+    type IdentityHandle = ();
+
+    fn validate_local_identity(
+        &self,
+        _domain_id: DomainId,
+        _participant_qos: &DomainParticipantQos,
+        _candidate_participant_guid: Guid,
+    ) -> Result<ValidateLocalIdentityOut<Self::IdentityHandle>, ValidationResult> {
+        unreachable!("Placeholder should never be called")
+    }
+}

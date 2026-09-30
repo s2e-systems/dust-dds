@@ -4,6 +4,8 @@ use dust_dds::{
         configuration::DustDdsConfigurationBuilder, listener::NO_LISTENER, qos::QosKind,
         status::NO_STATUS, type_support::DdsType,
     },
+    rtps_udp_transport::RtpsUdpTransport,
+    security::plugins::types::DdsSecurityPlugins,
 };
 
 #[derive(DdsType, Debug)]
@@ -20,8 +22,11 @@ fn main() {
         .build()
         .unwrap();
 
-    let participant_factory =
-        DomainParticipantFactory::get_custom_instance(Default::default(), configuration);
+    let participant_factory = DomainParticipantFactory::get_custom_instance(
+        RtpsUdpTransport::default(),
+        configuration,
+        DdsSecurityPlugins::disabled(),
+    );
 
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)

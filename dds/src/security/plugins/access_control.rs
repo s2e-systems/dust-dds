@@ -36,3 +36,18 @@ pub trait AccessControl: Send + Sync {
         participant_qos: &DomainParticipantQos,
     ) -> Result<Self::PermissionsHandle, SecurityException>;
 }
+
+impl AccessControl for () {
+    type IdentityHandle = ();
+    type PermissionsHandle = ();
+
+    fn validate_local_permissions(
+        &self,
+        _auth_plugin: &dyn Authentication<IdentityHandle = Self::IdentityHandle>,
+        _identity: Self::IdentityHandle,
+        _domain_id: DomainId,
+        _participant_qos: &DomainParticipantQos,
+    ) -> Result<Self::PermissionsHandle, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+}
