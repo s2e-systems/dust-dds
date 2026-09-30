@@ -31,9 +31,12 @@ pub enum ValidationResult {
     ValidationOkFinalMessage,
 }
 
+/// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
+pub type IdentityHandle = usize;
+
 /// Output parameters for [`Authentication::validate_local_identity`].
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ValidateLocalIdentityOut<IdentityHandle> {
+pub struct ValidateLocalIdentityOut {
     /// Handle to the validated local identity.
     pub local_identity_handle: IdentityHandle,
     /// Adjusted participant GUID.
@@ -41,13 +44,10 @@ pub struct ValidateLocalIdentityOut<IdentityHandle> {
 }
 
 /// Authentication plugin interface as defined in Section 9.3.2 of the DDS Security specification.
-pub trait Authentication {
-    /// Opaque handle representing internal authentication state.
-    type IdentityHandle;
-
+pub trait Authentication: Send + Sync {
     /// Validates the identity of the local `DomainParticipant`.
     ///
-    /// The operation returns as an output parameter the [`IdentityHandle`](Self::IdentityHandle),
+    /// The operation returns as an output parameter the [`IdentityHandle`],
     /// which can be used to locally identify the local Participant to the Authentication Plugin.
     ///
     /// In addition to validating the identity, this operation also returns the `DomainParticipant` [`Guid`]
@@ -83,5 +83,5 @@ pub trait Authentication {
         domain_id: DomainId,
         participant_qos: &DomainParticipantQos,
         candidate_participant_guid: Guid,
-    ) -> Result<ValidateLocalIdentityOut<Self::IdentityHandle>, ValidationResult>;
+    ) -> Result<ValidateLocalIdentityOut, ValidationResult>;
 }
