@@ -318,10 +318,8 @@ impl SpdpDiscoveredParticipantData {
                 PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
                 ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
             )?,
-            property: pl.get_optional_parameter_xdcr(
-                PID_PROPERTY_LIST,
-                PropertyQosPolicy::default(),
-            )?,
+            property: pl
+                .get_optional_parameter_xdcr(PID_PROPERTY_LIST, PropertyQosPolicy::default())?,
         };
 
         let participant_proxy = ParticipantProxy {
