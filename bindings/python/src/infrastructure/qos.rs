@@ -70,6 +70,7 @@ impl DomainParticipantQos {
         Self(dust_dds::infrastructure::qos::DomainParticipantQos {
             user_data: user_data.clone().into(),
             entity_factory: entity_factory.into(),
+            property: Default::default(),
         })
     }
 
@@ -380,6 +381,8 @@ impl DataWriterQos {
             ownership_strength: ownership_strength.into(),
             writer_data_lifecycle: writer_data_lifecycle.into(),
             representation: representation.into(),
+            data_tags: Default::default(),
+            property: Default::default(),
         })
     }
 
@@ -503,6 +506,8 @@ impl DataReaderQos {
             reader_data_lifecycle: reader_data_lifecycle.into(),
             representation: representation.into(),
             type_consistency: type_consistency.into(),
+            data_tags: Default::default(),
+            property: Default::default(),
         })
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds_c"
-version = "0.16.1"
+version = "0.17.0"
 description = "Dust DDS C bindings"
 readme = true
 publish = false
