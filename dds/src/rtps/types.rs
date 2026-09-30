@@ -1,6 +1,6 @@
 use crate::transport::types::{ProtocolVersion, VendorId};
 
-pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
+pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_5;
 #[allow(dead_code)]
 pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion::new(1, 0);
 #[allow(dead_code)]
@@ -13,7 +13,9 @@ pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion::new(2, 1);
 pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion::new(2, 2);
 #[allow(dead_code)]
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion::new(2, 3);
+#[allow(dead_code)]
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion::new(2, 4);
+pub const PROTOCOLVERSION_2_5: ProtocolVersion = ProtocolVersion::new(2, 5);
 
 #[allow(dead_code)]
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
