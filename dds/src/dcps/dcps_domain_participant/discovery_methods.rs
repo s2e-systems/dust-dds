@@ -105,6 +105,7 @@ impl DcpsDomainParticipant {
                 user_data: self.domain_participant.qos.user_data.clone(),
                 identity_token: Default::default(),
                 permissions_token: Default::default(),
+                protection_info: Default::default(),
             };
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),

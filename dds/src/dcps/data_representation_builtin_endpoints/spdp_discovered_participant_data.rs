@@ -13,7 +13,7 @@ use crate::{
     dcps::data_representation_builtin_endpoints::{
         parameter_id_values::{
             DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_IDENTITY_TOKEN,
-            PID_PERMISSIONS_TOKEN,
+            PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN,
         },
         rtps_data_representation::ParameterList,
         rtps_data_representation_serialization::ParameterListSerializer,
@@ -21,7 +21,7 @@ use crate::{
     infrastructure::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
     },
-    security::types::{IdentityToken, PermissionsToken},
+    security::types::{IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken},
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
 };
@@ -224,6 +224,10 @@ impl SpdpDiscoveredParticipantData {
                 .get_optional_parameter_xdcr(PID_IDENTITY_TOKEN, IdentityToken::default())?,
             permissions_token: pl
                 .get_optional_parameter_xdcr(PID_PERMISSIONS_TOKEN, PermissionsToken::default())?,
+            protection_info: pl.get_optional_parameter_xdcr(
+                PID_PARTICIPANT_SECURITY_PROTECTION_INFO,
+                ParticipantSecurityProtectionInfo::default(),
+            )?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -286,6 +290,7 @@ mod tests {
                 },
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
+                protection_info: ParticipantSecurityProtectionInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -391,6 +396,7 @@ mod tests {
                 user_data: UserDataQosPolicy::default(),
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
+                protection_info: ParticipantSecurityProtectionInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -466,6 +472,7 @@ mod tests {
                 user_data: UserDataQosPolicy { value: vec![] },
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
+                protection_info: ParticipantSecurityProtectionInfo::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),

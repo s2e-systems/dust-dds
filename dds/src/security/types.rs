@@ -110,3 +110,68 @@ pub type DatawriterCryptoTokenSeq = CryptoTokenSeq;
 
 /// Sequence of [`DatareaderCryptoToken`].
 pub type DatareaderCryptoTokenSeq = CryptoTokenSeq;
+
+/// ParticipantSecurityAttributesMask type as defined in Section 7.3 of the DDS Security specification.
+pub type ParticipantSecurityAttributesMask = u32;
+
+/// PluginParticipantSecurityAttributesMask type as defined in Section 7.3 of the DDS Security specification.
+pub type PluginParticipantSecurityAttributesMask = u32;
+
+/// ParticipantSecurityAttributesMaskExt type as defined in Section 7.3 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "final")]
+pub struct ParticipantSecurityAttributesMaskExt {
+    /// Indicates whether the corresponding bit in the value mask is set.
+    pub is_set: u16,
+    /// Value mask.
+    pub value: u16,
+}
+
+/// ParticipantSecurityProtectionInfo type as defined in Section 7.3 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityProtectionInfo {
+    /// Participant security attributes mask.
+    pub participant_security_attributes: ParticipantSecurityAttributesMask,
+    /// Plugin participant security attributes mask.
+    pub plugin_participant_security_attributes: PluginParticipantSecurityAttributesMask,
+    /// Participant security optional attributes.
+    pub participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt,
+}
+
+/// Flag indicating whether the mask is valid in [`ParticipantSecurityAttributesMask`] and [`PluginParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID: u32 = 0x1 << 31;
+
+/// Default value for [`ParticipantSecurityProtectionInfo`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT: ParticipantSecurityProtectionInfo =
+    ParticipantSecurityProtectionInfo {
+        participant_security_attributes: 0,
+        plugin_participant_security_attributes: 0,
+        participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt {
+            is_set: 0,
+            value: 0,
+        },
+    };
+
+impl ParticipantSecurityProtectionInfo {
+    /// Checks whether two [`ParticipantSecurityProtectionInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        let mask_compatible = |mask1: u32, mask2: u32| {
+            let valid1 = (mask1 & PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID) != 0;
+            let valid2 = (mask2 & PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID) != 0;
+            if valid1 && valid2 {
+                mask1 == mask2
+            } else {
+                true
+            }
+        };
+
+        mask_compatible(
+            self.participant_security_attributes,
+            other.participant_security_attributes,
+        ) && mask_compatible(
+            self.plugin_participant_security_attributes,
+            other.plugin_participant_security_attributes,
+        )
+    }
+}

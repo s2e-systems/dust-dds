@@ -10,16 +10,16 @@ use crate::{
         PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET,
         PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
-        PID_PARTITION, PID_PERMISSIONS_TOKEN, PID_PRESENTATION, PID_RELIABILITY,
-        PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT, PID_TYPE_INFORMATION,
-        PID_TYPE_NAME, PID_USER_DATA,
+        PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PARTITION, PID_PERMISSIONS_TOKEN,
+        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
+        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
+        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
     },
-    security::types::{IdentityToken, PermissionsToken},
+    security::types::{IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken},
     xtypes::{
         type_object::TypeInformation,
         type_support::{_String, TypeSupport},
@@ -58,6 +58,8 @@ pub struct ParticipantBuiltinTopicData {
     pub(crate) identity_token: IdentityToken,
     #[dust_dds(id=PID_PERMISSIONS_TOKEN as u32, optional)]
     pub(crate) permissions_token: PermissionsToken,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_PROTECTION_INFO as u32, optional)]
+    pub(crate) protection_info: ParticipantSecurityProtectionInfo,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -69,6 +71,21 @@ impl ParticipantBuiltinTopicData {
     /// Get the user data value of the discovered participant.
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
+    }
+
+    /// Get the identity token value of the discovered participant.
+    pub fn identity_token(&self) -> &IdentityToken {
+        &self.identity_token
+    }
+
+    /// Get the permissions token value of the discovered participant.
+    pub fn permissions_token(&self) -> &PermissionsToken {
+        &self.permissions_token
+    }
+
+    /// Get the protection info value of the discovered participant.
+    pub fn protection_info(&self) -> &ParticipantSecurityProtectionInfo {
+        &self.protection_info
     }
 }
 
