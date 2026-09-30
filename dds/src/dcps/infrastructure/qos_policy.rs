@@ -1,6 +1,8 @@
 use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
+    rtps::types::PropertySeq,
+    security::types::BinaryPropertySeq,
     transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         dynamic_type::{
@@ -142,6 +144,8 @@ const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
 const DATA_REPRESENTATION_QOS_POLICY_NAME: &str = "DataRepresentation";
 const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_NAME: &str = "TypeConsistencyEnforcement";
+const PROPERTY_QOS_POLICY_NAME: &str = "Property";
+const DATA_TAGS_QOS_POLICY_NAME: &str = "DataTags";
 
 /// QosPolicy Id representing an invalid QoS policy
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
@@ -193,6 +197,10 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 pub const DATA_REPRESENTATION_QOS_POLICY_ID: QosPolicyId = 23;
 /// Id for the TypeConsistencyEnforcementQosPolicy
 pub const TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID: QosPolicyId = 24;
+/// Id for the PropertyQosPolicy
+pub const PROPERTY_QOS_POLICY_ID: QosPolicyId = 25;
+/// Id for the DataTagQosPolicy
+pub const DATA_TAGS_QOS_POLICY_ID: QosPolicyId = 26;
 
 /// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
@@ -1631,6 +1639,82 @@ impl Default for TypeConsistencyEnforcementQosPolicy {
         Self::const_default()
     }
 }
+
+/// The PropertyQosPolicy is used to configure properties for DomainParticipant,
+/// DataWriter, and DataReader entities as defined in DDS Security specification 7.3.21.
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
+pub struct PropertyQosPolicy {
+    /// Sequence of string property name/value pairs.
+    pub value: PropertySeq,
+    /// Sequence of binary property name/value pairs.
+    pub binary_value: BinaryPropertySeq,
+}
+
+impl PropertyQosPolicy {
+    /// Default constructor usable in const contexts
+    pub const fn const_default() -> Self {
+        Self {
+            value: Vec::new(),
+            binary_value: Vec::new(),
+        }
+    }
+}
+
+impl QosPolicy for PropertyQosPolicy {
+    fn name(&self) -> &str {
+        PROPERTY_QOS_POLICY_NAME
+    }
+}
+
+impl Default for PropertyQosPolicy {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
+/// Tag type as defined in Section 7.3.21 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "final")]
+pub struct Tag {
+    /// Tag name.
+    pub name: String,
+    /// Tag value.
+    pub value: String,
+}
+
+/// Sequence of [`Tag`].
+pub type TagSeq = Vec<Tag>;
+
+/// DataTags type as defined in Section 7.3.21 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "appendable", nested)]
+pub struct DataTags {
+    /// Sequence of tags.
+    pub tags: TagSeq,
+}
+
+impl DataTags {
+    /// Default constructor usable in const contexts
+    pub const fn const_default() -> Self {
+        Self { tags: Vec::new() }
+    }
+}
+
+impl QosPolicy for DataTags {
+    fn name(&self) -> &str {
+        DATA_TAGS_QOS_POLICY_NAME
+    }
+}
+
+impl Default for DataTags {
+    fn default() -> Self {
+        Self::const_default()
+    }
+}
+
+/// The DataTagQosPolicy is used to configure data tags as defined in DDS Security specification 7.3.21.
+pub type DataTagQosPolicy = DataTags;
 
 #[cfg(test)]
 mod tests {

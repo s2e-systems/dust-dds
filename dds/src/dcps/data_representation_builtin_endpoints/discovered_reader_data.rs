@@ -1,9 +1,10 @@
 use super::parameter_id_values::{
     DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
-    PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
-    PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
-    PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
-    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_DURABILITY, PID_ENDPOINT_GUID, PID_ENDPOINT_SECURITY_PROTECTION_INFO,
+    PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA,
+    PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
+    PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER,
+    PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -109,6 +110,18 @@ impl DiscoveredReaderData {
                 self.dds_subscription_data.representation,
             );
         }
+        if self.dds_subscription_data.protection_info != Default::default() {
+            pl.write_xcdr1_parameter(
+                PID_ENDPOINT_SECURITY_PROTECTION_INFO,
+                self.dds_subscription_data.protection_info,
+            );
+        }
+        if self.dds_subscription_data.symmetric_cipher != Default::default() {
+            pl.write_xcdr1_parameter(
+                PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+                self.dds_subscription_data.symmetric_cipher,
+            );
+        }
 
         // For interoperability reasons this is unconditionally sent and the if clause remains commented out
         // if self.dds_subscription_data.type_consistency
@@ -174,6 +187,14 @@ impl DiscoveredReaderData {
                 PID_TYPE_CONSISTENCY_ENFORCEMENT,
                 Default::default(),
             )?,
+            protection_info: pl.get_optional_parameter_xdcr(
+                PID_ENDPOINT_SECURITY_PROTECTION_INFO,
+                Default::default(),
+            )?,
+            symmetric_cipher: pl.get_optional_parameter_xdcr(
+                PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+                Default::default(),
+            )?,
         };
 
         let reader_proxy = ReaderProxy {
@@ -236,6 +257,8 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
                 type_consistency: Default::default(),
+                protection_info: Default::default(),
+                symmetric_cipher: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -311,6 +334,8 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
                 type_consistency: Default::default(),
+                protection_info: Default::default(),
+                symmetric_cipher: Default::default(),
             },
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
@@ -400,6 +425,8 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
                 type_consistency: Default::default(),
+                protection_info: Default::default(),
+                symmetric_cipher: Default::default(),
             },
         };
 
@@ -471,6 +498,8 @@ mod tests {
                 group_data: Default::default(),
                 representation: Default::default(),
                 type_consistency: Default::default(),
+                protection_info: Default::default(),
+                symmetric_cipher: Default::default(),
             },
         };
 

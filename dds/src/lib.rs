@@ -35,6 +35,9 @@ pub mod transport;
 /// Contains the Dust DDS runtime abstractions.
 pub mod runtime;
 
+#[doc(hidden)]
+pub mod security;
+
 #[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod std_runtime;

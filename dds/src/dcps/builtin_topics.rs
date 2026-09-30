@@ -2,21 +2,35 @@ use super::infrastructure::qos_policy::{
     DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
     LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    PresentationQosPolicy, PropertyQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
+    TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN,
-        PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION,
-        PID_PRESENTATION, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER,
-        PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_CONSISTENCY_ENFORCEMENT,
-        PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
+        PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT, PID_DATA_REPRESENTATION, PID_DEADLINE,
+        PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
+        PID_ENDPOINT_SECURITY_PROTECTION_INFO,
+        PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_GROUP_DATA, PID_HISTORY,
+        PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
+        PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
+        PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+        PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+        PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
+        PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PARTITION, PID_PERMISSIONS_TOKEN,
+        PID_PRESENTATION, PID_PROPERTY_LIST, PID_RELIABILITY, PID_RESOURCE_LIMITS,
+        PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY,
+        PID_TYPE_CONSISTENCY_ENFORCEMENT, PID_TYPE_INFORMATION, PID_TYPE_NAME, PID_USER_DATA,
     },
     infrastructure::qos_policy::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
+    },
+    security::types::{
+        BuiltinEndpointSetExt, EndpointSecurityProtectionInfo,
+        EndpointSecuritySymmetricCipherAlgorithmInfo, IdentityToken,
+        ParticipantSecurityDigitalSignatureAlgorithmInfo,
+        ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
+        ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
     },
     xtypes::{
         type_object::TypeInformation,
@@ -52,6 +66,22 @@ pub struct ParticipantBuiltinTopicData {
     pub(crate) key: BuiltInTopicKey,
     #[dust_dds(id=PID_USER_DATA as u32)]
     pub(crate) user_data: UserDataQosPolicy,
+    #[dust_dds(id=PID_IDENTITY_TOKEN as u32, optional)]
+    pub(crate) identity_token: IdentityToken,
+    #[dust_dds(id=PID_PERMISSIONS_TOKEN as u32, optional)]
+    pub(crate) permissions_token: PermissionsToken,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_PROTECTION_INFO as u32, optional)]
+    pub(crate) protection_info: ParticipantSecurityProtectionInfo,
+    #[dust_dds(id=PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT as u32, optional)]
+    pub(crate) available_builtin_endpoints_ext: BuiltinEndpointSetExt,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO as u32, optional)]
+    pub(crate) digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO as u32, optional)]
+    pub(crate) key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
+    #[dust_dds(id=PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO as u32, optional)]
+    pub(crate) symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
+    #[dust_dds(id=PID_PROPERTY_LIST as u32, optional)]
+    pub(crate) property: PropertyQosPolicy,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -63,6 +93,46 @@ impl ParticipantBuiltinTopicData {
     /// Get the user data value of the discovered participant.
     pub fn user_data(&self) -> &UserDataQosPolicy {
         &self.user_data
+    }
+
+    /// Get the identity token value of the discovered participant.
+    pub fn identity_token(&self) -> &IdentityToken {
+        &self.identity_token
+    }
+
+    /// Get the permissions token value of the discovered participant.
+    pub fn permissions_token(&self) -> &PermissionsToken {
+        &self.permissions_token
+    }
+
+    /// Get the protection info value of the discovered participant.
+    pub fn protection_info(&self) -> &ParticipantSecurityProtectionInfo {
+        &self.protection_info
+    }
+
+    /// Get the available builtin endpoints ext value of the discovered participant.
+    pub fn available_builtin_endpoints_ext(&self) -> &BuiltinEndpointSetExt {
+        &self.available_builtin_endpoints_ext
+    }
+
+    /// Get the digital signature value of the discovered participant.
+    pub fn digital_signature(&self) -> &ParticipantSecurityDigitalSignatureAlgorithmInfo {
+        &self.digital_signature
+    }
+
+    /// Get the key establishment value of the discovered participant.
+    pub fn key_establishment(&self) -> &ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+        &self.key_establishment
+    }
+
+    /// Get the symmetric cipher value of the discovered participant.
+    pub fn symmetric_cipher(&self) -> &ParticipantSecuritySymmetricCipherAlgorithmInfo {
+        &self.symmetric_cipher
+    }
+
+    /// Get the property QoS policy value of the discovered participant.
+    pub fn property(&self) -> &PropertyQosPolicy {
+        &self.property
     }
 }
 
@@ -232,6 +302,10 @@ pub struct PublicationBuiltinTopicData {
     pub(crate) group_data: GroupDataQosPolicy,
     #[dust_dds(id=PID_DATA_REPRESENTATION as u32, optional)]
     pub(crate) representation: DataRepresentationQosPolicy,
+    #[dust_dds(id=PID_ENDPOINT_SECURITY_PROTECTION_INFO as u32, optional)]
+    pub(crate) protection_info: EndpointSecurityProtectionInfo,
+    #[dust_dds(id=PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO as u32, optional)]
+    pub(crate) symmetric_cipher: EndpointSecuritySymmetricCipherAlgorithmInfo,
 }
 
 impl PublicationBuiltinTopicData {
@@ -329,6 +403,16 @@ impl PublicationBuiltinTopicData {
     pub fn representation(&self) -> &DataRepresentationQosPolicy {
         &self.representation
     }
+
+    /// Get the protection info of the discovered writer.
+    pub fn protection_info(&self) -> &EndpointSecurityProtectionInfo {
+        &self.protection_info
+    }
+
+    /// Get the symmetric cipher algorithm info of the discovered writer.
+    pub fn symmetric_cipher(&self) -> &EndpointSecuritySymmetricCipherAlgorithmInfo {
+        &self.symmetric_cipher
+    }
 }
 
 /// Structure representing a discovered [`DataReader`](crate::subscription::data_reader::DataReader).
@@ -375,6 +459,10 @@ pub struct SubscriptionBuiltinTopicData {
     pub(crate) representation: DataRepresentationQosPolicy,
     #[dust_dds(id=PID_TYPE_CONSISTENCY_ENFORCEMENT as u32, optional)]
     pub(crate) type_consistency: TypeConsistencyEnforcementQosPolicy,
+    #[dust_dds(id=PID_ENDPOINT_SECURITY_PROTECTION_INFO as u32, optional)]
+    pub(crate) protection_info: EndpointSecurityProtectionInfo,
+    #[dust_dds(id=PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO as u32, optional)]
+    pub(crate) symmetric_cipher: EndpointSecuritySymmetricCipherAlgorithmInfo,
 }
 
 impl SubscriptionBuiltinTopicData {
@@ -471,5 +559,15 @@ impl SubscriptionBuiltinTopicData {
     /// Get the type consistency enforcement QoS policy of the discovered reader
     pub fn type_consistency(&self) -> &TypeConsistencyEnforcementQosPolicy {
         &self.type_consistency
+    }
+
+    /// Get the protection info of the discovered reader.
+    pub fn protection_info(&self) -> &EndpointSecurityProtectionInfo {
+        &self.protection_info
+    }
+
+    /// Get the symmetric cipher algorithm info of the discovered reader.
+    pub fn symmetric_cipher(&self) -> &EndpointSecuritySymmetricCipherAlgorithmInfo {
+        &self.symmetric_cipher
     }
 }

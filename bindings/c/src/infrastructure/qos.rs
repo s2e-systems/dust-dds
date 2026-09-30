@@ -44,6 +44,7 @@ impl From<DomainParticipantQos> for dust_dds::infrastructure::qos::DomainPartici
         Self {
             user_data: val.user_data.into(),
             entity_factory: val.entity_factory.into(),
+            property: Default::default(),
         }
     }
 }
@@ -151,6 +152,8 @@ impl From<DataWriterQos> for dust_dds::infrastructure::qos::DataWriterQos {
             ownership_strength: val.ownership_strength.into(),
             writer_data_lifecycle: val.writer_data_lifecycle.into(),
             representation: Default::default(),
+            data_tags: Default::default(),
+            property: Default::default(),
         }
     }
 }
@@ -240,6 +243,8 @@ impl From<DataReaderQos> for dust_dds::infrastructure::qos::DataReaderQos {
             reader_data_lifecycle: val.reader_data_lifecycle.into(),
             representation: Default::default(),
             type_consistency: Default::default(),
+            data_tags: Default::default(),
+            property: Default::default(),
         }
     }
 }
