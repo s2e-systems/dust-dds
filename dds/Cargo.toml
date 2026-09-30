@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.16.0"
+version = "0.16.1"
 description = "Data Distribution Service (DDS) implementation"
 readme = true
 edition.workspace = true

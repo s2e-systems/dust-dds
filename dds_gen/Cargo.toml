@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds_gen"
-version = "0.16.0"
+version = "0.16.1"
 description = "OMG IDL compiler for Dust DDS"
 readme = true
 keywords = ["dds", "idl", "middleware"]
