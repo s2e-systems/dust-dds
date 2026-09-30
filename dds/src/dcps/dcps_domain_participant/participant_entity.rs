@@ -33,7 +33,7 @@ use crate::{
     },
     transport::{
         interface::RtpsTransportParticipant,
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
+        types::{Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
     xtypes::dynamic_type::DynamicType,
 };
