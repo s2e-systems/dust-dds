@@ -2,6 +2,7 @@ pub mod ack_nack;
 pub mod data;
 pub mod data_frag;
 pub mod gap;
+pub mod header_extension;
 pub mod heartbeat;
 pub mod heartbeat_frag;
 pub mod info_destination;

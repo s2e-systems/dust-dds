@@ -54,6 +54,7 @@ impl<'a> Iterator for MessageReceiver<'a> {
                     }
                 }
                 RtpsSubmessageReadKind::Pad(_) => (),
+                RtpsSubmessageReadKind::HeaderExtension(_) => (),
             }
         }
         None

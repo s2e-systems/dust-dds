@@ -1,8 +1,7 @@
 use super::{
     error::{RtpsMessageError, RtpsMessageResult},
-    overall_structure::{BufRead, Endianness, TryReadFromBytes, Write, WriteIntoBytes},
-    types::FragmentNumber,
-    types::ParameterId,
+    overall_structure::{BufRead, Endianness, Read, TryReadFromBytes, Write, WriteIntoBytes},
+    types::{Checksum32, Checksum64, Checksum128, FragmentNumber, ParameterId},
 };
 use crate::transport::types::{Locator, SequenceNumber};
 use alloc::{sync::Arc, vec::Vec};
@@ -526,6 +525,53 @@ impl AsRef<[u8]> for Data {
 impl WriteIntoBytes for Data {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         self.0.as_ref().write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub enum Checksum {
+    #[default]
+    None,
+    Checksum32(Checksum32),
+    Checksum64(Checksum64),
+    Checksum128(Checksum128),
+}
+
+impl WriteIntoBytes for Checksum {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        match self {
+            Checksum::None => (),
+            Checksum::Checksum32(c) => c.write_into_bytes(buf),
+            Checksum::Checksum64(c) => c.write_into_bytes(buf),
+            Checksum::Checksum128(c) => c.write_into_bytes(buf),
+        }
+    }
+}
+
+impl Checksum {
+    pub fn try_read_from_bytes(
+        data: &mut &[u8],
+        c1_flag: bool,
+        c2_flag: bool,
+    ) -> RtpsMessageResult<Self> {
+        match (c1_flag, c2_flag) {
+            (false, false) => Ok(Checksum::None),
+            (false, true) => {
+                let mut bytes = [0; 4];
+                data.read_exact(&mut bytes)?;
+                Ok(Checksum::Checksum32(bytes))
+            }
+            (true, false) => {
+                let mut bytes = [0; 8];
+                data.read_exact(&mut bytes)?;
+                Ok(Checksum::Checksum64(bytes))
+            }
+            (true, true) => {
+                let mut bytes = [0; 16];
+                data.read_exact(&mut bytes)?;
+                Ok(Checksum::Checksum128(bytes))
+            }
+        }
     }
 }
 
