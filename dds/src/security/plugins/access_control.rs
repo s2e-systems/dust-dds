@@ -1,11 +1,14 @@
-use super::{
-    authentication::Authentication,
-    types::{IdentityHandle, PermissionsHandle, SecurityException},
-};
+use super::{authentication::Authentication, types::SecurityException};
 use crate::infrastructure::{domain::DomainId, qos::DomainParticipantQos};
 
 /// AccessControl plugin interface as defined in Section 9.4.2 of the DDS Security specification.
 pub trait AccessControl: Send + Sync {
+    /// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
+    type IdentityHandle;
+
+    /// Opaque handle representing internal permissions state as defined in Section 9.4.2.3 of the DDS Security specification.
+    type PermissionsHandle;
+
     /// Validates the permissions of the local `DomainParticipant`.
     ///
     /// The operation returns a [`PermissionsHandle`] object, if successful. The [`PermissionsHandle`] can be used to locally
@@ -27,9 +30,9 @@ pub trait AccessControl: Send + Sync {
     /// Returns [`SecurityException`] providing details in case permission validation fails.
     fn validate_local_permissions(
         &self,
-        auth_plugin: &dyn Authentication,
-        identity: IdentityHandle,
+        auth_plugin: &dyn Authentication<IdentityHandle = Self::IdentityHandle>,
+        identity: Self::IdentityHandle,
         domain_id: DomainId,
         participant_qos: &DomainParticipantQos,
-    ) -> Result<PermissionsHandle, SecurityException>;
+    ) -> Result<Self::PermissionsHandle, SecurityException>;
 }

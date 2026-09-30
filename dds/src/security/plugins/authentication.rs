@@ -1,4 +1,4 @@
-use super::types::{IdentityHandle, SecurityException};
+use super::types::SecurityException;
 use crate::{
     infrastructure::{domain::DomainId, qos::DomainParticipantQos},
     transport::types::Guid,
@@ -21,15 +21,18 @@ pub enum ValidationResult {
 
 /// Output parameters for [`Authentication::validate_local_identity`].
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ValidateLocalIdentityOut {
+pub struct ValidateLocalIdentityOut<I> {
     /// Handle to the validated local identity.
-    pub local_identity_handle: IdentityHandle,
+    pub local_identity_handle: I,
     /// Adjusted participant GUID.
     pub adjusted_participant_guid: Guid,
 }
 
 /// Authentication plugin interface as defined in Section 9.3.2 of the DDS Security specification.
 pub trait Authentication: Send + Sync {
+    /// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
+    type IdentityHandle;
+
     /// Validates the identity of the local `DomainParticipant`.
     ///
     /// The operation returns as an output parameter the [`IdentityHandle`],
@@ -68,5 +71,5 @@ pub trait Authentication: Send + Sync {
         domain_id: DomainId,
         participant_qos: &DomainParticipantQos,
         candidate_participant_guid: Guid,
-    ) -> Result<ValidateLocalIdentityOut, ValidationResult>;
+    ) -> Result<ValidateLocalIdentityOut<Self::IdentityHandle>, ValidationResult>;
 }

@@ -10,9 +10,3 @@ pub struct SecurityException {
     /// Minor error code.
     pub minor_code: i32,
 }
-
-/// Opaque handle representing internal authentication state as defined in Section 9.3.2.3 of the DDS Security specification.
-pub type IdentityHandle = usize;
-
-/// Opaque handle representing internal permissions state as defined in Section 9.4.2.3 of the DDS Security specification.
-pub type PermissionsHandle = usize;
