@@ -362,3 +362,83 @@ impl ParticipantSecuritySymmetricCipherAlgorithmInfo {
             )
     }
 }
+
+/// EndpointSecurityAttributesMask type as defined in Section 7.3.24 of the DDS Security specification.
+pub type EndpointSecurityAttributesMask = u32;
+
+/// PluginEndpointSecurityAttributesMask type as defined in Section 7.3.24 of the DDS Security specification.
+pub type PluginEndpointSecurityAttributesMask = u32;
+
+/// Flag indicating whether the mask is valid in EndpointSecurityProtectionInfo.
+pub const ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID: u32 = 0x1 << 31;
+
+/// Default value for [`EndpointSecurityProtectionInfo`].
+pub const ENDPOINT_SECURITY_ATTRIBUTES_INFO_DEFAULT: EndpointSecurityProtectionInfo =
+    EndpointSecurityProtectionInfo {
+        endpoint_security_attributes: 0,
+        plugin_endpoint_security_attributes: 0,
+    };
+
+/// EndpointSecurityProtectionInfo type as defined in Section 7.3.24 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct EndpointSecurityProtectionInfo {
+    /// Endpoint security attributes mask.
+    pub endpoint_security_attributes: EndpointSecurityAttributesMask,
+    /// Plugin endpoint security attributes mask.
+    pub plugin_endpoint_security_attributes: PluginEndpointSecurityAttributesMask,
+}
+
+impl EndpointSecurityProtectionInfo {
+    /// Checks whether two [`EndpointSecurityProtectionInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        let mask_compatible = |mask1: u32, mask2: u32| {
+            let valid1 = (mask1 & ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID) != 0;
+            let valid2 = (mask2 & ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID) != 0;
+            if valid1 && valid2 {
+                mask1 == mask2
+            } else {
+                true
+            }
+        };
+
+        mask_compatible(
+            self.endpoint_security_attributes,
+            other.endpoint_security_attributes,
+        ) && mask_compatible(
+            self.plugin_endpoint_security_attributes,
+            other.plugin_endpoint_security_attributes,
+        )
+    }
+}
+
+/// EndpointSecuritySymmetricCipherAlgorithmInfo type as defined in Section 7.3.15 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct EndpointSecuritySymmetricCipherAlgorithmInfo {
+    /// Required algorithms mask.
+    pub required_mask: CryptoAlgorithmSet,
+    /// Supported algorithms mask (non-serialized).
+    #[dust_dds(non_serialized)]
+    pub supported_mask: CryptoAlgorithmSet,
+}
+
+impl EndpointSecuritySymmetricCipherAlgorithmInfo {
+    /// Checks whether the [`EndpointSecuritySymmetricCipherAlgorithmInfo`] of two endpoints are compatible according to Section 7.3.15.1.
+    pub fn is_compatible_with(
+        &self,
+        participant_supported_mask: CryptoAlgorithmSet,
+        other: &Self,
+        other_participant_supported_mask: CryptoAlgorithmSet,
+    ) -> bool {
+        let check_compatibility =
+            |supported_mask: CryptoAlgorithmSet, required_mask: CryptoAlgorithmSet| {
+                ((required_mask & supported_mask) == required_mask)
+                    || (((required_mask & supported_mask) != 0)
+                        && ((required_mask & CRYPTO_ALGORITHM_COMPATIBILITY_MODE) != 0))
+            };
+
+        check_compatibility(other_participant_supported_mask, self.required_mask)
+            && check_compatibility(participant_supported_mask, other.required_mask)
+    }
+}

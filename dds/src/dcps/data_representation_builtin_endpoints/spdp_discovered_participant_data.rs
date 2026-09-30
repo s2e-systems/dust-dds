@@ -17,13 +17,16 @@ use crate::{
             PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
             PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
             PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
-            PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN,
+            PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN, PID_PROPERTY_LIST,
         },
         rtps_data_representation::ParameterList,
         rtps_data_representation_serialization::ParameterListSerializer,
     },
     infrastructure::{
-        domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
+        domain::DomainId,
+        instance::InstanceHandle,
+        qos_policy::{PropertyQosPolicy, UserDataQosPolicy},
+        time::Duration,
     },
     security::types::{
         BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityDigitalSignatureAlgorithmInfo,
@@ -224,6 +227,9 @@ impl SpdpDiscoveredParticipantData {
         if self.dds_participant_data.user_data != Default::default() {
             pl.write_xcdr1_parameter(PID_USER_DATA, self.dds_participant_data.user_data);
         }
+        if self.dds_participant_data.property != Default::default() {
+            pl.write_xcdr1_parameter(PID_PROPERTY_LIST, self.dds_participant_data.property);
+        }
 
         pl.write_xcdr1_parameter(PID_PARTICIPANT_GUID, self.dds_participant_data.key);
 
@@ -312,6 +318,10 @@ impl SpdpDiscoveredParticipantData {
                 PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
                 ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
             )?,
+            property: pl.get_optional_parameter_xdcr(
+                PID_PROPERTY_LIST,
+                PropertyQosPolicy::default(),
+            )?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -378,6 +388,7 @@ mod tests {
                 digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
                 key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
                 symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
+                property: PropertyQosPolicy::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -488,6 +499,7 @@ mod tests {
                 digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
                 key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
                 symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
+                property: PropertyQosPolicy::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -568,6 +580,7 @@ mod tests {
                 digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
                 key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
                 symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
+                property: PropertyQosPolicy::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),

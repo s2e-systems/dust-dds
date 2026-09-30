@@ -110,6 +110,7 @@ impl DcpsDomainParticipant {
                 digital_signature: Default::default(),
                 key_establishment: Default::default(),
                 symmetric_cipher: Default::default(),
+                property: self.domain_participant.qos.property.clone(),
             };
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),
@@ -553,6 +554,8 @@ impl DcpsDomainParticipant {
             topic_data,
             group_data: publisher.qos.group_data.clone(),
             representation: data_writer.qos.representation.clone(),
+            protection_info: Default::default(),
+            symmetric_cipher: Default::default(),
         };
         let writer_proxy = WriterProxy {
             remote_writer_guid: data_writer.transport_writer.guid(),
@@ -697,6 +700,8 @@ impl DcpsDomainParticipant {
             group_data: subscriber.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
             type_consistency: data_reader.qos.type_consistency.clone(),
+            protection_info: Default::default(),
+            symmetric_cipher: Default::default(),
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
