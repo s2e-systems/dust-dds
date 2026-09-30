@@ -37,6 +37,8 @@ pub enum DdsError {
     /// precondition that could be changed to make the operation
     /// succeed.
     IllegalOperation,
+    /// The operation failed because the security plugins do not allow it.
+    NotAllowedBySecurity,
 }
 
 impl Display for DdsError {
@@ -54,6 +56,7 @@ impl Display for DdsError {
             Self::Timeout => write!(f, "operation timed out"),
             Self::NoData => write!(f, "operation returned no data, but no error occurred"),
             Self::IllegalOperation => write!(f, "illegal operation"),
+            Self::NotAllowedBySecurity => write!(f, "not allowed by security"),
         }
     }
 }
@@ -107,6 +110,8 @@ pub const RETCODE_TIMEOUT: ReturnCode = 10;
 pub const RETCODE_NO_DATA: ReturnCode = 11;
 /// An operation was invoked on an inappropriate object or at an inappropriate time.
 pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
+/// The operation failed because the security plugins do not allow it.
+pub const RETCODE_NOT_ALLOWED_BY_SECURITY: ReturnCode = 13;
 
 impl From<DdsError> for ReturnCode {
     fn from(e: DdsError) -> Self {
@@ -123,6 +128,7 @@ impl From<DdsError> for ReturnCode {
             DdsError::Timeout => RETCODE_TIMEOUT,
             DdsError::NoData => RETCODE_NO_DATA,
             DdsError::IllegalOperation => RETCODE_ILLEGAL_OPERATION,
+            DdsError::NotAllowedBySecurity => RETCODE_NOT_ALLOWED_BY_SECURITY,
         }
     }
 }
