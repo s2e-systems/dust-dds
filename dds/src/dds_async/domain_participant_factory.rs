@@ -1,4 +1,4 @@
-use alloc::{borrow::ToOwned, boxed::Box, sync::Arc};
+use alloc::{boxed::Box, sync::Arc};
 
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
@@ -72,7 +72,6 @@ pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
     app_id: [u8; 4],
     host_id: [u8; 4],
     transport: T,
-    configuration: DustDdsConfiguration,
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
@@ -93,10 +92,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             TransportDataReceiver::new(participant_handle, self.wire_sender.clone()),
         );
 
-        let domain_tag = self.configuration.domain_tag().to_owned();
-        let participant_announcement_interval =
-            self.configuration.participant_announcement_interval();
-        let enable_type_information = self.configuration.enable_type_information();
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
 
@@ -110,9 +105,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     dcps_listener,
                     listener_mask,
                     transport_participant,
-                    domain_tag,
-                    participant_announcement_interval,
-                    enable_type_information,
                 })),
             ))
             .await?;
@@ -287,6 +279,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
                 runtime,
+                configuration,
                 dcps_sender.clone(),
             );
         let run_loop = Arc::new(core::sync::atomic::AtomicBool::new(true));
@@ -373,7 +366,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),
             transport,
-            configuration,
             worker_task: Box::new(worker_task),
             run_loop,
         }

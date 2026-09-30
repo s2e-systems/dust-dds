@@ -55,9 +55,6 @@ pub struct CreateParticipantMail {
     pub dcps_listener: Option<DcpsDomainParticipantListener>,
     pub listener_mask: StatusMask,
     pub transport_participant: RtpsTransportParticipant,
-    pub domain_tag: String,
-    pub participant_announcement_interval: core::time::Duration,
-    pub enable_type_information: bool,
 }
 
 pub enum ParticipantFactoryMail {

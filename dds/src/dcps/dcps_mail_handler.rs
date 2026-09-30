@@ -24,9 +24,9 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     p.dcps_listener,
                     p.listener_mask,
                     p.transport_participant,
-                    p.domain_tag,
-                    p.participant_announcement_interval,
-                    p.enable_type_information,
+                    String::from(self.configuration.domain_tag()),
+                    self.configuration.participant_announcement_interval(),
+                    self.configuration.enable_type_information(),
                     now,
                 ))
             }

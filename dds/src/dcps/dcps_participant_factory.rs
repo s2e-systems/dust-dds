@@ -6,6 +6,7 @@ use crate::{
     },
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
+        configuration::DustDdsConfiguration,
         domain::DomainId,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -21,17 +22,19 @@ pub struct DcpsParticipantFactory<R: DdsRuntime> {
     pub domain_participant_list: Vec<DcpsDomainParticipant>,
     pub qos: DomainParticipantFactoryQos,
     pub default_participant_qos: DomainParticipantQos,
+    pub configuration: DustDdsConfiguration,
     pub runtime: R,
     pub dcps_sender: DcpsSender,
 }
 
 impl<R: DdsRuntime> DcpsParticipantFactory<R> {
-    pub fn new(runtime: R, dcps_sender: DcpsSender) -> Self {
+    pub fn new(runtime: R, configuration: DustDdsConfiguration, dcps_sender: DcpsSender) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             runtime,
+            configuration,
             dcps_sender,
         }
     }
