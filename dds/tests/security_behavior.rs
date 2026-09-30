@@ -10,42 +10,40 @@ use dust_dds::{
     },
     rtps_udp_transport::RtpsUdpTransport,
     security::plugins::{
-        access_control::AccessControl,
-        authentication::Authentication,
+        authentication::{Authentication, ValidateLocalIdentityOut, ValidationResult},
         types::{DdsSecurityPlugins, SecurityException},
     },
+    transport::types::Guid,
 };
 
 use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[test]
 fn validate_local_identity_returns_error() {
-    struct MockAccessControl;
-    impl AccessControl for MockAccessControl {
+    struct MockAuthentication;
+    impl Authentication for MockAuthentication {
         type IdentityHandle = ();
-        type PermissionsHandle = ();
 
-        fn validate_local_permissions(
+        fn validate_local_identity(
             &mut self,
-            _auth_plugin: &dyn Authentication<IdentityHandle = Self::IdentityHandle>,
-            _identity: Self::IdentityHandle,
             _domain_id: DomainId,
             _participant_qos: &DomainParticipantQos,
-        ) -> Result<Self::PermissionsHandle, SecurityException> {
-            Err(SecurityException {
-                ..Default::default()
-            })
+            _candidate_participant_guid: Guid,
+        ) -> Result<ValidateLocalIdentityOut<Self::IdentityHandle>, ValidationResult> {
+            Err(ValidationResult::ValidationFailed(
+                SecurityException::default(),
+            ))
         }
     }
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
-        access_control_plugin: Some(MockAccessControl),
-        authentication_plugin: None::<()>,
+        access_control_plugin: None::<()>,
+        authentication_plugin: Some(MockAuthentication),
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
-        RtpsUdpTransport::default(),
         DustDdsConfiguration::default(),
+        RtpsUdpTransport::default(),
         security_plugins,
     );
     assert!(

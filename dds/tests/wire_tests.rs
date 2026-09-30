@@ -61,11 +61,11 @@ fn detect_stale_participant() {
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        runtime,
         app_id,
         host_id,
-        MockTransport(data_receiver_send),
         configuration,
+        runtime,
+        MockTransport(data_receiver_send),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -156,11 +156,11 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        runtime,
         app_id,
         host_id,
-        MockTransport(data_receiver_send),
         configuration,
+        runtime,
+        MockTransport(data_receiver_send),
         DdsSecurityPlugins::disabled(),
     );
 

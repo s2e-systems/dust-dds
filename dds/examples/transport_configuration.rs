@@ -1,7 +1,8 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NO_LISTENER, qos::QosKind, status::NO_STATUS, type_support::DdsType,
+        configuration::DustDdsConfiguration, listener::NO_LISTENER, qos::QosKind,
+        status::NO_STATUS, type_support::DdsType,
     },
     rtps_udp_transport::udp_transport::RtpsUdpTransport,
     security::plugins::types::DdsSecurityPlugins,
@@ -23,8 +24,8 @@ fn main() {
         .set_udp_receive_buffer_size(Some(10000));
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
+        DustDdsConfiguration::default(),
         transport,
-        Default::default(),
         DdsSecurityPlugins::disabled(),
     );
 

@@ -1,6 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        configuration::DustDdsConfiguration,
         listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
@@ -31,8 +32,8 @@ fn udp_v6_locators_and_communication() {
     let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
     transport.set_ip_version(IpVersion::V6);
     let participant_factory = DomainParticipantFactory::get_custom_instance(
+        DustDdsConfiguration::default(),
         transport,
-        Default::default(),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -146,8 +147,8 @@ fn udp_both_locators_and_communication() {
     let mut transport = dust_dds::rtps_udp_transport::RtpsUdpTransport::default();
     transport.set_ip_version(IpVersion::Both);
     let participant_factory = DomainParticipantFactory::get_custom_instance(
+        DustDdsConfiguration::default(),
         transport,
-        Default::default(),
         DdsSecurityPlugins::disabled(),
     );
 

@@ -233,8 +233,8 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
         Self::get_custom_instance(
-            crate::rtps_udp_transport::udp_transport::RtpsUdpTransport::default(),
             DustDdsConfiguration::default(),
+            crate::rtps_udp_transport::udp_transport::RtpsUdpTransport::default(),
             DdsSecurityPlugins::disabled(),
         )
     }
@@ -243,8 +243,8 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     /// The operation is idempotent, returning the existing instance if it has already been initialized.
     #[tracing::instrument(skip(transport, configuration, security))]
     pub fn get_custom_instance<Auth: Authentication, Access: AccessControl>(
-        transport: crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
         configuration: DustDdsConfiguration,
+        transport: crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
         security: DdsSecurityPlugins<Auth, Access>,
     ) -> &'static Self {
         use std::sync::OnceLock;
@@ -258,7 +258,7 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
             let runtime = crate::std_runtime::StdRuntime::default();
             let host_id = get_host_id();
             let app_id = std::process::id().to_ne_bytes();
-            Self::new(runtime, app_id, host_id, transport, configuration, security)
+            Self::new(app_id, host_id, configuration, runtime, transport, security)
         })
     }
 }
@@ -266,11 +266,11 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     #[doc(hidden)]
     pub fn new<R: DdsRuntime, Auth: Authentication, Access: AccessControl>(
-        runtime: R,
         app_id: [u8; 4],
         host_id: [u8; 4],
-        transport: T,
         configuration: DustDdsConfiguration,
+        runtime: R,
+        transport: T,
         mut security: DdsSecurityPlugins<Auth, Access>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());

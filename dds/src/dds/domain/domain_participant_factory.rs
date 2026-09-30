@@ -141,8 +141,8 @@ impl DomainParticipantFactory<RtpsUdpTransport> {
     /// The operation is idempotent, returning the existing instance if it has already been initialized.
     #[tracing::instrument(skip(transport, configuration, security))]
     pub fn get_custom_instance<Auth: Authentication, Access: AccessControl>(
-        transport: RtpsUdpTransport,
         configuration: DustDdsConfiguration,
+        transport: RtpsUdpTransport,
         security: DdsSecurityPlugins<Auth, Access>,
     ) -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
@@ -150,8 +150,8 @@ impl DomainParticipantFactory<RtpsUdpTransport> {
         > = std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_custom_instance(
-                transport,
                 configuration,
+                transport,
                 security,
             ),
         })

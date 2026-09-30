@@ -62,18 +62,22 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        if let Some(a) = authentication {
-            a.validate_local_identity(
-                domain_id,
-                &domain_participant_qos,
-                candidate_participant_guid,
-            )
-            .unwrap();
-        }
+        let guid = if let Some(a) = authentication {
+            let validate_out = a
+                .validate_local_identity(
+                    domain_id,
+                    &domain_participant_qos,
+                    candidate_participant_guid,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+            validate_out.adjusted_participant_guid
+        } else {
+            candidate_participant_guid
+        };
 
         let mut dcps_participant = DcpsDomainParticipant::new(
             domain_id,
-            candidate_participant_guid,
+            guid,
             domain_participant_qos,
             listener_sender,
             listener_mask,

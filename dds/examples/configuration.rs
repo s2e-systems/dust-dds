@@ -23,8 +23,8 @@ fn main() {
         .unwrap();
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
-        RtpsUdpTransport::default(),
         configuration,
+        RtpsUdpTransport::default(),
         DdsSecurityPlugins::disabled(),
     );
 
