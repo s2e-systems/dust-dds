@@ -85,9 +85,69 @@ impl BuiltinEndpointSet {
     pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER: u32 = 1 << 15;
 
     /*
-    Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
-    and future revisions thereof.
+    Bits 16-27 defined by the DDS-Security 1.1 Specification (Table 11)
     */
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: u32 = 1 << 16;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_PUBLICATIONS_SECURE_READER: u32 = 1 << 17;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER: u32 = 1 << 18;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER: u32 = 1 << 19;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER: u32 = 1 << 20;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER: u32 = 1 << 21;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER: u32 = 1 << 22;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER: u32 = 1 << 23;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 = 1 << 24;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 = 1 << 25;
+    #[allow(dead_code)]
+    pub const SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER: u32 = 1 << 26;
+    #[allow(dead_code)]
+    pub const SPDP_BUILTIN_PARTICIPANT_SECURE_READER: u32 = 1 << 27;
+
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_PUBLICATIONS_SECURE_WRITER: u32 =
+        Self::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_PUBLICATIONS_SECURE_READER: u32 =
+        Self::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_SUBSCRIPTIONS_SECURE_WRITER: u32 =
+        Self::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_SUBSCRIPTIONS_SECURE_READER: u32 =
+        Self::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SPDP_PARTICIPANT_SECURE_WRITER: u32 =
+        Self::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SPDP_PARTICIPANT_SECURE_READER: u32 =
+        Self::SPDP_BUILTIN_PARTICIPANT_SECURE_READER;
 
     pub const BUILTIN_ENDPOINT_TOPICS_ANNOUNCER: u32 = 1 << 28;
     pub const BUILTIN_ENDPOINT_TOPICS_DETECTOR: u32 = 1 << 29;
@@ -272,7 +332,6 @@ mod tests {
         builtin_topics::BuiltInTopicKey,
         dcps::data_representation_builtin_endpoints::parameter_id_values::DEFAULT_PARTICIPANT_LEASE_DURATION,
         infrastructure::qos_policy::UserDataQosPolicy, rtps::types::PROTOCOLVERSION_2_4,
-        security::types::DataHolder,
     };
 
     #[test]
@@ -561,5 +620,21 @@ mod tests {
             SpdpDiscoveredParticipantData::from_bytes(&data).unwrap(),
             expected
         );
+    }
+
+    #[test]
+    fn builtin_endpoint_set_security_constants() {
+        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER, 1 << 16);
+        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER, 1 << 17);
+        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER, 1 << 18);
+        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER, 1 << 19);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER, 1 << 20);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER, 1 << 21);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER, 1 << 22);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER, 1 << 23);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER, 1 << 24);
+        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER, 1 << 25);
+        assert_eq!(BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER, 1 << 26);
+        assert_eq!(BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_READER, 1 << 27);
     }
 }
