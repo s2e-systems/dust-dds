@@ -1,0 +1,15 @@
+[package]
+name = "micro-dust-dds-tests"
+description = "Micro Dust DDS Tests"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+micro_dust_dds_interface = { path = "interface" }
+dust_dds = { path = "../dds"}

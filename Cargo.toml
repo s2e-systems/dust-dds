@@ -10,6 +10,9 @@ members = [
     "bindings/python",
     "bindings/c",
     "nostd_test_project",
+    "micro",
+    "micro/interface",
+    "micro/micro_app",
 ]
 default-members = [
     "dds",
@@ -34,3 +37,12 @@ categories = ["api-bindings", "network-programming"]
 
 [workspace.dependencies]
 md5 = { version = "0.7.0", default-features = false }
+
+[profile.micro-dev]
+inherits="dev"
+codegen-units = 1
+debug = 2
+debug-assertions = true # <-
+incremental = false
+opt-level = 3 # <-
+overflow-checks = true # <-
