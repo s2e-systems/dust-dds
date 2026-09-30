@@ -175,3 +175,42 @@ impl ParticipantSecurityProtectionInfo {
         )
     }
 }
+
+/// BuiltinEndpointSetExt type as defined in Section 7.5.5 of the DDS Security specification (Table 12).
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "final", nested)]
+pub struct BuiltinEndpointSetExt(pub u32);
+
+impl BuiltinEndpointSetExt {
+    #[allow(dead_code)]
+    pub const TYPE_LOOKUP_SERVICE_REQUEST_SECURE_WRITER: u32 = 1 << 0;
+    #[allow(dead_code)]
+    pub const TYPE_LOOKUP_SERVICE_REQUEST_SECURE_READER: u32 = 1 << 1;
+    #[allow(dead_code)]
+    pub const TYPE_LOOKUP_SERVICE_REPLY_SECURE_WRITER: u32 = 1 << 2;
+    #[allow(dead_code)]
+    pub const TYPE_LOOKUP_SERVICE_REPLY_SECURE_READER: u32 = 1 << 3;
+
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_SECURE_WRITER: u32 =
+        Self::TYPE_LOOKUP_SERVICE_REQUEST_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REQUEST_SECURE_READER: u32 =
+        Self::TYPE_LOOKUP_SERVICE_REQUEST_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_SECURE_WRITER: u32 =
+        Self::TYPE_LOOKUP_SERVICE_REPLY_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_SECURE_READER: u32 =
+        Self::TYPE_LOOKUP_SERVICE_REPLY_SECURE_READER;
+
+    #[allow(dead_code)]
+    pub fn new(value: u32) -> Self {
+        Self(value)
+    }
+
+    #[allow(dead_code)]
+    pub fn has(&self, endpoint: u32) -> bool {
+        (self.0 & endpoint) == endpoint
+    }
+}

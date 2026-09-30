@@ -12,7 +12,8 @@ use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
         parameter_id_values::{
-            DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_IDENTITY_TOKEN,
+            DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION,
+            PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT, PID_IDENTITY_TOKEN,
             PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN,
         },
         rtps_data_representation::ParameterList,
@@ -21,7 +22,9 @@ use crate::{
     infrastructure::{
         domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
     },
-    security::types::{IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken},
+    security::types::{
+        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityProtectionInfo, PermissionsToken,
+    },
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
 };
@@ -288,6 +291,10 @@ impl SpdpDiscoveredParticipantData {
                 PID_PARTICIPANT_SECURITY_PROTECTION_INFO,
                 ParticipantSecurityProtectionInfo::default(),
             )?,
+            available_builtin_endpoints_ext: pl.get_optional_parameter_xdcr(
+                PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT,
+                BuiltinEndpointSetExt::default(),
+            )?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -350,6 +357,7 @@ mod tests {
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
+                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -456,6 +464,7 @@ mod tests {
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
+                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -532,6 +541,7 @@ mod tests {
                 identity_token: IdentityToken::default(),
                 permissions_token: PermissionsToken::default(),
                 protection_info: ParticipantSecurityProtectionInfo::default(),
+                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),
@@ -624,17 +634,53 @@ mod tests {
 
     #[test]
     fn builtin_endpoint_set_security_constants() {
-        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER, 1 << 16);
-        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER, 1 << 17);
-        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER, 1 << 18);
-        assert_eq!(BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER, 1 << 19);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER, 1 << 20);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER, 1 << 21);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER, 1 << 22);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER, 1 << 23);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER, 1 << 24);
-        assert_eq!(BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER, 1 << 25);
-        assert_eq!(BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER, 1 << 26);
-        assert_eq!(BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_READER, 1 << 27);
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER,
+            1 << 16
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER,
+            1 << 17
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER,
+            1 << 18
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER,
+            1 << 19
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER,
+            1 << 20
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER,
+            1 << 21
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER,
+            1 << 22
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER,
+            1 << 23
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER,
+            1 << 24
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER,
+            1 << 25
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER,
+            1 << 26
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_READER,
+            1 << 27
+        );
     }
 }
