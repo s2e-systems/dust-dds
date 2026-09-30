@@ -48,9 +48,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
         transport_participant: RtpsTransportParticipant,
-        domain_tag: String,
-        participant_announcement_interval: core::time::Duration,
-        enable_type_information: bool,
         now: Time,
     ) -> DdsResult<InstanceHandle> {
         let domain_participant_qos = match qos {
@@ -62,20 +59,18 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
 
         let mut dcps_participant = DcpsDomainParticipant::new(
             domain_id,
-            domain_tag,
             guid_prefix,
             domain_participant_qos,
             listener_sender,
             listener_mask,
             transport_participant,
             self.dcps_sender.clone(),
-            participant_announcement_interval,
-            enable_type_information,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant.enable_domain_participant(now)?;
+            dcps_participant
+                .enable_domain_participant(now, self.configuration.domain_tag().to_string())?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -148,7 +143,14 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
     pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
         self.domain_participant_list
             .iter()
-            .filter_map(|x| x.time_until_next_event(now))
+            .filter_map(|x| {
+                x.time_until_next_event(
+                    now,
+                    self.configuration
+                        .participant_announcement_interval()
+                        .into(),
+                )
+            })
             .min()
     }
 }

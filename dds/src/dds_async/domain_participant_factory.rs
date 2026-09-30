@@ -314,7 +314,17 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.remove_stale_reader_samples(now);
                                 dp.check_pending_writer_sample_timeout(now);
                                 dp.process_pending_write_samples(now);
-                                dp.announce_participant_if_needed(now);
+                                dp.announce_participant_if_needed(
+                                    now,
+                                    domain_participant_factory
+                                        .configuration
+                                        .participant_announcement_interval()
+                                        .into(),
+                                    domain_participant_factory
+                                        .configuration
+                                        .domain_tag()
+                                        .to_string(),
+                                );
                                 dp.notify_find_topic_senders(now);
                                 dp.poke(now);
                             }
@@ -327,7 +337,13 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
                             {
                                 dp.handle_data(&wire_mail.data_message, now);
-                                dp.process_builtin_cache_changes(now);
+                                dp.process_builtin_cache_changes(
+                                    now,
+                                    domain_participant_factory
+                                        .configuration
+                                        .domain_tag()
+                                        .to_string(),
+                                );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                             }
@@ -350,7 +366,13 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
                             {
                                 dp.handle_data(&wire_mail.data_message, now);
-                                dp.process_builtin_cache_changes(now);
+                                dp.process_builtin_cache_changes(
+                                    now,
+                                    domain_participant_factory
+                                        .configuration
+                                        .domain_tag()
+                                        .to_string(),
+                                );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                             }

@@ -41,6 +41,7 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
         now: Time,
+        enable_type_information: bool,
     ) -> DdsResult<InstanceHandle> {
         let topic = if let Some(content_filtered_topic) = self
             .domain_participant
@@ -151,7 +152,12 @@ impl DcpsDomainParticipant {
         subscriber.data_reader_list.push(data_reader);
 
         if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_reader(subscriber_handle, &data_reader_handle, now)?;
+            self.enable_data_reader(
+                subscriber_handle,
+                &data_reader_handle,
+                now,
+                enable_type_information,
+            )?;
         }
         Ok(data_reader_handle)
     }

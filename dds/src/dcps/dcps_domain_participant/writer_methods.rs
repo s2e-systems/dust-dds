@@ -520,6 +520,7 @@ impl DcpsDomainParticipant {
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         now: Time,
+        enable_type_information: bool,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -539,7 +540,12 @@ impl DcpsDomainParticipant {
         if !data_writer.enabled {
             data_writer.enabled = true;
 
-            self.announce_data_writer(publisher_handle, data_writer_handle, now);
+            self.announce_data_writer(
+                publisher_handle,
+                data_writer_handle,
+                now,
+                enable_type_information,
+            );
             self.process_discovered_readers(now);
 
             if let Some(publisher) = self
@@ -569,6 +575,7 @@ impl DcpsDomainParticipant {
         data_writer_handle: &InstanceHandle,
         qos: QosKind<DataWriterQos>,
         now: Time,
+        enable_type_information: bool,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -597,7 +604,12 @@ impl DcpsDomainParticipant {
         data_writer.qos = qos;
 
         if data_writer.enabled {
-            self.announce_data_writer(publisher_handle, data_writer_handle, now);
+            self.announce_data_writer(
+                publisher_handle,
+                data_writer_handle,
+                now,
+                enable_type_information,
+            );
         }
         Ok(())
     }

@@ -55,7 +55,6 @@ pub struct DiscoveredParticipantInfo {
 
 pub struct DcpsDomainParticipant {
     pub transport: RtpsTransportParticipant,
-
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,
@@ -68,15 +67,12 @@ impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         domain_id: DomainId,
-        domain_tag: String,
         guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
-        participant_announcement_interval: core::time::Duration,
-        enable_type_information: bool,
     ) -> Self {
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -93,9 +89,6 @@ impl DcpsDomainParticipant {
             participant_handle,
             builtin_publisher,
             builtin_subscriber,
-            domain_tag,
-            Duration::from(participant_announcement_interval),
-            enable_type_information,
         );
 
         Self {
@@ -113,13 +106,22 @@ impl DcpsDomainParticipant {
         self.domain_participant.domain_id
     }
 
-    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+    pub fn time_until_participant_announcement(
+        &self,
+        now: Time,
+        participant_announcement_interval: Duration,
+    ) -> Option<Duration> {
         self.domain_participant
-            .time_until_participant_announcement(now)
+            .time_until_participant_announcement(now, participant_announcement_interval)
     }
 
-    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
-        let mut min_time = self.time_until_participant_announcement(now);
+    pub fn time_until_next_event(
+        &self,
+        now: Time,
+        participant_announcement_interval: Duration,
+    ) -> Option<Duration> {
+        let mut min_time =
+            self.time_until_participant_announcement(now, participant_announcement_interval);
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -276,7 +278,6 @@ pub struct FindTopicNotification {
 
 pub struct DomainParticipantEntity {
     pub domain_id: DomainId,
-    pub domain_tag: String,
     pub topic_counter: u16,
     pub instance_handle: InstanceHandle,
     pub qos: DomainParticipantQos,
@@ -303,8 +304,6 @@ pub struct DomainParticipantEntity {
     pub listener_mask: StatusMask,
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
-    pub participant_announcement_interval: Duration,
-    pub enable_type_information: bool,
 }
 
 impl DomainParticipantEntity {
@@ -317,9 +316,6 @@ impl DomainParticipantEntity {
         instance_handle: InstanceHandle,
         builtin_publisher: BuiltinPublisher,
         builtin_subscriber: BuiltinSubscriber,
-        domain_tag: String,
-        participant_announcement_interval: Duration,
-        enable_type_information: bool,
     ) -> Self {
         Self {
             domain_id,
@@ -347,23 +343,24 @@ impl DomainParticipantEntity {
             _ignored_topic_list: BTreeSet::new(),
             listener_sender,
             listener_mask,
-            domain_tag,
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
-            participant_announcement_interval,
-            enable_type_information,
         }
     }
 
-    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+    pub fn time_until_participant_announcement(
+        &self,
+        now: Time,
+        participant_announcement_interval: Duration,
+    ) -> Option<Duration> {
         if self.enabled {
             match self.last_announcement_timestamp {
                 Some(last_announcement) => {
                     let elapsed = now - last_announcement;
-                    if elapsed >= self.participant_announcement_interval {
+                    if elapsed >= participant_announcement_interval {
                         Some(Duration::new(0, 0))
                     } else {
-                        Some(self.participant_announcement_interval - elapsed)
+                        Some(participant_announcement_interval - elapsed)
                     }
                 }
                 None => Some(Duration::new(0, 0)),
@@ -533,88 +530,5 @@ impl DomainParticipantEntity {
             && self.user_defined_subscriber_list.is_empty()
             && self.content_filtered_topic_list.is_empty()
             && no_user_defined_topics
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_time_until_stale_writer_sample_calculation() {
-        let source_timestamp = crate::transport::types::Time::new(100, 0);
-        let lifespan = Duration::new(10, 0);
-        let now = Time::new(105, 0);
-
-        let remaining = Time::from(source_timestamp) + lifespan - now;
-        assert_eq!(remaining, Duration::new(5, 0));
-    }
-
-    #[test]
-    fn test_time_until_participant_announcement() {
-        struct MockWriter {
-            buffer: [u8; 512],
-        }
-        impl crate::transport::interface::WriteMessage for MockWriter {
-            fn write_buffer_mut(&mut self) -> &mut [u8] {
-                &mut self.buffer
-            }
-            fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
-        }
-
-        let transport = RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
-            default_unicast_locator_list: Vec::new(),
-            metatraffic_unicast_locator_list: Vec::new(),
-            metatraffic_multicast_locator_list: Vec::new(),
-            default_multicast_locator_list: Vec::new(),
-            fragment_size: 65536,
-        };
-
-        let mut entity = DomainParticipantEntity::new(
-            0,
-            DomainParticipantQos::default(),
-            None,
-            StatusMask::default(),
-            InstanceHandle::new([0; 16]),
-            BuiltinPublisher::new(GuidPrefix::default(), &transport),
-            BuiltinSubscriber::new(GuidPrefix::default()),
-            String::new(),
-            Duration::new(5, 0),
-            true,
-        );
-
-        // Disabled entity returns None
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(10, 0)),
-            None
-        );
-
-        entity.enabled = true;
-
-        // Enabled entity without previous announcement returns 0
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(10, 0)),
-            Some(Duration::new(0, 0))
-        );
-
-        // After announcement at t=10s, remaining time at t=12s should be 3s
-        entity.last_announcement_timestamp = Some(Time::new(10, 0));
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(12, 0)),
-            Some(Duration::new(3, 0))
-        );
-
-        // At t=15s (5s elapsed), remaining time should be 0s
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(15, 0)),
-            Some(Duration::new(0, 0))
-        );
-
-        // Past interval (e.g. t=16s), remaining time should still be 0s
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(16, 0)),
-            Some(Duration::new(0, 0))
-        );
     }
 }

@@ -24,9 +24,6 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     p.dcps_listener,
                     p.listener_mask,
                     p.transport_participant,
-                    String::from(self.configuration.domain_tag()),
-                    self.configuration.participant_announcement_interval(),
-                    self.configuration.enable_type_information(),
                     now,
                 ))
             }
@@ -120,6 +117,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.type_support,
                         &self.runtime,
                         now,
+                        self.configuration.enable_type_information(),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -291,7 +289,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => DcpsReply::Ok(p.set_domain_participant_qos(*qos, now)),
+                Ok(p) => DcpsReply::Ok(p.set_domain_participant_qos(
+                    *qos,
+                    now,
+                    self.configuration.domain_tag().to_string(),
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::GetQos { participant_handle }) => {
@@ -324,7 +326,10 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     .find(|x| x.get_instance_handle() == &participant_handle)
                     .ok_or(DdsError::AlreadyDeleted)
                 {
-                    Ok(p) => DcpsReply::Ok(p.enable_domain_participant(now)),
+                    Ok(p) => DcpsReply::Ok(p.enable_domain_participant(
+                        now,
+                        self.configuration.domain_tag().to_string(),
+                    )),
                     Err(e) => DcpsReply::Ok(Err(e)),
                 }
             }
@@ -361,7 +366,11 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => DcpsReply::Ok(p.enable_topic(topic_name, now)),
+                Ok(p) => DcpsReply::Ok(p.enable_topic(
+                    topic_name,
+                    now,
+                    self.configuration.enable_type_information(),
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
@@ -386,6 +395,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.listener_mask,
                         &self.runtime,
                         now,
+                        self.configuration.enable_type_information(),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -651,9 +661,12 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => {
-                    DcpsReply::Ok(p.enable_data_writer(&publisher_handle, &data_writer_handle, now))
-                }
+                Ok(p) => DcpsReply::Ok(p.enable_data_writer(
+                    &publisher_handle,
+                    &data_writer_handle,
+                    now,
+                    self.configuration.enable_type_information(),
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Writer(WriterServiceMail::SetDataWriterQos {
@@ -672,6 +685,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     &data_writer_handle,
                     *qos,
                     now,
+                    self.configuration.enable_type_information(),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -690,6 +704,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                         p.listener_mask,
                         &self.runtime,
                         now,
+                        self.configuration.enable_type_information(),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -782,6 +797,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     &subscriber_handle,
                     &data_reader_handle,
                     now,
+                    self.configuration.enable_type_information(),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -911,6 +927,7 @@ impl<R: DdsRuntime> DcpsParticipantFactory<R> {
                     &data_reader_handle,
                     *qos,
                     now,
+                    self.configuration.enable_type_information(),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
