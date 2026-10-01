@@ -22,7 +22,7 @@ fn sample_published_on_target_should_be_received_on_host() {
         panic!("Failed to build micro_app firmware");
     }
 
-    let elf_path = "../target/thumbv7em-none-eabihf/debug/micro_dust_dds_app";
+    let elf_path = "../target/thumbv7em-none-eabihf/micro-dev/micro_dust_dds_app";
     let status = Command::new("probe-rs")
         .args([
             "download",
