@@ -11,17 +11,23 @@ use crate::{
     },
     infrastructure::{error::DdsError, time::Time},
     runtime::DdsRuntime,
-    security::plugins::authentication::Authentication,
+    security::plugins::{
+        access_control::AccessControl, authentication::Authentication, types::DdsSecurityPlugins,
+    },
 };
 
 impl DcpsParticipantFactory {
-    pub fn handle(
+    pub fn handle<Auth, Access>(
         &mut self,
         message: DcpsMail,
         now: Time,
         runtime: &impl DdsRuntime,
-        authentication: &mut Option<impl Authentication>,
-    ) -> DcpsReply {
+        security: &mut DdsSecurityPlugins<Auth, Access>,
+    ) -> DcpsReply
+    where
+        Auth: Authentication,
+        Access: AccessControl,
+    {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant(p)) => {
                 DcpsReply::InstanceHandle(self.create_participant(
@@ -33,7 +39,7 @@ impl DcpsParticipantFactory {
                     p.transport_participant,
                     now,
                     runtime,
-                    authentication,
+                    security,
                 ))
             }
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {

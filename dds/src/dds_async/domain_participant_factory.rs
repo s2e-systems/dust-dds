@@ -313,7 +313,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 user_mail,
                                 now,
                                 &runtime,
-                                &mut security.authentication_plugin,
+                                &mut security,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
@@ -372,7 +372,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 user_mail,
                                 now,
                                 &runtime,
-                                &mut security.authentication_plugin,
+                                &mut security,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }

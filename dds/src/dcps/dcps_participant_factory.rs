@@ -14,7 +14,9 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::DdsRuntime,
-    security::plugins::authentication::Authentication,
+    security::plugins::{
+        access_control::AccessControl, authentication::Authentication, types::DdsSecurityPlugins,
+    },
     transport::{
         interface::RtpsTransportParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
@@ -42,7 +44,7 @@ impl DcpsParticipantFactory {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_participant(
+    pub fn create_participant<Auth, Access>(
         &mut self,
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -52,8 +54,12 @@ impl DcpsParticipantFactory {
         transport_participant: RtpsTransportParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
-        authentication: &mut Option<impl Authentication>,
-    ) -> DdsResult<InstanceHandle> {
+        security: &mut DdsSecurityPlugins<Auth, Access>,
+    ) -> DdsResult<InstanceHandle>
+    where
+        Auth: Authentication,
+        Access: AccessControl,
+    {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -62,14 +68,26 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let guid = if let Some(a) = authentication {
-            let validate_out = a
+        let guid = if let Some(authentication) = &mut security.authentication_plugin {
+            let validate_out = authentication
                 .validate_local_identity(
                     domain_id,
                     &domain_participant_qos,
                     candidate_participant_guid,
                 )
                 .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            if let Some(access_control) = &mut security.access_control_plugin {
+                let permissions_handle = access_control
+                    .validate_local_permissions(
+                        authentication,
+                        &validate_out.local_identity_handle,
+                        domain_id,
+                        &domain_participant_qos,
+                    )
+                    .map_err(|_| DdsError::NotAllowedBySecurity)?;
+            }
+
             validate_out.adjusted_participant_guid
         } else {
             candidate_participant_guid
