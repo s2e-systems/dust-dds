@@ -1,10 +1,15 @@
 mod utils;
 use dust_dds::{
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         configuration::DustDdsConfiguration,
         domain::DomainId,
+        instance::InstanceHandle,
         listener::NO_LISTENER,
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind, TopicQos},
         qos_policy::{DataTagQosPolicy, PartitionQosPolicy},
@@ -13,7 +18,7 @@ use dust_dds::{
     rtps_udp_transport::RtpsUdpTransport,
     security::{
         plugins::{
-            access_control::AccessControl,
+            access_control::{AccessControl, CheckRemoteDataReaderOut},
             authentication::{
                 Authentication, BeginHandshakeReplyOut, BeginHandshakeRequestOut,
                 ValidateLocalIdentityOut, ValidateRemoteIdentityOut, ValidationResult,
@@ -434,6 +439,114 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
         ) -> Result<(), SecurityException> {
             unimplemented!()
         }
+
+        fn check_local_datawriter_register_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _writer: &PublicationBuiltinTopicData,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datawriter_dispose_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _writer: &PublicationBuiltinTopicData,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_participant(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _participant_data: &ParticipantBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _publication_data: &PublicationBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datareader(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+        ) -> Result<CheckRemoteDataReaderOut, SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_topic(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_data: &TopicBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datawriter_match(
+            &mut self,
+            _writer_permissions_handle: &Self::PermissionsHandle,
+            _reader_permissions_handle: &Self::PermissionsHandle,
+            _publication_data: &PublicationBuiltinTopicData,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datareader_match(
+            &mut self,
+            _reader_permissions_handle: &Self::PermissionsHandle,
+            _writer_permissions_handle: &Self::PermissionsHandle,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+            _publication_data: &PublicationBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter_register_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _reader: &SubscriptionBuiltinTopicData,
+            _publication_handle: &InstanceHandle,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter_dispose_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _reader: &SubscriptionBuiltinTopicData,
+            _publication_handle: &InstanceHandle,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_permissions_token(
+            &mut self,
+            _handle: &Self::PermissionsHandle,
+        ) -> Result<PermissionsToken, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_permissions_credential_token(
+            &mut self,
+            _handle: &Self::PermissionsHandle,
+        ) -> Result<PermissionsCredentialToken, SecurityException> {
+            unimplemented!()
+        }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -672,6 +785,114 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
             _topic_name: &str,
             _qos: &TopicQos,
         ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datawriter_register_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _writer: &PublicationBuiltinTopicData,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datawriter_dispose_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _writer: &PublicationBuiltinTopicData,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_participant(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _participant_data: &ParticipantBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _publication_data: &PublicationBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datareader(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+        ) -> Result<CheckRemoteDataReaderOut, SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_topic(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_data: &TopicBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datawriter_match(
+            &mut self,
+            _writer_permissions_handle: &Self::PermissionsHandle,
+            _reader_permissions_handle: &Self::PermissionsHandle,
+            _publication_data: &PublicationBuiltinTopicData,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_local_datareader_match(
+            &mut self,
+            _reader_permissions_handle: &Self::PermissionsHandle,
+            _writer_permissions_handle: &Self::PermissionsHandle,
+            _subscription_data: &SubscriptionBuiltinTopicData,
+            _publication_data: &PublicationBuiltinTopicData,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter_register_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _reader: &SubscriptionBuiltinTopicData,
+            _publication_handle: &InstanceHandle,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_remote_datawriter_dispose_instance(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _reader: &SubscriptionBuiltinTopicData,
+            _publication_handle: &InstanceHandle,
+            _key: &InstanceHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_permissions_token(
+            &mut self,
+            _handle: &Self::PermissionsHandle,
+        ) -> Result<PermissionsToken, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_permissions_credential_token(
+            &mut self,
+            _handle: &Self::PermissionsHandle,
+        ) -> Result<PermissionsCredentialToken, SecurityException> {
             unimplemented!()
         }
     }
