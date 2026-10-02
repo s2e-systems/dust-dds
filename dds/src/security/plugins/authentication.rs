@@ -1,10 +1,10 @@
-use super::types::SecurityException;
+use super::{authentication_listener::AuthenticationListener, types::SecurityException};
 use crate::{
     infrastructure::{domain::DomainId, qos::DomainParticipantQos},
     security::types::{
         AuthRequestMessageToken, AuthenticatedPeerCredentialToken, HandshakeMessageToken,
         IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-        ParticipantSecurityConfig,
+        ParticipantSecurityConfig, PermissionsCredentialToken,
     },
     transport::types::Guid,
 };
@@ -351,6 +351,42 @@ pub trait Authentication: Send + 'static {
         handle: &Self::IdentityHandle,
         participant_security_config: &ParticipantSecurityConfig,
     ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException>;
+
+    /// Associates the [`PermissionsCredentialToken`] returned by the `AccessControl` plugin operation
+    /// `get_permissions_credential_token` with the local `DomainParticipant` identified by the [`IdentityHandle`](Self::IdentityHandle).
+    ///
+    /// This operation shall be called by the middleware after calling [`validate_local_identity`](Self::validate_local_identity)
+    /// and prior to any calls to [`validate_remote_identity`](Self::validate_remote_identity).
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The handle used to locally identify the `DomainParticipant`.
+    /// * `permissions_credential_token` - The [`PermissionsCredentialToken`] associated with the `DomainParticipant`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn set_permissions_credential_and_token(
+        &mut self,
+        handle: &Self::IdentityHandle,
+        permissions_credential_token: PermissionsCredentialToken,
+    ) -> Result<(), SecurityException>;
+
+    /// Sets the [`AuthenticationListener`] that the Authentication plugin will use to notify the
+    /// DDS middleware infrastructure of events relevant to the Authentication of DDS Participants.
+    ///
+    /// # Arguments
+    ///
+    /// * `listener` - An [`AuthenticationListener`] object to be attached to the Authentication object.
+    ///   If this argument is [`None`], it indicates that there shall be no listener.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn set_listener<L>(&mut self, listener: Option<L>) -> Result<(), SecurityException>
+    where
+        L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        Self: Sized;
 }
 
 impl Authentication for () {
@@ -437,6 +473,21 @@ impl Authentication for () {
         _handle: &Self::IdentityHandle,
         _participant_security_config: &ParticipantSecurityConfig,
     ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn set_permissions_credential_and_token(
+        &mut self,
+        _handle: &Self::IdentityHandle,
+        _permissions_credential_token: PermissionsCredentialToken,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+    where
+        L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+    {
         unreachable!("Placeholder should never be called")
     }
 }

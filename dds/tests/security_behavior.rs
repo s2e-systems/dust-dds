@@ -17,12 +17,13 @@ use dust_dds::{
                 Authentication, BeginHandshakeReplyOut, BeginHandshakeRequestOut,
                 ValidateLocalIdentityOut, ValidateRemoteIdentityOut, ValidationResult,
             },
+            authentication_listener::AuthenticationListener,
             types::{DdsSecurityPlugins, SecurityException},
         },
         types::{
             AuthRequestMessageToken, AuthenticatedPeerCredentialToken, HandshakeMessageToken,
             IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-            ParticipantSecurityConfig,
+            ParticipantSecurityConfig, PermissionsCredentialToken,
         },
     },
     std_runtime::StdRuntime,
@@ -136,6 +137,21 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
             unimplemented!()
         }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
+        }
     }
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
@@ -241,6 +257,21 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -376,6 +407,21 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -521,6 +567,21 @@ fn get_identity_token_returns_expected_token() {
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
             unimplemented!()
         }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -627,6 +688,21 @@ fn validate_remote_identity_returns_expected_result() {
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -740,6 +816,21 @@ fn begin_handshake_request_returns_expected_result() {
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
             unimplemented!()
         }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -849,6 +940,21 @@ fn begin_handshake_reply_returns_expected_result() {
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
             unimplemented!()
         }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -953,6 +1059,21 @@ fn process_handshake_returns_expected_result() {
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -1060,6 +1181,21 @@ fn get_shared_secret_returns_expected_result() {
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -1170,6 +1306,21 @@ fn get_authenticated_peer_credential_token_returns_expected_result() {
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
             unimplemented!()
         }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -1275,6 +1426,21 @@ fn get_identity_status_token_returns_expected_token() {
             _handle: &Self::IdentityHandle,
             _participant_security_config: &ParticipantSecurityConfig,
         ) -> Result<ParticipantSecurityAlgorithmInfo, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
             unimplemented!()
         }
     }
@@ -1383,6 +1549,21 @@ fn set_participant_security_config_returns_expected_result() {
                     minor_code: 0,
                 })
             }
+        }
+
+        fn set_permissions_credential_and_token(
+            &mut self,
+            _handle: &Self::IdentityHandle,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
+        {
+            unimplemented!()
         }
     }
 
