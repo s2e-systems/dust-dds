@@ -526,3 +526,12 @@ pub struct EndpointSecurityConfig {
     /// Endpoint security algorithm info.
     pub algorithm_info: EndpointSecurityAlgorithmInfo,
 }
+
+/// CryptoTransformKeyRevision type as defined in Section 7.3.17 of the DDS Security specification.
+pub type CryptoTransformKeyRevision = [u8; 3];
+
+/// CryptoTransformKeyRevisionIntHolder type as defined in Section 7.3.17 of the DDS Security specification.
+pub type CryptoTransformKeyRevisionIntHolder = i32;
+
+/// Constant representing no key revision.
+pub const CRYPTO_TRANSFORM_KEY_REVISION_NONE: CryptoTransformKeyRevision = [0x00, 0x00, 0x00];
