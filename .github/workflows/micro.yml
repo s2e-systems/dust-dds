@@ -3,6 +3,7 @@ name: Micro Dust DDS Tests
 on:
   push:
     branches: [ "main" ]
+  pull_request:
 
 jobs:
   tests:
