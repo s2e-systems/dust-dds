@@ -4,8 +4,9 @@ use super::{
 use crate::{
     rtps::types::Property,
     security::types::{
-        CryptoTransformKeyRevisionIntHolder, EndpointSecurityAlgorithmInfo, EndpointSecurityConfig,
-        ParticipantSecurityAlgorithmInfo, ParticipantSecurityConfig,
+        CryptoTokenSeq, CryptoTransformKeyRevisionIntHolder, DatareaderCryptoTokenSeq,
+        DatawriterCryptoTokenSeq, EndpointSecurityAlgorithmInfo, EndpointSecurityConfig,
+        ParticipantCryptoTokenSeq, ParticipantSecurityAlgorithmInfo, ParticipantSecurityConfig,
     },
 };
 
@@ -386,6 +387,211 @@ impl CryptoKeyFactory for () {
     fn unregister_datareader(
         &mut self,
         _datareader_crypto_handle: Self::DatareaderCryptoHandle,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+}
+
+/// CryptoKeyExchange plugin interface as defined in Section 9.5.3 of the DDS Security specification.
+pub trait CryptoKeyExchange: Send + 'static {
+    /// Opaque handle representing internal cryptographic participant state.
+    type ParticipantCryptoHandle;
+
+    /// Opaque handle representing internal cryptographic DataWriter state.
+    type DatawriterCryptoHandle;
+
+    /// Opaque handle representing internal cryptographic DataReader state.
+    type DatareaderCryptoHandle;
+
+    /// Creates a sequence of [`ParticipantCryptoTokenSeq`] tokens containing the information needed to
+    /// correctly interpret ciphertext encoded using the `local_participant_crypto`.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_participant_crypto` - A [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) returned by `register_local_participant`.
+    /// * `remote_participant_crypto` - A [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) returned by `register_matched_remote_participant`.
+    /// * `key_revision` - The key revision integer selecting the revision of the Key Material.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn create_local_participant_crypto_tokens(
+        &mut self,
+        local_participant_crypto: &Self::ParticipantCryptoHandle,
+        remote_participant_crypto: &Self::ParticipantCryptoHandle,
+        key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<ParticipantCryptoTokenSeq, SecurityException>;
+
+    /// Configures the Cryptographic plugin with the key material necessary to interpret messages encoded by the remote `DomainParticipant`.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_participant_crypto` - A [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) returned by `register_local_participant`.
+    /// * `remote_participant_crypto` - A [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) returned by `register_matched_remote_participant`.
+    /// * `remote_participant_tokens` - A [`ParticipantCryptoTokenSeq`] received via the `BuiltinParticipantVolatileMessageSecureReader`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn set_remote_participant_crypto_tokens(
+        &mut self,
+        local_participant_crypto: &Self::ParticipantCryptoHandle,
+        remote_participant_crypto: &Self::ParticipantCryptoHandle,
+        remote_participant_tokens: ParticipantCryptoTokenSeq,
+    ) -> Result<(), SecurityException>;
+
+    /// Creates a sequence of [`DatawriterCryptoTokenSeq`] tokens containing the information needed to
+    /// correctly interpret ciphertext encoded using the `local_datawriter_crypto`.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_datawriter_crypto` - A [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) returned by `register_local_datawriter`.
+    /// * `remote_datareader_crypto` - A [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) returned by `register_matched_remote_datareader`.
+    /// * `key_revision` - The key revision integer selecting the revision of the Key Material.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn create_local_datawriter_crypto_tokens(
+        &mut self,
+        local_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        remote_datareader_crypto: &Self::DatareaderCryptoHandle,
+        key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<DatawriterCryptoTokenSeq, SecurityException>;
+
+    /// Configures the Cryptographic plugin with the key material necessary to interpret messages encoded by the remote `DataWriter`.
+    ///
+    /// # Arguments
+    ///
+    /// * `remote_datawriter_crypto` - A [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) returned by `register_matched_remote_datawriter`.
+    /// * `local_datareader_crypto` - A [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) returned by `register_local_datareader`.
+    /// * `remote_datawriter_tokens` - A [`DatawriterCryptoTokenSeq`] received via the `BuiltinParticipantVolatileMessageSecureReader`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn set_remote_datawriter_crypto_tokens(
+        &mut self,
+        remote_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        local_datareader_crypto: &Self::DatareaderCryptoHandle,
+        remote_datawriter_tokens: DatawriterCryptoTokenSeq,
+    ) -> Result<(), SecurityException>;
+
+    /// Creates a sequence of [`DatareaderCryptoTokenSeq`] tokens containing the information needed to
+    /// correctly interpret ciphertext encoded using the `local_datareader_crypto`.
+    ///
+    /// # Arguments
+    ///
+    /// * `local_datareader_crypto` - A [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) returned by `register_local_datareader`.
+    /// * `remote_datawriter_crypto` - A [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) returned by `register_matched_remote_datawriter`.
+    /// * `key_revision` - The key revision integer selecting the revision of the Key Material.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn create_local_datareader_crypto_tokens(
+        &mut self,
+        local_datareader_crypto: &Self::DatareaderCryptoHandle,
+        remote_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<DatareaderCryptoTokenSeq, SecurityException>;
+
+    /// Configures the Cryptographic plugin with the key material necessary to interpret messages encoded by the remote `DataReader`.
+    ///
+    /// # Arguments
+    ///
+    /// * `remote_datareader_crypto` - A [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) returned by `register_matched_remote_datareader`.
+    /// * `local_datawriter_crypto` - A [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) returned by `register_local_datawriter`.
+    /// * `remote_datareader_tokens` - A [`DatareaderCryptoTokenSeq`] received via the `BuiltinParticipantVolatileMessageSecureReader`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn set_remote_datareader_crypto_tokens(
+        &mut self,
+        remote_datareader_crypto: &Self::DatareaderCryptoHandle,
+        local_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        remote_datareader_tokens: DatareaderCryptoTokenSeq,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the tokens in the [`CryptoTokenSeq`] sequence to the plugin so it can release any information associated with it.
+    ///
+    /// # Arguments
+    ///
+    /// * `crypto_tokens` - A [`CryptoTokenSeq`] issued by a prior call to `create_local_participant_crypto_tokens`,
+    ///   `create_local_datawriter_crypto_tokens`, or `create_local_datareader_crypto_tokens`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn return_crypto_tokens(
+        &mut self,
+        crypto_tokens: CryptoTokenSeq,
+    ) -> Result<(), SecurityException>;
+}
+
+impl CryptoKeyExchange for () {
+    type ParticipantCryptoHandle = ();
+    type DatawriterCryptoHandle = ();
+    type DatareaderCryptoHandle = ();
+
+    fn create_local_participant_crypto_tokens(
+        &mut self,
+        _local_participant_crypto: &Self::ParticipantCryptoHandle,
+        _remote_participant_crypto: &Self::ParticipantCryptoHandle,
+        _key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<ParticipantCryptoTokenSeq, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn set_remote_participant_crypto_tokens(
+        &mut self,
+        _local_participant_crypto: &Self::ParticipantCryptoHandle,
+        _remote_participant_crypto: &Self::ParticipantCryptoHandle,
+        _remote_participant_tokens: ParticipantCryptoTokenSeq,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn create_local_datawriter_crypto_tokens(
+        &mut self,
+        _local_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _remote_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<DatawriterCryptoTokenSeq, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn set_remote_datawriter_crypto_tokens(
+        &mut self,
+        _remote_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _local_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _remote_datawriter_tokens: DatawriterCryptoTokenSeq,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn create_local_datareader_crypto_tokens(
+        &mut self,
+        _local_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _remote_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _key_revision: CryptoTransformKeyRevisionIntHolder,
+    ) -> Result<DatareaderCryptoTokenSeq, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn set_remote_datareader_crypto_tokens(
+        &mut self,
+        _remote_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _local_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _remote_datareader_tokens: DatareaderCryptoTokenSeq,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_crypto_tokens(
+        &mut self,
+        _crypto_tokens: CryptoTokenSeq,
     ) -> Result<(), SecurityException> {
         unreachable!("Placeholder should never be called")
     }
