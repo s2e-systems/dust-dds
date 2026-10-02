@@ -21,7 +21,10 @@ pub trait AuthenticationListener: Send + 'static {
     /// # Errors
     ///
     /// Returns [`SecurityException`] if an error occurs.
-    fn on_revoke_identity(&mut self, handle: &Self::IdentityHandle) -> Result<(), SecurityException>;
+    fn on_revoke_identity(
+        &mut self,
+        handle: &Self::IdentityHandle,
+    ) -> Result<(), SecurityException>;
 
     /// Informs the `DomainParticipant` that a status associated with the Authentication plugin, or an Identity managed by the plugin, has changed.
     ///
@@ -43,7 +46,10 @@ pub trait AuthenticationListener: Send + 'static {
 impl AuthenticationListener for () {
     type IdentityHandle = ();
 
-    fn on_revoke_identity(&mut self, _handle: &Self::IdentityHandle) -> Result<(), SecurityException> {
+    fn on_revoke_identity(
+        &mut self,
+        _handle: &Self::IdentityHandle,
+    ) -> Result<(), SecurityException> {
         Ok(())
     }
 

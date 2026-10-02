@@ -6,7 +6,8 @@ use dust_dds::{
         configuration::DustDdsConfiguration,
         domain::DomainId,
         listener::NO_LISTENER,
-        qos::{DomainParticipantQos, QosKind},
+        qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind, TopicQos},
+        qos_policy::{DataTagQosPolicy, PartitionQosPolicy},
         status::NO_STATUS,
     },
     rtps_udp_transport::RtpsUdpTransport,
@@ -23,7 +24,7 @@ use dust_dds::{
         types::{
             AuthRequestMessageToken, AuthenticatedPeerCredentialToken, HandshakeMessageToken,
             IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-            ParticipantSecurityConfig, PermissionsCredentialToken,
+            ParticipantSecurityConfig, PermissionsCredentialToken, PermissionsToken,
         },
     },
     std_runtime::StdRuntime,
@@ -377,6 +378,20 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
             Err(SecurityException::default())
         }
 
+        fn validate_remote_permissions<A>(
+            &mut self,
+            _auth_plugin: &mut A,
+            _local_identity_handle: &A::IdentityHandle,
+            _remote_identity_handle: &A::IdentityHandle,
+            _remote_permissions_token: PermissionsToken,
+            _remote_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<Self::PermissionsHandle, SecurityException>
+        where
+            A: Authentication,
+        {
+            unimplemented!()
+        }
+
         fn check_create_participant(
             &mut self,
             _permissions_handle: &Self::PermissionsHandle,
@@ -384,6 +399,40 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
             _qos: &DomainParticipantQos,
         ) -> Result<(), SecurityException> {
             Ok(())
+        }
+
+        fn check_create_datawriter(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &DataWriterQos,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_create_datareader(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &DataReaderQos,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_create_topic(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &TopicQos,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
         }
     }
 
@@ -569,6 +618,20 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
             Ok(())
         }
 
+        fn validate_remote_permissions<A>(
+            &mut self,
+            _auth_plugin: &mut A,
+            _local_identity_handle: &A::IdentityHandle,
+            _remote_identity_handle: &A::IdentityHandle,
+            _remote_permissions_token: PermissionsToken,
+            _remote_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<Self::PermissionsHandle, SecurityException>
+        where
+            A: Authentication,
+        {
+            unimplemented!()
+        }
+
         fn check_create_participant(
             &mut self,
             _permissions_handle: &Self::PermissionsHandle,
@@ -576,6 +639,40 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
             _qos: &DomainParticipantQos,
         ) -> Result<(), SecurityException> {
             Err(SecurityException::default())
+        }
+
+        fn check_create_datawriter(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &DataWriterQos,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_create_datareader(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &DataReaderQos,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn check_create_topic(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _domain_id: DomainId,
+            _topic_name: &str,
+            _qos: &TopicQos,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
         }
     }
 
