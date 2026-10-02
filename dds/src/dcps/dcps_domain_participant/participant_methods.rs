@@ -514,22 +514,16 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn delete_participant_contained_entities(&mut self, now: Time) -> DdsResult<()> {
-        let deleted_publisher_list: Vec<PublisherEntity> = self
-            .domain_participant
-            .user_defined_publisher_list
-            .drain(..)
-            .collect();
+        let deleted_publisher_list: Vec<PublisherEntity> =
+            core::mem::take(&mut self.domain_participant.user_defined_publisher_list);
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
                 self.announce_deleted_data_writer(data_writer, now);
             }
         }
 
-        let deleted_subscriber_list: Vec<UserDefinedSubscriber> = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .drain(..)
-            .collect();
+        let deleted_subscriber_list: Vec<UserDefinedSubscriber> =
+            core::mem::take(&mut self.domain_participant.user_defined_subscriber_list);
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.data_reader_list.drain(..) {
                 self.announce_deleted_data_reader(data_reader, now);

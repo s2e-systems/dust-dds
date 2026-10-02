@@ -1,0 +1,13 @@
+name: Micro Dust DDS Tests
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  tests:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v7
+    - name: Run micro-dust-dds-tests
+      run: cargo test --package micro-dust-dds-tests

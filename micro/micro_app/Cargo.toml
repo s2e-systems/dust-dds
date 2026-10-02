@@ -1,0 +1,62 @@
+[package]
+name = "micro_dust_dds_app"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+micro_dust_dds_interface = { path = "../interface" }
+dust_dds = { path = "../../dds", default-features = false}
+
+defmt = "1.0.1"
+defmt-rtt = { version = "1.0.0", features = ["disable-blocking-mode"] }
+
+static_cell = "2.1.0"
+rand_core = "0.6"
+
+panic-probe = "1.0.0"
+
+chrono = { version = "^0.4", default-features = false }
+
+cortex-m-rt = "0.7.7"
+cortex-m = { version = "0.7.6", features = [
+    "inline-asm",
+    "critical-section-single-core",
+] }
+
+
+embassy-executor = { version = "0.10.0", features = [
+    "platform-cortex-m",
+    "executor-thread",
+    "defmt",
+] }
+embassy-stm32 = { version = "0.6.0", features = [
+    "defmt",
+    "stm32h563zi",
+    "memory-x",
+    "time-driver-any",
+    "exti",
+    "unstable-pac",
+    "chrono",
+] }
+embassy-time = { version = "0.5.1", features = [
+    "defmt",
+    "defmt-timestamp-uptime",
+    "tick-hz-32_768",
+] }
+embedded-alloc = "0.6.0"
+embassy-sync = { version = "0.8.0" }
+embassy-net = { version = "0.9.0", features = [
+    "udp",
+    "dhcpv4",
+    "medium-ethernet",
+    "proto-ipv4",
+    "multicast",
+    "defmt",
+] }
+embassy-futures = "0.1.2"
