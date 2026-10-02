@@ -25,6 +25,7 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.87"
 license = "Apache-2.0"
+version = "0.17.0"
 authors = [
     "Joao Rebelo <jrebelo@s2e-systems.com>",
     "Stefan Kimmer <skimmer@s2e-systems.com>",
