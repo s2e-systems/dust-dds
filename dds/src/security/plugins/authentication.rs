@@ -387,6 +387,87 @@ pub trait Authentication: Send + 'static {
     where
         L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         Self: Sized;
+
+    /// Returns the [`IdentityToken`] object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - An [`IdentityToken`] issued by the plugin on a prior call to [`get_identity_token`](Self::get_identity_token).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_identity_token(&mut self, token: IdentityToken) -> Result<(), SecurityException>;
+
+    /// Returns the [`IdentityStatusToken`] object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - An [`IdentityStatusToken`] issued by the plugin on a prior call to [`get_identity_status_token`](Self::get_identity_status_token).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_identity_status_token(
+        &mut self,
+        token: IdentityStatusToken,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`AuthenticatedPeerCredentialToken`] object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_credential_token` - An [`AuthenticatedPeerCredentialToken`] issued by the plugin on a prior call to [`get_authenticated_peer_credential_token`](Self::get_authenticated_peer_credential_token).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_authenticated_peer_credential_token(
+        &mut self,
+        peer_credential_token: AuthenticatedPeerCredentialToken,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`HandshakeHandle`](Self::HandshakeHandle) object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `handshake_handle` - A [`HandshakeHandle`](Self::HandshakeHandle) issued by the plugin on a prior call to [`begin_handshake_request`](Self::begin_handshake_request) or [`begin_handshake_reply`](Self::begin_handshake_reply).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_handshake_handle(
+        &mut self,
+        handshake_handle: Self::HandshakeHandle,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`IdentityHandle`](Self::IdentityHandle) object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity_handle` - An [`IdentityHandle`](Self::IdentityHandle) issued by the plugin on a prior call to [`validate_local_identity`](Self::validate_local_identity) or [`validate_remote_identity`](Self::validate_remote_identity).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_identity_handle(
+        &mut self,
+        identity_handle: Self::IdentityHandle,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`SharedSecretHandle`](Self::SharedSecretHandle) object to the plugin so it can be disposed of.
+    ///
+    /// # Arguments
+    ///
+    /// * `sharedsecret_handle` - A [`SharedSecretHandle`](Self::SharedSecretHandle) issued by the plugin on a prior call to [`get_shared_secret`](Self::get_shared_secret).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn return_sharedsecret_handle(
+        &mut self,
+        sharedsecret_handle: Self::SharedSecretHandle,
+    ) -> Result<(), SecurityException>;
 }
 
 impl Authentication for () {
@@ -488,6 +569,45 @@ impl Authentication for () {
     where
         L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
     {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_identity_token(&mut self, _token: IdentityToken) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_identity_status_token(
+        &mut self,
+        _token: IdentityStatusToken,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_authenticated_peer_credential_token(
+        &mut self,
+        _peer_credential_token: AuthenticatedPeerCredentialToken,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_handshake_handle(
+        &mut self,
+        _handshake_handle: Self::HandshakeHandle,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_identity_handle(
+        &mut self,
+        _identity_handle: Self::IdentityHandle,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_sharedsecret_handle(
+        &mut self,
+        _sharedsecret_handle: Self::SharedSecretHandle,
+    ) -> Result<(), SecurityException> {
         unreachable!("Placeholder should never be called")
     }
 }

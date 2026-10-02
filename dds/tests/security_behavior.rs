@@ -152,6 +152,48 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
@@ -272,6 +314,48 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
@@ -422,6 +506,48 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
@@ -582,6 +708,48 @@ fn get_identity_token_returns_expected_token() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -703,6 +871,48 @@ fn validate_remote_identity_returns_expected_result() {
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
@@ -831,6 +1041,48 @@ fn begin_handshake_request_returns_expected_result() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -955,6 +1207,48 @@ fn begin_handshake_reply_returns_expected_result() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -1074,6 +1368,48 @@ fn process_handshake_returns_expected_result() {
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
@@ -1196,6 +1532,48 @@ fn get_shared_secret_returns_expected_result() {
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
@@ -1321,6 +1699,48 @@ fn get_authenticated_peer_credential_token_returns_expected_result() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -1443,6 +1863,48 @@ fn get_identity_status_token_returns_expected_token() {
         {
             unimplemented!()
         }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let mut auth = MockAuthentication;
@@ -1563,6 +2025,48 @@ fn set_participant_security_config_returns_expected_result() {
         where
             L: AuthenticationListener<IdentityHandle = Self::IdentityHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_identity_token(
+            &mut self,
+            _token: IdentityToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_status_token(
+            &mut self,
+            _token: IdentityStatusToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_authenticated_peer_credential_token(
+            &mut self,
+            _peer_credential_token: AuthenticatedPeerCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_handshake_handle(
+            &mut self,
+            _handshake_handle: Self::HandshakeHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_identity_handle(
+            &mut self,
+            _identity_handle: Self::IdentityHandle,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_sharedsecret_handle(
+            &mut self,
+            _sharedsecret_handle: Self::SharedSecretHandle,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }
