@@ -7,6 +7,7 @@ use crate::{
         CryptoTokenSeq, CryptoTransformKeyRevisionIntHolder, DatareaderCryptoTokenSeq,
         DatawriterCryptoTokenSeq, EndpointSecurityAlgorithmInfo, EndpointSecurityConfig,
         ParticipantCryptoTokenSeq, ParticipantSecurityAlgorithmInfo, ParticipantSecurityConfig,
+        SecureSubmessageCategory,
     },
 };
 
@@ -36,6 +37,13 @@ pub struct RegisterLocalDatareaderOut<DatareaderCryptoHandle> {
     /// Adjusted endpoint security algorithm info.
     pub adjusted_algorithm_info: EndpointSecurityAlgorithmInfo,
 }
+
+/// Cryptographic plugin interface as defined in Section 9.5.1 of the DDS Security specification.
+///
+/// Combines [`CryptoKeyFactory`], [`CryptoKeyExchange`], and [`CryptoTransform`].
+pub trait Cryptographic: CryptoKeyFactory + CryptoKeyExchange + CryptoTransform {}
+
+impl Cryptographic for () {}
 
 /// CryptoKeyFactory plugin interface as defined in Section 9.5.2 of the DDS Security specification.
 pub trait CryptoKeyFactory: Send + 'static {
@@ -593,6 +601,347 @@ impl CryptoKeyExchange for () {
         &mut self,
         _crypto_tokens: CryptoTokenSeq,
     ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+}
+
+/// Output of [`encode_serialized_payload`](CryptoTransform::encode_serialized_payload).
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub struct EncodeSerializedPayloadOut {
+    /// Length of encoded buffer containing CryptoContent.
+    pub encoded_buffer_len: usize,
+    /// Length of extra inline QoS parameters.
+    pub extra_inline_qos_len: usize,
+}
+
+/// Output of [`encode_datawriter_submessage`](CryptoTransform::encode_datawriter_submessage).
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub struct EncodeDatawriterSubmessageOut {
+    /// Length of encoded RTPS submessage.
+    pub encoded_rtps_submessage_len: usize,
+    /// Index to use in subsequent calls to `encode_datawriter_submessage`.
+    pub receiving_datareader_crypto_list_index: usize,
+}
+
+/// Output of [`encode_rtps_message`](CryptoTransform::encode_rtps_message).
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub struct EncodeRtpsMessageOut {
+    /// Length of encoded RTPS message.
+    pub encoded_rtps_message_len: usize,
+    /// Index to use in subsequent calls to `encode_rtps_message`.
+    pub receiving_participant_crypto_list_index: usize,
+}
+
+/// Output of [`preprocess_secure_submsg`](CryptoTransform::preprocess_secure_submsg).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PreprocessSecureSubmsgOut<DatawriterCryptoHandle, DatareaderCryptoHandle> {
+    /// Category of the secure submessage.
+    pub secure_submessage_category: SecureSubmessageCategory,
+    /// DataWriter crypto handle.
+    pub datawriter_crypto: DatawriterCryptoHandle,
+    /// DataReader crypto handle.
+    pub datareader_crypto: DatareaderCryptoHandle,
+}
+
+/// CryptoTransform plugin interface as defined in Section 9.5.4 of the DDS Security specification.
+pub trait CryptoTransform: Send + 'static {
+    /// Opaque handle representing internal cryptographic DataWriter state.
+    type DatawriterCryptoHandle;
+
+    /// Opaque handle representing internal cryptographic DataReader state.
+    type DatareaderCryptoHandle;
+
+    /// Opaque handle representing internal cryptographic participant state.
+    type ParticipantCryptoHandle;
+
+    /// Encodes a `SerializedPayload` submessage element.
+    ///
+    /// # Arguments
+    ///
+    /// * `plain_buffer` - The input containing the `SerializedPayload` RTPS submessage element.
+    /// * `sending_datawriter_crypto` - The [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) returned by a previous call to `register_local_datawriter`.
+    /// * `encoded_buffer` - Output buffer for `CryptoContent`.
+    /// * `extra_inline_qos` - Output buffer for extra inline QoS parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn encode_serialized_payload(
+        &mut self,
+        plain_buffer: &[u8],
+        sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        encoded_buffer: &mut [u8],
+        extra_inline_qos: &mut [u8],
+    ) -> Result<EncodeSerializedPayloadOut, SecurityException>;
+
+    /// Encodes a DataWriter RTPS submessage.
+    ///
+    /// # Arguments
+    ///
+    /// * `plain_rtps_submessage` - The input containing the RTPS submessage created by a `DataWriter`.
+    /// * `sending_datawriter_crypto` - The [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) of the `DataWriter`.
+    /// * `receiving_datareader_crypto_list` - List of [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) for target `DataReader` entities.
+    /// * `receiving_datareader_crypto_list_index` - Index into `receiving_datareader_crypto_list`.
+    /// * `encoded_rtps_submessage` - Output buffer for encoded RTPS submessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn encode_datawriter_submessage(
+        &mut self,
+        plain_rtps_submessage: &[u8],
+        sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        receiving_datareader_crypto_list: &[Self::DatareaderCryptoHandle],
+        receiving_datareader_crypto_list_index: usize,
+        encoded_rtps_submessage: &mut [u8],
+    ) -> Result<EncodeDatawriterSubmessageOut, SecurityException>;
+
+    /// Encodes a DataReader RTPS submessage.
+    ///
+    /// # Arguments
+    ///
+    /// * `plain_rtps_submessage` - The input containing the RTPS submessage created by a `DataReader`.
+    /// * `sending_datareader_crypto` - The [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) of the `DataReader`.
+    /// * `receiving_datawriter_crypto_list` - List of [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) for target `DataWriter` entities.
+    /// * `encoded_rtps_submessage` - Output buffer for encoded RTPS submessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn encode_datareader_submessage(
+        &mut self,
+        plain_rtps_submessage: &[u8],
+        sending_datareader_crypto: &Self::DatareaderCryptoHandle,
+        receiving_datawriter_crypto_list: &[Self::DatawriterCryptoHandle],
+        encoded_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException>;
+
+    /// Encodes an RTPS message prior to sending it on the wire.
+    ///
+    /// # Arguments
+    ///
+    /// * `plain_rtps_message` - The input containing the RTPS message to be sent.
+    /// * `sending_participant_crypto` - The [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of the local `DomainParticipant`.
+    /// * `receiving_participant_crypto_list` - List of [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of target remote participants.
+    /// * `receiving_participant_crypto_list_index` - Index into `receiving_participant_crypto_list`.
+    /// * `transform_with_psk` - Indicates whether to protect using pre-shared key.
+    /// * `encoded_rtps_message` - Output buffer for encoded RTPS message.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn encode_rtps_message(
+        &mut self,
+        plain_rtps_message: &[u8],
+        sending_participant_crypto: &Self::ParticipantCryptoHandle,
+        receiving_participant_crypto_list: &[Self::ParticipantCryptoHandle],
+        receiving_participant_crypto_list_index: usize,
+        transform_with_psk: bool,
+        encoded_rtps_message: &mut [u8],
+    ) -> Result<Option<EncodeRtpsMessageOut>, SecurityException>;
+
+    /// Decodes an RTPS message received from the network.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoded_rtps_message` - The input containing the encoded RTPS message received.
+    /// * `receiving_participant_crypto` - The [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of the local receiving `DomainParticipant`.
+    /// * `sending_participant_crypto` - The [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of the remote sending `DomainParticipant`.
+    /// * `plain_rtps_message` - Output buffer for plain RTPS message.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case decoding fails.
+    fn decode_rtps_message(
+        &mut self,
+        encoded_rtps_message: &[u8],
+        receiving_participant_crypto: &Self::ParticipantCryptoHandle,
+        sending_participant_crypto: &Self::ParticipantCryptoHandle,
+        plain_rtps_message: &mut [u8],
+    ) -> Result<usize, SecurityException>;
+
+    /// Preprocesses a secure submessage received in an RTPS message.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoded_rtps_submessage` - The input containing the received RTPS submessage.
+    /// * `receiving_participant_crypto` - The [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of the local receiving `DomainParticipant`.
+    /// * `sending_participant_crypto` - The [`ParticipantCryptoHandle`](Self::ParticipantCryptoHandle) of the remote sending `DomainParticipant`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case operation fails.
+    fn preprocess_secure_submsg(
+        &mut self,
+        encoded_rtps_submessage: &[u8],
+        receiving_participant_crypto: &Self::ParticipantCryptoHandle,
+        sending_participant_crypto: &Self::ParticipantCryptoHandle,
+    ) -> Result<
+        PreprocessSecureSubmsgOut<Self::DatawriterCryptoHandle, Self::DatareaderCryptoHandle>,
+        SecurityException,
+    >;
+
+    /// Decodes a DataWriter RTPS submessage.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoded_rtps_submessage` - The input containing the encoded RTPS submessages.
+    /// * `receiving_datareader_crypto` - The [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) of the receiving `DataReader`.
+    /// * `sending_datawriter_crypto` - The [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) of the sending `DataWriter`.
+    /// * `plain_rtps_submessage` - Output buffer for plain RTPS submessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case decoding fails.
+    fn decode_datawriter_submessage(
+        &mut self,
+        encoded_rtps_submessage: &[u8],
+        receiving_datareader_crypto: &Self::DatareaderCryptoHandle,
+        sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        plain_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException>;
+
+    /// Decodes a DataReader RTPS submessage.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoded_rtps_submessage` - The input containing the encoded RTPS submessages.
+    /// * `receiving_datawriter_crypto` - The [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) of the receiving `DataWriter`.
+    /// * `sending_datareader_crypto` - The [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) of the sending `DataReader`.
+    /// * `plain_rtps_submessage` - Output buffer for plain RTPS submessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case decoding fails.
+    fn decode_datareader_submessage(
+        &mut self,
+        encoded_rtps_submessage: &[u8],
+        receiving_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        sending_datareader_crypto: &Self::DatareaderCryptoHandle,
+        plain_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException>;
+
+    /// Decodes a `CryptoContent` submessage element into a `SerializedPayload`.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoded_buffer` - The input containing the `CryptoContent` RTPS submessage element.
+    /// * `inline_qos` - Inline QoS parameters.
+    /// * `receiving_reader_crypto` - The [`DatareaderCryptoHandle`](Self::DatareaderCryptoHandle) of the receiving `DataReader`.
+    /// * `sending_datawriter_crypto` - The [`DatawriterCryptoHandle`](Self::DatawriterCryptoHandle) of the sending `DataWriter`.
+    /// * `plain_buffer` - Output buffer for `SerializedPayload`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case decoding fails.
+    fn decode_serialized_payload(
+        &mut self,
+        encoded_buffer: &[u8],
+        inline_qos: &[u8],
+        receiving_reader_crypto: &Self::DatareaderCryptoHandle,
+        sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        plain_buffer: &mut [u8],
+    ) -> Result<usize, SecurityException>;
+}
+
+impl CryptoTransform for () {
+    type DatawriterCryptoHandle = ();
+    type DatareaderCryptoHandle = ();
+    type ParticipantCryptoHandle = ();
+
+    fn encode_serialized_payload(
+        &mut self,
+        _plain_buffer: &[u8],
+        _sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _encoded_buffer: &mut [u8],
+        _extra_inline_qos: &mut [u8],
+    ) -> Result<EncodeSerializedPayloadOut, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn encode_datawriter_submessage(
+        &mut self,
+        _plain_rtps_submessage: &[u8],
+        _sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _receiving_datareader_crypto_list: &[Self::DatareaderCryptoHandle],
+        _receiving_datareader_crypto_list_index: usize,
+        _encoded_rtps_submessage: &mut [u8],
+    ) -> Result<EncodeDatawriterSubmessageOut, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn encode_datareader_submessage(
+        &mut self,
+        _plain_rtps_submessage: &[u8],
+        _sending_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _receiving_datawriter_crypto_list: &[Self::DatawriterCryptoHandle],
+        _encoded_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn encode_rtps_message(
+        &mut self,
+        _plain_rtps_message: &[u8],
+        _sending_participant_crypto: &Self::ParticipantCryptoHandle,
+        _receiving_participant_crypto_list: &[Self::ParticipantCryptoHandle],
+        _receiving_participant_crypto_list_index: usize,
+        _transform_with_psk: bool,
+        _encoded_rtps_message: &mut [u8],
+    ) -> Result<Option<EncodeRtpsMessageOut>, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn decode_rtps_message(
+        &mut self,
+        _encoded_rtps_message: &[u8],
+        _receiving_participant_crypto: &Self::ParticipantCryptoHandle,
+        _sending_participant_crypto: &Self::ParticipantCryptoHandle,
+        _plain_rtps_message: &mut [u8],
+    ) -> Result<usize, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn preprocess_secure_submsg(
+        &mut self,
+        _encoded_rtps_submessage: &[u8],
+        _receiving_participant_crypto: &Self::ParticipantCryptoHandle,
+        _sending_participant_crypto: &Self::ParticipantCryptoHandle,
+    ) -> Result<
+        PreprocessSecureSubmsgOut<Self::DatawriterCryptoHandle, Self::DatareaderCryptoHandle>,
+        SecurityException,
+    > {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn decode_datawriter_submessage(
+        &mut self,
+        _encoded_rtps_submessage: &[u8],
+        _receiving_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _plain_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn decode_datareader_submessage(
+        &mut self,
+        _encoded_rtps_submessage: &[u8],
+        _receiving_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _sending_datareader_crypto: &Self::DatareaderCryptoHandle,
+        _plain_rtps_submessage: &mut [u8],
+    ) -> Result<usize, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn decode_serialized_payload(
+        &mut self,
+        _encoded_buffer: &[u8],
+        _inline_qos: &[u8],
+        _receiving_reader_crypto: &Self::DatareaderCryptoHandle,
+        _sending_datawriter_crypto: &Self::DatawriterCryptoHandle,
+        _plain_buffer: &mut [u8],
+    ) -> Result<usize, SecurityException> {
         unreachable!("Placeholder should never be called")
     }
 }

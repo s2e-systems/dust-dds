@@ -535,3 +535,14 @@ pub type CryptoTransformKeyRevisionIntHolder = i32;
 
 /// Constant representing no key revision.
 pub const CRYPTO_TRANSFORM_KEY_REVISION_NONE: CryptoTransformKeyRevision = [0x00, 0x00, 0x00];
+
+/// SecureSubmessageCategory enum as defined in Section 7.4.6.4 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SecureSubmessageCategory {
+    /// Submessage was created by a DataWriter.
+    DatawriterSubmessage,
+    /// Submessage was created by a DataReader.
+    DatareaderSubmessage,
+    /// Info submessage.
+    InfoSubmessage,
+}
