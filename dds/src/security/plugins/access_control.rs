@@ -14,7 +14,8 @@ use crate::{
         qos_policy::{DataTagQosPolicy, PartitionQosPolicy},
     },
     security::types::{
-        AuthenticatedPeerCredentialToken, PermissionsCredentialToken, PermissionsToken,
+        AuthenticatedPeerCredentialToken, EndpointSecurityConfig, ParticipantSecurityConfig,
+        PermissionsCredentialToken, PermissionsToken, TopicSecurityConfig,
     },
 };
 
@@ -496,6 +497,160 @@ pub trait AccessControl: Send + 'static {
     where
         L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
         Self: Sized;
+
+    /// Returns the [`PermissionsToken`] to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - A [`PermissionsToken`] to be disposed of.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_permissions_token(
+        &mut self,
+        token: PermissionsToken,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`PermissionsCredentialToken`] to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions_credential_token` - A [`PermissionsCredentialToken`] to be disposed of.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_permissions_credential_token(
+        &mut self,
+        permissions_credential_token: PermissionsCredentialToken,
+    ) -> Result<(), SecurityException>;
+
+    /// Retrieves the [`ParticipantSecurityConfig`], which describes how the DDS middleware should enforce security and integrity of the information produced and consumed via the `DomainParticipant`.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions_handle` - The [`PermissionsHandle`](Self::PermissionsHandle) object associated with the local `DomainParticipant`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case retrieving the participant security config fails.
+    fn get_participant_security_config(
+        &mut self,
+        permissions_handle: &Self::PermissionsHandle,
+    ) -> Result<ParticipantSecurityConfig, SecurityException>;
+
+    /// Retrieves the [`TopicSecurityConfig`], which describes how the DDS middleware should enforce security and integrity of the information related to the DDS Topic.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions_handle` - The [`PermissionsHandle`](Self::PermissionsHandle) object associated with the local `DomainParticipant`.
+    /// * `topic_name` - The name of the Topic.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case retrieving the topic security config fails.
+    fn get_topic_security_config(
+        &mut self,
+        permissions_handle: &Self::PermissionsHandle,
+        topic_name: &str,
+    ) -> Result<TopicSecurityConfig, SecurityException>;
+
+    /// Retrieves the [`EndpointSecurityConfig`], which describes how the DDS middleware should enforce security and integrity of the information related to the DDS `DataWriter` endpoint.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions_handle` - The [`PermissionsHandle`](Self::PermissionsHandle) object associated with the local `DomainParticipant`.
+    /// * `topic_name` - The name of the Topic associated with the `DataWriter`.
+    /// * `partition` - The [`PartitionQosPolicy`] of the local `Publisher` to which the `DataWriter` belongs.
+    /// * `data_tag` - The [`DataTagQosPolicy`] associated with the `DataWriter`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case retrieving the `DataWriter` security config fails.
+    fn get_datawriter_security_config(
+        &mut self,
+        permissions_handle: &Self::PermissionsHandle,
+        topic_name: &str,
+        partition: &PartitionQosPolicy,
+        data_tag: &DataTagQosPolicy,
+    ) -> Result<EndpointSecurityConfig, SecurityException>;
+
+    /// Retrieves the [`EndpointSecurityConfig`], which describes how the DDS middleware should enforce security and integrity of the information related to the DDS `DataReader` endpoint.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions_handle` - The [`PermissionsHandle`](Self::PermissionsHandle) object associated with the local `DomainParticipant`.
+    /// * `topic_name` - The name of the Topic associated with the `DataReader`.
+    /// * `partition` - The [`PartitionQosPolicy`] of the local `Subscriber` to which the `DataReader` belongs.
+    /// * `data_tag` - The [`DataTagQosPolicy`] associated with the `DataReader`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case retrieving the `DataReader` security config fails.
+    fn get_datareader_security_config(
+        &mut self,
+        permissions_handle: &Self::PermissionsHandle,
+        topic_name: &str,
+        partition: &PartitionQosPolicy,
+        data_tag: &DataTagQosPolicy,
+    ) -> Result<EndpointSecurityConfig, SecurityException>;
+
+    /// Returns the [`ParticipantSecurityConfig`] to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `attributes` - The [`ParticipantSecurityConfig`] to return.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_participant_security_config(
+        &mut self,
+        attributes: ParticipantSecurityConfig,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`TopicSecurityConfig`] to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `attributes` - The [`TopicSecurityConfig`] to return.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_topic_security_config(
+        &mut self,
+        attributes: TopicSecurityConfig,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`EndpointSecurityConfig`] of a `DataWriter` to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `attributes` - The [`EndpointSecurityConfig`] to return.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_datawriter_security_config(
+        &mut self,
+        attributes: EndpointSecurityConfig,
+    ) -> Result<(), SecurityException>;
+
+    /// Returns the [`EndpointSecurityConfig`] of a `DataReader` to the plugin for disposal.
+    ///
+    /// # Arguments
+    ///
+    /// * `attributes` - The [`EndpointSecurityConfig`] to return.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] providing details in case this operation fails.
+    fn return_datareader_security_config(
+        &mut self,
+        attributes: EndpointSecurityConfig,
+    ) -> Result<(), SecurityException>;
 }
 
 impl AccessControl for () {
@@ -684,5 +839,82 @@ impl AccessControl for () {
         L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
     {
         Ok(())
+    }
+
+    fn return_permissions_token(
+        &mut self,
+        _token: PermissionsToken,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_permissions_credential_token(
+        &mut self,
+        _permissions_credential_token: PermissionsCredentialToken,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn get_participant_security_config(
+        &mut self,
+        _permissions_handle: &Self::PermissionsHandle,
+    ) -> Result<ParticipantSecurityConfig, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn get_topic_security_config(
+        &mut self,
+        _permissions_handle: &Self::PermissionsHandle,
+        _topic_name: &str,
+    ) -> Result<TopicSecurityConfig, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn get_datawriter_security_config(
+        &mut self,
+        _permissions_handle: &Self::PermissionsHandle,
+        _topic_name: &str,
+        _partition: &PartitionQosPolicy,
+        _data_tag: &DataTagQosPolicy,
+    ) -> Result<EndpointSecurityConfig, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn get_datareader_security_config(
+        &mut self,
+        _permissions_handle: &Self::PermissionsHandle,
+        _topic_name: &str,
+        _partition: &PartitionQosPolicy,
+        _data_tag: &DataTagQosPolicy,
+    ) -> Result<EndpointSecurityConfig, SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_participant_security_config(
+        &mut self,
+        _attributes: ParticipantSecurityConfig,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_topic_security_config(
+        &mut self,
+        _attributes: TopicSecurityConfig,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_datawriter_security_config(
+        &mut self,
+        _attributes: EndpointSecurityConfig,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
+    }
+
+    fn return_datareader_security_config(
+        &mut self,
+        _attributes: EndpointSecurityConfig,
+    ) -> Result<(), SecurityException> {
+        unreachable!("Placeholder should never be called")
     }
 }

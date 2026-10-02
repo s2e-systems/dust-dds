@@ -28,9 +28,10 @@ use dust_dds::{
             types::{DdsSecurityPlugins, SecurityException},
         },
         types::{
-            AuthRequestMessageToken, AuthenticatedPeerCredentialToken, HandshakeMessageToken,
-            IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-            ParticipantSecurityConfig, PermissionsCredentialToken, PermissionsToken,
+            AuthRequestMessageToken, AuthenticatedPeerCredentialToken, EndpointSecurityConfig,
+            HandshakeMessageToken, IdentityStatusToken, IdentityToken,
+            ParticipantSecurityAlgorithmInfo, ParticipantSecurityConfig,
+            PermissionsCredentialToken, PermissionsToken, TopicSecurityConfig,
         },
     },
     std_runtime::StdRuntime,
@@ -555,6 +556,83 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
         {
             unimplemented!()
         }
+
+        fn return_permissions_token(
+            &mut self,
+            _token: PermissionsToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_permissions_credential_token(
+            &mut self,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_participant_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+        ) -> Result<ParticipantSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_topic_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+        ) -> Result<TopicSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_datawriter_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<EndpointSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_datareader_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<EndpointSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_participant_security_config(
+            &mut self,
+            _attributes: ParticipantSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_topic_security_config(
+            &mut self,
+            _attributes: TopicSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_datawriter_security_config(
+            &mut self,
+            _attributes: EndpointSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_datareader_security_config(
+            &mut self,
+            _attributes: EndpointSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -908,6 +986,83 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
         where
             L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
         {
+            unimplemented!()
+        }
+
+        fn return_permissions_token(
+            &mut self,
+            _token: PermissionsToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_permissions_credential_token(
+            &mut self,
+            _permissions_credential_token: PermissionsCredentialToken,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_participant_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+        ) -> Result<ParticipantSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_topic_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+        ) -> Result<TopicSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_datawriter_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<EndpointSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn get_datareader_security_config(
+            &mut self,
+            _permissions_handle: &Self::PermissionsHandle,
+            _topic_name: &str,
+            _partition: &PartitionQosPolicy,
+            _data_tag: &DataTagQosPolicy,
+        ) -> Result<EndpointSecurityConfig, SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_participant_security_config(
+            &mut self,
+            _attributes: ParticipantSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_topic_security_config(
+            &mut self,
+            _attributes: TopicSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_datawriter_security_config(
+            &mut self,
+            _attributes: EndpointSecurityConfig,
+        ) -> Result<(), SecurityException> {
+            unimplemented!()
+        }
+
+        fn return_datareader_security_config(
+            &mut self,
+            _attributes: EndpointSecurityConfig,
+        ) -> Result<(), SecurityException> {
             unimplemented!()
         }
     }

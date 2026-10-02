@@ -480,3 +480,49 @@ impl EndpointSecuritySymmetricCipherAlgorithmInfo {
             && check_compatibility(participant_supported_mask, other.required_mask)
     }
 }
+
+/// TopicSecurityConfig type as defined in the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct TopicSecurityConfig {
+    /// Indicates whether read operations are protected.
+    pub is_read_protected: bool,
+    /// Indicates whether write operations are protected.
+    pub is_write_protected: bool,
+    /// Indicates whether discovery is protected.
+    pub is_discovery_protected: bool,
+    /// Indicates whether liveliness is protected.
+    pub is_liveliness_protected: bool,
+    /// Plugin endpoint security attributes mask.
+    pub plugin_endpoint_attributes: PluginEndpointSecurityAttributesMask,
+    /// AC endpoint properties.
+    pub ac_endpoint_properties: PropertySeq,
+}
+
+/// EndpointSecurityAlgorithmInfo type as defined in Section 7.3.15 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct EndpointSecurityAlgorithmInfo {
+    /// Symmetric cipher algorithm info.
+    pub symmetric_cipher: EndpointSecuritySymmetricCipherAlgorithmInfo,
+}
+
+/// EndpointSecurityConfig type as defined in Section 9.4.2.7 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable", base_type = TopicSecurityConfig)]
+pub struct EndpointSecurityConfig {
+    /// Parent [`TopicSecurityConfig`].
+    pub parent: TopicSecurityConfig,
+    /// Indicates whether submessages are protected.
+    pub is_submessage_protected: bool,
+    /// Indicates whether payload is protected.
+    pub is_payload_protected: bool,
+    /// Indicates whether key is protected.
+    pub is_key_protected: bool,
+    /// Plugin endpoint security attributes mask.
+    pub plugin_endpoint_attributes: PluginEndpointSecurityAttributesMask,
+    /// AC endpoint properties.
+    pub ac_endpoint_properties: PropertySeq,
+    /// Endpoint security algorithm info.
+    pub algorithm_info: EndpointSecurityAlgorithmInfo,
+}
