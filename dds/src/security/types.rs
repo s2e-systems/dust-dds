@@ -363,6 +363,44 @@ impl ParticipantSecuritySymmetricCipherAlgorithmInfo {
     }
 }
 
+/// ParticipantSecurityAlgorithmInfo type as defined in Section 7.3.14 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityAlgorithmInfo {
+    /// Digital signature algorithm info.
+    pub digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
+    /// Key establishment algorithm info.
+    pub key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
+    /// Symmetric cipher algorithm info.
+    pub symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
+}
+
+/// ParticipantSecurityConfig type as defined in Section 7.3 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityConfig {
+    /// Indicates whether unauthenticated participants are allowed.
+    pub allow_unauthenticated_participants: bool,
+    /// Indicates whether access control is protected.
+    pub is_access_protected: bool,
+    /// Indicates whether RTPS AXK is protected.
+    pub is_rtps_axk_protected: bool,
+    /// Indicates whether RTPS PSK is protected.
+    pub is_rtps_psk_protected: bool,
+    /// Indicates whether discovery is protected.
+    pub is_discovery_protected: bool,
+    /// Indicates whether liveliness is protected.
+    pub is_liveliness_protected: bool,
+    /// Indicates whether key revision is enabled.
+    pub is_key_revision_enabled: bool,
+    /// Plugin participant attributes.
+    pub plugin_participant_attributes: PluginParticipantSecurityAttributesMask,
+    /// AC participant / endpoint properties.
+    pub ac_endpoint_properties: PropertySeq,
+    /// Cryptographic algorithms used and supported by the participant.
+    pub algorithm_info: ParticipantSecurityAlgorithmInfo,
+}
+
 /// EndpointSecurityAttributesMask type as defined in Section 7.3.24 of the DDS Security specification.
 pub type EndpointSecurityAttributesMask = u32;
 

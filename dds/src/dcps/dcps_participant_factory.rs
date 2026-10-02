@@ -86,6 +86,14 @@ impl DcpsParticipantFactory {
                         &domain_participant_qos,
                     )
                     .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                access_control
+                    .check_create_participant(
+                        &permissions_handle,
+                        domain_id,
+                        &domain_participant_qos,
+                    )
+                    .map_err(|_| DdsError::NotAllowedBySecurity)?;
             }
 
             validate_out.adjusted_participant_guid
