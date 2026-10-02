@@ -19,6 +19,7 @@ use dust_dds::{
     security::{
         plugins::{
             access_control::{AccessControl, CheckRemoteDataReaderOut},
+            access_control_listener::AccessControlListener,
             authentication::{
                 Authentication, BeginHandshakeReplyOut, BeginHandshakeRequestOut,
                 ValidateLocalIdentityOut, ValidateRemoteIdentityOut, ValidationResult,
@@ -547,6 +548,13 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
         ) -> Result<PermissionsCredentialToken, SecurityException> {
             unimplemented!()
         }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
+        {
+            unimplemented!()
+        }
     }
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -893,6 +901,13 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
             &mut self,
             _handle: &Self::PermissionsHandle,
         ) -> Result<PermissionsCredentialToken, SecurityException> {
+            unimplemented!()
+        }
+
+        fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+        where
+            L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
+        {
             unimplemented!()
         }
     }

@@ -1,4 +1,7 @@
-use super::{authentication::Authentication, types::SecurityException};
+use super::{
+    access_control_listener::AccessControlListener, authentication::Authentication,
+    types::SecurityException,
+};
 use crate::{
     builtin_topics::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
@@ -477,6 +480,22 @@ pub trait AccessControl: Send + 'static {
         &mut self,
         handle: &Self::PermissionsHandle,
     ) -> Result<PermissionsCredentialToken, SecurityException>;
+
+    /// Sets the [`AccessControlListener`] that the AccessControl plugin will use to notify the
+    /// DDS middleware infrastructure of events relevant to the Access Control.
+    ///
+    /// # Arguments
+    ///
+    /// * `listener` - An [`AccessControlListener`] object to be attached to the AccessControl object.
+    ///   If this argument is [`None`], it indicates that there shall be no listener.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SecurityException`] if an error occurs.
+    fn set_listener<L>(&mut self, listener: Option<L>) -> Result<(), SecurityException>
+    where
+        L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
+        Self: Sized;
 }
 
 impl AccessControl for () {
@@ -658,5 +677,12 @@ impl AccessControl for () {
         _handle: &Self::PermissionsHandle,
     ) -> Result<PermissionsCredentialToken, SecurityException> {
         unreachable!("Placeholder should never be called")
+    }
+
+    fn set_listener<L>(&mut self, _listener: Option<L>) -> Result<(), SecurityException>
+    where
+        L: AccessControlListener<PermissionsHandle = Self::PermissionsHandle>,
+    {
+        Ok(())
     }
 }
