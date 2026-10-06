@@ -67,21 +67,21 @@ pub struct ParticipantBuiltinTopicData {
     #[dust_dds(id=PID_USER_DATA as u32)]
     pub(crate) user_data: UserDataQosPolicy,
     #[dust_dds(id=PID_IDENTITY_TOKEN as u32, optional)]
-    pub(crate) identity_token: IdentityToken,
+    pub(crate) identity_token: Option<IdentityToken>,
     #[dust_dds(id=PID_PERMISSIONS_TOKEN as u32, optional)]
-    pub(crate) permissions_token: PermissionsToken,
+    pub(crate) permissions_token: Option<PermissionsToken>,
     #[dust_dds(id=PID_PARTICIPANT_SECURITY_PROTECTION_INFO as u32, optional)]
-    pub(crate) protection_info: ParticipantSecurityProtectionInfo,
+    pub(crate) protection_info: Option<ParticipantSecurityProtectionInfo>,
     #[dust_dds(id=PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT as u32, optional)]
-    pub(crate) available_builtin_endpoints_ext: BuiltinEndpointSetExt,
+    pub(crate) available_builtin_endpoints_ext: Option<BuiltinEndpointSetExt>,
     #[dust_dds(id=PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO as u32, optional)]
-    pub(crate) digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
+    pub(crate) digital_signature: Option<ParticipantSecurityDigitalSignatureAlgorithmInfo>,
     #[dust_dds(id=PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO as u32, optional)]
-    pub(crate) key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
+    pub(crate) key_establishment: Option<ParticipantSecurityKeyEstablishmentAlgorithmInfo>,
     #[dust_dds(id=PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO as u32, optional)]
-    pub(crate) symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
+    pub(crate) symmetric_cipher: Option<ParticipantSecuritySymmetricCipherAlgorithmInfo>,
     #[dust_dds(id=PID_PROPERTY_LIST as u32, optional)]
-    pub(crate) property: PropertyQosPolicy,
+    pub(crate) property: Option<PropertyQosPolicy>,
 }
 
 impl ParticipantBuiltinTopicData {
@@ -96,42 +96,42 @@ impl ParticipantBuiltinTopicData {
     }
 
     /// Get the identity token value of the discovered participant.
-    pub fn identity_token(&self) -> &IdentityToken {
+    pub fn identity_token(&self) -> &Option<IdentityToken> {
         &self.identity_token
     }
 
     /// Get the permissions token value of the discovered participant.
-    pub fn permissions_token(&self) -> &PermissionsToken {
+    pub fn permissions_token(&self) -> &Option<PermissionsToken> {
         &self.permissions_token
     }
 
     /// Get the protection info value of the discovered participant.
-    pub fn protection_info(&self) -> &ParticipantSecurityProtectionInfo {
+    pub fn protection_info(&self) -> &Option<ParticipantSecurityProtectionInfo> {
         &self.protection_info
     }
 
     /// Get the available builtin endpoints ext value of the discovered participant.
-    pub fn available_builtin_endpoints_ext(&self) -> &BuiltinEndpointSetExt {
+    pub fn available_builtin_endpoints_ext(&self) -> &Option<BuiltinEndpointSetExt> {
         &self.available_builtin_endpoints_ext
     }
 
     /// Get the digital signature value of the discovered participant.
-    pub fn digital_signature(&self) -> &ParticipantSecurityDigitalSignatureAlgorithmInfo {
+    pub fn digital_signature(&self) -> &Option<ParticipantSecurityDigitalSignatureAlgorithmInfo> {
         &self.digital_signature
     }
 
     /// Get the key establishment value of the discovered participant.
-    pub fn key_establishment(&self) -> &ParticipantSecurityKeyEstablishmentAlgorithmInfo {
+    pub fn key_establishment(&self) -> &Option<ParticipantSecurityKeyEstablishmentAlgorithmInfo> {
         &self.key_establishment
     }
 
     /// Get the symmetric cipher value of the discovered participant.
-    pub fn symmetric_cipher(&self) -> &ParticipantSecuritySymmetricCipherAlgorithmInfo {
+    pub fn symmetric_cipher(&self) -> &Option<ParticipantSecuritySymmetricCipherAlgorithmInfo> {
         &self.symmetric_cipher
     }
 
     /// Get the property QoS policy value of the discovered participant.
-    pub fn property(&self) -> &PropertyQosPolicy {
+    pub fn property(&self) -> &Option<PropertyQosPolicy> {
         &self.property
     }
 }

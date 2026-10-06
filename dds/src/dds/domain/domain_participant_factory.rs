@@ -11,7 +11,8 @@ use crate::{
     },
     rtps_udp_transport::udp_transport::RtpsUdpTransport,
     security::plugins::{
-        access_control::AccessControl, authentication::Authentication, types::DdsSecurityPlugins,
+        access_control::AccessControl, authentication::Authentication,
+        cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
     std_runtime::executor::block_on,
     transport::interface::TransportParticipantFactory,
@@ -140,10 +141,14 @@ impl DomainParticipantFactory<RtpsUdpTransport> {
     /// This operation returns the [`DomainParticipantFactory`] singleton initialized with a custom transport and configuration.
     /// The operation is idempotent, returning the existing instance if it has already been initialized.
     #[tracing::instrument(skip(transport, configuration, security))]
-    pub fn get_custom_instance<Auth: Authentication, Access: AccessControl>(
+    pub fn get_custom_instance<
+        Auth: Authentication,
+        Access: AccessControl,
+        Crypto: Cryptographic,
+    >(
         configuration: DustDdsConfiguration,
         transport: RtpsUdpTransport,
-        security: DdsSecurityPlugins<Auth, Access>,
+        security: DdsSecurityPlugins<Auth, Access, Crypto>,
     ) -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
             DomainParticipantFactory<RtpsUdpTransport>,

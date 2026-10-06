@@ -1,6 +1,8 @@
 use crate::{
     dcps::{
-        dcps_domain_participant::participant_entity::DcpsDomainParticipant,
+        dcps_domain_participant::participant_entity::{
+            DcpsDomainParticipant, ParticipantSecurityData,
+        },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,
     },
@@ -14,8 +16,23 @@ use crate::{
         time::{Duration, Time},
     },
     runtime::DdsRuntime,
-    security::plugins::{
-        access_control::AccessControl, authentication::Authentication, types::DdsSecurityPlugins,
+    security::{
+        plugins::{
+            access_control::AccessControl, authentication::Authentication,
+            cryptographic::Cryptographic, types::DdsSecurityPlugins,
+        },
+        types::{
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED,
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED,
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED,
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED,
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED,
+            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID,
+            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS,
+            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED,
+            ParticipantSecurityAlgorithmInfo, ParticipantSecurityAttributesMaskExt,
+            ParticipantSecurityConfig, ParticipantSecurityProtectionInfo,
+        },
     },
     transport::{
         interface::RtpsTransportParticipant,
@@ -44,7 +61,7 @@ impl DcpsParticipantFactory {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_participant<Auth, Access>(
+    pub fn create_participant<Auth, Access, Crypto>(
         &mut self,
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -54,11 +71,12 @@ impl DcpsParticipantFactory {
         transport_participant: RtpsTransportParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
-        security: &mut DdsSecurityPlugins<Auth, Access>,
+        security: &mut DdsSecurityPlugins<Auth, Access, Crypto>,
     ) -> DdsResult<InstanceHandle>
     where
         Auth: Authentication,
         Access: AccessControl,
+        Crypto: Cryptographic,
     {
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
@@ -68,7 +86,10 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let guid = if let Some(authentication) = &mut security.authentication_plugin {
+        let (guid, security_data) = if let Some(authentication) =
+            &mut security.authentication_plugin
+        {
+            // Step 1: validate_local_identity
             let validate_out = authentication
                 .validate_local_identity(
                     domain_id,
@@ -77,28 +98,123 @@ impl DcpsParticipantFactory {
                 )
                 .map_err(|_| DdsError::NotAllowedBySecurity)?;
 
-            if let Some(access_control) = &mut security.access_control_plugin {
-                let permissions_handle = access_control
-                    .validate_local_permissions(
-                        authentication,
+            let permissions_handle =
+                if let Some(access_control) = &mut security.access_control_plugin {
+                    // Step 2: validate_local_permissions
+                    let permissions_handle = access_control
+                        .validate_local_permissions(
+                            authentication,
+                            &validate_out.local_identity_handle,
+                            domain_id,
+                            &domain_participant_qos,
+                        )
+                        .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                    // Step 3: check_create_participant
+                    access_control
+                        .check_create_participant(
+                            &permissions_handle,
+                            domain_id,
+                            &domain_participant_qos,
+                        )
+                        .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                    Some(permissions_handle)
+                } else {
+                    None
+                };
+
+            // Step 4: get_identity_token
+            let identity_token = authentication
+                .get_identity_token(&validate_out.local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            // Step 5: get_identity_status_token
+            let identity_status_token = authentication
+                .get_identity_status_token(&validate_out.local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            if let (Some(access_control), Some(permissions_handle)) =
+                (&mut security.access_control_plugin, permissions_handle)
+            {
+                // Step 6: get_permissions_token
+                let permissions_token = access_control
+                    .get_permissions_token(&permissions_handle)
+                    .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                // Step 7: get_permissions_credential_token
+                let permissions_credential_token = access_control
+                    .get_permissions_credential_token(&permissions_handle)
+                    .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                // Step 8: set_permissions_credential_and_token
+                authentication
+                    .set_permissions_credential_and_token(
                         &validate_out.local_identity_handle,
-                        domain_id,
-                        &domain_participant_qos,
+                        permissions_credential_token,
                     )
                     .map_err(|_| DdsError::NotAllowedBySecurity)?;
 
-                access_control
-                    .check_create_participant(
-                        &permissions_handle,
-                        domain_id,
-                        &domain_participant_qos,
+                // Step 9: get_participant_security_config
+                let participant_security_config = access_control
+                    .get_participant_security_config(&permissions_handle)
+                    .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                // Step 10: set_participant_security_config on Authentication
+                let auth_algorithm_info = authentication
+                    .set_participant_security_config(
+                        &validate_out.local_identity_handle,
+                        &participant_security_config,
                     )
                     .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                // Step 11: register_local_participant on Cryptographic
+                let algorithm_info = if let Some(cryptographic) = &mut security.cryptographic_plugin
+                {
+                    let crypto_properties: Vec<_> = domain_participant_qos
+                        .property
+                        .value
+                        .iter()
+                        .filter(|p| p.name.starts_with("dds.sec.crypto."))
+                        .cloned()
+                        .collect();
+
+                    let crypto_out = cryptographic
+                        .register_local_participant(
+                            authentication,
+                            access_control,
+                            &validate_out.local_identity_handle,
+                            &permissions_handle,
+                            &crypto_properties,
+                            &participant_security_config,
+                        )
+                        .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+                    ParticipantSecurityAlgorithmInfo {
+                        digital_signature: auth_algorithm_info.digital_signature,
+                        key_establishment: auth_algorithm_info.key_establishment,
+                        symmetric_cipher: crypto_out.adjusted_algorithm_info.symmetric_cipher,
+                    }
+                } else {
+                    auth_algorithm_info
+                };
+
+                let protection_info = (&participant_security_config).into();
+
+                let security_data = ParticipantSecurityData {
+                    identity_token,
+                    permissions_token,
+                    protection_info,
+                    algorithm_info,
+                    identity_status_token,
+                };
+
+                (validate_out.adjusted_participant_guid, Some(security_data))
+            } else {
+                (validate_out.adjusted_participant_guid, None)
             }
-
-            validate_out.adjusted_participant_guid
         } else {
-            candidate_participant_guid
+            (candidate_participant_guid, None)
         };
 
         let mut dcps_participant = DcpsDomainParticipant::new(
@@ -109,6 +225,7 @@ impl DcpsParticipantFactory {
             listener_mask,
             transport_participant,
             self.dcps_sender.clone(),
+            security_data,
         );
         let participant_handle = *dcps_participant.get_instance_handle();
 
@@ -196,5 +313,48 @@ impl DcpsParticipantFactory {
                 )
             })
             .min()
+    }
+}
+
+impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {
+    fn from(config: &ParticipantSecurityConfig) -> Self {
+        let mut mask = PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+        if config.is_rtps_axk_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED;
+        }
+        if config.is_discovery_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
+        }
+        if config.is_liveliness_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
+        }
+        if config.is_key_revision_enabled {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED;
+        }
+        if config.is_rtps_psk_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED;
+        }
+
+        let mut opt_mask: u16 = 0;
+        let mut opt_is_set: u16 = 0;
+
+        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
+        if config.allow_unauthenticated_participants {
+            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
+        }
+
+        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
+        if config.is_access_protected {
+            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
+        }
+
+        Self {
+            participant_security_attributes: mask,
+            plugin_participant_security_attributes: config.plugin_participant_attributes,
+            participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt {
+                is_set: opt_is_set,
+                value: opt_mask,
+            },
+        }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::{
@@ -105,20 +105,7 @@ impl DcpsDomainParticipant {
             self.domain_participant.last_announcement_timestamp = Some(now);
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
-            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: builtin_topic_key,
-                },
-                user_data: self.domain_participant.qos.user_data.clone(),
-                identity_token: Default::default(),
-                permissions_token: Default::default(),
-                protection_info: Default::default(),
-                available_builtin_endpoints_ext: Default::default(),
-                digital_signature: Default::default(),
-                key_establishment: Default::default(),
-                symmetric_cipher: Default::default(),
-                property: self.domain_participant.qos.property.clone(),
-            };
+            let participant_builtin_topic_data = self.participant_builtin_topic_data();
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),
                 domain_tag,

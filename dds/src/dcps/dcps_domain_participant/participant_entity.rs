@@ -9,8 +9,8 @@ use super::{
 };
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, TopicBuiltinTopicData,
+        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure, TopicBuiltinTopicData,
     },
     dcps::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
@@ -31,6 +31,10 @@ use crate::{
         qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, DurationKind, Time},
     },
+    security::types::{
+        IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
+        ParticipantSecurityProtectionInfo, PermissionsToken,
+    },
     transport::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
@@ -43,6 +47,14 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
+
+pub struct ParticipantSecurityData {
+    pub identity_token: IdentityToken,
+    pub permissions_token: PermissionsToken,
+    pub protection_info: ParticipantSecurityProtectionInfo,
+    pub algorithm_info: ParticipantSecurityAlgorithmInfo,
+    pub identity_status_token: Option<IdentityStatusToken>,
+}
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -73,21 +85,43 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         transport: RtpsTransportParticipant,
         dcps_sender: DcpsSender,
+        security_data: Option<ParticipantSecurityData>,
     ) -> Self {
         let participant_handle = InstanceHandle::new(guid.into());
 
         let builtin_subscriber = BuiltinSubscriber::new(guid.prefix());
         let builtin_publisher = BuiltinPublisher::new(guid.prefix(), &transport);
 
-        let domain_participant = DomainParticipantEntity::new(
+        let domain_participant = DomainParticipantEntity {
             domain_id,
-            domain_participant_qos,
+            instance_handle: participant_handle,
+            topic_counter: 0,
+            qos: domain_participant_qos,
+            builtin_subscriber,
+            builtin_publisher,
+            user_defined_subscriber_list: Vec::new(),
+            default_subscriber_qos: SubscriberQos::const_default(),
+            user_defined_publisher_list: Vec::new(),
+            default_publisher_qos: PublisherQos::const_default(),
+            locally_created_topic_list: Vec::new(),
+            content_filtered_topic_list: Vec::new(),
+            type_register: TypeRegister::new(),
+            default_topic_qos: TopicQos::const_default(),
+            discovered_participant_list: Vec::new(),
+            discovered_topic_list: Vec::new(),
+            discovered_reader_list: Vec::new(),
+            discovered_writer_list: Vec::new(),
+            enabled: false,
+            ignored_participants: BTreeSet::new(),
+            ignored_publications: BTreeSet::new(),
+            ignored_subscriptions: BTreeSet::new(),
+            _ignored_topic_list: BTreeSet::new(),
             listener_sender,
             listener_mask,
-            participant_handle,
-            builtin_publisher,
-            builtin_subscriber,
-        );
+            find_topic_sender_list: Vec::new(),
+            last_announcement_timestamp: None,
+            security_data,
+        };
 
         Self {
             transport,
@@ -97,6 +131,40 @@ impl DcpsDomainParticipant {
             subscriber_counter: 0,
             domain_participant,
             dcps_sender,
+        }
+    }
+
+    pub fn participant_builtin_topic_data(&self) -> ParticipantBuiltinTopicData {
+        let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
+        ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: builtin_topic_key,
+            },
+            user_data: self.domain_participant.qos.user_data.clone(),
+            identity_token: self.domain_participant.security_data.identity_token.clone(),
+            permissions_token: self
+                .domain_participant
+                .security_data
+                .permissions_token
+                .clone(),
+            protection_info: self.domain_participant.security_data.protection_info,
+            available_builtin_endpoints_ext: Default::default(),
+            digital_signature: self
+                .domain_participant
+                .security_data
+                .algorithm_info
+                .digital_signature,
+            key_establishment: self
+                .domain_participant
+                .security_data
+                .algorithm_info
+                .key_establishment,
+            symmetric_cipher: self
+                .domain_participant
+                .security_data
+                .algorithm_info
+                .symmetric_cipher,
+            property: self.domain_participant.qos.property.clone(),
         }
     }
 
@@ -302,50 +370,10 @@ pub struct DomainParticipantEntity {
     pub listener_mask: StatusMask,
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
+    pub security_data: Option<ParticipantSecurityData>,
 }
 
 impl DomainParticipantEntity {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        domain_id: DomainId,
-        domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        instance_handle: InstanceHandle,
-        builtin_publisher: BuiltinPublisher,
-        builtin_subscriber: BuiltinSubscriber,
-    ) -> Self {
-        Self {
-            domain_id,
-            instance_handle,
-            topic_counter: 0,
-            qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
-            user_defined_subscriber_list: Vec::new(),
-            default_subscriber_qos: SubscriberQos::const_default(),
-            user_defined_publisher_list: Vec::new(),
-            default_publisher_qos: PublisherQos::const_default(),
-            locally_created_topic_list: Vec::new(),
-            content_filtered_topic_list: Vec::new(),
-            type_register: TypeRegister::new(),
-            default_topic_qos: TopicQos::const_default(),
-            discovered_participant_list: Vec::new(),
-            discovered_topic_list: Vec::new(),
-            discovered_reader_list: Vec::new(),
-            discovered_writer_list: Vec::new(),
-            enabled: false,
-            ignored_participants: BTreeSet::new(),
-            ignored_publications: BTreeSet::new(),
-            ignored_subscriptions: BTreeSet::new(),
-            _ignored_topic_list: BTreeSet::new(),
-            listener_sender,
-            listener_mask,
-            find_topic_sender_list: Vec::new(),
-            last_announcement_timestamp: None,
-        }
-    }
-
     pub fn time_until_participant_announcement(
         &self,
         now: Time,

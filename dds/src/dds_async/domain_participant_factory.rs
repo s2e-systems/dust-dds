@@ -21,7 +21,8 @@ use crate::{
         select3_future,
     },
     security::plugins::{
-        access_control::AccessControl, authentication::Authentication, types::DdsSecurityPlugins,
+        access_control::AccessControl, authentication::Authentication,
+        cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
     transport::{
         interface::{TransportDataReceiver, TransportParticipantFactory},
@@ -242,10 +243,14 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton initialized with a custom transport and configuration.
     /// The operation is idempotent, returning the existing instance if it has already been initialized.
     #[tracing::instrument(skip(transport, configuration, security))]
-    pub fn get_custom_instance<Auth: Authentication, Access: AccessControl>(
+    pub fn get_custom_instance<
+        Auth: Authentication,
+        Access: AccessControl,
+        Crypto: Cryptographic,
+    >(
         configuration: DustDdsConfiguration,
         transport: crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
-        security: DdsSecurityPlugins<Auth, Access>,
+        security: DdsSecurityPlugins<Auth, Access, Crypto>,
     ) -> &'static Self {
         use std::sync::OnceLock;
 
@@ -265,13 +270,18 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
 
 impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
     #[doc(hidden)]
-    pub fn new<R: DdsRuntime, Auth: Authentication, Access: AccessControl>(
+    pub fn new<
+        R: DdsRuntime,
+        Auth: Authentication,
+        Access: AccessControl,
+        Crypto: Cryptographic,
+    >(
         app_id: [u8; 4],
         host_id: [u8; 4],
         configuration: DustDdsConfiguration,
         runtime: R,
         transport: T,
-        mut security: DdsSecurityPlugins<Auth, Access>,
+        mut security: DdsSecurityPlugins<Auth, Access, Crypto>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());

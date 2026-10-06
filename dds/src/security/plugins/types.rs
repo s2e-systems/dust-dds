@@ -11,17 +11,19 @@ pub struct SecurityException {
     pub minor_code: i32,
 }
 
-pub struct DdsSecurityPlugins<Auth, Access> {
+pub struct DdsSecurityPlugins<Auth, Access, Crypto> {
     pub authentication_plugin: Option<Auth>,
     pub access_control_plugin: Option<Access>,
+    pub cryptographic_plugin: Option<Crypto>,
 }
 
-impl DdsSecurityPlugins<(), ()> {
+impl DdsSecurityPlugins<(), (), ()> {
     /// Convenience constructor when security is disabled.
     pub fn disabled() -> Self {
         Self {
             authentication_plugin: None,
             access_control_plugin: None,
+            cryptographic_plugin: None,
         }
     }
 }

@@ -401,6 +401,23 @@ pub struct ParticipantSecurityConfig {
     pub algorithm_info: ParticipantSecurityAlgorithmInfo,
 }
 
+/// Flag indicating whether the mask is valid in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED: u32 = 0x0000_0001 << 0;
+/// Flag indicating discovery is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED: u32 = 0x0000_0001 << 1;
+/// Flag indicating liveliness is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED: u32 = 0x0000_0001 << 2;
+/// Flag indicating key revision is enabled in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED: u32 = 0x0000_0001 << 3;
+/// Flag indicating RTPS PSK is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED: u32 = 0x0000_0001 << 4;
+
+/// Flag indicating unauthenticated participants are allowed in [`ParticipantSecurityAttributesMaskExt`].
+pub const PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS: u16 =
+    0x0001 << 0;
+/// Flag indicating access is protected in [`ParticipantSecurityAttributesMaskExt`].
+pub const PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED: u16 = 0x0001 << 1;
+
 /// EndpointSecurityAttributesMask type as defined in Section 7.3.24 of the DDS Security specification.
 pub type EndpointSecurityAttributesMask = u32;
 

@@ -329,7 +329,7 @@ pub trait Authentication: Send + 'static {
     fn get_identity_status_token(
         &mut self,
         handle: &Self::IdentityHandle,
-    ) -> Result<IdentityStatusToken, SecurityException>;
+    ) -> Result<Option<IdentityStatusToken>, SecurityException>;
 
     /// Configures various aspects of the Authentication algorithm used by the Authentication plugin
     /// and retrieves an updated [`ParticipantSecurityAlgorithmInfo`] that contains the cryptographic
@@ -545,7 +545,7 @@ impl Authentication for () {
     fn get_identity_status_token(
         &mut self,
         _handle: &Self::IdentityHandle,
-    ) -> Result<IdentityStatusToken, SecurityException> {
+    ) -> Result<Option<IdentityStatusToken>, SecurityException> {
         unreachable!("Placeholder should never be called")
     }
 
