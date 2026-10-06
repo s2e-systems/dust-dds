@@ -11,8 +11,8 @@ use crate::{
         PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
         PID_ENDPOINT_SECURITY_PROTECTION_INFO,
         PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_GROUP_DATA, PID_HISTORY,
-        PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
-        PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
+        PID_IDENTITY_STATUS_TOKEN, PID_IDENTITY_TOKEN, PID_LATENCY_BUDGET, PID_LIFESPAN,
+        PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
         PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
         PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
@@ -27,7 +27,7 @@ use crate::{
     },
     security::types::{
         BuiltinEndpointSetExt, EndpointSecurityProtectionInfo,
-        EndpointSecuritySymmetricCipherAlgorithmInfo, IdentityToken,
+        EndpointSecuritySymmetricCipherAlgorithmInfo, IdentityStatusToken, IdentityToken,
         ParticipantSecurityDigitalSignatureAlgorithmInfo,
         ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
         ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
@@ -133,6 +133,27 @@ impl ParticipantBuiltinTopicData {
     /// Get the property QoS policy value of the discovered participant.
     pub fn property(&self) -> &PropertyQosPolicy {
         &self.property
+    }
+}
+
+/// Structure representing a discovered [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) secure data.
+#[derive(Debug, PartialEq, Eq, Clone, TypeSupport)]
+#[dust_dds(extensibility = "mutable", base_type = ParticipantBuiltinTopicData)]
+pub struct ParticipantBuiltinTopicDataSecure {
+    pub(crate) parent: ParticipantBuiltinTopicData,
+    #[dust_dds(id=PID_IDENTITY_STATUS_TOKEN as u32, optional)]
+    pub(crate) identity_status_token: Option<IdentityStatusToken>,
+}
+
+impl ParticipantBuiltinTopicDataSecure {
+    /// Get the value of the base type.
+    pub fn base_type(&self) -> &ParticipantBuiltinTopicData {
+        &self.parent
+    }
+
+    /// Get the identity status token value of the discovered participant.
+    pub fn identity_status_token(&self) -> Option<&IdentityStatusToken> {
+        self.identity_status_token.as_ref()
     }
 }
 
