@@ -1,0 +1,49 @@
+// DDS Security Table 9 – EntityId values for secure builtin data writers and data readers
+
+pub const _ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x00, 0x03], BUILT_IN_WRITER_WITH_KEY);
+
+pub const _ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x00, 0x03], BUILT_IN_READER_WITH_KEY);
+
+pub const _ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x00, 0x04], BUILT_IN_WRITER_WITH_KEY);
+
+pub const _ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x00, 0x04], BUILT_IN_READER_WITH_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x02, 0x00], BUILT_IN_WRITER_WITH_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x02, 0x00], BUILT_IN_READER_WITH_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_WRITER: EntityId =
+    EntityId::new([0x00, 0x02, 0x01], BUILT_IN_WRITER_NO_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_READER: EntityId =
+    EntityId::new([0x00, 0x02, 0x01], BUILT_IN_READER_NO_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x02, 0x02], BUILT_IN_WRITER_NO_KEY);
+
+pub const _ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x02, 0x02], BUILT_IN_READER_NO_KEY);
+
+pub const _ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x01, 0x01], BUILT_IN_WRITER_WITH_KEY);
+
+pub const _ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x01, 0x01], BUILT_IN_READER_WITH_KEY);
+
+pub const _ENTITYID_TL_SVC_REQ_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x03, 0x00], BUILT_IN_WRITER_NO_KEY);
+
+pub const _ENTITYID_TL_SVC_REQ_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x03, 0x00], BUILT_IN_READER_NO_KEY);
+
+pub const _ENTITYID_TL_SVC_REPLY_SECURE_WRITER: EntityId =
+    EntityId::new([0xff, 0x03, 0x01], BUILT_IN_WRITER_NO_KEY);
+
+pub const _ENTITYID_TL_SVC_REPLY_SECURE_READER: EntityId =
+    EntityId::new([0xff, 0x03, 0x01], BUILT_IN_READER_NO_KEY);
