@@ -37,7 +37,7 @@ use crate::{
     },
     transport::{
         interface::RtpsTransportParticipant,
-        types::{Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
+        types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -76,64 +76,6 @@ pub struct DcpsDomainParticipant {
 }
 
 impl DcpsDomainParticipant {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        domain_id: DomainId,
-        guid: Guid,
-        domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        transport: RtpsTransportParticipant,
-        dcps_sender: DcpsSender,
-        security_data: Option<ParticipantSecurityData>,
-    ) -> Self {
-        let participant_handle = InstanceHandle::new(guid.into());
-
-        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix());
-        let builtin_publisher = BuiltinPublisher::new(guid.prefix(), &transport);
-
-        let domain_participant = DomainParticipantEntity {
-            domain_id,
-            instance_handle: participant_handle,
-            topic_counter: 0,
-            qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
-            user_defined_subscriber_list: Vec::new(),
-            default_subscriber_qos: SubscriberQos::const_default(),
-            user_defined_publisher_list: Vec::new(),
-            default_publisher_qos: PublisherQos::const_default(),
-            locally_created_topic_list: Vec::new(),
-            content_filtered_topic_list: Vec::new(),
-            type_register: TypeRegister::new(),
-            default_topic_qos: TopicQos::const_default(),
-            discovered_participant_list: Vec::new(),
-            discovered_topic_list: Vec::new(),
-            discovered_reader_list: Vec::new(),
-            discovered_writer_list: Vec::new(),
-            enabled: false,
-            ignored_participants: BTreeSet::new(),
-            ignored_publications: BTreeSet::new(),
-            ignored_subscriptions: BTreeSet::new(),
-            _ignored_topic_list: BTreeSet::new(),
-            listener_sender,
-            listener_mask,
-            find_topic_sender_list: Vec::new(),
-            last_announcement_timestamp: None,
-            security_data,
-        };
-
-        Self {
-            transport,
-            reader_counter: 0,
-            writer_counter: 0,
-            publisher_counter: 0,
-            subscriber_counter: 0,
-            domain_participant,
-            dcps_sender,
-        }
-    }
-
     pub fn participant_builtin_topic_data(&self) -> ParticipantBuiltinTopicData {
         let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
         let (

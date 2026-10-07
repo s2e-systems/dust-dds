@@ -136,6 +136,7 @@ impl BuiltinSubscriber {
             ),
             ReliabilityKind::Reliable,
         );
+
         let dcps_participant_secure_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_participant_secure_rtps_reader.guid().into()),
             SEDP_DATA_READER_QOS,

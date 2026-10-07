@@ -510,10 +510,6 @@ pub struct TopicSecurityConfig {
     pub is_discovery_protected: bool,
     /// Indicates whether liveliness is protected.
     pub is_liveliness_protected: bool,
-    /// Plugin endpoint security attributes mask.
-    pub plugin_endpoint_attributes: PluginEndpointSecurityAttributesMask,
-    /// AC endpoint properties.
-    pub ac_endpoint_properties: PropertySeq,
 }
 
 /// EndpointSecurityAlgorithmInfo type as defined in Section 7.3.15 of the DDS Security specification.

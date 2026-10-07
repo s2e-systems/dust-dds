@@ -113,9 +113,7 @@ impl BuiltinEndpointSet {
     pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 = 1 << 24;
     #[allow(dead_code)]
     pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 = 1 << 25;
-    #[allow(dead_code)]
     pub const SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER: u32 = 1 << 26;
-    #[allow(dead_code)]
     pub const SPDP_BUILTIN_PARTICIPANT_SECURE_READER: u32 = 1 << 27;
 
     #[allow(dead_code)]
