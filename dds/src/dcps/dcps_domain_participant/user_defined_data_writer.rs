@@ -79,7 +79,6 @@ impl UserDefinedDataWriter {
                 topic_name,
                 qos,
                 key_holder_type,
-                None,
             ),
             listener_sender,
             listener_mask,

@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
-        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
@@ -13,7 +13,6 @@ use crate::{
     },
     infrastructure::{instance::InstanceHandle, qos::SubscriberQos},
     rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
-    security::builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
     transport::types::{Guid, GuidPrefix, ReliabilityKind},
 };
 use alloc::sync::Arc;
@@ -37,9 +36,6 @@ pub struct BuiltinSubscriber {
         BuiltinDataReader<RtpsStatefulReader, SubscriptionBuiltinTopicData>,
     pub type_lookup_request_reader: BuiltinDataReader<RtpsStatefulReader, TypeLookupRequest>,
     pub type_lookup_reply_reader: BuiltinDataReader<RtpsStatefulReader, TypeLookupReply>,
-
-    pub dcps_participant_secure_reader:
-        BuiltinDataReader<RtpsStatefulReader, ParticipantBuiltinTopicDataSecure>,
 }
 
 impl Deref for BuiltinSubscriber {
@@ -129,21 +125,6 @@ impl BuiltinSubscriber {
             type_lookup_reply_transport_reader,
         );
 
-        let dcps_participant_secure_rtps_reader = RtpsStatefulReader::new(
-            Guid::new(
-                guid_prefix,
-                ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
-            ),
-            ReliabilityKind::Reliable,
-        );
-
-        let dcps_participant_secure_reader = BuiltinDataReader::new(
-            InstanceHandle::new(dcps_participant_secure_rtps_reader.guid().into()),
-            SEDP_DATA_READER_QOS,
-            Arc::from(DCPS_PARTICIPANTS_SECURE),
-            dcps_participant_secure_rtps_reader,
-        );
-
         Self {
             subscriber_entity,
             dcps_participant_reader,
@@ -152,7 +133,6 @@ impl BuiltinSubscriber {
             dcps_subscription_reader,
             type_lookup_request_reader,
             type_lookup_reply_reader,
-            dcps_participant_secure_reader,
         }
     }
 

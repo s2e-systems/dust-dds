@@ -115,7 +115,6 @@ impl DcpsParticipantFactory {
 
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let security_data = None;
-        let dcps_participant_secure_writer = None;
 
         let guid_prefix = guid.prefix();
 
@@ -132,7 +131,6 @@ impl DcpsParticipantFactory {
             Arc::from(DCPS_PARTICIPANT),
             spdp_writer_qos(),
             KeyHolderType::new(&ParticipantBuiltinTopicData::TYPE),
-            None,
         );
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
@@ -145,7 +143,6 @@ impl DcpsParticipantFactory {
             Arc::from(DCPS_TOPIC),
             sedp_data_writer_qos(),
             KeyHolderType::new(&TopicBuiltinTopicData::TYPE),
-            None,
         );
 
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
@@ -158,7 +155,6 @@ impl DcpsParticipantFactory {
             Arc::from(DCPS_PUBLICATION),
             sedp_data_writer_qos(),
             KeyHolderType::new(&PublicationBuiltinTopicData::TYPE),
-            None,
         );
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
@@ -171,7 +167,6 @@ impl DcpsParticipantFactory {
             Arc::from(DCPS_SUBSCRIPTION),
             sedp_data_writer_qos(),
             KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
-            None,
         );
 
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
@@ -184,7 +179,6 @@ impl DcpsParticipantFactory {
             Arc::from(TYPE_LOOKUP_REQUEST_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
             KeyHolderType::new(&TypeLookupRequest::TYPE),
-            None,
         );
 
         let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
@@ -197,7 +191,6 @@ impl DcpsParticipantFactory {
             Arc::from(TYPE_LOOKUP_REPLY_TOPIC_NAME),
             TYPE_LOOKUP_WRITER_QOS,
             KeyHolderType::new(&TypeLookupReply::TYPE),
-            None,
         );
 
         let builtin_publisher = BuiltinPublisher {
@@ -207,7 +200,6 @@ impl DcpsParticipantFactory {
             dcps_subscriptions_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
-            dcps_participant_secure_writer,
             enabled: false,
         };
 

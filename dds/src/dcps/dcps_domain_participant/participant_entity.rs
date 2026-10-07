@@ -32,8 +32,8 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     security::types::{
-        IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-        ParticipantSecurityProtectionInfo, PermissionsToken,
+        IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
+        PermissionsToken,
     },
     transport::{
         interface::RtpsTransportParticipant,
@@ -53,7 +53,6 @@ pub struct ParticipantSecurityData {
     pub permissions_token: PermissionsToken,
     pub protection_info: ParticipantSecurityProtectionInfo,
     pub algorithm_info: ParticipantSecurityAlgorithmInfo,
-    pub identity_status_token: Option<IdentityStatusToken>,
 }
 
 pub struct DiscoveredParticipantInfo {

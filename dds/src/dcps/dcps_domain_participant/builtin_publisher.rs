@@ -10,7 +10,6 @@ pub struct BuiltinPublisher {
     pub dcps_subscriptions_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_request_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_reply_writer: DataWriterEntity<RtpsStatefulWriter>,
-    pub dcps_participant_secure_writer: Option<DataWriterEntity<RtpsStatefulWriter>>,
     pub enabled: bool,
 }
 
