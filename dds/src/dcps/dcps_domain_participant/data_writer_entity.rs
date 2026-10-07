@@ -13,6 +13,7 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
+    security::types::EndpointSecurityConfig,
     transport::types::{CacheChange, ChangeKind, TopicKind},
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
@@ -44,6 +45,7 @@ pub struct DataWriterEntity<T> {
     pub qos: DataWriterQos,
     pub registered_instance_info: Vec<RegisteredInstanceInfo>,
     pub key_holder_type: KeyHolderType,
+    pub endpoint_security_config: Option<EndpointSecurityConfig>,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
@@ -53,6 +55,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         topic_name: Arc<str>,
         qos: DataWriterQos,
         key_holder_type: KeyHolderType,
+        endpoint_security_config: Option<EndpointSecurityConfig>,
     ) -> Self {
         Self {
             instance_handle,
@@ -63,6 +66,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             qos,
             registered_instance_info: Vec::new(),
             key_holder_type,
+            endpoint_security_config,
         }
     }
 
