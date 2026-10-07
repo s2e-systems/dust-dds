@@ -10,7 +10,7 @@ use super::{
 use crate::{
     builtin_topics::{
         BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure, TopicBuiltinTopicData,
+        ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
@@ -136,35 +136,37 @@ impl DcpsDomainParticipant {
 
     pub fn participant_builtin_topic_data(&self) -> ParticipantBuiltinTopicData {
         let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
+        let (
+            identity_token,
+            permissions_token,
+            protection_info,
+            digital_signature,
+            key_establishment,
+            symmetric_cipher,
+        ) = match &self.domain_participant.security_data {
+            Some(security_data) => (
+                Some(security_data.identity_token.clone()),
+                Some(security_data.permissions_token.clone()),
+                Some(security_data.protection_info),
+                Some(security_data.algorithm_info.digital_signature),
+                Some(security_data.algorithm_info.key_establishment),
+                Some(security_data.algorithm_info.symmetric_cipher),
+            ),
+            None => (None, None, None, None, None, None),
+        };
         ParticipantBuiltinTopicData {
             key: BuiltInTopicKey {
                 value: builtin_topic_key,
             },
             user_data: self.domain_participant.qos.user_data.clone(),
-            identity_token: self.domain_participant.security_data.identity_token.clone(),
-            permissions_token: self
-                .domain_participant
-                .security_data
-                .permissions_token
-                .clone(),
-            protection_info: self.domain_participant.security_data.protection_info,
-            available_builtin_endpoints_ext: Default::default(),
-            digital_signature: self
-                .domain_participant
-                .security_data
-                .algorithm_info
-                .digital_signature,
-            key_establishment: self
-                .domain_participant
-                .security_data
-                .algorithm_info
-                .key_establishment,
-            symmetric_cipher: self
-                .domain_participant
-                .security_data
-                .algorithm_info
-                .symmetric_cipher,
-            property: self.domain_participant.qos.property.clone(),
+            identity_token,
+            permissions_token,
+            protection_info,
+            available_builtin_endpoints_ext: None,
+            digital_signature,
+            key_establishment,
+            symmetric_cipher,
+            property: Some(self.domain_participant.qos.property.clone()),
         }
     }
 

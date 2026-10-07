@@ -29,6 +29,7 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
     let security_plugins = DdsSecurityPlugins {
         access_control_plugin: None::<()>,
         authentication_plugin: Some(auth),
+        cryptographic_plugin: None::<()>,
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
@@ -54,6 +55,7 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
     let security_plugins = DdsSecurityPlugins {
         access_control_plugin: Some(access),
         authentication_plugin: Some(StubAuthentication::default()),
+        cryptographic_plugin: None::<()>,
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
@@ -79,6 +81,7 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
     let security_plugins = DdsSecurityPlugins {
         access_control_plugin: Some(access),
         authentication_plugin: Some(StubAuthentication::default()),
+        cryptographic_plugin: None::<()>,
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(

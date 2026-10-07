@@ -147,21 +147,28 @@ impl<'a> ParameterList<'a> {
         }
     }
 
-    pub(crate) fn get_optional_parameter_xdcr<T: TypeSupport>(
+    pub(crate) fn get_optional_parameter_xdcr1<T: TypeSupport>(
         &self,
         pid: ParameterId,
-        default: T,
-    ) -> CdrResult<T> {
+    ) -> CdrResult<Option<T>> {
         if let Some(pid_data) = self.seek_to_pid(pid)? {
             let mut dynamic_data = deserialize_top_level_type_from_representation_identifier(
                 T::TYPE,
                 [self.data[0], self.data[1]],
                 pid_data,
             )?;
-            Ok(T::create_sample(&mut dynamic_data).unwrap_or(default))
+            Ok(T::create_sample(&mut dynamic_data))
         } else {
-            Ok(default)
+            Ok(None)
         }
+    }
+
+    pub(crate) fn get_optional_parameter_xdcr<T: TypeSupport>(
+        &self,
+        pid: ParameterId,
+        default: T,
+    ) -> CdrResult<T> {
+        Ok(self.get_optional_parameter_xdcr1(pid)?.unwrap_or(default))
     }
 
     pub(crate) fn get_non_optional_parameter_xdcr<T: TypeSupport>(
