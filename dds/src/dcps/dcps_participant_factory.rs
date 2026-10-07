@@ -67,7 +67,12 @@ use crate::{
     },
     xtypes::type_support::Type,
 };
-use alloc::{collections::BTreeSet, string::String, sync::Arc, vec::Vec};
+use alloc::{
+    collections::BTreeSet,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 
 pub struct DcpsParticipantFactory {
     pub domain_participant_list: Vec<DcpsDomainParticipant>,

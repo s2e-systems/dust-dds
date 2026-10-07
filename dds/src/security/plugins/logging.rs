@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use super::{logging_listener::LoggerListener, types::SecurityException};
 
 /// Log levels as defined in Section 9.6.2.1.1 of the DDS Security specification.

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, string::ToString, sync::Arc};
 
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
