@@ -12,18 +12,14 @@ pub struct SecurityException {
 }
 
 pub struct DdsSecurityPlugins<Auth, Access, Crypto> {
-    pub authentication_plugin: Option<Auth>,
-    pub access_control_plugin: Option<Access>,
-    pub cryptographic_plugin: Option<Crypto>,
+    pub authentication_plugin: Auth,
+    pub access_control_plugin: Access,
+    pub cryptographic_plugin: Crypto,
 }
 
 impl DdsSecurityPlugins<(), (), ()> {
     /// Convenience constructor when security is disabled.
-    pub fn disabled() -> Self {
-        Self {
-            authentication_plugin: None,
-            access_control_plugin: None,
-            cryptographic_plugin: None,
-        }
+    pub fn disabled() -> Option<Self> {
+        None
     }
 }

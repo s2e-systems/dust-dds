@@ -250,7 +250,7 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     >(
         configuration: DustDdsConfiguration,
         transport: crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
-        security: DdsSecurityPlugins<Auth, Access, Crypto>,
+        security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> &'static Self {
         use std::sync::OnceLock;
 
@@ -281,7 +281,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         configuration: DustDdsConfiguration,
         runtime: R,
         transport: T,
-        mut security: DdsSecurityPlugins<Auth, Access, Crypto>,
+        mut security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());

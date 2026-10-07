@@ -86,8 +86,9 @@ pub struct StubAuthentication {
     >,
     pub get_identity_token_fn:
         Option<Box<dyn FnMut(&u32) -> Result<IdentityToken, SecurityException> + Send>>,
-    pub get_identity_status_token_fn:
-        Option<Box<dyn FnMut(&u32) -> Result<Option<IdentityStatusToken>, SecurityException> + Send>>,
+    pub get_identity_status_token_fn: Option<
+        Box<dyn FnMut(&u32) -> Result<Option<IdentityStatusToken>, SecurityException> + Send>,
+    >,
     pub set_participant_security_config_fn: Option<
         Box<
             dyn FnMut(

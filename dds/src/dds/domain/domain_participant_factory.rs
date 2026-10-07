@@ -148,7 +148,7 @@ impl DomainParticipantFactory<RtpsUdpTransport> {
     >(
         configuration: DustDdsConfiguration,
         transport: RtpsUdpTransport,
-        security: DdsSecurityPlugins<Auth, Access, Crypto>,
+        security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> &'static Self {
         static PARTICIPANT_FACTORY: std::sync::OnceLock<
             DomainParticipantFactory<RtpsUdpTransport>,

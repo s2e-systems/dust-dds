@@ -23,7 +23,7 @@ impl DcpsParticipantFactory {
         message: DcpsMail,
         now: Time,
         runtime: &impl DdsRuntime,
-        security: &mut DdsSecurityPlugins<Auth, Access, Crypto>,
+        security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DcpsReply
     where
         Auth: Authentication,

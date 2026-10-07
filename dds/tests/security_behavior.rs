@@ -1,4 +1,5 @@
-mod utils;
+mod domain_id_generator;
+mod security_stubs;
 
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
@@ -9,10 +10,8 @@ use dust_dds::{
     },
 };
 
-use crate::utils::{
-    domain_id_generator::TEST_DOMAIN_ID_GENERATOR,
-    security_stubs::{StubAccessControl, StubAuthentication},
-};
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+use security_stubs::{StubAccessControl, StubAuthentication};
 
 #[test]
 fn create_participant_when_validate_local_identity_returns_error_should_fail() {
@@ -27,15 +26,15 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
-        access_control_plugin: None::<()>,
-        authentication_plugin: Some(auth),
-        cryptographic_plugin: None::<()>,
+        access_control_plugin: (),
+        authentication_plugin: auth,
+        cryptographic_plugin: (),
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
         Default::default(),
         Default::default(),
-        security_plugins,
+        Some(security_plugins),
     );
     assert!(
         participant_factory
@@ -53,15 +52,15 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
-        access_control_plugin: Some(access),
-        authentication_plugin: Some(StubAuthentication::default()),
-        cryptographic_plugin: None::<()>,
+        access_control_plugin: access,
+        authentication_plugin: StubAuthentication::default(),
+        cryptographic_plugin: (),
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
         Default::default(),
         Default::default(),
-        security_plugins,
+        Some(security_plugins),
     );
     assert!(
         participant_factory
@@ -79,15 +78,15 @@ fn create_participant_when_check_create_participant_returns_error_should_fail() 
 
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let security_plugins = DdsSecurityPlugins {
-        access_control_plugin: Some(access),
-        authentication_plugin: Some(StubAuthentication::default()),
-        cryptographic_plugin: None::<()>,
+        access_control_plugin: access,
+        authentication_plugin: StubAuthentication::default(),
+        cryptographic_plugin: (),
     };
 
     let participant_factory = DomainParticipantFactory::get_custom_instance(
         Default::default(),
         Default::default(),
-        security_plugins,
+        Some(security_plugins),
     );
     assert!(
         participant_factory

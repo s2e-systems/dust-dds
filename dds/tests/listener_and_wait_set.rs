@@ -15,8 +15,8 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-mod utils;
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+mod domain_id_generator;
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(Debug, PartialEq, DdsType)]
 struct MyData {

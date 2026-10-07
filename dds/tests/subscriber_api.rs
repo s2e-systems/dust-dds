@@ -10,8 +10,8 @@ use dust_dds::{
     topic_definition::topic_description::TopicDescription,
 };
 
-mod utils;
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+mod domain_id_generator;
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(DdsType)]
 struct UserType(i32);
