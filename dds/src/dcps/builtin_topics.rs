@@ -50,6 +50,9 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 /// Topic name of the built-in participant discovery topic
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
+/// Topic name of the secure built-in participant discovery topic
+pub const DCPS_PARTICIPANTS_SECURE: &str = "DCPSParticipantsSecure";
+
 /// Structure representing the instance handle (or key) of an entity.
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]

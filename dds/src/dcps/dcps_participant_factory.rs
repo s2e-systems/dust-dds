@@ -71,7 +71,7 @@ impl DcpsParticipantFactory {
         transport_participant: RtpsTransportParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
-        security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DdsResult<InstanceHandle>
     where
         Auth: Authentication,
@@ -86,7 +86,7 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let (guid, security_data) = if let Some(security) = security {
+        let (guid, security_data) = if let Some(security) = security_plugins {
             // Step 1: validate_local_identity
             let validate_out = security
                 .authentication_plugin
@@ -162,14 +162,7 @@ impl DcpsParticipantFactory {
                 )
                 .map_err(|_| DdsError::NotAllowedBySecurity)?;
 
-            let crypto_properties: Vec<_> = domain_participant_qos
-                .property
-                .value
-                .iter()
-                .filter(|p| p.name.starts_with("dds.sec.crypto."))
-                .cloned()
-                .collect();
-
+            // Step 11: register_local_participant on Cryptography
             let crypto_out = security
                 .cryptographic_plugin
                 .register_local_participant(
@@ -177,7 +170,11 @@ impl DcpsParticipantFactory {
                     &mut security.access_control_plugin,
                     &validate_out.local_identity_handle,
                     &permissions_handle,
-                    &crypto_properties,
+                    domain_participant_qos
+                        .property
+                        .value
+                        .iter()
+                        .filter(|p| p.name.starts_with("dds.sec.crypto.")),
                     &participant_security_config,
                 )
                 .map_err(|_| DdsError::NotAllowedBySecurity)?;
@@ -197,6 +194,16 @@ impl DcpsParticipantFactory {
                 algorithm_info,
                 identity_status_token,
             };
+
+            // This configure operation is internal to the DDS implementation and therefore this API
+            // is not specified by the DDS Security specification. It is mentioned here to provide guidance
+            // to implementers. The DomainParticipant’s IdentityToken, the
+            // PermissionsToken, the ParticipantSecurityConfig returned by
+            // get_participant_security_config and the
+            // ParticipantSecurityAlgorithmInfo values returned by the two calls to
+            // set_participant_security_config are used to configure DDS discovery and
+            // also impact the information propagated inside the ParticipantBuiltinTopicData and
+            // ParticipantBuiltinTopicDataSecure:
 
             (validate_out.adjusted_participant_guid, Some(security_data))
         } else {

@@ -74,13 +74,13 @@ pub trait CryptoKeyFactory: Send + 'static {
     /// # Errors
     ///
     /// Returns [`SecurityException`] providing details in case registration fails.
-    fn register_local_participant<A, C>(
+    fn register_local_participant<'a, A, C>(
         &mut self,
         auth_plugin: &mut A,
         access_control_plugin: &mut C,
         participant_identity: &A::IdentityHandle,
         participant_permissions: &C::PermissionsHandle,
-        participant_properties: &[Property],
+        participant_properties: impl Iterator<Item = &'a Property>,
         participant_security_config: &ParticipantSecurityConfig,
     ) -> Result<RegisterLocalParticipantOut<Self::ParticipantCryptoHandle>, SecurityException>
     where
@@ -290,13 +290,13 @@ impl CryptoKeyFactory for () {
     type DatawriterCryptoHandle = ();
     type DatareaderCryptoHandle = ();
 
-    fn register_local_participant<A, C>(
+    fn register_local_participant<'a, A, C>(
         &mut self,
         _auth_plugin: &mut A,
         _access_control_plugin: &mut C,
         _participant_identity: &A::IdentityHandle,
         _participant_permissions: &C::PermissionsHandle,
-        _participant_properties: &[Property],
+        _participant_properties: impl Iterator<Item = &'a Property>,
         _participant_security_config: &ParticipantSecurityConfig,
     ) -> Result<RegisterLocalParticipantOut<Self::ParticipantCryptoHandle>, SecurityException>
     where

@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
@@ -19,6 +19,7 @@ use crate::{
         time::{Duration, DurationKind},
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
+    security::builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
     transport::{
         interface::RtpsTransportParticipant,
         types::{Guid, GuidPrefix},
@@ -73,6 +74,7 @@ pub struct BuiltinPublisher {
     pub dcps_subscriptions_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_request_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub type_lookup_reply_writer: DataWriterEntity<RtpsStatefulWriter>,
+    pub dcps_participant_secure_writer: DataWriterEntity<RtpsStatefulWriter>,
     pub enabled: bool,
 }
 
@@ -153,6 +155,21 @@ impl BuiltinPublisher {
             KeyHolderType::new(&TypeLookupReply::TYPE),
         );
 
+        let dcps_participant_secure_rtps_writer = RtpsStatefulWriter::new(
+            Guid::new(
+                guid_prefix,
+                ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+            ),
+            transport.fragment_size,
+        );
+        let dcps_participant_secure_writer = DataWriterEntity::new(
+            InstanceHandle::new(dcps_participant_secure_rtps_writer.guid().into()),
+            dcps_participant_secure_rtps_writer,
+            Arc::from(DCPS_PARTICIPANTS_SECURE),
+            sedp_data_writer_qos(),
+            KeyHolderType::new(&ParticipantBuiltinTopicDataSecure::TYPE),
+        );
+
         Self {
             dcps_participant_writer,
             dcps_topics_writer,
@@ -160,6 +177,7 @@ impl BuiltinPublisher {
             dcps_subscriptions_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
+            dcps_participant_secure_writer,
             enabled: false,
         }
     }
