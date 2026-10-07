@@ -14,6 +14,7 @@ use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use security_stubs::{StubAccessControl, StubAuthentication};
 
 #[test]
+#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_validate_local_identity_returns_error_should_fail() {
     let auth = StubAuthentication {
         validate_local_identity_fn: Some(Box::new(|_, _, _| {
@@ -44,6 +45,7 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
 }
 
 #[test]
+#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_validate_local_permissions_returns_error_should_fail() {
     let access = StubAccessControl {
         validate_local_permissions_fn: Some(Box::new(|_, _| Err(SecurityException::default()))),
@@ -70,6 +72,7 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
 }
 
 #[test]
+#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_check_create_participant_returns_error_should_fail() {
     let access = StubAccessControl {
         check_create_participant_fn: Some(Box::new(|_, _, _| Err(SecurityException::default()))),

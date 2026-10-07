@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
-        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
-        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
@@ -18,9 +18,7 @@ use crate::{
             builtin_publisher::BuiltinPublisher,
             builtin_subscriber::BuiltinSubscriber,
             data_writer_entity::DataWriterEntity,
-            participant_entity::{
-                DcpsDomainParticipant, DomainParticipantEntity, ParticipantSecurityData,
-            },
+            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
             type_register::TypeRegister,
         },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
@@ -39,14 +37,13 @@ use crate::{
         },
         qos_policy::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            PartitionQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         time::{Duration, DurationKind, Time},
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
     runtime::DdsRuntime,
     security::{
-        builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
         plugins::{
             access_control::AccessControl, authentication::Authentication,
             cryptographic::Cryptographic, types::DdsSecurityPlugins,
@@ -60,8 +57,8 @@ use crate::{
             PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID,
             PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS,
             PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED,
-            ParticipantSecurityAlgorithmInfo, ParticipantSecurityAttributesMaskExt,
-            ParticipantSecurityConfig, ParticipantSecurityProtectionInfo,
+            ParticipantSecurityAttributesMaskExt, ParticipantSecurityConfig,
+            ParticipantSecurityProtectionInfo,
         },
     },
     transport::{
@@ -102,7 +99,7 @@ impl DcpsParticipantFactory {
         transport_participant: RtpsTransportParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
-        security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DdsResult<InstanceHandle>
     where
         Auth: Authentication,
@@ -116,173 +113,9 @@ impl DcpsParticipantFactory {
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
-        let candidate_participant_guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let (guid, security_data, dcps_participant_secure_writer) = if let Some(security) =
-            security_plugins
-        {
-            // Step 1: validate_local_identity
-            let validate_out = security
-                .authentication_plugin
-                .validate_local_identity(
-                    domain_id,
-                    &domain_participant_qos,
-                    candidate_participant_guid,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 2: validate_local_permissions
-            let permissions_handle = security
-                .access_control_plugin
-                .validate_local_permissions(
-                    &mut security.authentication_plugin,
-                    &validate_out.local_identity_handle,
-                    domain_id,
-                    &domain_participant_qos,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 3: check_create_participant
-            security
-                .access_control_plugin
-                .check_create_participant(&permissions_handle, domain_id, &domain_participant_qos)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 4: get_identity_token
-            let identity_token = security
-                .authentication_plugin
-                .get_identity_token(&validate_out.local_identity_handle)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 5: get_identity_status_token
-            let identity_status_token = security
-                .authentication_plugin
-                .get_identity_status_token(&validate_out.local_identity_handle)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 6: get_permissions_token
-            let permissions_token = security
-                .access_control_plugin
-                .get_permissions_token(&permissions_handle)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 7: get_permissions_credential_token
-            let permissions_credential_token = security
-                .access_control_plugin
-                .get_permissions_credential_token(&permissions_handle)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 8: set_permissions_credential_and_token
-            security
-                .authentication_plugin
-                .set_permissions_credential_and_token(
-                    &validate_out.local_identity_handle,
-                    permissions_credential_token,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 9: get_participant_security_config
-            let participant_security_config = security
-                .access_control_plugin
-                .get_participant_security_config(&permissions_handle)
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 10: set_participant_security_config on Authentication
-            let auth_algorithm_info = security
-                .authentication_plugin
-                .set_participant_security_config(
-                    &validate_out.local_identity_handle,
-                    &participant_security_config,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            // Step 11: register_local_participant on Cryptography
-            let register_local_participant_out = security
-                .cryptographic_plugin
-                .register_local_participant(
-                    &mut security.authentication_plugin,
-                    &mut security.access_control_plugin,
-                    &validate_out.local_identity_handle,
-                    &permissions_handle,
-                    domain_participant_qos
-                        .property
-                        .value
-                        .iter()
-                        .filter(|p| p.name.starts_with("dds.sec.crypto.")),
-                    &participant_security_config,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-
-            let algorithm_info = ParticipantSecurityAlgorithmInfo {
-                digital_signature: auth_algorithm_info.digital_signature,
-                key_establishment: auth_algorithm_info.key_establishment,
-                symmetric_cipher: register_local_participant_out
-                    .adjusted_algorithm_info
-                    .symmetric_cipher,
-            };
-
-            let protection_info = (&participant_security_config).into();
-
-            let security_data = ParticipantSecurityData {
-                identity_token,
-                permissions_token,
-                protection_info,
-                algorithm_info,
-                identity_status_token,
-            };
-
-            // This configure operation is internal to the DDS implementation and therefore this API
-            // is not specified by the DDS Security specification. It is mentioned here to provide guidance
-            // to implementers. The DomainParticipant’s IdentityToken, the
-            // PermissionsToken, the ParticipantSecurityConfig returned by
-            // get_participant_security_config and the
-            // ParticipantSecurityAlgorithmInfo values returned by the two calls to
-            // set_participant_security_config are used to configure DDS discovery and
-            // also impact the information propagated inside the ParticipantBuiltinTopicData and
-            // ParticipantBuiltinTopicDataSecure:
-
-            let dcps_participant_secure_rtps_writer = RtpsStatefulWriter::new(
-                Guid::new(
-                    validate_out.adjusted_participant_guid.prefix(),
-                    ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
-                ),
-                transport_participant.fragment_size,
-            );
-
-            let dcps_participant_secure_writer_qos = sedp_data_writer_qos();
-            let dcps_participant_secure_writer_security_config = security
-                .access_control_plugin
-                .get_datawriter_security_config(
-                    &permissions_handle,
-                    DCPS_PARTICIPANTS_SECURE,
-                    &PartitionQosPolicy::const_default(),
-                    &dcps_participant_secure_writer_qos.data_tags,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-            security
-                .cryptographic_plugin
-                .register_local_datawriter(
-                    &register_local_participant_out.participant_crypto_handle,
-                    &[],
-                    &dcps_participant_secure_writer_security_config,
-                )
-                .map_err(|_| DdsError::NotAllowedBySecurity)?;
-            let dcps_participant_secure_writer = DataWriterEntity::new(
-                InstanceHandle::new(dcps_participant_secure_rtps_writer.guid().into()),
-                dcps_participant_secure_rtps_writer,
-                Arc::from(DCPS_PARTICIPANTS_SECURE),
-                dcps_participant_secure_writer_qos,
-                KeyHolderType::new(&ParticipantBuiltinTopicDataSecure::TYPE),
-                Some(dcps_participant_secure_writer_security_config),
-            );
-
-            (
-                validate_out.adjusted_participant_guid,
-                Some(security_data),
-                Some(dcps_participant_secure_writer),
-            )
-        } else {
-            (candidate_participant_guid, None, None)
-        };
+        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
+        let security_data = None;
+        let dcps_participant_secure_writer = None;
 
         let guid_prefix = guid.prefix();
 
