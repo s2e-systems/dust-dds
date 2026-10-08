@@ -107,12 +107,17 @@ jobs:
           path: massif_report.txt
   micro_compile_check:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.99.0
     steps:
       - checkout
+      - run: rustup target add thumbv7em-none-eabihf
       - run:
-          name: Compile micro 
+          name: Compile micro  tests
           command: cargo build --tests --package micro-dust-dds-tests
+      - run:
+          name: Compile micro app
+          command: cargo build --profile micro-dev
+          working_directory: micro/micro_app
   tests:
     machine:
       image: ubuntu-2604:current
