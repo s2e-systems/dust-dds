@@ -107,7 +107,7 @@ jobs:
           path: massif_report.txt
   micro_compile_check:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.99.0
     steps:
       - checkout
       - run:
