@@ -4,8 +4,8 @@ use crate::{
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
-            data_frag::DataFragSubmessageRead,
-            info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
+            data_frag::DataFragSubmessageRead, info_destination::InfoDestinationSubmessageWrite,
+            nack_frag::NackFragSubmessageWrite,
         },
         types::Count,
     },

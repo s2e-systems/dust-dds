@@ -445,12 +445,16 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::AckNack),
                             DATA => DataSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Data),
-                            DATA_FRAG => DataFragSubmessageRead::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::DataFrag),
+                            DATA_FRAG => {
+                                DataFragSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::DataFrag)
+                            }
                             GAP => GapSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Gap),
-                            HEARTBEAT => HeartbeatSubmessageRead::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::Heartbeat),
+                            HEARTBEAT => {
+                                HeartbeatSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::Heartbeat)
+                            }
                             HEARTBEAT_FRAG => {
                                 HeartbeatFragSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::HeartbeatFrag)
@@ -463,22 +467,28 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 InfoReplySubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoReply)
                             }
-                            INFO_SRC => InfoSourceSubmessageRead::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::InfoSource),
+                            INFO_SRC => {
+                                InfoSourceSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::InfoSource)
+                            }
                             INFO_TS => {
                                 InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoTimestamp)
                             }
-                            NACK_FRAG => NackFragSubmessageRead::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::NackFrag),
+                            NACK_FRAG => {
+                                NackFragSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::NackFrag)
+                            }
                             PAD => PadSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
                             RTPS_HE => {
                                 HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::HeaderExtension)
                             }
-                            SEC_BODY => SecureBodySubmessageRead::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::SecureBody),
+                            SEC_BODY => {
+                                SecureBodySubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecureBody)
+                            }
                             SEC_PREFIX => {
                                 SecurePrefixSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::SecurePrefix)
@@ -487,14 +497,16 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 SecurePostfixSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::SecurePostfix)
                             }
-                            SRTPS_PREFIX => {
-                                SecureRTPSPrefixSubmessageRead::try_from_bytes(&submessage_header, v)
-                                    .map(RtpsSubmessageReadKind::SecureRTPSPrefix)
-                            }
-                            SRTPS_POSTFIX => {
-                                SecureRTPSPostfixSubmessageRead::try_from_bytes(&submessage_header, v)
-                                    .map(RtpsSubmessageReadKind::SecureRTPSPostfix)
-                            }
+                            SRTPS_PREFIX => SecureRTPSPrefixSubmessageRead::try_from_bytes(
+                                &submessage_header,
+                                v,
+                            )
+                            .map(RtpsSubmessageReadKind::SecureRTPSPrefix),
+                            SRTPS_POSTFIX => SecureRTPSPostfixSubmessageRead::try_from_bytes(
+                                &submessage_header,
+                                v,
+                            )
+                            .map(RtpsSubmessageReadKind::SecureRTPSPostfix),
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {

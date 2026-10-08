@@ -1,7 +1,7 @@
 use crate::{
     rtps_messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageWriteKind},
     transport::{
-        interface::WriteMessage,
+        interface::{WritableMessage, WriteMessage},
         types::{GuidPrefix, Locator},
     },
 };
@@ -27,6 +27,28 @@ where
     }
 }
 
+pub struct RtpsMessageWritePayload<'a> {
+    submessages: &'a [RtpsSubmessageWriteKind<'a>],
+    guid_prefix: GuidPrefix,
+}
+
+impl<'a> RtpsMessageWritePayload<'a> {
+    pub fn new(submessages: &'a [RtpsSubmessageWriteKind<'a>], guid_prefix: GuidPrefix) -> Self {
+        Self {
+            submessages,
+            guid_prefix,
+        }
+    }
+}
+
+impl WritableMessage for RtpsMessageWritePayload<'_> {
+    fn write_into_buffer(&self, buf: &mut [u8]) -> usize {
+        RtpsMessageWrite::from_submessages(buf, self.submessages, self.guid_prefix)
+            .buffer()
+            .len()
+    }
+}
+
 pub struct TransportSubmessageWriter<'a, W: ?Sized> {
     message_writer: &'a mut W,
     guid_prefix: GuidPrefix,
@@ -47,13 +69,8 @@ impl<W: WriteMessage + ?Sized> SubmessageWriter for TransportSubmessageWriter<'_
         submessages: &[RtpsSubmessageWriteKind],
         destination_locators: &[Locator],
     ) {
-        let len = RtpsMessageWrite::from_submessages(
-            self.message_writer.write_buffer_mut(),
-            submessages,
-            self.guid_prefix,
-        )
-        .buffer()
-        .len();
-        self.message_writer.write_message(len, destination_locators);
+        let message = RtpsMessageWritePayload::new(submessages, self.guid_prefix);
+        self.message_writer
+            .write_message(destination_locators, &message);
     }
 }

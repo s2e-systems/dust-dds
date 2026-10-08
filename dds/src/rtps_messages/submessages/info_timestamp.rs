@@ -157,7 +157,8 @@ mod tests {
             0, 0, 0, 0, // Time
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = false;
         let expected_timestamp = Time::new(4, 0);
@@ -173,7 +174,8 @@ mod tests {
             0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_invalidate_flag = true;
         let expected_timestamp = TIME_INVALID;

@@ -133,7 +133,8 @@ mod tests {
             0xaa, 0xbb, 0xcc, 0xdd,
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = SecurePostfixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            SecurePostfixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_footer = CryptoFooter::new(Data::new(vec![0xaa, 0xbb, 0xcc, 0xdd].into()));
         assert_eq!(submessage.crypto_footer(), &expected_footer);

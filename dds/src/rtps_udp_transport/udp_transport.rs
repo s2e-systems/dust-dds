@@ -4,7 +4,7 @@ use crate::{
     transport::{
         interface::{
             RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
+            WritableMessage, WriteMessage,
         },
         types::LOCATOR_KIND_UDP_V6,
     },
@@ -687,11 +687,8 @@ impl MessageWriter {
 }
 
 impl WriteMessage for MessageWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        self.buffer.as_mut_slice()
-    }
-
-    fn write_message(&mut self, len: usize, locator_list: &[Locator]) {
+    fn write_message(&mut self, locator_list: &[Locator], message: &dyn WritableMessage) {
+        let len = message.write_into_buffer(self.buffer.as_mut_slice());
         let datagram = &self.buffer[..len];
         for &destination_locator in locator_list {
             match destination_locator.kind() {

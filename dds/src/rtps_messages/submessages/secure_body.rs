@@ -133,7 +133,8 @@ mod tests {
             0x10, 0x20, 0x30, 0x40,
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = SecureBodySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            SecureBodySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_content = CryptoContent::new(Data::new(vec![0x10, 0x20, 0x30, 0x40].into()));
         assert_eq!(submessage.crypto_content(), &expected_content);

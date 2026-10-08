@@ -144,8 +144,11 @@ mod tests {
 
     #[test]
     fn serialize_info_source() {
-        let submessage =
-            InfoSourceSubmessageRead::_new(PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN, GUIDPREFIX_UNKNOWN);
+        let submessage = InfoSourceSubmessageRead::_new(
+            PROTOCOLVERSION_1_0,
+            VENDOR_ID_UNKNOWN,
+            GUIDPREFIX_UNKNOWN,
+        );
         #[rustfmt::skip]
         assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x0c, 0b_0000_0001, 20, 0, // Submessage header
@@ -170,7 +173,8 @@ mod tests {
             0, 0, 0, 0, //guid_prefix
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

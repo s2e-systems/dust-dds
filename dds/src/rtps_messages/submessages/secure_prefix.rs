@@ -148,7 +148,8 @@ mod tests {
             9, 10, 11, 12,
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = SecurePrefixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            SecurePrefixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let transform_id = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
         let extra = Data::new(vec![9, 10, 11, 12].into());

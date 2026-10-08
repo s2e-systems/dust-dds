@@ -4,9 +4,21 @@ use crate::{
 };
 use alloc::{boxed::Box, vec::Vec};
 
+pub trait WritableMessage {
+    fn write_into_buffer(&self, buf: &mut [u8]) -> usize;
+}
+
+impl<F> WritableMessage for F
+where
+    F: Fn(&mut [u8]) -> usize,
+{
+    fn write_into_buffer(&self, buf: &mut [u8]) -> usize {
+        self(buf)
+    }
+}
+
 pub trait WriteMessage {
-    fn write_buffer_mut(&mut self) -> &mut [u8];
-    fn write_message(&mut self, len: usize, locators: &[Locator]);
+    fn write_message(&mut self, locators: &[Locator], message: &dyn WritableMessage);
 }
 
 #[derive(Clone)]

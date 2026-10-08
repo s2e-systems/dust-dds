@@ -187,7 +187,8 @@ mod tests {
             2, 0, 0, 0, // count: Count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = HeartbeatFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            HeartbeatFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

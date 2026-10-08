@@ -13,7 +13,7 @@ use dust_dds::{
     transport::{
         interface::{
             RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
+            WritableMessage, WriteMessage,
         },
         types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator},
     },
@@ -25,10 +25,9 @@ struct MockWriter {
     buffer: [u8; 512],
 }
 impl WriteMessage for MockWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        &mut self.buffer
+    fn write_message(&mut self, _locators: &[Locator], message: &dyn WritableMessage) {
+        message.write_into_buffer(&mut self.buffer);
     }
-    fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
 }
 
 struct MockTransport(std::sync::mpsc::SyncSender<TransportDataReceiver>);
