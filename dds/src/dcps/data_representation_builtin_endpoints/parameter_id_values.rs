@@ -47,7 +47,7 @@ pub const PID_PARTICIPANT_GUID: ParameterId = 0x0050;
 pub const _PID_GROUP_GUID: ParameterId = 0x0052;
 pub const PID_BUILTIN_ENDPOINT_SET: ParameterId = 0x0058;
 pub const PID_BUILTIN_ENDPOINT_QOS: ParameterId = 0x0077;
-pub const _PID_PROPERTY_LIST: ParameterId = 0x0059;
+pub const PID_PROPERTY_LIST: ParameterId = 0x0059;
 pub const _PID_TYPE_MAX_SIZE_SERIALIZED: ParameterId = 0x0060;
 pub const _PID_ENTITY_NAME: ParameterId = 0x0062;
 pub const PID_ENDPOINT_GUID: ParameterId = 0x005a;
@@ -66,6 +66,19 @@ pub const PID_TYPE_CONSISTENCY_ENFORCEMENT: ParameterId = 0x0074;
 pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
 #[allow(overflowing_literals)]
 pub const _PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
+
+// Additional parameters defined by DDS Security v1.2
+// Table 10 – Additional parameter IDs in ParticipantBuiltinTopicData
+pub const PID_IDENTITY_TOKEN: ParameterId = 0x1001;
+pub const PID_PERMISSIONS_TOKEN: ParameterId = 0x1002;
+pub const PID_ENDPOINT_SECURITY_PROTECTION_INFO: ParameterId = 0x1004;
+pub const PID_PARTICIPANT_SECURITY_PROTECTION_INFO: ParameterId = 0x1005;
+pub const PID_IDENTITY_STATUS_TOKEN: ParameterId = 0x1006;
+pub const PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT: ParameterId = 0x1007;
+pub const PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO: ParameterId = 0x1010;
+pub const PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO: ParameterId = 0x1011;
+pub const PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO: ParameterId = 0x1012;
+pub const PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO: ParameterId = 0x1013;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification

@@ -2,13 +2,26 @@ use crate::infrastructure::error::DdsResult;
 use alloc::string::{String, ToString};
 use core::time::Duration;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Clone, PartialEq, Eq)]
 /// This struct specifies the high-level configuration for the DustDDS library. The configuration can be set for use by the
 /// [`DomainParticipantFactory::set_configuration`](dust_dds::domain::domain_participant_factory::DomainParticipantFactory::set_configuration) method.
 pub struct DustDdsConfiguration {
     domain_tag: String,
     participant_announcement_interval: Duration,
     enable_type_information: bool,
+}
+
+impl core::fmt::Debug for DustDdsConfiguration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DustDdsConfiguration")
+            .field("domain_tag", &self.domain_tag)
+            .field(
+                "participant_announcement_interval",
+                &self.participant_announcement_interval,
+            )
+            .field("enable_type_information", &self.enable_type_information)
+            .finish()
+    }
 }
 
 impl DustDdsConfiguration {

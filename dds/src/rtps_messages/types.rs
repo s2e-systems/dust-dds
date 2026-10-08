@@ -96,6 +96,12 @@ pub enum SubmessageKind {
     DATA_FRAG,
     NACK_FRAG,
     HEARTBEAT_FRAG,
+    RTPS_HE,
+    SEC_BODY,
+    SEC_PREFIX,
+    SEC_POSTFIX,
+    SRTPS_PREFIX,
+    SRTPS_POSTFIX,
 }
 
 pub const DATA: u8 = 0x15;
@@ -110,6 +116,13 @@ pub const INFO_SRC: u8 = 0x0c;
 pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
+pub const RTPS_HE: u8 = 0x00;
+pub const HEADER_EXTENSION: u8 = 0x00;
+pub const SEC_BODY: u8 = 0x30;
+pub const SEC_PREFIX: u8 = 0x31;
+pub const SEC_POSTFIX: u8 = 0x32;
+pub const SRTPS_PREFIX: u8 = 0x33;
+pub const SRTPS_POSTFIX: u8 = 0x34;
 
 impl WriteIntoBytes for SubmessageKind {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
@@ -126,6 +139,12 @@ impl WriteIntoBytes for SubmessageKind {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+            SubmessageKind::RTPS_HE => RTPS_HE,
+            SubmessageKind::SEC_BODY => SEC_BODY,
+            SubmessageKind::SEC_PREFIX => SEC_PREFIX,
+            SubmessageKind::SEC_POSTFIX => SEC_POSTFIX,
+            SubmessageKind::SRTPS_PREFIX => SRTPS_PREFIX,
+            SubmessageKind::SRTPS_POSTFIX => SRTPS_POSTFIX,
         };
         data.write_into_bytes(buf);
     }
@@ -209,14 +228,17 @@ pub type Count = Long;
 /// Checksum_t
 /// Type used to hold a checksum. Used to detect RTPS message corruption by the underlying transport.
 /// The following values are reserved by the protocol: CHECKSUM_INVALID.
-#[allow(dead_code)]
 pub type Checksum32 = [Octet; 4];
+pub type Checksum64 = [Octet; 8];
+pub type Checksum128 = [Octet; 16];
+pub type Checksum = Checksum32;
+pub const CHECKSUM_INVALID: Checksum = [0; 4];
 
 /// MessageLength_t
 /// Type used to hold the length of an RTPS Message.
 /// The following values are reserved by the protocol: MESSAGE_LENGTH_INVALID
-#[allow(dead_code)]
-struct MessageLength;
+pub type MessageLength = UnsignedLong;
+pub const MESSAGE_LENGTH_INVALID: MessageLength = 0;
 
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.

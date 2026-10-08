@@ -36,6 +36,7 @@ impl DcpsDomainParticipant {
         listener_mask: StatusMask,
         runtime: &impl DdsRuntime,
         now: Time,
+        enable_type_information: bool,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -136,7 +137,12 @@ impl DcpsDomainParticipant {
         publisher.data_writer_list.push(data_writer);
 
         if publisher.enabled && publisher.qos.entity_factory.autoenable_created_entities {
-            self.enable_data_writer(publisher_handle, &writer_handle, now)?;
+            self.enable_data_writer(
+                publisher_handle,
+                &writer_handle,
+                now,
+                enable_type_information,
+            )?;
         }
 
         Ok(data_writer_handle)

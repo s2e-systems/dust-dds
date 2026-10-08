@@ -2,13 +2,13 @@ use crate::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos},
         qos_policy::{
-            DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy,
-            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            OwnershipStrengthQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-            TransportPriorityQosPolicy, TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy,
-            WriterDataLifecycleQosPolicy,
+            DataRepresentationQosPolicy, DataTagQosPolicy, DeadlineQosPolicy,
+            DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
+            HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy,
+            LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PropertyQosPolicy,
+            ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TransportPriorityQosPolicy,
+            TypeConsistencyEnforcementQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
         },
         time::{Duration, DurationKind},
     },
@@ -84,6 +84,8 @@ pub const SPDP_READER_QOS: DataReaderQos = DataReaderQos {
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
+    property: PropertyQosPolicy::const_default(),
+    data_tags: DataTagQosPolicy::const_default(),
 };
 
 pub const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
@@ -108,6 +110,8 @@ pub const SEDP_DATA_READER_QOS: DataReaderQos = DataReaderQos {
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
+    property: PropertyQosPolicy::const_default(),
+    data_tags: DataTagQosPolicy::const_default(),
 };
 
 // DDS RPC default QoS as specified in DDS-RPC standard 7.10.2 Default QoS
@@ -133,6 +137,8 @@ pub const TYPE_LOOKUP_READER_QOS: DataReaderQos = DataReaderQos {
     reader_data_lifecycle: ReaderDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
     type_consistency: TypeConsistencyEnforcementQosPolicy::const_default(),
+    property: PropertyQosPolicy::const_default(),
+    data_tags: DataTagQosPolicy::const_default(),
 };
 
 pub const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
@@ -158,4 +164,6 @@ pub const TYPE_LOOKUP_WRITER_QOS: DataWriterQos = DataWriterQos {
     transport_priority: TransportPriorityQosPolicy::const_default(),
     writer_data_lifecycle: WriterDataLifecycleQosPolicy::const_default(),
     representation: DataRepresentationQosPolicy::const_default(),
+    property: PropertyQosPolicy::const_default(),
+    data_tags: DataTagQosPolicy::const_default(),
 };

@@ -1,4 +1,4 @@
-mod utils;
+mod domain_id_generator;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -12,7 +12,7 @@ use dust_dds::{
     wait_set::{Condition, WaitSet},
 };
 
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(Debug, PartialEq, DdsType)]
 struct MyData {

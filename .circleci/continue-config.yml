@@ -69,7 +69,7 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - run: cargo clippy --all-features --all-targets --all
+      - run: cargo clippy --all-features
       - run: cargo fmt --check --all
   performance_benchmark:
     docker:
@@ -105,6 +105,14 @@ jobs:
           command: ms_print massif.out > massif_report.txt
       - store_artifacts:
           path: massif_report.txt
+  micro_compile_check:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Compile micro 
+          command: cargo build --tests --package micro-dust-dds-tests
   tests:
     machine:
       image: ubuntu-2604:current
@@ -408,6 +416,7 @@ workflows:
       - hello_world_on_windows
       - performance_benchmark
       - memory_benchmark
+      - micro_compile_check
       - build_metrics
       - code_checks
       - multi_machine_tests

@@ -79,10 +79,31 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     continue;
                 }
 
+                let struct_member_attributes = get_structure_member_attributes(member)?;
+
+                if struct_member_attributes.non_serialized {
+                    let member_type = &member.ty;
+                    let member_default_value = struct_member_attributes
+                        .default_value
+                        .map(|x| quote! {#x})
+                        .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
+                    match &member.ident {
+                        Some(member_ident) => {
+                            member_sample_seq.push(quote! {
+                                #member_ident: #member_default_value,
+                            });
+                        }
+                        None => {
+                            member_sample_seq.push(quote! {
+                                #member_default_value,
+                            });
+                        }
+                    }
+                    continue;
+                }
+
                 let index = direct_member_index;
                 direct_member_index += 1;
-
-                let struct_member_attributes = get_structure_member_attributes(member)?;
 
                 let member_name = member
                     .ident
@@ -244,38 +265,24 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let member_type = &member.ty;
                 let member_default_value = default_value
                     .unwrap_or(quote! { <#member_type as ::core::default::Default>::default()});
-                if struct_member_attributes.non_serialized {
-                    match &member.ident {
-                        Some(member_ident) => {
+                match &member.ident {
+                    Some(member_ident) => {
+                        if is_optional {
                             member_sample_seq.push(quote! {
-                                #member_ident: #member_default_value,
-                            });
-                        }
-                        None => {
-                            member_sample_seq.push(quote! {
-                                #member_default_value,
-                            });
-                        }
-                    }
-                } else {
-                    match &member.ident {
-                        Some(member_ident) => {
-                            if is_optional {
-                                member_sample_seq.push(quote! {
                                     #member_ident: src.remove_value(#member_id).ok().map_or(
                                         Some(#member_default_value),
                                         |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).ok()
                                     )?,
                                 });
 
-                                member_dynamic_sample_seq
+                            member_dynamic_sample_seq
                                     .push(quote! {
                                         if self.#member_ident != #member_default_value {
                                             data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#member_ident));
                                         }
                                     });
-                            } else {
-                                member_sample_seq.push(
+                        } else {
+                            member_sample_seq.push(
                                     if matches!(struct_member_attributes.try_construct, TryConstructKind::UseDefault) {
                                         quote! {
                                             #member_ident: src.remove_value(#member_id).ok().map_or(
@@ -290,27 +297,27 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     }
                                     );
 
-                                member_dynamic_sample_seq
+                            member_dynamic_sample_seq
                                     .push(quote! {data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#member_ident));});
-                            }
                         }
-                        None => {
-                            let tuple_index = Index::from(index as usize);
-                            // In Mutable structs every member is optional even when not explicitly marked as such
-                            if r#struct.extensibility == Extensibility::Mutable || is_optional {
-                                member_sample_seq.push(quote! {
+                    }
+                    None => {
+                        let tuple_index = Index::from(index as usize);
+                        // In Mutable structs every member is optional even when not explicitly marked as such
+                        if r#struct.extensibility == Extensibility::Mutable || is_optional {
+                            member_sample_seq.push(quote! {
                                     src.remove_value(#member_id).ok().map_or(
                                         Some(#member_default_value),
                                         |x| dust_dds::xtypes::data_storage::DataStorageMapping::try_from_storage(x).ok()
                                     )?,
                                 });
-                                member_dynamic_sample_seq.push(quote! {
+                            member_dynamic_sample_seq.push(quote! {
                                     if self.#tuple_index != #member_default_value {
                                         data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#tuple_index));
                                     }
                                 })
-                            } else {
-                                member_sample_seq.push(
+                        } else {
+                            member_sample_seq.push(
                                     if matches!(struct_member_attributes.try_construct, TryConstructKind::UseDefault) {
                                         quote! {
                                             src.remove_value(#member_id).ok().map_or(
@@ -323,10 +330,9 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                                     }
                                 );
 
-                                member_dynamic_sample_seq.push(quote! {
+                            member_dynamic_sample_seq.push(quote! {
                                     data.set_value(#member_id, dust_dds::xtypes::data_storage::DataStorageMapping::into_storage(self.#tuple_index));
                                 })
-                            }
                         }
                     }
                 }

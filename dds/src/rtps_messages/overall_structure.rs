@@ -7,14 +7,19 @@ use super::{
     error::{RtpsMessageError, RtpsMessageResult},
     submessages::{
         ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-        gap::GapSubmessage, heartbeat::HeartbeatSubmessage,
-        heartbeat_frag::HeartbeatFragSubmessage, info_destination::InfoDestinationSubmessage,
-        info_reply::InfoReplySubmessage, info_source::InfoSourceSubmessage,
-        info_timestamp::InfoTimestampSubmessage, nack_frag::NackFragSubmessage, pad::PadSubmessage,
+        gap::GapSubmessage, header_extension::HeaderExtensionSubmessage,
+        heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
+        info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
+        info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
+        nack_frag::NackFragSubmessage, pad::PadSubmessage, secure_body::SecureBodySubmessage,
+        secure_postfix::SecurePostfixSubmessage, secure_prefix::SecurePrefixSubmessage,
+        secure_rtps_postfix::SecureRTPSPostfixSubmessage,
+        secure_rtps_prefix::SecureRTPSPrefixSubmessage,
     },
     types::{
         ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
-        INFO_TS, NACK_FRAG, PAD, ProtocolId, SubmessageFlag, SubmessageKind,
+        INFO_TS, NACK_FRAG, PAD, ProtocolId, RTPS_HE, SEC_BODY, SEC_POSTFIX, SEC_PREFIX,
+        SRTPS_POSTFIX, SRTPS_PREFIX, SubmessageFlag, SubmessageKind,
     },
 };
 use alloc::vec::Vec;
@@ -432,6 +437,28 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                 .map(RtpsSubmessageReadKind::NackFrag),
                             PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
+                            RTPS_HE => {
+                                HeaderExtensionSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::HeaderExtension)
+                            }
+                            SEC_BODY => SecureBodySubmessage::try_from_bytes(&submessage_header, v)
+                                .map(RtpsSubmessageReadKind::SecureBody),
+                            SEC_PREFIX => {
+                                SecurePrefixSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecurePrefix)
+                            }
+                            SEC_POSTFIX => {
+                                SecurePostfixSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecurePostfix)
+                            }
+                            SRTPS_PREFIX => {
+                                SecureRTPSPrefixSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecureRTPSPrefix)
+                            }
+                            SRTPS_POSTFIX => {
+                                SecureRTPSPostfixSubmessage::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecureRTPSPostfix)
+                            }
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
@@ -442,6 +469,9 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                                     submessage,
                                     RtpsSubmessageReadKind::Data(_)
                                         | RtpsSubmessageReadKind::DataFrag(_)
+                                        | RtpsSubmessageReadKind::SecureBody(_)
+                                        | RtpsSubmessageReadKind::SecurePostfix(_)
+                                        | RtpsSubmessageReadKind::SecureRTPSPostfix(_)
                                 ))
                             {
                                 submessage_length = v.len();
@@ -534,6 +564,12 @@ pub enum RtpsSubmessageReadKind {
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
+    HeaderExtension(HeaderExtensionSubmessage),
+    SecureBody(SecureBodySubmessage),
+    SecurePostfix(SecurePostfixSubmessage),
+    SecurePrefix(SecurePrefixSubmessage),
+    SecureRTPSPostfix(SecureRTPSPostfixSubmessage),
+    SecureRTPSPrefix(SecureRTPSPrefixSubmessage),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
@@ -950,5 +986,29 @@ mod tests {
         let submessages = rtps_message.submessages();
         assert_eq!(submessages.len(), 1);
         assert!(matches!(submessages[0], RtpsSubmessageReadKind::Data(..)));
+    }
+
+    #[test]
+    fn deserialize_rtps_message_with_header_extension() {
+        #[rustfmt::skip]
+        let data = [
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 5, 9, 8, // ProtocolVersion 2.5 | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            0x00, 0b_0000_0011, 4, 0, // HeaderExtension submessage: ID=0, LengthFlag=1, length=4
+            64, 0, 0, 0, // messageLength = 64
+            0x01, 0b_0000_0001, 0, 0, // Pad submessage
+        ];
+
+        let rtps_message = RtpsMessageRead::try_from(&data[..]).unwrap();
+        let submessages = rtps_message.submessages();
+        assert_eq!(submessages.len(), 2);
+        assert!(matches!(
+            submessages[0],
+            RtpsSubmessageReadKind::HeaderExtension(..)
+        ));
+        assert!(matches!(submessages[1], RtpsSubmessageReadKind::Pad(..)));
     }
 }

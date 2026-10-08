@@ -11,12 +11,22 @@ use super::{
 use crate::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps::data_representation_builtin_endpoints::{
-        parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION},
+        parameter_id_values::{
+            DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION,
+            PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT, PID_IDENTITY_TOKEN,
+            PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+            PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+            PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
+            PID_PARTICIPANT_SECURITY_PROTECTION_INFO, PID_PERMISSIONS_TOKEN, PID_PROPERTY_LIST,
+        },
         rtps_data_representation::ParameterList,
         rtps_data_representation_serialization::ParameterListSerializer,
     },
     infrastructure::{
-        domain::DomainId, instance::InstanceHandle, qos_policy::UserDataQosPolicy, time::Duration,
+        domain::DomainId,
+        instance::InstanceHandle,
+        qos_policy::{PropertyQosPolicy, UserDataQosPolicy},
+        time::Duration,
     },
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
@@ -81,9 +91,67 @@ impl BuiltinEndpointSet {
     pub const BUILTIN_ENDPOINT_TYPE_LOOKUP_SERVICE_REPLY_DATA_READER: u32 = 1 << 15;
 
     /*
-    Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
-    and future revisions thereof.
+    Bits 16-27 defined by the DDS-Security 1.1 Specification (Table 11)
     */
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER: u32 = 1 << 16;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_PUBLICATIONS_SECURE_READER: u32 = 1 << 17;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER: u32 = 1 << 18;
+    #[allow(dead_code)]
+    pub const SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER: u32 = 1 << 19;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER: u32 = 1 << 20;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER: u32 = 1 << 21;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER: u32 = 1 << 22;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER: u32 = 1 << 23;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 = 1 << 24;
+    #[allow(dead_code)]
+    pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 = 1 << 25;
+    pub const SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER: u32 = 1 << 26;
+    pub const SPDP_BUILTIN_PARTICIPANT_SECURE_READER: u32 = 1 << 27;
+
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_PUBLICATIONS_SECURE_WRITER: u32 =
+        Self::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_PUBLICATIONS_SECURE_READER: u32 =
+        Self::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_SUBSCRIPTIONS_SECURE_WRITER: u32 =
+        Self::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SEDP_SUBSCRIPTIONS_SECURE_READER: u32 =
+        Self::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 =
+        Self::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 =
+        Self::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SPDP_PARTICIPANT_SECURE_WRITER: u32 =
+        Self::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER;
+    #[allow(dead_code)]
+    pub const BUILTIN_ENDPOINT_SPDP_PARTICIPANT_SECURE_READER: u32 =
+        Self::SPDP_BUILTIN_PARTICIPANT_SECURE_READER;
 
     pub const BUILTIN_ENDPOINT_TOPICS_ANNOUNCER: u32 = 1 << 28;
     pub const BUILTIN_ENDPOINT_TOPICS_DETECTOR: u32 = 1 << 29;
@@ -152,6 +220,11 @@ impl SpdpDiscoveredParticipantData {
         if self.dds_participant_data.user_data != Default::default() {
             pl.write_xcdr1_parameter(PID_USER_DATA, self.dds_participant_data.user_data);
         }
+        if let Some(property) = self.dds_participant_data.property {
+            if property != PropertyQosPolicy::default() {
+                pl.write_xcdr1_parameter(PID_PROPERTY_LIST, property);
+            }
+        }
 
         pl.write_xcdr1_parameter(PID_PARTICIPANT_GUID, self.dds_participant_data.key);
 
@@ -216,6 +289,22 @@ impl SpdpDiscoveredParticipantData {
             key: pl.get_non_optional_parameter_xdcr(PID_PARTICIPANT_GUID)?,
             user_data: pl
                 .get_optional_parameter_xdcr(PID_USER_DATA, UserDataQosPolicy::default())?,
+            identity_token: pl.get_optional_parameter_xdcr1(PID_IDENTITY_TOKEN)?,
+            permissions_token: pl.get_optional_parameter_xdcr1(PID_PERMISSIONS_TOKEN)?,
+            protection_info: pl
+                .get_optional_parameter_xdcr1(PID_PARTICIPANT_SECURITY_PROTECTION_INFO)?,
+            available_builtin_endpoints_ext: pl
+                .get_optional_parameter_xdcr1(PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT)?,
+            digital_signature: pl.get_optional_parameter_xdcr1(
+                PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+            )?,
+            key_establishment: pl.get_optional_parameter_xdcr1(
+                PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
+            )?,
+            symmetric_cipher: pl.get_optional_parameter_xdcr1(
+                PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+            )?,
+            property: pl.get_optional_parameter_xdcr1(PID_PROPERTY_LIST)?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -275,6 +364,14 @@ mod tests {
                 user_data: UserDataQosPolicy {
                     value: vec![97, 53],
                 },
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -378,6 +475,14 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy::default(),
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -451,6 +556,14 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),
@@ -538,6 +651,58 @@ mod tests {
         assert_eq!(
             SpdpDiscoveredParticipantData::from_bytes(&data).unwrap(),
             expected
+        );
+    }
+
+    #[test]
+    fn builtin_endpoint_set_security_constants() {
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER,
+            1 << 16
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_PUBLICATIONS_SECURE_READER,
+            1 << 17
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER,
+            1 << 18
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER,
+            1 << 19
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER,
+            1 << 20
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER,
+            1 << 21
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER,
+            1 << 22
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER,
+            1 << 23
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER,
+            1 << 24
+        );
+        assert_eq!(
+            BuiltinEndpointSet::BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER,
+            1 << 25
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER,
+            1 << 26
+        );
+        assert_eq!(
+            BuiltinEndpointSet::SPDP_BUILTIN_PARTICIPANT_SECURE_READER,
+            1 << 27
         );
     }
 }

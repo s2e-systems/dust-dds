@@ -13,3 +13,4 @@ pub const RETCODE_ALREADY_DELETED: ReturnCode = 9;
 pub const RETCODE_TIMEOUT: ReturnCode = 10;
 pub const RETCODE_NO_DATA: ReturnCode = 11;
 pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
+pub const RETCODE_NOT_ALLOWED_BY_SECURITY: ReturnCode = 13;
