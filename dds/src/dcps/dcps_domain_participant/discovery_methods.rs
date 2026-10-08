@@ -64,7 +64,10 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    rtps::{
+        submessage_writer::TransportSubmessageWriter,
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    },
     transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
@@ -160,11 +163,15 @@ impl DcpsDomainParticipant {
                 )
                 .ok();
             }
+            let mut submessage_writer = TransportSubmessageWriter::new(
+                self.transport.message_writer.as_mut(),
+                self.guid_prefix,
+            );
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut());
+                .write_message(&mut submessage_writer);
         }
     }
 
@@ -187,11 +194,15 @@ impl DcpsDomainParticipant {
 
             dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
+            let mut submessage_writer = TransportSubmessageWriter::new(
+                self.transport.message_writer.as_mut(),
+                self.guid_prefix,
+            );
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut());
+                .write_message(&mut submessage_writer);
         }
     }
 
@@ -576,11 +587,15 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self, data_writer))]
@@ -604,11 +619,15 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
         }
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -721,11 +740,15 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self, data_reader))]
@@ -749,11 +772,15 @@ impl DcpsDomainParticipant {
             dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
                 .ok();
         }
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -805,11 +832,15 @@ impl DcpsDomainParticipant {
             )
             .ok();
         }
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         self.domain_participant
             .builtin_publisher
             .dcps_topics_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -2093,9 +2124,13 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
+                    let mut submessage_writer = TransportSubmessageWriter::new(
+                        self.transport.message_writer.as_mut(),
+                        self.guid_prefix,
+                    );
                     type_lookup_reply_writer
                         .transport_writer
-                        .write_message(self.transport.message_writer.as_mut(), now);
+                        .write_message(&mut submessage_writer, now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2131,9 +2166,13 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
+                        let mut submessage_writer = TransportSubmessageWriter::new(
+                            self.transport.message_writer.as_mut(),
+                            self.guid_prefix,
+                        );
                         type_lookup_reply_writer
                             .transport_writer
-                            .write_message(self.transport.message_writer.as_mut(), now);
+                            .write_message(&mut submessage_writer, now);
                     }
                 }
             }
@@ -2527,9 +2566,13 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
+                                let mut submessage_writer = TransportSubmessageWriter::new(
+                                    self.transport.message_writer.as_mut(),
+                                    self.guid_prefix,
+                                );
                                 type_request_writer
                                     .transport_writer
-                                    .write_message(self.transport.message_writer.as_mut(), now);
+                                    .write_message(&mut submessage_writer, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2593,9 +2636,13 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
+                                let mut submessage_writer = TransportSubmessageWriter::new(
+                                    self.transport.message_writer.as_mut(),
+                                    self.guid_prefix,
+                                );
                                 type_request_writer
                                     .transport_writer
-                                    .write_message(self.transport.message_writer.as_mut(), now);
+                                    .write_message(&mut submessage_writer, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_types_lookup(unresolved);

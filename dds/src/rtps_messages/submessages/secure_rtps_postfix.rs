@@ -8,11 +8,11 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SecureRTPSPostfixSubmessage {
+pub struct SecureRTPSPostfixSubmessageRead {
     crypto_footer: CryptoFooter,
 }
 
-impl SecureRTPSPostfixSubmessage {
+impl SecureRTPSPostfixSubmessageRead {
     pub fn new(crypto_footer: CryptoFooter) -> Self {
         Self { crypto_footer }
     }
@@ -38,7 +38,7 @@ impl SecureRTPSPostfixSubmessage {
     }
 }
 
-impl Submessage for SecureRTPSPostfixSubmessage {
+impl Submessage for SecureRTPSPostfixSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::SRTPS_POSTFIX, &[], octets_to_next_header)
             .write_into_bytes(buf);
@@ -46,6 +46,46 @@ impl Submessage for SecureRTPSPostfixSubmessage {
 
     fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.crypto_footer.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SecureRTPSPostfixSubmessageWrite<'a> {
+    crypto_footer: &'a CryptoFooter,
+}
+
+impl<'a> SecureRTPSPostfixSubmessageWrite<'a> {
+    pub fn new(crypto_footer: &'a CryptoFooter) -> Self {
+        Self { crypto_footer }
+    }
+
+    pub fn crypto_footer(&self) -> &CryptoFooter {
+        self.crypto_footer
+    }
+}
+
+impl Submessage for SecureRTPSPostfixSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(SubmessageKind::SRTPS_POSTFIX, &[], octets_to_next_header)
+            .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.crypto_footer.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        4 + self.crypto_footer.as_ref().len()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let footer_slice = self.crypto_footer.as_ref();
+        let total_len = 4 + footer_slice.len();
+        let octets_to_next_header = footer_slice.len() as u16;
+        SubmessageHeaderWrite::new(SubmessageKind::SRTPS_POSTFIX, &[], octets_to_next_header)
+            .write_into_slice(&mut buf[0..4]);
+        buf[4..total_len].copy_from_slice(footer_slice);
+        total_len
     }
 }
 
@@ -58,7 +98,22 @@ mod tests {
     #[test]
     fn serialize_secure_rtps_postfix() {
         let footer = CryptoFooter::new(Data::new(vec![0x11, 0x22, 0x33, 0x44].into()));
-        let submessage = SecureRTPSPostfixSubmessage::new(footer);
+        let submessage = SecureRTPSPostfixSubmessageRead::new(footer);
+
+        #[rustfmt::skip]
+        assert_eq!(
+            write_submessage_into_bytes_vec(&submessage),
+            vec![
+                0x34, 0b_0000_0001, 4, 0, // Header: ID=0x34, LittleEndian, length=4
+                0x11, 0x22, 0x33, 0x44, // crypto_footer
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_secure_rtps_postfix_write() {
+        let footer = CryptoFooter::new(Data::new(vec![0x11, 0x22, 0x33, 0x44].into()));
+        let submessage = SecureRTPSPostfixSubmessageWrite::new(&footer);
 
         #[rustfmt::skip]
         assert_eq!(
@@ -79,7 +134,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            SecureRTPSPostfixSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            SecureRTPSPostfixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_footer = CryptoFooter::new(Data::new(vec![0x11, 0x22, 0x33, 0x44].into()));
         assert_eq!(submessage.crypto_footer(), &expected_footer);

@@ -4,7 +4,7 @@ use super::super::{
     error::{RtpsMessageError, RtpsMessageResult},
     overall_structure::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
-        WriteIntoBytes,
+        WriteIntoBytes, write_sequence_number_into_slice,
     },
     submessage_elements::{ParameterList, ParameterListWrite, SerializedDataFragment},
     types::{FragmentNumber, SubmessageFlag, SubmessageKind},
@@ -90,9 +90,50 @@ impl Submessage for DataFragSubmessageWrite<'_> {
         }
         self.serialized_payload.write_into_bytes(buf);
     }
+
+    fn submessage_len(&self) -> usize {
+        4 + 32
+            + if self.inline_qos_flag {
+                self.inline_qos.size()
+            } else {
+                0
+            }
+            + self.serialized_payload.len()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let len = self.submessage_len();
+        SubmessageHeaderWrite::new(
+            SubmessageKind::DATA_FRAG,
+            &[
+                self.inline_qos_flag,
+                self.key_flag,
+                self.non_standard_payload_flag,
+            ],
+            (len - 4) as u16,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        buf[4..6].copy_from_slice(&0_u16.to_le_bytes());
+        buf[6..8].copy_from_slice(&28_u16.to_le_bytes());
+        buf[8..12].copy_from_slice(&self.reader_id.as_bytes());
+        buf[12..16].copy_from_slice(&self.writer_id.as_bytes());
+        write_sequence_number_into_slice(self.writer_sn, &mut buf[16..24]);
+        buf[24..28].copy_from_slice(&self.fragment_starting_num.to_le_bytes());
+        buf[28..30].copy_from_slice(&self.fragments_in_submessage.to_le_bytes());
+        buf[30..32].copy_from_slice(&self.fragment_size.to_le_bytes());
+        buf[32..36].copy_from_slice(&self.data_size.to_le_bytes());
+        let mut offset = 36;
+        if self.inline_qos_flag {
+            offset += self.inline_qos.write_into_slice(&mut buf[offset..]);
+        }
+        buf[offset..offset + self.serialized_payload.len()]
+            .copy_from_slice(self.serialized_payload);
+        offset += self.serialized_payload.len();
+        offset
+    }
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct DataFragSubmessage {
+pub struct DataFragSubmessageRead {
     inline_qos_flag: bool,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: bool,
@@ -107,7 +148,7 @@ pub struct DataFragSubmessage {
     serialized_payload: SerializedDataFragment,
 }
 
-impl DataFragSubmessage {
+impl DataFragSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         data: &[u8],
@@ -222,7 +263,7 @@ impl DataFragSubmessage {
     }
 }
 
-impl DataFragSubmessage {
+impl DataFragSubmessageRead {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         inline_qos_flag: SubmessageFlag,
@@ -255,7 +296,7 @@ impl DataFragSubmessage {
     }
 }
 
-impl Submessage for DataFragSubmessage {
+impl Submessage for DataFragSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA_FRAG,
@@ -336,7 +377,7 @@ mod tests {
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos = ParameterList::empty();
         let serialized_payload = SerializedDataFragment::default();
-        let submessage = DataFragSubmessage::new(
+        let submessage = DataFragSubmessageRead::new(
             false,
             false,
             false,
@@ -369,7 +410,7 @@ mod tests {
     fn serialize_with_inline_qos_with_serialized_payload() {
         let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
         let serialized_payload = SerializedDataFragment::from([1, 2, 3].as_slice());
-        let submessage = DataFragSubmessage::new(
+        let submessage = DataFragSubmessageRead::new(
             true,
             false,
             false,
@@ -417,7 +458,7 @@ mod tests {
             4, 0, 0, 0, // sampleSize
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = DataFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = DataFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_inline_qos_flag = false;
         let expected_non_standard_payload_flag = false;
@@ -477,7 +518,7 @@ mod tests {
             1, 2, 3, 0, // serializedPayload
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = DataFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = DataFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_inline_qos_flag = true;
         let expected_non_standard_payload_flag = false;
@@ -528,6 +569,6 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         // Should not panic with this input
-        let _ = DataFragSubmessage::try_from_bytes(&submessage_header, data);
+        let _ = DataFragSubmessageRead::try_from_bytes(&submessage_header, data);
     }
 }

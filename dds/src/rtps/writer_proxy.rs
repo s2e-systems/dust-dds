@@ -1,23 +1,21 @@
+use super::submessage_writer::SubmessageWriter;
 use crate::{
     rtps_messages::{
-        overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-            info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
+            ack_nack::AckNackSubmessageWrite, data::DataSubmessageRead,
+            data_frag::DataFragSubmessageRead,
+            info_destination::InfoDestinationSubmessageWrite, nack_frag::NackFragSubmessageWrite,
         },
         types::Count,
     },
-    transport::{
-        interface::WriteMessage,
-        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
-    },
+    transport::types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
 };
 use alloc::{sync::Arc, vec::Vec};
 
 use core::cmp::max;
 
-fn total_fragments_expected(data_frag_submessage: &DataFragSubmessage) -> u32 {
+fn total_fragments_expected(data_frag_submessage: &DataFragSubmessageRead) -> u32 {
     let data_size = data_frag_submessage.data_size();
     let fragment_size = data_frag_submessage.fragment_size() as u32;
     let total_fragments_correction = if data_size.is_multiple_of(fragment_size) {
@@ -42,7 +40,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
     nack_frag_count: Count,
-    frag_buffer: Vec<DataFragSubmessage>,
+    frag_buffer: Vec<DataFragSubmessageRead>,
     reliability: ReliabilityKind,
 }
 
@@ -72,7 +70,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn push_data_frag(&mut self, submessage: DataFragSubmessage) {
+    pub fn push_data_frag(&mut self, submessage: DataFragSubmessageRead) {
         if !self.frag_buffer.iter().any(|f| {
             f.writer_sn() == submessage.writer_sn()
                 && f.fragment_starting_num() == submessage.fragment_starting_num()
@@ -88,7 +86,7 @@ impl RtpsWriterProxy {
     pub fn reconstruct_data_from_frag(
         &mut self,
         seq_num: SequenceNumber,
-    ) -> Option<DataSubmessage> {
+    ) -> Option<DataSubmessageRead> {
         let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
         let total_fragments_expected = total_fragments_expected(frag_submessage);
 
@@ -100,7 +98,7 @@ impl RtpsWriterProxy {
             .sum();
 
         if total_fragments == total_fragments_expected {
-            let mut matching_frags: Vec<&DataFragSubmessage> = self
+            let mut matching_frags: Vec<&DataFragSubmessageRead> = self
                 .frag_buffer
                 .iter()
                 .filter(|f| f.writer_sn() == seq_num)
@@ -125,7 +123,7 @@ impl RtpsWriterProxy {
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
 
-            Some(DataSubmessage::new(
+            Some(DataSubmessageRead::new(
                 inline_qos_flag,
                 data_flag,
                 key_flag,
@@ -264,21 +262,21 @@ impl RtpsWriterProxy {
     pub fn write_message(
         &mut self,
         reader_guid: &Guid,
-        message_writer: &mut (impl WriteMessage + ?Sized),
+        submessage_writer: &mut (impl SubmessageWriter + ?Sized),
     ) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
 
             let info_dst_submessage =
-                InfoDestinationSubmessage::new(self.remote_writer_guid().prefix());
+                InfoDestinationSubmessageWrite::new(self.remote_writer_guid().prefix());
 
             // We report missing changes excluding those where we have received at least one fragment
             let missing_changes = self
                 .missing_changes()
                 .take(256)
                 .filter(|x| !self.frag_buffer.iter().any(|f| &f.writer_sn() == x));
-            let acknack_submessage = AckNackSubmessage::new(
+            let acknack_submessage = AckNackSubmessageWrite::new(
                 true,
                 reader_guid.entity_id(),
                 self.remote_writer_guid().entity_id(),
@@ -291,9 +289,7 @@ impl RtpsWriterProxy {
                 .take(256)
                 .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s));
 
-            let len = if let Some(missing_change_fragments_seq_num) =
-                missing_change_fragments_seq_num
-            {
+            if let Some(missing_change_fragments_seq_num) = missing_change_fragments_seq_num {
                 let frag = self
                     .frag_buffer
                     .iter()
@@ -315,7 +311,7 @@ impl RtpsWriterProxy {
                     .expect("At least a fragment must be missing");
                 let fragment_number_state = FragmentNumberSet::new(base, missing_fragments_iter);
                 self.increment_nack_frag_count();
-                let nack_frag_submessage = NackFragSubmessage::new(
+                let nack_frag_submessage = NackFragSubmessageWrite::new(
                     reader_guid.entity_id(),
                     self.remote_writer_guid().entity_id(),
                     missing_change_fragments_seq_num,
@@ -323,28 +319,20 @@ impl RtpsWriterProxy {
                     self.nack_frag_count,
                 );
 
-                RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
+                submessage_writer.write_submessages(
                     &[
-                        &info_dst_submessage,
-                        &acknack_submessage,
-                        &nack_frag_submessage,
+                        info_dst_submessage.into(),
+                        acknack_submessage.into(),
+                        nack_frag_submessage.into(),
                     ],
-                    reader_guid.prefix(),
-                )
-                .buffer()
-                .len()
+                    self.unicast_locator_list(),
+                );
             } else {
-                RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
-                    &[&info_dst_submessage, &acknack_submessage],
-                    reader_guid.prefix(),
-                )
-                .buffer()
-                .len()
-            };
-
-            message_writer.write_message(len, self.unicast_locator_list());
+                submessage_writer.write_submessages(
+                    &[info_dst_submessage.into(), acknack_submessage.into()],
+                    self.unicast_locator_list(),
+                );
+            }
         }
     }
 

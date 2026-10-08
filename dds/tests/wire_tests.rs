@@ -6,8 +6,8 @@ use dust_dds::{
     infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS},
     rtps_messages::{
         overall_structure::RtpsMessageWrite,
-        submessage_elements::{Data, ParameterList},
-        submessages::data::DataSubmessage,
+        submessage_elements::{Data, ParameterListWrite},
+        submessages::data::DataSubmessageWrite,
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
@@ -94,7 +94,7 @@ fn detect_stale_participant() {
     let key_flag = false;
     let non_standard_payload_flag = false;
     let writer_sn = 1;
-    let inline_qos = ParameterList::empty();
+    let inline_qos = ParameterListWrite::empty();
     let serialized_payload = Data::new(
         vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
@@ -116,7 +116,7 @@ fn detect_stale_participant() {
         ]
         .into(),
     );
-    let spdp_data_submessage = DataSubmessage::new(
+    let spdp_data_submessage = DataSubmessageWrite::new(
         inline_qos_flag,
         data_flag,
         key_flag,
@@ -125,11 +125,11 @@ fn detect_stale_participant() {
         writer_id,
         writer_sn,
         inline_qos,
-        serialized_payload,
+        serialized_payload.as_ref(),
     );
     let mut buf = [0u8; 1024];
     let spdp_rtps_message =
-        RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
+        RtpsMessageWrite::from_submessages(&mut buf, &[spdp_data_submessage.into()], guid_prefix);
 
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(spdp_rtps_message.buffer().to_vec()),
@@ -232,7 +232,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ]
         .into(),
     );
-    let spdp_submsg = DataSubmessage::new(
+    let spdp_submsg = DataSubmessageWrite::new(
         false,
         true,
         false,
@@ -240,12 +240,12 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_UNKNOWN,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         1,
-        ParameterList::empty(),
-        spdp_payload,
+        ParameterListWrite::empty(),
+        spdp_payload.as_ref(),
     );
     let mut buf = [0u8; 1024];
     let spdp_msg =
-        RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
+        RtpsMessageWrite::from_submessages(&mut buf, &[spdp_submsg.into()], remote_guid_prefix);
     dust_dds::std_runtime::executor::block_on(
         data_receiver.receive_message(spdp_msg.buffer().to_vec()),
     );
@@ -289,7 +289,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ]
         .into(),
     );
-    let sedp_submsg1 = DataSubmessage::new(
+    let sedp_submsg1 = DataSubmessageWrite::new(
         false,
         true,
         false,
@@ -297,8 +297,8 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_UNKNOWN,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
         1,
-        ParameterList::empty(),
-        reader1_sedp_payload,
+        ParameterListWrite::empty(),
+        reader1_sedp_payload.as_ref(),
     );
 
     // 3. Announce Reader 2 on Topic2 (matching LocalType2)
@@ -317,7 +317,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ]
         .into(),
     );
-    let sedp_submsg2 = DataSubmessage::new(
+    let sedp_submsg2 = DataSubmessageWrite::new(
         false,
         true,
         false,
@@ -325,14 +325,14 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_UNKNOWN,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
         2,
-        ParameterList::empty(),
-        reader2_sedp_payload,
+        ParameterListWrite::empty(),
+        reader2_sedp_payload.as_ref(),
     );
 
     let mut buf = [0u8; 2048];
     let sedp_msg = RtpsMessageWrite::from_submessages(
         &mut buf,
-        &[&sedp_submsg1, &sedp_submsg2],
+        &[sedp_submsg1.into(), sedp_submsg2.into()],
         remote_guid_prefix,
     );
     dust_dds::std_runtime::executor::block_on(

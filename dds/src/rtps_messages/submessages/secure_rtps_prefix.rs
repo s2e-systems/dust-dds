@@ -9,13 +9,13 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SecureRTPSPrefixSubmessage {
+pub struct SecureRTPSPrefixSubmessageRead {
     additional_authenticated_data_flag: SubmessageFlag,
     pre_shared_key_flag: SubmessageFlag,
     crypto_header: CryptoHeader,
 }
 
-impl SecureRTPSPrefixSubmessage {
+impl SecureRTPSPrefixSubmessageRead {
     pub fn new(
         additional_authenticated_data_flag: SubmessageFlag,
         pre_shared_key_flag: SubmessageFlag,
@@ -68,7 +68,7 @@ impl SecureRTPSPrefixSubmessage {
     }
 }
 
-impl Submessage for SecureRTPSPrefixSubmessage {
+impl Submessage for SecureRTPSPrefixSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::SRTPS_PREFIX,
@@ -86,6 +86,77 @@ impl Submessage for SecureRTPSPrefixSubmessage {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SecureRTPSPrefixSubmessageWrite<'a> {
+    additional_authenticated_data_flag: SubmessageFlag,
+    pre_shared_key_flag: SubmessageFlag,
+    crypto_header: &'a CryptoHeader,
+}
+
+impl<'a> SecureRTPSPrefixSubmessageWrite<'a> {
+    pub fn new(
+        additional_authenticated_data_flag: SubmessageFlag,
+        pre_shared_key_flag: SubmessageFlag,
+        crypto_header: &'a CryptoHeader,
+    ) -> Self {
+        Self {
+            additional_authenticated_data_flag,
+            pre_shared_key_flag,
+            crypto_header,
+        }
+    }
+
+    pub fn additional_authenticated_data_flag(&self) -> bool {
+        self.additional_authenticated_data_flag
+    }
+
+    pub fn pre_shared_key_flag(&self) -> bool {
+        self.pre_shared_key_flag
+    }
+
+    pub fn crypto_header(&self) -> &CryptoHeader {
+        self.crypto_header
+    }
+}
+
+impl Submessage for SecureRTPSPrefixSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::SRTPS_PREFIX,
+            &[
+                self.additional_authenticated_data_flag,
+                self.pre_shared_key_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.crypto_header.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        4 + self.crypto_header.size()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let total_len = self.submessage_len();
+        let octets_to_next_header = (total_len - 4) as u16;
+        SubmessageHeaderWrite::new(
+            SubmessageKind::SRTPS_PREFIX,
+            &[
+                self.additional_authenticated_data_flag,
+                self.pre_shared_key_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        self.crypto_header.write_into_slice(&mut buf[4..total_len]);
+        total_len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,7 +171,26 @@ mod tests {
         let transform_id = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
         let extra = Data::new(vec![9, 10, 11, 12].into());
         let header = CryptoHeader::new(transform_id, extra);
-        let submessage = SecureRTPSPrefixSubmessage::new(false, false, header);
+        let submessage = SecureRTPSPrefixSubmessageRead::new(false, false, header);
+
+        #[rustfmt::skip]
+        assert_eq!(
+            write_submessage_into_bytes_vec(&submessage),
+            vec![
+                0x33, 0b_0000_0001, 12, 0, // Header: ID=0x33, LittleEndian, length=12
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12,
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_secure_rtps_prefix_write() {
+        let transform_id = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
+        let extra = Data::new(vec![9, 10, 11, 12].into());
+        let header = CryptoHeader::new(transform_id, extra);
+        let submessage = SecureRTPSPrefixSubmessageWrite::new(false, false, &header);
 
         #[rustfmt::skip]
         assert_eq!(
@@ -119,7 +209,7 @@ mod tests {
         let transform_id = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
         let extra = Data::new(vec![9, 10, 11, 12].into());
         let header = CryptoHeader::new(transform_id, extra);
-        let submessage = SecureRTPSPrefixSubmessage::new(true, true, header);
+        let submessage = SecureRTPSPrefixSubmessageRead::new(true, true, header);
 
         // flags: bit 0 (E=1), bit 1 (A=1), bit 2 (P=1) -> 0b_0000_0111 = 0x07
         #[rustfmt::skip]
@@ -145,7 +235,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            SecureRTPSPrefixSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            SecureRTPSPrefixSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         assert!(submessage.additional_authenticated_data_flag());
         assert!(submessage.pre_shared_key_flag());

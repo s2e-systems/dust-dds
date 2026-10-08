@@ -4,7 +4,7 @@ use crate::{
         self,
         submessage_elements::{ParameterListWrite, ParameterWrite},
         submessages::{
-            data::{DataSubmessage, DataSubmessageWrite},
+            data::{DataSubmessageRead, DataSubmessageWrite},
             data_frag::DataFragSubmessageWrite,
         },
         types::ParameterId,
@@ -85,7 +85,7 @@ impl CacheChange {
     }
 
     pub fn try_from_data_submessage(
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps_messages::types::Time>,
     ) -> Result<Self, RtpsError> {

@@ -8,11 +8,11 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SecureBodySubmessage {
+pub struct SecureBodySubmessageRead {
     crypto_content: CryptoContent,
 }
 
-impl SecureBodySubmessage {
+impl SecureBodySubmessageRead {
     pub fn new(crypto_content: CryptoContent) -> Self {
         Self { crypto_content }
     }
@@ -38,7 +38,7 @@ impl SecureBodySubmessage {
     }
 }
 
-impl Submessage for SecureBodySubmessage {
+impl Submessage for SecureBodySubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::SEC_BODY, &[], octets_to_next_header)
             .write_into_bytes(buf);
@@ -46,6 +46,46 @@ impl Submessage for SecureBodySubmessage {
 
     fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.crypto_content.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SecureBodySubmessageWrite<'a> {
+    crypto_content: &'a CryptoContent,
+}
+
+impl<'a> SecureBodySubmessageWrite<'a> {
+    pub fn new(crypto_content: &'a CryptoContent) -> Self {
+        Self { crypto_content }
+    }
+
+    pub fn crypto_content(&self) -> &CryptoContent {
+        self.crypto_content
+    }
+}
+
+impl Submessage for SecureBodySubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(SubmessageKind::SEC_BODY, &[], octets_to_next_header)
+            .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.crypto_content.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        4 + self.crypto_content.as_ref().len()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let content_slice = self.crypto_content.as_ref();
+        let total_len = 4 + content_slice.len();
+        let octets_to_next_header = content_slice.len() as u16;
+        SubmessageHeaderWrite::new(SubmessageKind::SEC_BODY, &[], octets_to_next_header)
+            .write_into_slice(&mut buf[0..4]);
+        buf[4..total_len].copy_from_slice(content_slice);
+        total_len
     }
 }
 
@@ -58,7 +98,22 @@ mod tests {
     #[test]
     fn serialize_secure_body() {
         let content = CryptoContent::new(Data::new(vec![0x10, 0x20, 0x30, 0x40].into()));
-        let submessage = SecureBodySubmessage::new(content);
+        let submessage = SecureBodySubmessageRead::new(content);
+
+        #[rustfmt::skip]
+        assert_eq!(
+            write_submessage_into_bytes_vec(&submessage),
+            vec![
+                0x30, 0b_0000_0001, 4, 0, // Header: ID=0x30, LittleEndian, length=4
+                0x10, 0x20, 0x30, 0x40, // crypto_content
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_secure_body_write() {
+        let content = CryptoContent::new(Data::new(vec![0x10, 0x20, 0x30, 0x40].into()));
+        let submessage = SecureBodySubmessageWrite::new(&content);
 
         #[rustfmt::skip]
         assert_eq!(
@@ -78,7 +133,7 @@ mod tests {
             0x10, 0x20, 0x30, 0x40,
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = SecureBodySubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = SecureBodySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_content = CryptoContent::new(Data::new(vec![0x10, 0x20, 0x30, 0x40].into()));
         assert_eq!(submessage.crypto_content(), &expected_content);

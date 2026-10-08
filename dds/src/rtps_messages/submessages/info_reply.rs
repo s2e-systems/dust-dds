@@ -10,13 +10,13 @@ use super::super::{
 use alloc::vec::Vec;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoReplySubmessage {
+pub struct InfoReplySubmessageRead {
     multicast_flag: SubmessageFlag,
     unicast_locator_list: LocatorList,
     multicast_locator_list: LocatorList,
 }
 
-impl InfoReplySubmessage {
+impl InfoReplySubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -49,7 +49,7 @@ impl InfoReplySubmessage {
     }
 }
 
-impl Submessage for InfoReplySubmessage {
+impl Submessage for InfoReplySubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_REPLY, &[], octets_to_next_header)
             .write_into_bytes(buf);
@@ -63,7 +63,7 @@ impl Submessage for InfoReplySubmessage {
     }
 }
 
-impl InfoReplySubmessage {
+impl InfoReplySubmessageRead {
     pub fn _new(
         multicast_flag: SubmessageFlag,
         unicast_locator_list: LocatorList,
@@ -74,6 +74,74 @@ impl InfoReplySubmessage {
             unicast_locator_list,
             multicast_locator_list,
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct InfoReplySubmessageWrite {
+    multicast_flag: SubmessageFlag,
+    unicast_locator_list: LocatorList,
+    multicast_locator_list: LocatorList,
+}
+
+impl InfoReplySubmessageWrite {
+    pub fn new(
+        multicast_flag: SubmessageFlag,
+        unicast_locator_list: LocatorList,
+        multicast_locator_list: LocatorList,
+    ) -> Self {
+        Self {
+            multicast_flag,
+            unicast_locator_list,
+            multicast_locator_list,
+        }
+    }
+}
+
+impl Submessage for InfoReplySubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::INFO_REPLY,
+            &[self.multicast_flag],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.unicast_locator_list.write_into_bytes(buf);
+        if self.multicast_flag {
+            self.multicast_locator_list.write_into_bytes(buf);
+        }
+    }
+
+    fn submessage_len(&self) -> usize {
+        4 + self.unicast_locator_list.size()
+            + if self.multicast_flag {
+                self.multicast_locator_list.size()
+            } else {
+                0
+            }
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let len = self.submessage_len();
+        SubmessageHeaderWrite::new(
+            SubmessageKind::INFO_REPLY,
+            &[self.multicast_flag],
+            (len - 4) as u16,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        let mut offset = 4;
+        offset += self
+            .unicast_locator_list
+            .write_into_slice(&mut buf[offset..]);
+        if self.multicast_flag {
+            offset += self
+                .multicast_locator_list
+                .write_into_slice(&mut buf[offset..]);
+        }
+        offset
     }
 }
 
@@ -88,7 +156,7 @@ mod tests {
     #[test]
     fn serialize_info_reply() {
         let locator = Locator::new(11, 12, [1; 16]);
-        let submessage = InfoReplySubmessage::_new(
+        let submessage = InfoReplySubmessageRead::_new(
             false,
             LocatorList::new(vec![locator]),
             LocatorList::new(vec![]),
@@ -121,7 +189,7 @@ mod tests {
             1, 1, 1, 1, //address
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoReplySubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator = Locator::new(11, 12, [1; 16]);
         let expected_multicast_flag = false;
         let expected_unicast_locator_list = LocatorList::new(vec![locator]);
@@ -159,7 +227,7 @@ mod tests {
             2, 2, 2, 2, //address
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoReplySubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = InfoReplySubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let locator1 = Locator::new(11, 12, [1; 16]);
         let locator2 = Locator::new(11, 12, [2; 16]);
         let expected_multicast_flag = true;

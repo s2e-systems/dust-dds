@@ -1,7 +1,9 @@
 use crate::{
     infrastructure::time::{Duration, Time},
     rtps_messages::{
-        submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
+        submessages::{
+            heartbeat::HeartbeatSubmessageWrite, heartbeat_frag::HeartbeatFragSubmessageWrite,
+        },
         types::{Count, FragmentNumber},
     },
     transport::types::{
@@ -48,10 +50,10 @@ impl HeartbeatMachine {
         last_sn: SequenceNumber,
         heartbeat_time: Time,
         final_flag: bool,
-    ) -> HeartbeatSubmessage {
+    ) -> HeartbeatSubmessageWrite {
         self.count = self.count.wrapping_add(1);
         self.last_heartbeat_time = heartbeat_time;
-        HeartbeatSubmessage::new(
+        HeartbeatSubmessageWrite::new(
             final_flag,
             false,
             self.reader_id,
@@ -81,9 +83,9 @@ impl HeartbeatFragMachine {
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         last_fragment_num: FragmentNumber,
-    ) -> HeartbeatFragSubmessage {
+    ) -> HeartbeatFragSubmessageWrite {
         self.count = self.count.wrapping_add(1);
-        HeartbeatFragSubmessage::_new(
+        HeartbeatFragSubmessageWrite::new(
             self.reader_id,
             writer_id,
             writer_sn,

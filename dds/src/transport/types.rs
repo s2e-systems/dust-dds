@@ -143,6 +143,16 @@ impl EntityId {
     pub const fn entity_kind(&self) -> Octet {
         self.entity_kind
     }
+
+    #[inline]
+    pub const fn as_bytes(&self) -> [u8; 4] {
+        [
+            self.entity_key[0],
+            self.entity_key[1],
+            self.entity_key[2],
+            self.entity_kind,
+        ]
+    }
 }
 
 impl Default for EntityId {
@@ -260,6 +270,12 @@ impl Locator {
     }
     pub const fn address(&self) -> [Octet; 16] {
         self.address
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) {
+        buf[0..4].copy_from_slice(&self.kind.to_le_bytes());
+        buf[4..8].copy_from_slice(&self.port.to_le_bytes());
+        buf[8..24].copy_from_slice(&self.address);
     }
 }
 

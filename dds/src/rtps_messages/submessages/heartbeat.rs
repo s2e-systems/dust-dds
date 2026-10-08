@@ -4,13 +4,13 @@ use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
-        WriteIntoBytes,
+        WriteIntoBytes, write_sequence_number_into_slice,
     },
     types::{Count, SubmessageFlag, SubmessageKind},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct HeartbeatSubmessage {
+pub struct HeartbeatSubmessageRead {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,
     reader_id: EntityId,
@@ -20,7 +20,7 @@ pub struct HeartbeatSubmessage {
     count: Count,
 }
 
-impl HeartbeatSubmessage {
+impl HeartbeatSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -66,7 +66,7 @@ impl HeartbeatSubmessage {
     }
 }
 
-impl HeartbeatSubmessage {
+impl HeartbeatSubmessageRead {
     pub fn new(
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
@@ -88,7 +88,7 @@ impl HeartbeatSubmessage {
     }
 }
 
-impl Submessage for HeartbeatSubmessage {
+impl Submessage for HeartbeatSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::HEARTBEAT,
@@ -104,6 +104,77 @@ impl Submessage for HeartbeatSubmessage {
         self.first_sn.write_into_bytes(buf);
         self.last_sn.write_into_bytes(buf);
         self.count.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct HeartbeatSubmessageWrite {
+    final_flag: SubmessageFlag,
+    liveliness_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    count: Count,
+}
+
+impl HeartbeatSubmessageWrite {
+    pub fn new(
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        first_sn: SequenceNumber,
+        last_sn: SequenceNumber,
+        count: Count,
+    ) -> Self {
+        Self {
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        }
+    }
+}
+
+impl Submessage for HeartbeatSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::HEARTBEAT,
+            &[self.final_flag, self.liveliness_flag],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.first_sn.write_into_bytes(buf);
+        self.last_sn.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        32
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::HEARTBEAT,
+            &[self.final_flag, self.liveliness_flag],
+            28,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        buf[4..8].copy_from_slice(&self.reader_id.as_bytes());
+        buf[8..12].copy_from_slice(&self.writer_id.as_bytes());
+        write_sequence_number_into_slice(self.first_sn, &mut buf[12..20]);
+        write_sequence_number_into_slice(self.last_sn, &mut buf[20..28]);
+        buf[28..32].copy_from_slice(&self.count.to_le_bytes());
+        32
     }
 }
 
@@ -124,7 +195,7 @@ mod tests {
         let first_sn = 5;
         let last_sn = 7;
         let count = 2;
-        let submessage = HeartbeatSubmessage::new(
+        let submessage = HeartbeatSubmessageRead::new(
             final_flag,
             liveliness_flag,
             reader_id,
@@ -168,7 +239,7 @@ mod tests {
             2, 0, 0, 0, // count: Count: value (long)
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = HeartbeatSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = HeartbeatSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(expected_final_flag, submessage.final_flag());
         assert_eq!(expected_liveliness_flag, submessage.liveliness_flag());
         assert_eq!(expected_reader_id, submessage._reader_id());

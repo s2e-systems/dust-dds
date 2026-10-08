@@ -23,6 +23,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
+    rtps::submessage_writer::TransportSubmessageWriter,
     runtime::DdsRuntime,
     transport::types::TopicKind,
     xtypes::dynamic_type::DynamicData,
@@ -262,9 +263,13 @@ impl DcpsDomainParticipant {
 
         let res = data_writer.unregister_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
+            let mut submessage_writer = TransportSubmessageWriter::new(
+                self.transport.message_writer.as_mut(),
+                self.guid_prefix,
+            );
             data_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+                .write_message(&mut submessage_writer, now);
         }
         res
     }
@@ -427,9 +432,13 @@ impl DcpsDomainParticipant {
 
         reply_sender.send(Ok(()));
 
+        let mut submessage_writer = TransportSubmessageWriter::new(
+            self.transport.message_writer.as_mut(),
+            self.guid_prefix,
+        );
         data_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(&mut submessage_writer, now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -482,9 +491,13 @@ impl DcpsDomainParticipant {
 
         let res = data_writer.dispose_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
+            let mut submessage_writer = TransportSubmessageWriter::new(
+                self.transport.message_writer.as_mut(),
+                self.guid_prefix,
+            );
             data_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+                .write_message(&mut submessage_writer, now);
         }
         res
     }
@@ -559,9 +572,13 @@ impl DcpsDomainParticipant {
                     .iter_mut()
                     .find(|x| &x.instance_handle == data_writer_handle)
                 {
+                    let mut submessage_writer = TransportSubmessageWriter::new(
+                        self.transport.message_writer.as_mut(),
+                        self.guid_prefix,
+                    );
                     data_writer
                         .transport_writer
-                        .write_message(self.transport.message_writer.as_mut(), now);
+                        .write_message(&mut submessage_writer, now);
                 }
             }
         }
@@ -734,9 +751,13 @@ impl DcpsDomainParticipant {
                             pending.reply_sender.send(write_result);
                         } else {
                             pending.reply_sender.send(Ok(()));
+                            let mut submessage_writer = TransportSubmessageWriter::new(
+                                self.transport.message_writer.as_mut(),
+                                self.guid_prefix,
+                            );
                             data_writer
                                 .transport_writer
-                                .write_message(self.transport.message_writer.as_mut(), now);
+                                .write_message(&mut submessage_writer, now);
                         }
                     }
                 }
