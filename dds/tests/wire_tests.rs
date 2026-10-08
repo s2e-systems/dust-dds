@@ -1,4 +1,4 @@
-mod utils;
+mod domain_id_generator;
 
 use dust_dds::{
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
@@ -9,6 +9,7 @@ use dust_dds::{
         submessage_elements::{Data, ParameterList},
         submessages::data::DataSubmessage,
     },
+    security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{
             RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
@@ -18,7 +19,7 @@ use dust_dds::{
     },
 };
 
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 struct MockWriter {
     buffer: [u8; 512],
@@ -60,11 +61,12 @@ fn detect_stale_participant() {
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        runtime,
         app_id,
         host_id,
-        MockTransport(data_receiver_send),
         configuration,
+        runtime,
+        MockTransport(data_receiver_send),
+        DdsSecurityPlugins::disabled(),
     );
 
     let participant = DomainParticipant::from(
@@ -154,11 +156,12 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        runtime,
         app_id,
         host_id,
-        MockTransport(data_receiver_send),
         configuration,
+        runtime,
+        MockTransport(data_receiver_send),
+        DdsSecurityPlugins::disabled(),
     );
 
     let participant = DomainParticipant::from(

@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
-        SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
+        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::{
@@ -84,37 +84,31 @@ use alloc::{
 use regex::Regex;
 
 impl DcpsDomainParticipant {
-    pub fn announce_participant_if_needed(&mut self, now: Time) {
-        if let Some(time_until) = self.time_until_participant_announcement(now) {
+    pub fn announce_participant_if_needed(
+        &mut self,
+        now: Time,
+        participant_announcement_interval: Duration,
+        domain_tag: String,
+    ) {
+        if let Some(time_until) =
+            self.time_until_participant_announcement(now, participant_announcement_interval)
+        {
             if time_until == Duration::new(0, 0) {
-                self.announce_participant(now);
+                self.announce_participant(now, domain_tag);
             }
         }
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn announce_participant(&mut self, now: Time) {
+    pub fn announce_participant(&mut self, now: Time, domain_tag: String) {
         if self.domain_participant.enabled {
             self.domain_participant.last_announcement_timestamp = Some(now);
             let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
             let guid = Guid::from(builtin_topic_key);
-            let participant_builtin_topic_data = ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: builtin_topic_key,
-                },
-                user_data: self.domain_participant.qos.user_data.clone(),
-                identity_token: Default::default(),
-                permissions_token: Default::default(),
-                protection_info: Default::default(),
-                available_builtin_endpoints_ext: Default::default(),
-                digital_signature: Default::default(),
-                key_establishment: Default::default(),
-                symmetric_cipher: Default::default(),
-                property: self.domain_participant.qos.property.clone(),
-            };
+            let participant_builtin_topic_data = self.participant_builtin_topic_data();
             let participant_proxy = ParticipantProxy {
                 domain_id: Some(self.domain_participant.domain_id),
-                domain_tag: self.domain_participant.domain_tag.clone(),
+                domain_tag,
                 protocol_version: PROTOCOLVERSION,
                 guid_prefix: guid.prefix(),
                 vendor_id: VENDOR_ID_S2E,
@@ -498,6 +492,7 @@ impl DcpsDomainParticipant {
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         now: Time,
+        enable_type_information: bool,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -525,10 +520,7 @@ impl DcpsDomainParticipant {
 
         let topic_data = topic.qos.topic_data.clone();
 
-        let type_information = self
-            .domain_participant
-            .enable_type_information
-            .then(|| topic.type_information.clone());
+        let type_information = enable_type_information.then(|| topic.type_information.clone());
         let dds_publication_data = PublicationBuiltinTopicData {
             key: BuiltInTopicKey {
                 value: data_writer.transport_writer.guid().into(),
@@ -625,6 +617,7 @@ impl DcpsDomainParticipant {
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         now: Time,
+        enable_type_information: bool,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -669,10 +662,7 @@ impl DcpsDomainParticipant {
             t
         };
         let guid = data_reader.transport_reader.guid();
-        let type_information = self
-            .domain_participant
-            .enable_type_information
-            .then(|| topic.type_information.clone());
+        let type_information = enable_type_information.then(|| topic.type_information.clone());
         let dds_subscription_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: guid.into() },
             participant_key: BuiltInTopicKey {
@@ -767,7 +757,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn announce_topic(&mut self, topic_name: String, now: Time) {
+    pub fn announce_topic(&mut self, topic_name: String, now: Time, enable_type_information: bool) {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
@@ -777,10 +767,7 @@ impl DcpsDomainParticipant {
             return;
         };
 
-        let type_information = self
-            .domain_participant
-            .enable_type_information
-            .then(|| topic.type_information.clone());
+        let type_information = enable_type_information.then(|| topic.type_information.clone());
         let discovered_topic_data = DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -2625,6 +2612,7 @@ impl DcpsDomainParticipant {
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         now: Time,
+        domain_tag: String,
     ) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -2639,8 +2627,8 @@ impl DcpsDomainParticipant {
             Some(id) => id == self.domain_participant.domain_id,
             None => true,
         };
-        let is_domain_tag_matching = discovered_participant_data.participant_proxy.domain_tag
-            == self.domain_participant.domain_tag;
+        let is_domain_tag_matching =
+            discovered_participant_data.participant_proxy.domain_tag == domain_tag;
         let is_participant_discovered = self
             .domain_participant
             .discovered_participant_list
@@ -2675,7 +2663,7 @@ impl DcpsDomainParticipant {
                     .discovered_participant_list
                     .push(discovered_participant_info);
 
-                self.announce_participant(now);
+                self.announce_participant(now, domain_tag);
 
                 self.add_matched_publications_detector(discovered_participant_data);
                 self.add_matched_publications_announcer(discovered_participant_data);

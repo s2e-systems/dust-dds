@@ -363,6 +363,61 @@ impl ParticipantSecuritySymmetricCipherAlgorithmInfo {
     }
 }
 
+/// ParticipantSecurityAlgorithmInfo type as defined in Section 7.3.14 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityAlgorithmInfo {
+    /// Digital signature algorithm info.
+    pub digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo,
+    /// Key establishment algorithm info.
+    pub key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
+    /// Symmetric cipher algorithm info.
+    pub symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
+}
+
+/// ParticipantSecurityConfig type as defined in Section 7.3 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantSecurityConfig {
+    /// Indicates whether unauthenticated participants are allowed.
+    pub allow_unauthenticated_participants: bool,
+    /// Indicates whether access control is protected.
+    pub is_access_protected: bool,
+    /// Indicates whether RTPS AXK is protected.
+    pub is_rtps_axk_protected: bool,
+    /// Indicates whether RTPS PSK is protected.
+    pub is_rtps_psk_protected: bool,
+    /// Indicates whether discovery is protected.
+    pub is_discovery_protected: bool,
+    /// Indicates whether liveliness is protected.
+    pub is_liveliness_protected: bool,
+    /// Indicates whether key revision is enabled.
+    pub is_key_revision_enabled: bool,
+    /// Plugin participant attributes.
+    pub plugin_participant_attributes: PluginParticipantSecurityAttributesMask,
+    /// AC participant / endpoint properties.
+    pub ac_endpoint_properties: PropertySeq,
+    /// Cryptographic algorithms used and supported by the participant.
+    pub algorithm_info: ParticipantSecurityAlgorithmInfo,
+}
+
+/// Flag indicating whether the mask is valid in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED: u32 = 0x0000_0001 << 0;
+/// Flag indicating discovery is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED: u32 = 0x0000_0001 << 1;
+/// Flag indicating liveliness is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED: u32 = 0x0000_0001 << 2;
+/// Flag indicating key revision is enabled in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED: u32 = 0x0000_0001 << 3;
+/// Flag indicating RTPS PSK is protected in [`ParticipantSecurityAttributesMask`].
+pub const PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED: u32 = 0x0000_0001 << 4;
+
+/// Flag indicating unauthenticated participants are allowed in [`ParticipantSecurityAttributesMaskExt`].
+pub const PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS: u16 =
+    0x0001 << 0;
+/// Flag indicating access is protected in [`ParticipantSecurityAttributesMaskExt`].
+pub const PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED: u16 = 0x0001 << 1;
+
 /// EndpointSecurityAttributesMask type as defined in Section 7.3.24 of the DDS Security specification.
 pub type EndpointSecurityAttributesMask = u32;
 
@@ -441,4 +496,66 @@ impl EndpointSecuritySymmetricCipherAlgorithmInfo {
         check_compatibility(other_participant_supported_mask, self.required_mask)
             && check_compatibility(participant_supported_mask, other.required_mask)
     }
+}
+
+/// TopicSecurityConfig type as defined in the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct TopicSecurityConfig {
+    /// Indicates whether read operations are protected.
+    pub is_read_protected: bool,
+    /// Indicates whether write operations are protected.
+    pub is_write_protected: bool,
+    /// Indicates whether discovery is protected.
+    pub is_discovery_protected: bool,
+    /// Indicates whether liveliness is protected.
+    pub is_liveliness_protected: bool,
+}
+
+/// EndpointSecurityAlgorithmInfo type as defined in Section 7.3.15 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct EndpointSecurityAlgorithmInfo {
+    /// Symmetric cipher algorithm info.
+    pub symmetric_cipher: EndpointSecuritySymmetricCipherAlgorithmInfo,
+}
+
+/// EndpointSecurityConfig type as defined in Section 9.4.2.7 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable", base_type = TopicSecurityConfig)]
+pub struct EndpointSecurityConfig {
+    /// Parent [`TopicSecurityConfig`].
+    pub parent: TopicSecurityConfig,
+    /// Indicates whether submessages are protected.
+    pub is_submessage_protected: bool,
+    /// Indicates whether payload is protected.
+    pub is_payload_protected: bool,
+    /// Indicates whether key is protected.
+    pub is_key_protected: bool,
+    /// Plugin endpoint security attributes mask.
+    pub plugin_endpoint_attributes: PluginEndpointSecurityAttributesMask,
+    /// AC endpoint properties.
+    pub ac_endpoint_properties: PropertySeq,
+    /// Endpoint security algorithm info.
+    pub algorithm_info: EndpointSecurityAlgorithmInfo,
+}
+
+/// CryptoTransformKeyRevision type as defined in Section 7.3.17 of the DDS Security specification.
+pub type CryptoTransformKeyRevision = [u8; 3];
+
+/// CryptoTransformKeyRevisionIntHolder type as defined in Section 7.3.17 of the DDS Security specification.
+pub type CryptoTransformKeyRevisionIntHolder = i32;
+
+/// Constant representing no key revision.
+pub const CRYPTO_TRANSFORM_KEY_REVISION_NONE: CryptoTransformKeyRevision = [0x00, 0x00, 0x00];
+
+/// SecureSubmessageCategory enum as defined in Section 7.4.6.4 of the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SecureSubmessageCategory {
+    /// Submessage was created by a DataWriter.
+    DatawriterSubmessage,
+    /// Submessage was created by a DataReader.
+    DatareaderSubmessage,
+    /// Info submessage.
+    InfoSubmessage,
 }

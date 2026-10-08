@@ -27,3 +27,7 @@ pub mod time;
 
 /// Contains the classes needed to publish and subscribe types using Dust DDS
 pub mod type_support;
+
+/// Contains the [`DustDdsConfiguration`](crate::configuration::DustDdsConfiguration) struct that allow configuring the runtime options
+/// of the Dust DDS systems
+pub mod configuration;

@@ -86,7 +86,12 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn enable_topic(&mut self, topic_name: String, now: Time) -> DdsResult<()> {
+    pub fn enable_topic(
+        &mut self,
+        topic_name: String,
+        now: Time,
+        enable_type_information: bool,
+    ) -> DdsResult<()> {
         let Some(topic) = self
             .domain_participant
             .locally_created_topic_list
@@ -98,7 +103,7 @@ impl DcpsDomainParticipant {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, now);
+            self.announce_topic(topic_name, now, enable_type_information);
         }
 
         Ok(())

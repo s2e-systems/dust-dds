@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
         ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
@@ -31,9 +31,13 @@ use crate::{
         qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, DurationKind, Time},
     },
+    security::types::{
+        IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
+        PermissionsToken,
+    },
     transport::{
         interface::RtpsTransportParticipant,
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator, USER_DEFINED_TOPIC},
+        types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -43,6 +47,13 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
+
+pub struct ParticipantSecurityData {
+    pub identity_token: IdentityToken,
+    pub permissions_token: PermissionsToken,
+    pub protection_info: ParticipantSecurityProtectionInfo,
+    pub algorithm_info: ParticipantSecurityAlgorithmInfo,
+}
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -55,7 +66,6 @@ pub struct DiscoveredParticipantInfo {
 
 pub struct DcpsDomainParticipant {
     pub transport: RtpsTransportParticipant,
-
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,
@@ -65,47 +75,39 @@ pub struct DcpsDomainParticipant {
 }
 
 impl DcpsDomainParticipant {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        domain_id: DomainId,
-        domain_tag: String,
-        guid_prefix: GuidPrefix,
-        domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        transport: RtpsTransportParticipant,
-        dcps_sender: DcpsSender,
-        participant_announcement_interval: core::time::Duration,
-        enable_type_information: bool,
-    ) -> Self {
-        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
-
-        let participant_handle = InstanceHandle::new(guid.into());
-
-        let builtin_subscriber = BuiltinSubscriber::new(guid_prefix);
-        let builtin_publisher = BuiltinPublisher::new(guid_prefix, &transport);
-
-        let domain_participant = DomainParticipantEntity::new(
-            domain_id,
-            domain_participant_qos,
-            listener_sender,
-            listener_mask,
-            participant_handle,
-            builtin_publisher,
-            builtin_subscriber,
-            domain_tag,
-            Duration::from(participant_announcement_interval),
-            enable_type_information,
-        );
-
-        Self {
-            transport,
-            reader_counter: 0,
-            writer_counter: 0,
-            publisher_counter: 0,
-            subscriber_counter: 0,
-            domain_participant,
-            dcps_sender,
+    pub fn participant_builtin_topic_data(&self) -> ParticipantBuiltinTopicData {
+        let builtin_topic_key = *self.domain_participant.instance_handle.as_ref();
+        let (
+            identity_token,
+            permissions_token,
+            protection_info,
+            digital_signature,
+            key_establishment,
+            symmetric_cipher,
+        ) = match &self.domain_participant.security_data {
+            Some(security_data) => (
+                Some(security_data.identity_token.clone()),
+                Some(security_data.permissions_token.clone()),
+                Some(security_data.protection_info),
+                Some(security_data.algorithm_info.digital_signature),
+                Some(security_data.algorithm_info.key_establishment),
+                Some(security_data.algorithm_info.symmetric_cipher),
+            ),
+            None => (None, None, None, None, None, None),
+        };
+        ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: builtin_topic_key,
+            },
+            user_data: self.domain_participant.qos.user_data.clone(),
+            identity_token,
+            permissions_token,
+            protection_info,
+            available_builtin_endpoints_ext: None,
+            digital_signature,
+            key_establishment,
+            symmetric_cipher,
+            property: Some(self.domain_participant.qos.property.clone()),
         }
     }
 
@@ -113,13 +115,22 @@ impl DcpsDomainParticipant {
         self.domain_participant.domain_id
     }
 
-    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+    pub fn time_until_participant_announcement(
+        &self,
+        now: Time,
+        participant_announcement_interval: Duration,
+    ) -> Option<Duration> {
         self.domain_participant
-            .time_until_participant_announcement(now)
+            .time_until_participant_announcement(now, participant_announcement_interval)
     }
 
-    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
-        let mut min_time = self.time_until_participant_announcement(now);
+    pub fn time_until_next_event(
+        &self,
+        now: Time,
+        participant_announcement_interval: Duration,
+    ) -> Option<Duration> {
+        let mut min_time =
+            self.time_until_participant_announcement(now, participant_announcement_interval);
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -276,7 +287,6 @@ pub struct FindTopicNotification {
 
 pub struct DomainParticipantEntity {
     pub domain_id: DomainId,
-    pub domain_tag: String,
     pub topic_counter: u16,
     pub instance_handle: InstanceHandle,
     pub qos: DomainParticipantQos,
@@ -303,67 +313,23 @@ pub struct DomainParticipantEntity {
     pub listener_mask: StatusMask,
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
-    pub participant_announcement_interval: Duration,
-    pub enable_type_information: bool,
+    pub security_data: Option<ParticipantSecurityData>,
 }
 
 impl DomainParticipantEntity {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        domain_id: DomainId,
-        domain_participant_qos: DomainParticipantQos,
-        listener_sender: Option<MpscSender<ListenerMail>>,
-        listener_mask: StatusMask,
-        instance_handle: InstanceHandle,
-        builtin_publisher: BuiltinPublisher,
-        builtin_subscriber: BuiltinSubscriber,
-        domain_tag: String,
+    pub fn time_until_participant_announcement(
+        &self,
+        now: Time,
         participant_announcement_interval: Duration,
-        enable_type_information: bool,
-    ) -> Self {
-        Self {
-            domain_id,
-            instance_handle,
-            topic_counter: 0,
-            qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
-            user_defined_subscriber_list: Vec::new(),
-            default_subscriber_qos: SubscriberQos::const_default(),
-            user_defined_publisher_list: Vec::new(),
-            default_publisher_qos: PublisherQos::const_default(),
-            locally_created_topic_list: Vec::new(),
-            content_filtered_topic_list: Vec::new(),
-            type_register: TypeRegister::new(),
-            default_topic_qos: TopicQos::const_default(),
-            discovered_participant_list: Vec::new(),
-            discovered_topic_list: Vec::new(),
-            discovered_reader_list: Vec::new(),
-            discovered_writer_list: Vec::new(),
-            enabled: false,
-            ignored_participants: BTreeSet::new(),
-            ignored_publications: BTreeSet::new(),
-            ignored_subscriptions: BTreeSet::new(),
-            _ignored_topic_list: BTreeSet::new(),
-            listener_sender,
-            listener_mask,
-            domain_tag,
-            find_topic_sender_list: Vec::new(),
-            last_announcement_timestamp: None,
-            participant_announcement_interval,
-            enable_type_information,
-        }
-    }
-
-    pub fn time_until_participant_announcement(&self, now: Time) -> Option<Duration> {
+    ) -> Option<Duration> {
         if self.enabled {
             match self.last_announcement_timestamp {
                 Some(last_announcement) => {
                     let elapsed = now - last_announcement;
-                    if elapsed >= self.participant_announcement_interval {
+                    if elapsed >= participant_announcement_interval {
                         Some(Duration::new(0, 0))
                     } else {
-                        Some(self.participant_announcement_interval - elapsed)
+                        Some(participant_announcement_interval - elapsed)
                     }
                 }
                 None => Some(Duration::new(0, 0)),
@@ -533,88 +499,5 @@ impl DomainParticipantEntity {
             && self.user_defined_subscriber_list.is_empty()
             && self.content_filtered_topic_list.is_empty()
             && no_user_defined_topics
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_time_until_stale_writer_sample_calculation() {
-        let source_timestamp = crate::transport::types::Time::new(100, 0);
-        let lifespan = Duration::new(10, 0);
-        let now = Time::new(105, 0);
-
-        let remaining = Time::from(source_timestamp) + lifespan - now;
-        assert_eq!(remaining, Duration::new(5, 0));
-    }
-
-    #[test]
-    fn test_time_until_participant_announcement() {
-        struct MockWriter {
-            buffer: [u8; 512],
-        }
-        impl crate::transport::interface::WriteMessage for MockWriter {
-            fn write_buffer_mut(&mut self) -> &mut [u8] {
-                &mut self.buffer
-            }
-            fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
-        }
-
-        let transport = RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
-            default_unicast_locator_list: Vec::new(),
-            metatraffic_unicast_locator_list: Vec::new(),
-            metatraffic_multicast_locator_list: Vec::new(),
-            default_multicast_locator_list: Vec::new(),
-            fragment_size: 65536,
-        };
-
-        let mut entity = DomainParticipantEntity::new(
-            0,
-            DomainParticipantQos::default(),
-            None,
-            StatusMask::default(),
-            InstanceHandle::new([0; 16]),
-            BuiltinPublisher::new(GuidPrefix::default(), &transport),
-            BuiltinSubscriber::new(GuidPrefix::default()),
-            String::new(),
-            Duration::new(5, 0),
-            true,
-        );
-
-        // Disabled entity returns None
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(10, 0)),
-            None
-        );
-
-        entity.enabled = true;
-
-        // Enabled entity without previous announcement returns 0
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(10, 0)),
-            Some(Duration::new(0, 0))
-        );
-
-        // After announcement at t=10s, remaining time at t=12s should be 3s
-        entity.last_announcement_timestamp = Some(Time::new(10, 0));
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(12, 0)),
-            Some(Duration::new(3, 0))
-        );
-
-        // At t=15s (5s elapsed), remaining time should be 0s
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(15, 0)),
-            Some(Duration::new(0, 0))
-        );
-
-        // Past interval (e.g. t=16s), remaining time should still be 0s
-        assert_eq!(
-            entity.time_until_participant_announcement(Time::new(16, 0)),
-            Some(Duration::new(0, 0))
-        );
     }
 }

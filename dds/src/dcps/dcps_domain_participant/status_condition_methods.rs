@@ -5,10 +5,9 @@ use crate::{
         status_mask::StatusMask,
     },
     infrastructure::error::{DdsError, DdsResult},
-    runtime::DdsRuntime,
 };
 
-impl<R: DdsRuntime> DcpsParticipantFactory<R> {
+impl DcpsParticipantFactory {
     pub fn get_status_condition_enabled_statuses(
         &mut self,
         entity: StatusConditionEntity,

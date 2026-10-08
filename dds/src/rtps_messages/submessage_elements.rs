@@ -575,6 +575,146 @@ impl Checksum {
     }
 }
 
+// DDS Security 7.4.6.2 RTPS Secure Submessage Elements
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct CryptoTransformIdentifier {
+    transformation_kind: [u8; 4],
+    transformation_key_id: [u8; 4],
+}
+
+impl CryptoTransformIdentifier {
+    pub const fn new(transformation_kind: [u8; 4], transformation_key_id: [u8; 4]) -> Self {
+        Self {
+            transformation_kind,
+            transformation_key_id,
+        }
+    }
+
+    pub fn transformation_kind(&self) -> [u8; 4] {
+        self.transformation_kind
+    }
+
+    pub fn transformation_key_id(&self) -> [u8; 4] {
+        self.transformation_key_id
+    }
+}
+
+impl TryReadFromBytes for CryptoTransformIdentifier {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut transformation_kind = [0; 4];
+        data.read_exact(&mut transformation_kind)?;
+        let mut transformation_key_id = [0; 4];
+        data.read_exact(&mut transformation_key_id)?;
+        Ok(Self {
+            transformation_kind,
+            transformation_key_id,
+        })
+    }
+}
+
+impl WriteIntoBytes for CryptoTransformIdentifier {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.transformation_kind.write_into_bytes(buf);
+        self.transformation_key_id.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct CryptoHeader {
+    transformation_id: CryptoTransformIdentifier,
+    plugin_crypto_header_extra: Data,
+}
+
+impl CryptoHeader {
+    pub fn new(
+        transformation_id: CryptoTransformIdentifier,
+        plugin_crypto_header_extra: Data,
+    ) -> Self {
+        Self {
+            transformation_id,
+            plugin_crypto_header_extra,
+        }
+    }
+
+    pub fn transformation_id(&self) -> CryptoTransformIdentifier {
+        self.transformation_id
+    }
+
+    pub fn plugin_crypto_header_extra(&self) -> &Data {
+        &self.plugin_crypto_header_extra
+    }
+}
+
+impl TryReadFromBytes for CryptoHeader {
+    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let transformation_id = CryptoTransformIdentifier::try_read_from_bytes(data, endianness)?;
+        let plugin_crypto_header_extra = Data::new(data.to_vec().into());
+        *data = &[];
+        Ok(Self {
+            transformation_id,
+            plugin_crypto_header_extra,
+        })
+    }
+}
+
+impl WriteIntoBytes for CryptoHeader {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.transformation_id.write_into_bytes(buf);
+        self.plugin_crypto_header_extra.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct CryptoContent(pub Data);
+
+impl CryptoContent {
+    pub fn new(data: Data) -> Self {
+        Self(data)
+    }
+
+    pub fn data(&self) -> &Data {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for CryptoContent {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl WriteIntoBytes for CryptoContent {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.0.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct CryptoFooter(pub Data);
+
+impl CryptoFooter {
+    pub fn new(data: Data) -> Self {
+        Self(data)
+    }
+
+    pub fn data(&self) -> &Data {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for CryptoFooter {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl WriteIntoBytes for CryptoFooter {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.0.write_into_bytes(buf);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1152,5 +1292,42 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ].as_slice(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn serialize_deserialize_crypto_transform_identifier() {
+        let identifier = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
+        let bytes = write_into_bytes_vec(identifier);
+        assert_eq!(bytes, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+
+        let mut slice = bytes.as_slice();
+        let read =
+            CryptoTransformIdentifier::try_read_from_bytes(&mut slice, &Endianness::BigEndian)
+                .unwrap();
+        assert_eq!(read, identifier);
+        assert!(slice.is_empty());
+    }
+
+    #[test]
+    fn serialize_deserialize_crypto_header() {
+        let identifier = CryptoTransformIdentifier::new([1, 2, 3, 4], [5, 6, 7, 8]);
+        let extra = Data::new(vec![9, 10, 11, 12, 13, 14].into());
+        let header = CryptoHeader::new(identifier, extra);
+        let bytes = write_into_bytes_vec(header.clone());
+        assert_eq!(bytes, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+
+        let mut slice = bytes.as_slice();
+        let read = CryptoHeader::try_read_from_bytes(&mut slice, &Endianness::BigEndian).unwrap();
+        assert_eq!(read, header);
+        assert!(slice.is_empty());
+    }
+
+    #[test]
+    fn serialize_crypto_content_and_footer() {
+        let content = CryptoContent::new(Data::new(vec![0xaa, 0xbb, 0xcc].into()));
+        assert_eq!(write_into_bytes_vec(content), vec![0xaa, 0xbb, 0xcc]);
+
+        let footer = CryptoFooter::new(Data::new(vec![0xdd, 0xee, 0xff].into()));
+        assert_eq!(write_into_bytes_vec(footer), vec![0xdd, 0xee, 0xff]);
     }
 }

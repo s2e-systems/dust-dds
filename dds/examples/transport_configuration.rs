@@ -1,8 +1,11 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        listener::NO_LISTENER, qos::QosKind, status::NO_STATUS, type_support::DdsType,
+        configuration::DustDdsConfiguration, listener::NO_LISTENER, qos::QosKind,
+        status::NO_STATUS, type_support::DdsType,
     },
+    rtps_udp_transport::udp_transport::RtpsUdpTransport,
+    security::plugins::types::DdsSecurityPlugins,
 };
 
 #[derive(DdsType, Debug)]
@@ -13,13 +16,18 @@ struct HelloWorldType {
 }
 
 fn main() {
-    let participant_factory = DomainParticipantFactory::get_instance();
-    participant_factory
-        .get_mut_transport()
+    let mut transport = RtpsUdpTransport::default();
+    transport
         .set_interface_name(Some(String::from("Wi-Fi")))
         .set_fragment_size(500)
         .unwrap()
         .set_udp_receive_buffer_size(Some(10000));
+
+    let participant_factory = DomainParticipantFactory::get_custom_instance(
+        DustDdsConfiguration::default(),
+        transport,
+        DdsSecurityPlugins::disabled(),
+    );
 
     let domain_id = 0;
     let participant = participant_factory

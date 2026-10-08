@@ -230,6 +230,7 @@ impl DcpsDomainParticipant {
         type_support: DynamicType<'static>,
         runtime: &impl DdsRuntime,
         now: Time,
+        enable_type_information: bool,
     ) -> DdsResult<InstanceHandle> {
         if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
             return Err(DdsError::BadParameter);
@@ -299,7 +300,7 @@ impl DcpsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, now)?;
+            self.enable_topic(topic_name, now, enable_type_information)?;
         }
 
         Ok(topic_handle)
@@ -650,6 +651,7 @@ impl DcpsDomainParticipant {
         &mut self,
         qos: QosKind<DomainParticipantQos>,
         now: Time,
+        domain_tag: String,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -658,7 +660,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(now);
+            self.announce_participant(now, domain_tag);
         }
         Ok(())
     }
@@ -683,7 +685,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn enable_domain_participant(&mut self, now: Time) -> DdsResult<()> {
+    pub fn enable_domain_participant(&mut self, now: Time, domain_tag: String) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.locally_created_topic_list {
                 t.enabled = true;
@@ -693,7 +695,7 @@ impl DcpsDomainParticipant {
             self.domain_participant.builtin_subscriber.enable();
             self.domain_participant.enabled = true;
 
-            self.announce_participant(now);
+            self.announce_participant(now, domain_tag);
         }
 
         Ok(())

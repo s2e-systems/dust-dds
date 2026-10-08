@@ -28,11 +28,6 @@ use crate::{
         qos_policy::{PropertyQosPolicy, UserDataQosPolicy},
         time::Duration,
     },
-    security::types::{
-        BuiltinEndpointSetExt, IdentityToken, ParticipantSecurityDigitalSignatureAlgorithmInfo,
-        ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
-        ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
-    },
     transport::types::{Guid, GuidPrefix, Locator, Long, ProtocolVersion, VendorId},
     xtypes::type_support::TypeSupport,
 };
@@ -118,9 +113,7 @@ impl BuiltinEndpointSet {
     pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER: u32 = 1 << 24;
     #[allow(dead_code)]
     pub const BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER: u32 = 1 << 25;
-    #[allow(dead_code)]
     pub const SPDP_BUILTIN_PARTICIPANT_SECURE_WRITER: u32 = 1 << 26;
-    #[allow(dead_code)]
     pub const SPDP_BUILTIN_PARTICIPANT_SECURE_READER: u32 = 1 << 27;
 
     #[allow(dead_code)]
@@ -227,8 +220,10 @@ impl SpdpDiscoveredParticipantData {
         if self.dds_participant_data.user_data != Default::default() {
             pl.write_xcdr1_parameter(PID_USER_DATA, self.dds_participant_data.user_data);
         }
-        if self.dds_participant_data.property != Default::default() {
-            pl.write_xcdr1_parameter(PID_PROPERTY_LIST, self.dds_participant_data.property);
+        if let Some(property) = self.dds_participant_data.property {
+            if property != PropertyQosPolicy::default() {
+                pl.write_xcdr1_parameter(PID_PROPERTY_LIST, property);
+            }
         }
 
         pl.write_xcdr1_parameter(PID_PARTICIPANT_GUID, self.dds_participant_data.key);
@@ -294,32 +289,22 @@ impl SpdpDiscoveredParticipantData {
             key: pl.get_non_optional_parameter_xdcr(PID_PARTICIPANT_GUID)?,
             user_data: pl
                 .get_optional_parameter_xdcr(PID_USER_DATA, UserDataQosPolicy::default())?,
-            identity_token: pl
-                .get_optional_parameter_xdcr(PID_IDENTITY_TOKEN, IdentityToken::default())?,
-            permissions_token: pl
-                .get_optional_parameter_xdcr(PID_PERMISSIONS_TOKEN, PermissionsToken::default())?,
-            protection_info: pl.get_optional_parameter_xdcr(
-                PID_PARTICIPANT_SECURITY_PROTECTION_INFO,
-                ParticipantSecurityProtectionInfo::default(),
-            )?,
-            available_builtin_endpoints_ext: pl.get_optional_parameter_xdcr(
-                PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT,
-                BuiltinEndpointSetExt::default(),
-            )?,
-            digital_signature: pl.get_optional_parameter_xdcr(
+            identity_token: pl.get_optional_parameter_xdcr1(PID_IDENTITY_TOKEN)?,
+            permissions_token: pl.get_optional_parameter_xdcr1(PID_PERMISSIONS_TOKEN)?,
+            protection_info: pl
+                .get_optional_parameter_xdcr1(PID_PARTICIPANT_SECURITY_PROTECTION_INFO)?,
+            available_builtin_endpoints_ext: pl
+                .get_optional_parameter_xdcr1(PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT)?,
+            digital_signature: pl.get_optional_parameter_xdcr1(
                 PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
-                ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
             )?,
-            key_establishment: pl.get_optional_parameter_xdcr(
+            key_establishment: pl.get_optional_parameter_xdcr1(
                 PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
-                ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
             )?,
-            symmetric_cipher: pl.get_optional_parameter_xdcr(
+            symmetric_cipher: pl.get_optional_parameter_xdcr1(
                 PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
-                ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
             )?,
-            property: pl
-                .get_optional_parameter_xdcr(PID_PROPERTY_LIST, PropertyQosPolicy::default())?,
+            property: pl.get_optional_parameter_xdcr1(PID_PROPERTY_LIST)?,
         };
 
         let participant_proxy = ParticipantProxy {
@@ -379,14 +364,14 @@ mod tests {
                 user_data: UserDataQosPolicy {
                     value: vec![97, 53],
                 },
-                identity_token: IdentityToken::default(),
-                permissions_token: PermissionsToken::default(),
-                protection_info: ParticipantSecurityProtectionInfo::default(),
-                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
-                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
-                key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
-                symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
-                property: PropertyQosPolicy::default(),
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(0),
@@ -490,14 +475,14 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy::default(),
-                identity_token: IdentityToken::default(),
-                permissions_token: PermissionsToken::default(),
-                protection_info: ParticipantSecurityProtectionInfo::default(),
-                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
-                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
-                key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
-                symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
-                property: PropertyQosPolicy::default(),
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: None,
@@ -571,14 +556,14 @@ mod tests {
                     value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
                 },
                 user_data: UserDataQosPolicy { value: vec![] },
-                identity_token: IdentityToken::default(),
-                permissions_token: PermissionsToken::default(),
-                protection_info: ParticipantSecurityProtectionInfo::default(),
-                available_builtin_endpoints_ext: BuiltinEndpointSetExt::default(),
-                digital_signature: ParticipantSecurityDigitalSignatureAlgorithmInfo::default(),
-                key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo::default(),
-                symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo::default(),
-                property: PropertyQosPolicy::default(),
+                identity_token: None,
+                permissions_token: None,
+                protection_info: None,
+                available_builtin_endpoints_ext: None,
+                digital_signature: None,
+                key_establishment: None,
+                symmetric_cipher: None,
+                property: None,
             },
             participant_proxy: ParticipantProxy {
                 domain_id: Some(domain_id),

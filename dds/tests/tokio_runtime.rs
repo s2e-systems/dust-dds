@@ -1,4 +1,4 @@
-mod utils;
+mod domain_id_generator;
 use dust_dds::{
     dds_async::{
         domain_participant_factory::DomainParticipantFactoryAsync,
@@ -15,7 +15,7 @@ use dust_dds::{
     },
 };
 
-use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
 #[derive(Clone, Debug, PartialEq, DdsType)]
 struct UserData {

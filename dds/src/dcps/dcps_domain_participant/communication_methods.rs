@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use tracing::info;
 
 use crate::{
@@ -428,7 +428,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time) {
+    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time, domain_tag: String) {
         // 1. SPDP Participant Reader
         if !self
             .domain_participant
@@ -458,6 +458,7 @@ impl DcpsDomainParticipant {
                         self.add_discovered_participant(
                             &discovered_participant_data,
                             reception_timestamp,
+                            domain_tag.clone(),
                         );
                         self.domain_participant
                             .builtin_subscriber
