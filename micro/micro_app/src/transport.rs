@@ -5,18 +5,19 @@ use core::{future::Future, net::Ipv4Addr};
 use defmt::{info, unwrap};
 use dust_dds::{
     dds_async::{
-        configuration::DustDdsConfiguration, data_writer::DataWriterAsync,
-        data_writer_listener::DataWriterListener,
+        data_writer::DataWriterAsync, data_writer_listener::DataWriterListener,
         domain_participant_factory::DomainParticipantFactoryAsync,
     },
     infrastructure::{
         self,
+        configuration::DustDdsConfiguration,
         listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{NO_STATUS, StatusKind},
         time::{Duration, DurationKind},
     },
+    security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{TransportDataReceiver, WriteMessage},
         types::Locator,
@@ -468,11 +469,12 @@ async fn main(spawner: Spawner) -> ! {
     rng.fill_bytes(&mut app_id);
 
     let participant_factory = DomainParticipantFactoryAsync::new(
-        runtime,
         app_id,
         [5, 6, 7, 8],
-        EmbeddedTransport { addr },
         DustDdsConfiguration::default(),
+        runtime,
+        EmbeddedTransport { addr },
+        DdsSecurityPlugins::disabled(),
     );
 
     info!("Created participant factory");
