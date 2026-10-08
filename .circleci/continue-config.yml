@@ -111,8 +111,12 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Compile micro 
+          name: Compile micro  tests
           command: cargo build --tests --package micro-dust-dds-tests
+      - run:
+          name: Compile micro app
+          command: cargo build --profile micro-dev
+          working_directory: micro/micro_app
   tests:
     machine:
       image: ubuntu-2604:current
