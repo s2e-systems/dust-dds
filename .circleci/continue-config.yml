@@ -110,6 +110,7 @@ jobs:
       - image: cimg/rust:1.99.0
     steps:
       - checkout
+      - run: rustup target add thumbv7em-none-eabihf
       - run:
           name: Compile micro  tests
           command: cargo build --tests --package micro-dust-dds-tests
