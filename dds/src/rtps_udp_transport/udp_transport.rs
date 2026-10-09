@@ -3,7 +3,7 @@ use crate::{
     std_runtime::{self},
     transport::{
         interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
+            RtpsParticipant, TransportDataReceiver, TransportParticipantFactory,
             WriteMessage,
         },
         types::LOCATOR_KIND_UDP_V6,
@@ -211,12 +211,12 @@ impl Default for RtpsUdpTransport {
     }
 }
 
-impl TransportParticipantFactory for RtpsUdpTransport {
+impl Transport for RtpsUdpTransport {
     fn create_participant(
         &self,
         domain_id: i32,
         data_channel_sender: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
+    ) -> RtpsParticipant {
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -549,8 +549,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
             v6_multicast_indices,
         );
 
-        RtpsTransportParticipant {
-            message_writer: Box::new(message_writer),
+        RtpsParticipant {
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,

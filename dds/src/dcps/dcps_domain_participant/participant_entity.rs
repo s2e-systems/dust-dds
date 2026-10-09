@@ -36,7 +36,7 @@ use crate::{
         PermissionsToken,
     },
     transport::{
-        interface::RtpsTransportParticipant,
+        interface::RtpsParticipant,
         types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     },
     xtypes::dynamic_type::DynamicType,
@@ -65,7 +65,6 @@ pub struct DiscoveredParticipantInfo {
 }
 
 pub struct DcpsDomainParticipant {
-    pub transport: RtpsTransportParticipant,
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,

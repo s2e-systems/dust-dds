@@ -62,7 +62,7 @@ use crate::{
         },
     },
     transport::{
-        interface::RtpsTransportParticipant,
+        interface::RtpsParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
     xtypes::type_support::Type,
@@ -101,7 +101,7 @@ impl DcpsParticipantFactory {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        transport_participant: RtpsTransportParticipant,
+        transport_participant: RtpsParticipant,
         now: Time,
         runtime: &impl DdsRuntime,
         _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
@@ -244,7 +244,6 @@ impl DcpsParticipantFactory {
         };
 
         let mut dcps_participant = DcpsDomainParticipant {
-            transport: transport_participant,
             reader_counter: 0,
             writer_counter: 0,
             publisher_counter: 0,

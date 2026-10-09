@@ -12,7 +12,7 @@ use dust_dds::{
     security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
+            RtpsParticipant, TransportDataReceiver, TransportParticipantFactory,
             WriteMessage,
         },
         types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator},
@@ -37,9 +37,9 @@ impl TransportParticipantFactory for MockTransport {
         &self,
         _domain_id: i32,
         data_receiver: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
+    ) -> RtpsParticipant {
         self.0.send(data_receiver).unwrap();
-        RtpsTransportParticipant {
+        RtpsParticipant {
             message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),

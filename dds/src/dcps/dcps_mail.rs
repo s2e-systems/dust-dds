@@ -32,7 +32,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
+    transport::{interface::RtpsParticipant, types::GuidPrefix},
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 
@@ -54,7 +54,6 @@ pub struct CreateParticipantMail {
     pub qos: QosKind<DomainParticipantQos>,
     pub dcps_listener: Option<DcpsDomainParticipantListener>,
     pub listener_mask: StatusMask,
-    pub transport_participant: RtpsTransportParticipant,
 }
 
 pub enum ParticipantFactoryMail {
