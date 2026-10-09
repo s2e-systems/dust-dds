@@ -124,9 +124,9 @@ pub const SEC_POSTFIX: u8 = 0x32;
 pub const SRTPS_PREFIX: u8 = 0x33;
 pub const SRTPS_POSTFIX: u8 = 0x34;
 
-impl WriteIntoBytes for SubmessageKind {
-    fn write_into_bytes(&self, buf: &mut dyn Write) {
-        let data = match self {
+impl SubmessageKind {
+    pub const fn to_u8(self) -> u8 {
+        match self {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
             SubmessageKind::HEARTBEAT => HEARTBEAT,
@@ -145,8 +145,13 @@ impl WriteIntoBytes for SubmessageKind {
             SubmessageKind::SEC_POSTFIX => SEC_POSTFIX,
             SubmessageKind::SRTPS_PREFIX => SRTPS_PREFIX,
             SubmessageKind::SRTPS_POSTFIX => SRTPS_POSTFIX,
-        };
-        data.write_into_bytes(buf);
+        }
+    }
+}
+
+impl WriteIntoBytes for SubmessageKind {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.to_u8().write_into_bytes(buf);
     }
 }
 
@@ -182,6 +187,11 @@ impl Time {
         let seconds = UnsignedLong::try_read_from_bytes(data, endianness)?;
         let fraction = UnsignedLong::try_read_from_bytes(data, endianness)?;
         Ok(Self { seconds, fraction })
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) {
+        buf[0..4].copy_from_slice(&self.seconds.to_le_bytes());
+        buf[4..8].copy_from_slice(&self.fraction.to_le_bytes());
     }
 }
 

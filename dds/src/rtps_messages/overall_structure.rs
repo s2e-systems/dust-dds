@@ -6,15 +6,24 @@ use crate::transport::types::{
 use super::{
     error::{RtpsMessageError, RtpsMessageResult},
     submessages::{
-        ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
-        gap::GapSubmessage, header_extension::HeaderExtensionSubmessage,
-        heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage,
-        info_destination::InfoDestinationSubmessage, info_reply::InfoReplySubmessage,
-        info_source::InfoSourceSubmessage, info_timestamp::InfoTimestampSubmessage,
-        nack_frag::NackFragSubmessage, pad::PadSubmessage, secure_body::SecureBodySubmessage,
-        secure_postfix::SecurePostfixSubmessage, secure_prefix::SecurePrefixSubmessage,
-        secure_rtps_postfix::SecureRTPSPostfixSubmessage,
-        secure_rtps_prefix::SecureRTPSPrefixSubmessage,
+        ack_nack::{AckNackSubmessageRead, AckNackSubmessageWrite},
+        data::{DataSubmessageRead, DataSubmessageWrite},
+        data_frag::{DataFragSubmessageRead, DataFragSubmessageWrite},
+        gap::{GapSubmessageRead, GapSubmessageWrite},
+        header_extension::{HeaderExtensionSubmessageRead, HeaderExtensionSubmessageWrite},
+        heartbeat::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite},
+        heartbeat_frag::{HeartbeatFragSubmessageRead, HeartbeatFragSubmessageWrite},
+        info_destination::{InfoDestinationSubmessageRead, InfoDestinationSubmessageWrite},
+        info_reply::{InfoReplySubmessageRead, InfoReplySubmessageWrite},
+        info_source::{InfoSourceSubmessageRead, InfoSourceSubmessageWrite},
+        info_timestamp::{InfoTimestampSubmessageRead, InfoTimestampSubmessageWrite},
+        nack_frag::{NackFragSubmessageRead, NackFragSubmessageWrite},
+        pad::{PadSubmessageRead, PadSubmessageWrite},
+        secure_body::{SecureBodySubmessageRead, SecureBodySubmessageWrite},
+        secure_postfix::{SecurePostfixSubmessageRead, SecurePostfixSubmessageWrite},
+        secure_prefix::{SecurePrefixSubmessageRead, SecurePrefixSubmessageWrite},
+        secure_rtps_postfix::{SecureRTPSPostfixSubmessageRead, SecureRTPSPostfixSubmessageWrite},
+        secure_rtps_prefix::{SecureRTPSPrefixSubmessageRead, SecureRTPSPrefixSubmessageWrite},
     },
     types::{
         ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -277,25 +286,52 @@ impl TryReadFromBytes for VendorId {
     }
 }
 
+pub trait SubmessageWrite {
+    fn submessage_len(&self) -> usize;
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize;
+}
+
+fn write_submessage_into_bytes_cursor<T>(
+    submessage: &(impl Submessage + ?Sized),
+    buf: &mut Cursor<T>,
+) where
+    Cursor<T>: Write,
+{
+    let header_position: u64 = buf.position();
+    let elements_position = header_position + 4;
+    buf.set_position(elements_position);
+    submessage.write_submessage_elements_into_bytes(buf);
+    let pos = buf.position();
+    buf.set_position(header_position);
+    let len = pos - elements_position;
+    submessage.write_submessage_header_into_bytes(len as u16, buf);
+    buf.set_position(pos);
+}
+
 pub trait Submessage {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write);
     fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write);
+
+    fn submessage_len(&self) -> usize {
+        let mut cursor = Cursor::new(alloc::vec::Vec::new());
+        write_submessage_into_bytes_cursor(self, &mut cursor);
+        cursor.into_inner().len()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let mut cursor = Cursor::new(buf);
+        write_submessage_into_bytes_cursor(self, &mut cursor);
+        cursor.position() as usize
+    }
 }
 
-impl dyn Submessage + Send + '_ {
-    fn write_submessage_into_bytes<T>(&self, buf: &mut Cursor<T>)
-    where
-        Cursor<T>: Write,
-    {
-        let header_position: u64 = buf.position();
-        let elements_position = header_position + 4;
-        buf.set_position(elements_position);
-        self.write_submessage_elements_into_bytes(buf);
-        let pos = buf.position();
-        buf.set_position(header_position);
-        let len = pos - elements_position;
-        self.write_submessage_header_into_bytes(len as u16, buf);
-        buf.set_position(pos);
+impl<T: Submessage + ?Sized> SubmessageWrite for T {
+    fn submessage_len(&self) -> usize {
+        Submessage::submessage_len(self)
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        Submessage::write_submessage_into_bytes(self, buf)
     }
 }
 
@@ -405,60 +441,72 @@ impl TryFrom<&[u8]> for RtpsMessageRead {
                             break;
                         }
                         let submessage = match submessage_header.submessage_id() {
-                            ACKNACK => AckNackSubmessage::try_from_bytes(&submessage_header, v)
+                            ACKNACK => AckNackSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::AckNack),
-                            DATA => DataSubmessage::try_from_bytes(&submessage_header, v)
+                            DATA => DataSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Data),
-                            DATA_FRAG => DataFragSubmessage::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::DataFrag),
-                            GAP => GapSubmessage::try_from_bytes(&submessage_header, v)
+                            DATA_FRAG => {
+                                DataFragSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::DataFrag)
+                            }
+                            GAP => GapSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Gap),
-                            HEARTBEAT => HeartbeatSubmessage::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::Heartbeat),
+                            HEARTBEAT => {
+                                HeartbeatSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::Heartbeat)
+                            }
                             HEARTBEAT_FRAG => {
-                                HeartbeatFragSubmessage::try_from_bytes(&submessage_header, v)
+                                HeartbeatFragSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::HeartbeatFrag)
                             }
                             INFO_DST => {
-                                InfoDestinationSubmessage::try_from_bytes(&submessage_header, v)
+                                InfoDestinationSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoDestination)
                             }
                             INFO_REPLY => {
-                                InfoReplySubmessage::try_from_bytes(&submessage_header, v)
+                                InfoReplySubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoReply)
                             }
-                            INFO_SRC => InfoSourceSubmessage::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::InfoSource),
+                            INFO_SRC => {
+                                InfoSourceSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::InfoSource)
+                            }
                             INFO_TS => {
-                                InfoTimestampSubmessage::try_from_bytes(&submessage_header, v)
+                                InfoTimestampSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::InfoTimestamp)
                             }
-                            NACK_FRAG => NackFragSubmessage::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::NackFrag),
-                            PAD => PadSubmessage::try_from_bytes(&submessage_header, v)
+                            NACK_FRAG => {
+                                NackFragSubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::NackFrag)
+                            }
+                            PAD => PadSubmessageRead::try_from_bytes(&submessage_header, v)
                                 .map(RtpsSubmessageReadKind::Pad),
                             RTPS_HE => {
-                                HeaderExtensionSubmessage::try_from_bytes(&submessage_header, v)
+                                HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::HeaderExtension)
                             }
-                            SEC_BODY => SecureBodySubmessage::try_from_bytes(&submessage_header, v)
-                                .map(RtpsSubmessageReadKind::SecureBody),
+                            SEC_BODY => {
+                                SecureBodySubmessageRead::try_from_bytes(&submessage_header, v)
+                                    .map(RtpsSubmessageReadKind::SecureBody)
+                            }
                             SEC_PREFIX => {
-                                SecurePrefixSubmessage::try_from_bytes(&submessage_header, v)
+                                SecurePrefixSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::SecurePrefix)
                             }
                             SEC_POSTFIX => {
-                                SecurePostfixSubmessage::try_from_bytes(&submessage_header, v)
+                                SecurePostfixSubmessageRead::try_from_bytes(&submessage_header, v)
                                     .map(RtpsSubmessageReadKind::SecurePostfix)
                             }
-                            SRTPS_PREFIX => {
-                                SecureRTPSPrefixSubmessage::try_from_bytes(&submessage_header, v)
-                                    .map(RtpsSubmessageReadKind::SecureRTPSPrefix)
-                            }
-                            SRTPS_POSTFIX => {
-                                SecureRTPSPostfixSubmessage::try_from_bytes(&submessage_header, v)
-                                    .map(RtpsSubmessageReadKind::SecureRTPSPostfix)
-                            }
+                            SRTPS_PREFIX => SecureRTPSPrefixSubmessageRead::try_from_bytes(
+                                &submessage_header,
+                                v,
+                            )
+                            .map(RtpsSubmessageReadKind::SecureRTPSPrefix),
+                            SRTPS_POSTFIX => SecureRTPSPostfixSubmessageRead::try_from_bytes(
+                                &submessage_header,
+                                v,
+                            )
+                            .map(RtpsSubmessageReadKind::SecureRTPSPostfix),
                             _ => Err(RtpsMessageError::UnknownMessage),
                         };
                         if let Ok(submessage) = submessage {
@@ -503,10 +551,11 @@ pub fn write_into_bytes_vec(value: impl WriteIntoBytes) -> Vec<u8> {
 }
 
 #[allow(dead_code)] // Only used as convenience in tests
-pub fn write_submessage_into_bytes_vec(value: &(dyn Submessage + Send)) -> Vec<u8> {
-    let mut cursor = Cursor::new(Vec::new());
-    value.write_submessage_into_bytes(&mut cursor);
-    cursor.into_inner()
+pub fn write_submessage_into_bytes_vec(value: &(impl SubmessageWrite + ?Sized)) -> Vec<u8> {
+    let mut buf = alloc::vec![0; value.submessage_len()];
+    let len = value.write_submessage_into_bytes(&mut buf);
+    buf.truncate(len);
+    buf
 }
 
 impl Write for Cursor<&mut [u8]> {
@@ -532,16 +581,16 @@ impl<'a> RtpsMessageWrite<'a> {
     pub fn new(
         buffer: &'a mut [u8],
         header: &RtpsMessageHeader,
-        submessages: &[&(dyn Submessage + Send)],
+        submessages: &[RtpsSubmessageWriteKind],
     ) -> Self {
-        let mut cursor = Cursor::new(buffer);
-        header.write_into_bytes(&mut cursor);
+        header.write_into_slice(&mut buffer[..20]);
+        let mut len = 20;
         for submessage in submessages {
-            submessage.write_submessage_into_bytes(&mut cursor);
+            let written = submessage.write_submessage_into_bytes(&mut buffer[len..]);
+            len += written;
         }
-        let len = cursor.position() as usize;
         Self {
-            buffer: &cursor.into_inner()[..len],
+            buffer: &buffer[..len],
         }
     }
 
@@ -552,24 +601,226 @@ impl<'a> RtpsMessageWrite<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageReadKind {
-    AckNack(AckNackSubmessage),
-    Data(DataSubmessage),
-    DataFrag(DataFragSubmessage),
-    Gap(GapSubmessage),
-    Heartbeat(HeartbeatSubmessage),
-    HeartbeatFrag(HeartbeatFragSubmessage),
-    InfoDestination(InfoDestinationSubmessage),
-    InfoReply(InfoReplySubmessage),
-    InfoSource(InfoSourceSubmessage),
-    InfoTimestamp(InfoTimestampSubmessage),
-    NackFrag(NackFragSubmessage),
-    Pad(PadSubmessage),
-    HeaderExtension(HeaderExtensionSubmessage),
-    SecureBody(SecureBodySubmessage),
-    SecurePostfix(SecurePostfixSubmessage),
-    SecurePrefix(SecurePrefixSubmessage),
-    SecureRTPSPostfix(SecureRTPSPostfixSubmessage),
-    SecureRTPSPrefix(SecureRTPSPrefixSubmessage),
+    AckNack(AckNackSubmessageRead),
+    Data(DataSubmessageRead),
+    DataFrag(DataFragSubmessageRead),
+    Gap(GapSubmessageRead),
+    Heartbeat(HeartbeatSubmessageRead),
+    HeartbeatFrag(HeartbeatFragSubmessageRead),
+    InfoDestination(InfoDestinationSubmessageRead),
+    InfoReply(InfoReplySubmessageRead),
+    InfoSource(InfoSourceSubmessageRead),
+    InfoTimestamp(InfoTimestampSubmessageRead),
+    NackFrag(NackFragSubmessageRead),
+    Pad(PadSubmessageRead),
+    HeaderExtension(HeaderExtensionSubmessageRead),
+    SecureBody(SecureBodySubmessageRead),
+    SecurePostfix(SecurePostfixSubmessageRead),
+    SecurePrefix(SecurePrefixSubmessageRead),
+    SecureRTPSPostfix(SecureRTPSPostfixSubmessageRead),
+    SecureRTPSPrefix(SecureRTPSPrefixSubmessageRead),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum RtpsSubmessageWriteKind<'a> {
+    AckNack(AckNackSubmessageWrite),
+    Data(DataSubmessageWrite<'a>),
+    DataFrag(DataFragSubmessageWrite<'a>),
+    Gap(GapSubmessageWrite),
+    Heartbeat(HeartbeatSubmessageWrite),
+    HeartbeatFrag(HeartbeatFragSubmessageWrite),
+    InfoDestination(InfoDestinationSubmessageWrite),
+    InfoReply(InfoReplySubmessageWrite),
+    InfoSource(InfoSourceSubmessageWrite),
+    InfoTimestamp(InfoTimestampSubmessageWrite),
+    NackFrag(NackFragSubmessageWrite),
+    Pad(PadSubmessageWrite),
+    HeaderExtension(HeaderExtensionSubmessageWrite<'a>),
+    SecureBody(SecureBodySubmessageWrite<'a>),
+    SecurePostfix(SecurePostfixSubmessageWrite<'a>),
+    SecurePrefix(SecurePrefixSubmessageWrite<'a>),
+    SecureRTPSPostfix(SecureRTPSPostfixSubmessageWrite<'a>),
+    SecureRTPSPrefix(SecureRTPSPrefixSubmessageWrite<'a>),
+}
+
+impl SubmessageWrite for RtpsSubmessageWriteKind<'_> {
+    fn submessage_len(&self) -> usize {
+        match self {
+            RtpsSubmessageWriteKind::AckNack(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::Data(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::DataFrag(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::Gap(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::Heartbeat(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::InfoDestination(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::InfoReply(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::InfoSource(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::NackFrag(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::Pad(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::HeaderExtension(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::SecureBody(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::SecurePostfix(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::SecurePrefix(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::SecureRTPSPostfix(s) => Submessage::submessage_len(s),
+            RtpsSubmessageWriteKind::SecureRTPSPrefix(s) => Submessage::submessage_len(s),
+        }
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        match self {
+            RtpsSubmessageWriteKind::AckNack(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Data(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::DataFrag(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Gap(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Heartbeat(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::HeartbeatFrag(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::InfoDestination(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::InfoReply(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::InfoSource(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::InfoTimestamp(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::NackFrag(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::Pad(s) => Submessage::write_submessage_into_bytes(s, buf),
+            RtpsSubmessageWriteKind::HeaderExtension(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::SecureBody(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::SecurePostfix(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::SecurePrefix(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::SecureRTPSPostfix(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+            RtpsSubmessageWriteKind::SecureRTPSPrefix(s) => {
+                Submessage::write_submessage_into_bytes(s, buf)
+            }
+        }
+    }
+}
+
+impl<'a> From<AckNackSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: AckNackSubmessageWrite) -> Self {
+        Self::AckNack(s)
+    }
+}
+
+impl<'a> From<DataSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: DataSubmessageWrite<'a>) -> Self {
+        Self::Data(s)
+    }
+}
+
+impl<'a> From<DataFragSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: DataFragSubmessageWrite<'a>) -> Self {
+        Self::DataFrag(s)
+    }
+}
+
+impl<'a> From<GapSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: GapSubmessageWrite) -> Self {
+        Self::Gap(s)
+    }
+}
+
+impl<'a> From<HeartbeatSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: HeartbeatSubmessageWrite) -> Self {
+        Self::Heartbeat(s)
+    }
+}
+
+impl<'a> From<HeartbeatFragSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: HeartbeatFragSubmessageWrite) -> Self {
+        Self::HeartbeatFrag(s)
+    }
+}
+
+impl<'a> From<InfoDestinationSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: InfoDestinationSubmessageWrite) -> Self {
+        Self::InfoDestination(s)
+    }
+}
+
+impl<'a> From<InfoReplySubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: InfoReplySubmessageWrite) -> Self {
+        Self::InfoReply(s)
+    }
+}
+
+impl<'a> From<InfoSourceSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: InfoSourceSubmessageWrite) -> Self {
+        Self::InfoSource(s)
+    }
+}
+
+impl<'a> From<InfoTimestampSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: InfoTimestampSubmessageWrite) -> Self {
+        Self::InfoTimestamp(s)
+    }
+}
+
+impl<'a> From<NackFragSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: NackFragSubmessageWrite) -> Self {
+        Self::NackFrag(s)
+    }
+}
+
+impl<'a> From<PadSubmessageWrite> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: PadSubmessageWrite) -> Self {
+        Self::Pad(s)
+    }
+}
+
+impl<'a> From<HeaderExtensionSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: HeaderExtensionSubmessageWrite<'a>) -> Self {
+        Self::HeaderExtension(s)
+    }
+}
+
+impl<'a> From<SecureBodySubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: SecureBodySubmessageWrite<'a>) -> Self {
+        Self::SecureBody(s)
+    }
+}
+
+impl<'a> From<SecurePostfixSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: SecurePostfixSubmessageWrite<'a>) -> Self {
+        Self::SecurePostfix(s)
+    }
+}
+
+impl<'a> From<SecurePrefixSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: SecurePrefixSubmessageWrite<'a>) -> Self {
+        Self::SecurePrefix(s)
+    }
+}
+
+impl<'a> From<SecureRTPSPostfixSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: SecureRTPSPostfixSubmessageWrite<'a>) -> Self {
+        Self::SecureRTPSPostfix(s)
+    }
+}
+
+impl<'a> From<SecureRTPSPrefixSubmessageWrite<'a>> for RtpsSubmessageWriteKind<'a> {
+    fn from(s: SecureRTPSPrefixSubmessageWrite<'a>) -> Self {
+        Self::SecureRTPSPrefix(s)
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
@@ -597,6 +848,14 @@ impl RtpsMessageHeader {
 
     pub fn guid_prefix(&self) -> GuidPrefix {
         self.guid_prefix
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) {
+        buf[0..4].copy_from_slice(b"RTPS");
+        buf[4] = self.version._major();
+        buf[5] = self.version._minor();
+        buf[6..8].copy_from_slice(&self.vendor_id);
+        buf[8..20].copy_from_slice(&self.guid_prefix);
     }
 }
 
@@ -636,6 +895,12 @@ impl SubmessageHeaderWrite {
             submessage_length,
         }
     }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) {
+        buf[0] = self.submessage_id.to_u8();
+        buf[1] = self.flags_octet;
+        buf[2..4].copy_from_slice(&self.submessage_length.to_le_bytes());
+    }
 }
 
 impl WriteIntoBytes for SubmessageHeaderWrite {
@@ -646,13 +911,22 @@ impl WriteIntoBytes for SubmessageHeaderWrite {
     }
 }
 
+#[inline]
+pub fn write_sequence_number_into_slice(sn: SequenceNumber, buf: &mut [u8]) {
+    let high = (sn >> 32) as i32;
+    let low = sn as u32;
+    buf[0..4].copy_from_slice(&high.to_le_bytes());
+    buf[4..8].copy_from_slice(&low.to_le_bytes());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         rtps_messages::{
-            submessage_elements::{Data, Parameter, ParameterList},
-            submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
+            submessage_elements::{
+                Data, Parameter, ParameterList, ParameterListWrite, ParameterWrite,
+            },
             types::Time,
         },
         transport::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
@@ -723,12 +997,13 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_1 = ParameterWrite::new(6, &[10, 11, 12, 13]);
+        let parameter_2 = ParameterWrite::new(7, &[20, 21, 22, 23]);
+        let parameters = [parameter_1, parameter_2];
+        let inline_qos = ParameterListWrite::new(&parameters);
         let serialized_payload = Data::new(vec![].into());
 
-        let submessage = DataSubmessage::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -737,10 +1012,10 @@ mod tests {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload,
+            serialized_payload.as_ref(),
         );
         let mut buffer = [0u8; 512];
-        let value = RtpsMessageWrite::new(&mut buffer, &header, &[&submessage]);
+        let value = RtpsMessageWrite::new(&mut buffer, &header, &[submessage.into()]);
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -769,7 +1044,7 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: [3; 12],
         };
-        let info_timestamp_submessage = InfoTimestampSubmessage::new(false, Time::new(4, 0));
+        let info_timestamp_submessage = InfoTimestampSubmessageWrite::new(false, Time::new(4, 0));
 
         let inline_qos_flag = true;
         let data_flag = false;
@@ -778,12 +1053,13 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_1 = ParameterWrite::new(6, &[10, 11, 12, 13]);
+        let parameter_2 = ParameterWrite::new(7, &[20, 21, 22, 23]);
+        let parameters = [parameter_1, parameter_2];
+        let inline_qos = ParameterListWrite::new(&parameters);
         let serialized_payload = Data::new(vec![].into());
 
-        let data_submessage = DataSubmessage::new(
+        let data_submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -792,13 +1068,13 @@ mod tests {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload,
+            serialized_payload.as_ref(),
         );
         let mut buffer = [0u8; 512];
         let value = RtpsMessageWrite::new(
             &mut buffer,
             &header,
-            &[&info_timestamp_submessage, &data_submessage],
+            &[info_timestamp_submessage.into(), data_submessage.into()],
         );
         #[rustfmt::skip]
         assert_eq!(value.buffer(), vec![
@@ -910,7 +1186,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_unknown_submessage() {
-        let expected_data_submessage = RtpsSubmessageReadKind::Data(DataSubmessage::new(
+        let expected_data_submessage = RtpsSubmessageReadKind::Data(DataSubmessageRead::new(
             true,
             false,
             false,

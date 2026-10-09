@@ -9,5 +9,6 @@ pub mod stateful_reader;
 pub mod stateful_writer;
 pub mod stateless_reader;
 pub mod stateless_writer;
+pub mod submessage_writer;
 pub mod types;
 pub mod writer_proxy;

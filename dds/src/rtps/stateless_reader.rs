@@ -1,5 +1,5 @@
 use crate::{
-    rtps_messages::{submessages::data::DataSubmessage, types::Time},
+    rtps_messages::{submessages::data::DataSubmessageRead, types::Time},
     transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
 };
 use alloc::vec::Vec;
@@ -24,7 +24,7 @@ impl RtpsStatelessReader {
     #[tracing::instrument(skip(self))]
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {

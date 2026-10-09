@@ -10,13 +10,13 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InfoSourceSubmessage {
+pub struct InfoSourceSubmessageRead {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     guid_prefix: GuidPrefix,
 }
 
-impl InfoSourceSubmessage {
+impl InfoSourceSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -43,7 +43,7 @@ impl InfoSourceSubmessage {
     }
 }
 
-impl InfoSourceSubmessage {
+impl InfoSourceSubmessageRead {
     pub fn _new(
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
@@ -57,7 +57,7 @@ impl InfoSourceSubmessage {
     }
 }
 
-impl Submessage for InfoSourceSubmessage {
+impl Submessage for InfoSourceSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
             .write_into_bytes(buf);
@@ -68,6 +68,68 @@ impl Submessage for InfoSourceSubmessage {
         self.protocol_version.write_into_bytes(buf);
         self.vendor_id.write_into_bytes(buf);
         self.guid_prefix.write_into_bytes(buf);
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct InfoSourceSubmessageWrite {
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
+
+impl InfoSourceSubmessageWrite {
+    pub fn new(
+        protocol_version: ProtocolVersion,
+        vendor_id: VendorId,
+        guid_prefix: GuidPrefix,
+    ) -> Self {
+        Self {
+            protocol_version,
+            vendor_id,
+            guid_prefix,
+        }
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+}
+
+impl Submessage for InfoSourceSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], octets_to_next_header)
+            .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        0_u32.write_into_bytes(buf);
+        self.protocol_version.write_into_bytes(buf);
+        self.vendor_id.write_into_bytes(buf);
+        self.guid_prefix.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        24
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        SubmessageHeaderWrite::new(SubmessageKind::INFO_SRC, &[], 20)
+            .write_into_slice(&mut buf[0..4]);
+        buf[4..8].copy_from_slice(&0_u32.to_le_bytes());
+        buf[8] = self.protocol_version._major();
+        buf[9] = self.protocol_version._minor();
+        buf[10..12].copy_from_slice(&self.vendor_id);
+        buf[12..24].copy_from_slice(&self.guid_prefix);
+        24
     }
 }
 
@@ -82,8 +144,11 @@ mod tests {
 
     #[test]
     fn serialize_info_source() {
-        let submessage =
-            InfoSourceSubmessage::_new(PROTOCOLVERSION_1_0, VENDOR_ID_UNKNOWN, GUIDPREFIX_UNKNOWN);
+        let submessage = InfoSourceSubmessageRead::_new(
+            PROTOCOLVERSION_1_0,
+            VENDOR_ID_UNKNOWN,
+            GUIDPREFIX_UNKNOWN,
+        );
         #[rustfmt::skip]
         assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
                 0x0c, 0b_0000_0001, 20, 0, // Submessage header
@@ -108,7 +173,8 @@ mod tests {
             0, 0, 0, 0, //guid_prefix
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = InfoSourceSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage =
+            InfoSourceSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_protocol_version = PROTOCOLVERSION_1_0;
         let expected_vendor_id = VENDOR_ID_UNKNOWN;

@@ -65,6 +65,7 @@ pub struct DiscoveredParticipantInfo {
 }
 
 pub struct DcpsDomainParticipant {
+    pub guid_prefix: GuidPrefix,
     pub transport: RtpsTransportParticipant,
     pub reader_counter: u16,
     pub writer_counter: u16,

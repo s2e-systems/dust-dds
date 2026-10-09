@@ -19,7 +19,7 @@ use dust_dds::{
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
-        interface::{TransportDataReceiver, WriteMessage},
+        interface::{TransportDataReceiver, WritableMessage, WriteMessage},
         types::Locator,
     },
 };
@@ -192,11 +192,8 @@ struct MessageWriter {
 }
 
 impl WriteMessage for MessageWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        &mut self.tx_buffer
-    }
-
-    fn write_message(&mut self, len: usize, locators: &[Locator]) {
+    fn write_message(&mut self, locators: &[Locator], message: &dyn WritableMessage) {
+        let len = message.write_into_buffer(&mut self.tx_buffer);
         if WRITER_CHANNEL
             .sender()
             .try_send((self.tx_buffer[..len].to_vec(), locators.to_vec()))

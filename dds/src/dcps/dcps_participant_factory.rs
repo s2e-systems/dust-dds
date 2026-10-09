@@ -244,6 +244,7 @@ impl DcpsParticipantFactory {
         };
 
         let mut dcps_participant = DcpsDomainParticipant {
+            guid_prefix,
             transport: transport_participant,
             reader_counter: 0,
             writer_counter: 0,

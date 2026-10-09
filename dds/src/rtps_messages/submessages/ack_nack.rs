@@ -11,7 +11,7 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AckNackSubmessage {
+pub struct AckNackSubmessageRead {
     final_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
@@ -19,7 +19,7 @@ pub struct AckNackSubmessage {
     count: Count,
 }
 
-impl AckNackSubmessage {
+impl AckNackSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -55,7 +55,7 @@ impl AckNackSubmessage {
     }
 }
 
-impl AckNackSubmessage {
+impl AckNackSubmessageRead {
     pub fn new(
         final_flag: SubmessageFlag,
         reader_id: EntityId,
@@ -73,7 +73,7 @@ impl AckNackSubmessage {
     }
 }
 
-impl Submessage for AckNackSubmessage {
+impl Submessage for AckNackSubmessageRead {
     fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
         self.reader_id.write_into_bytes(buf);
         self.writer_id.write_into_bytes(buf);
@@ -91,6 +91,71 @@ impl Submessage for AckNackSubmessage {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AckNackSubmessageWrite {
+    final_flag: SubmessageFlag,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
+}
+
+impl AckNackSubmessageWrite {
+    pub fn new(
+        final_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        reader_sn_state: SequenceNumberSet,
+        count: Count,
+    ) -> Self {
+        Self {
+            final_flag,
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
+        }
+    }
+}
+
+impl Submessage for AckNackSubmessageWrite {
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.reader_sn_state.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
+    }
+
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::ACKNACK,
+            &[self.final_flag],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        16 + self.reader_sn_state.size()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let len = self.submessage_len();
+        SubmessageHeaderWrite::new(
+            SubmessageKind::ACKNACK,
+            &[self.final_flag],
+            (len - 4) as u16,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        buf[4..8].copy_from_slice(&self.reader_id.as_bytes());
+        buf[8..12].copy_from_slice(&self.writer_id.as_bytes());
+        let sn_len = self.reader_sn_state.write_into_slice(&mut buf[12..]);
+        let count_offset = 12 + sn_len;
+        buf[count_offset..count_offset + 4].copy_from_slice(&self.count.to_le_bytes());
+        len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,7 +169,7 @@ mod tests {
         let final_flag = false;
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let submessage = AckNackSubmessage::new(
+        let submessage = AckNackSubmessageRead::new(
             final_flag,
             reader_id,
             writer_id,
@@ -137,7 +202,7 @@ mod tests {
             2, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = AckNackSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = AckNackSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
         let expected_final_flag = false;
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

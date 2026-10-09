@@ -4,14 +4,14 @@ use super::super::{
     error::RtpsMessageResult,
     overall_structure::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
-        WriteIntoBytes,
+        WriteIntoBytes, write_sequence_number_into_slice,
     },
     submessage_elements::FragmentNumberSet,
     types::{Count, SubmessageKind},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct NackFragSubmessage {
+pub struct NackFragSubmessageRead {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
@@ -19,7 +19,7 @@ pub struct NackFragSubmessage {
     count: Count,
 }
 
-impl NackFragSubmessage {
+impl NackFragSubmessageRead {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
         mut data: &[u8],
@@ -55,7 +55,7 @@ impl NackFragSubmessage {
     }
 }
 
-impl NackFragSubmessage {
+impl NackFragSubmessageRead {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
@@ -73,7 +73,7 @@ impl NackFragSubmessage {
     }
 }
 
-impl Submessage for NackFragSubmessage {
+impl Submessage for NackFragSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
             .write_into_bytes(buf);
@@ -88,6 +88,65 @@ impl Submessage for NackFragSubmessage {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NackFragSubmessageWrite {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    fragment_number_state: FragmentNumberSet,
+    count: Count,
+}
+
+impl NackFragSubmessageWrite {
+    pub fn new(
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        fragment_number_state: FragmentNumberSet,
+        count: Count,
+    ) -> Self {
+        Self {
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_number_state,
+            count,
+        }
+    }
+}
+
+impl Submessage for NackFragSubmessageWrite {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], octets_to_next_header)
+            .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        self.reader_id.write_into_bytes(buf);
+        self.writer_id.write_into_bytes(buf);
+        self.writer_sn.write_into_bytes(buf);
+        self.fragment_number_state.write_into_bytes(buf);
+        self.count.write_into_bytes(buf);
+    }
+
+    fn submessage_len(&self) -> usize {
+        24 + self.fragment_number_state.size()
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let len = self.submessage_len();
+        SubmessageHeaderWrite::new(SubmessageKind::NACK_FRAG, &[], (len - 4) as u16)
+            .write_into_slice(&mut buf[0..4]);
+        buf[4..8].copy_from_slice(&self.reader_id.as_bytes());
+        buf[8..12].copy_from_slice(&self.writer_id.as_bytes());
+        write_sequence_number_into_slice(self.writer_sn, &mut buf[12..20]);
+        let fn_len = self.fragment_number_state.write_into_slice(&mut buf[20..]);
+        let count_offset = 20 + fn_len;
+        buf[count_offset..count_offset + 4].copy_from_slice(&self.count.to_le_bytes());
+        len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,7 +157,7 @@ mod tests {
 
     #[test]
     fn serialize_nack_frag() {
-        let submessage = NackFragSubmessage::new(
+        let submessage = NackFragSubmessageRead::new(
             EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
             EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
             4,
@@ -133,7 +192,7 @@ mod tests {
             6, 0, 0, 0, // count
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
-        let submessage = NackFragSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+        let submessage = NackFragSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         let expected_reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let expected_writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);

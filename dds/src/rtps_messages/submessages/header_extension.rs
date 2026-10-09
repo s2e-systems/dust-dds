@@ -12,7 +12,7 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct HeaderExtensionSubmessage {
+pub struct HeaderExtensionSubmessageRead {
     length_flag: SubmessageFlag,
     timestamp_flag: SubmessageFlag,
     u_extension_flag: SubmessageFlag,
@@ -28,7 +28,7 @@ pub struct HeaderExtensionSubmessage {
     parameters: ParameterList,
 }
 
-impl HeaderExtensionSubmessage {
+impl HeaderExtensionSubmessageRead {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         length_flag: SubmessageFlag,
@@ -186,7 +186,7 @@ impl HeaderExtensionSubmessage {
     }
 }
 
-impl Submessage for HeaderExtensionSubmessage {
+impl Submessage for HeaderExtensionSubmessageRead {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::RTPS_HE,
@@ -226,6 +226,165 @@ impl Submessage for HeaderExtensionSubmessage {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct HeaderExtensionSubmessageWrite<'a> {
+    length_flag: SubmessageFlag,
+    timestamp_flag: SubmessageFlag,
+    u_extension_flag: SubmessageFlag,
+    w_extension_flag: SubmessageFlag,
+    c1_flag: SubmessageFlag,
+    c2_flag: SubmessageFlag,
+    parameters_flag: SubmessageFlag,
+    message_length: MessageLength,
+    rtps_send_timestamp: Time,
+    u_extension4: UExtension4,
+    w_extension8: WExtension8,
+    message_checksum: Checksum,
+    parameters: &'a ParameterList,
+}
+
+impl<'a> HeaderExtensionSubmessageWrite<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        length_flag: SubmessageFlag,
+        timestamp_flag: SubmessageFlag,
+        u_extension_flag: SubmessageFlag,
+        w_extension_flag: SubmessageFlag,
+        c1_flag: SubmessageFlag,
+        c2_flag: SubmessageFlag,
+        parameters_flag: SubmessageFlag,
+        message_length: MessageLength,
+        rtps_send_timestamp: Time,
+        u_extension4: UExtension4,
+        w_extension8: WExtension8,
+        message_checksum: Checksum,
+        parameters: &'a ParameterList,
+    ) -> Self {
+        Self {
+            length_flag,
+            timestamp_flag,
+            u_extension_flag,
+            w_extension_flag,
+            c1_flag,
+            c2_flag,
+            parameters_flag,
+            message_length,
+            rtps_send_timestamp,
+            u_extension4,
+            w_extension8,
+            message_checksum,
+            parameters,
+        }
+    }
+}
+
+impl Submessage for HeaderExtensionSubmessageWrite<'_> {
+    fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
+        SubmessageHeaderWrite::new(
+            SubmessageKind::RTPS_HE,
+            &[
+                self.length_flag,
+                self.timestamp_flag,
+                self.u_extension_flag,
+                self.w_extension_flag,
+                self.c1_flag,
+                self.c2_flag,
+                self.parameters_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_bytes(buf);
+    }
+
+    fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write) {
+        if self.length_flag {
+            self.message_length.write_into_bytes(buf);
+        }
+        if self.timestamp_flag {
+            self.rtps_send_timestamp.write_into_bytes(buf);
+        }
+        if self.u_extension_flag {
+            self.u_extension4.write_into_bytes(buf);
+        }
+        if self.w_extension_flag {
+            self.w_extension8.write_into_bytes(buf);
+        }
+        if self.c1_flag || self.c2_flag {
+            self.message_checksum.write_into_bytes(buf);
+        }
+        if self.parameters_flag {
+            self.parameters.write_into_bytes(buf);
+        }
+    }
+
+    fn submessage_len(&self) -> usize {
+        let mut len = 4;
+        if self.length_flag {
+            len += 4;
+        }
+        if self.timestamp_flag {
+            len += 8;
+        }
+        if self.u_extension_flag {
+            len += 4;
+        }
+        if self.w_extension_flag {
+            len += 8;
+        }
+        if self.c1_flag || self.c2_flag {
+            len += self.message_checksum.size();
+        }
+        if self.parameters_flag {
+            len += self.parameters.size();
+        }
+        len
+    }
+
+    fn write_submessage_into_bytes(&self, buf: &mut [u8]) -> usize {
+        let total_len = self.submessage_len();
+        let octets_to_next_header = (total_len - 4) as u16;
+        SubmessageHeaderWrite::new(
+            SubmessageKind::RTPS_HE,
+            &[
+                self.length_flag,
+                self.timestamp_flag,
+                self.u_extension_flag,
+                self.w_extension_flag,
+                self.c1_flag,
+                self.c2_flag,
+                self.parameters_flag,
+            ],
+            octets_to_next_header,
+        )
+        .write_into_slice(&mut buf[0..4]);
+        let mut offset = 4;
+        if self.length_flag {
+            buf[offset..offset + 4].copy_from_slice(&self.message_length.to_le_bytes());
+            offset += 4;
+        }
+        if self.timestamp_flag {
+            self.rtps_send_timestamp
+                .write_into_slice(&mut buf[offset..offset + 8]);
+            offset += 8;
+        }
+        if self.u_extension_flag {
+            buf[offset..offset + 4].copy_from_slice(&self.u_extension4);
+            offset += 4;
+        }
+        if self.w_extension_flag {
+            buf[offset..offset + 8].copy_from_slice(&self.w_extension8);
+            offset += 8;
+        }
+        if self.c1_flag || self.c2_flag {
+            offset += self.message_checksum.write_into_slice(&mut buf[offset..]);
+        }
+        if self.parameters_flag {
+            offset += self.parameters.write_into_slice(&mut buf[offset..]);
+        }
+        offset
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,7 +395,7 @@ mod tests {
 
     #[test]
     fn serialize_header_extension_no_flags() {
-        let submessage = HeaderExtensionSubmessage::new(
+        let submessage = HeaderExtensionSubmessageRead::new(
             false,
             false,
             false,
@@ -265,7 +424,7 @@ mod tests {
     fn serialize_header_extension_all_flags_checksum32() {
         let parameter = Parameter::new(0x0005, vec![1, 2, 3, 4].into());
         let parameters = ParameterList::new(vec![parameter]);
-        let submessage = HeaderExtensionSubmessage::new(
+        let submessage = HeaderExtensionSubmessageRead::new(
             true,
             true,
             true,
@@ -309,8 +468,45 @@ mod tests {
     }
 
     #[test]
+    fn serialize_header_extension_write_all_flags_checksum32() {
+        let parameter = Parameter::new(0x0005, vec![1, 2, 3, 4].into());
+        let parameters = ParameterList::new(vec![parameter]);
+        let submessage = HeaderExtensionSubmessageWrite::new(
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            128,
+            Time::new(10, 20),
+            [1, 2, 3, 4],
+            [5, 6, 7, 8, 9, 10, 11, 12],
+            Checksum::Checksum32([0xaa, 0xbb, 0xcc, 0xdd]),
+            &parameters,
+        );
+
+        #[rustfmt::skip]
+        assert_eq!(
+            write_submessage_into_bytes_vec(&submessage),
+            vec![
+                0x00, 0b_1101_1111, 40, 0, // Submessage header: ID=0, flags=0xdf, length=40
+                128, 0, 0, 0, // messageLength
+                10, 0, 0, 0, 20, 0, 0, 0, // rtpsSendTimestamp (seconds, fraction)
+                1, 2, 3, 4, // uExtension4
+                5, 6, 7, 8, 9, 10, 11, 12, // wExtension8
+                0xaa, 0xbb, 0xcc, 0xdd, // messageChecksum (Checksum32)
+                0x05, 0x00, 4, 0, // parameter: ID=0x0005, length=4
+                1, 2, 3, 4, // parameter value
+                0x01, 0x00, 0, 0, // PID_SENTINEL, length=0
+            ]
+        );
+    }
+
+    #[test]
     fn serialize_header_extension_checksum64() {
-        let submessage = HeaderExtensionSubmessage::new(
+        let submessage = HeaderExtensionSubmessageRead::new(
             false,
             false,
             false,
@@ -342,7 +538,7 @@ mod tests {
 
     #[test]
     fn serialize_header_extension_checksum128() {
-        let submessage = HeaderExtensionSubmessage::new(
+        let submessage = HeaderExtensionSubmessageRead::new(
             false,
             false,
             false,
@@ -381,7 +577,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            HeaderExtensionSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         assert!(!submessage.length_flag());
         assert!(!submessage.timestamp_flag());
@@ -409,7 +605,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            HeaderExtensionSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         assert!(submessage.length_flag());
         assert!(submessage.timestamp_flag());
@@ -441,7 +637,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            HeaderExtensionSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(submessage.checksum_flags(), (true, false));
         assert_eq!(
@@ -459,7 +655,7 @@ mod tests {
         ][..];
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let submessage =
-            HeaderExtensionSubmessage::try_from_bytes(&submessage_header, data).unwrap();
+            HeaderExtensionSubmessageRead::try_from_bytes(&submessage_header, data).unwrap();
 
         assert_eq!(submessage.checksum_flags(), (true, true));
         assert_eq!(

@@ -1,7 +1,7 @@
 use super::writer_proxy::RtpsWriterProxy;
 use crate::{
     rtps_messages::{
-        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
+        submessages::{data::DataSubmessageRead, data_frag::DataFragSubmessageRead},
         types::Time,
     },
     transport::types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
@@ -65,7 +65,7 @@ impl RtpsStatefulReader {
 
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {
@@ -114,7 +114,7 @@ impl RtpsStatefulReader {
 
     pub fn on_data_frag_submessage(
         &mut self,
-        data_frag_submessage: &DataFragSubmessage,
+        data_frag_submessage: &DataFragSubmessageRead,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {

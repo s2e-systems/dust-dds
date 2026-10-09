@@ -71,6 +71,26 @@ impl SequenceNumberSet {
             index: 0,
         }
     }
+
+    pub fn size(&self) -> usize {
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize;
+        8 + 4 + number_of_bitmap_elements * 4
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize;
+        let high = (self.base >> 32) as i32;
+        let low = self.base as u32;
+        buf[0..4].copy_from_slice(&high.to_le_bytes());
+        buf[4..8].copy_from_slice(&low.to_le_bytes());
+        buf[8..12].copy_from_slice(&self.num_bits.to_le_bytes());
+        let mut offset = 12;
+        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
+            buf[offset..offset + 4].copy_from_slice(&bitmap_element.to_le_bytes());
+            offset += 4;
+        }
+        offset
+    }
 }
 
 impl TryReadFromBytes for SequenceNumberSet {
@@ -186,6 +206,23 @@ impl FragmentNumberSet {
             index: 0,
         }
     }
+
+    pub fn size(&self) -> usize {
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize;
+        4 + 4 + number_of_bitmap_elements * 4
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let number_of_bitmap_elements = self.num_bits.div_ceil(32) as usize;
+        buf[0..4].copy_from_slice(&self.base.to_le_bytes());
+        buf[4..8].copy_from_slice(&self.num_bits.to_le_bytes());
+        let mut offset = 8;
+        for bitmap_element in &self.bitmap[..number_of_bitmap_elements] {
+            buf[offset..offset + 4].copy_from_slice(&bitmap_element.to_le_bytes());
+            offset += 4;
+        }
+        offset
+    }
 }
 
 impl WriteIntoBytes for FragmentNumberSet {
@@ -212,6 +249,21 @@ impl LocatorList {
 
     pub fn value(&self) -> &[Locator] {
         self.value.as_ref()
+    }
+
+    pub fn size(&self) -> usize {
+        4 + self.value.len() * 24
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let num_locators = self.value.len() as u32;
+        buf[0..4].copy_from_slice(&num_locators.to_le_bytes());
+        let mut offset = 4;
+        for locator in &self.value {
+            locator.write_into_slice(&mut buf[offset..offset + 24]);
+            offset += 24;
+        }
+        offset
     }
 }
 
@@ -260,6 +312,34 @@ impl Parameter {
 
     pub fn length(&self) -> i16 {
         self.value.len() as i16
+    }
+
+    pub fn size(&self) -> usize {
+        let padding_len = match self.value().len() % 4 {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            _ => 0,
+        };
+        4 + self.value().len() + padding_len
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let padding_len = match self.value().len() % 4 {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            _ => 0,
+        };
+        let length = (self.value().len() + padding_len) as i16;
+        buf[0..2].copy_from_slice(&self.parameter_id().to_le_bytes());
+        buf[2..4].copy_from_slice(&length.to_le_bytes());
+        let val_len = self.value().len();
+        buf[4..4 + val_len].copy_from_slice(self.value());
+        for b in &mut buf[4 + val_len..4 + val_len + padding_len] {
+            *b = 0;
+        }
+        4 + val_len + padding_len
     }
 
     fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
@@ -314,6 +394,20 @@ impl ParameterList {
         self.parameter.as_ref()
     }
 
+    pub fn size(&self) -> usize {
+        self.parameter.iter().map(|p| p.size()).sum::<usize>() + 4
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let mut offset = 0;
+        for param in &self.parameter {
+            offset += param.write_into_slice(&mut buf[offset..]);
+        }
+        buf[offset..offset + 2].copy_from_slice(&PID_SENTINEL.to_le_bytes());
+        buf[offset + 2..offset + 4].copy_from_slice(&0_u16.to_le_bytes());
+        offset + 4
+    }
+
     pub fn try_read_from_bytes(
         data: &mut &[u8],
         endianness: &Endianness,
@@ -358,6 +452,34 @@ impl<'a> ParameterWrite<'a> {
     pub fn length(&self) -> i16 {
         self.value.len() as i16
     }
+
+    pub fn size(&self) -> usize {
+        let padding_len = match self.value().len() % 4 {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            _ => 0,
+        };
+        4 + self.value().len() + padding_len
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let padding_len = match self.value().len() % 4 {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            _ => 0,
+        };
+        let length = (self.value().len() + padding_len) as i16;
+        buf[0..2].copy_from_slice(&self.parameter_id().to_le_bytes());
+        buf[2..4].copy_from_slice(&length.to_le_bytes());
+        let val_len = self.value().len();
+        buf[4..4 + val_len].copy_from_slice(self.value());
+        for b in &mut buf[4 + val_len..4 + val_len + padding_len] {
+            *b = 0;
+        }
+        4 + val_len + padding_len
+    }
 }
 
 impl WriteIntoBytes for ParameterWrite<'_> {
@@ -392,6 +514,20 @@ impl<'a> ParameterListWrite<'a> {
 
     pub fn parameter(&self) -> &'a [ParameterWrite<'a>] {
         self.parameter
+    }
+
+    pub fn size(&self) -> usize {
+        self.parameter.iter().map(|p| p.size()).sum::<usize>() + 4
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        let mut offset = 0;
+        for param in self.parameter {
+            offset += param.write_into_slice(&mut buf[offset..]);
+        }
+        buf[offset..offset + 2].copy_from_slice(&PID_SENTINEL.to_le_bytes());
+        buf[offset + 2..offset + 4].copy_from_slice(&0_u16.to_le_bytes());
+        offset + 4
     }
 }
 
@@ -549,6 +685,33 @@ impl WriteIntoBytes for Checksum {
 }
 
 impl Checksum {
+    pub fn size(&self) -> usize {
+        match self {
+            Checksum::None => 0,
+            Checksum::Checksum32(_) => 4,
+            Checksum::Checksum64(_) => 8,
+            Checksum::Checksum128(_) => 16,
+        }
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        match self {
+            Checksum::None => 0,
+            Checksum::Checksum32(c) => {
+                buf[..4].copy_from_slice(c);
+                4
+            }
+            Checksum::Checksum64(c) => {
+                buf[..8].copy_from_slice(c);
+                8
+            }
+            Checksum::Checksum128(c) => {
+                buf[..16].copy_from_slice(c);
+                16
+            }
+        }
+    }
+
     pub fn try_read_from_bytes(
         data: &mut &[u8],
         c1_flag: bool,
@@ -643,6 +806,18 @@ impl CryptoHeader {
 
     pub fn plugin_crypto_header_extra(&self) -> &Data {
         &self.plugin_crypto_header_extra
+    }
+
+    pub fn size(&self) -> usize {
+        8 + self.plugin_crypto_header_extra.len()
+    }
+
+    pub fn write_into_slice(&self, buf: &mut [u8]) -> usize {
+        buf[0..4].copy_from_slice(&self.transformation_id.transformation_kind());
+        buf[4..8].copy_from_slice(&self.transformation_id.transformation_key_id());
+        let extra_len = self.plugin_crypto_header_extra.len();
+        buf[8..8 + extra_len].copy_from_slice(self.plugin_crypto_header_extra.as_ref());
+        8 + extra_len
     }
 }
 
