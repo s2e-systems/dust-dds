@@ -15,18 +15,18 @@ use crate::{
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
     std_runtime::executor::block_on,
-    transport::interface::TransportParticipantFactory,
+    transport::interface::{RtpsParticipant, Transport},
 };
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory<T: TransportParticipantFactory = RtpsUdpTransport> {
+pub struct DomainParticipantFactory<T: Transport + RtpsParticipant = RtpsUdpTransport> {
     participant_factory_async: &'static DomainParticipantFactoryAsync<T>,
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
+impl<T: Transport + RtpsParticipant> DomainParticipantFactory<T> {
     /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
     pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<T>) -> Self {
         Self {
@@ -118,7 +118,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
     }
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactory<T> {
+impl<T: Transport + RtpsParticipant> DomainParticipantFactory<T> {
     #[doc(hidden)]
     pub fn shutdown(&self) {
         self.participant_factory_async.shutdown();

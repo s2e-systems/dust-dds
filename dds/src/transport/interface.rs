@@ -1,9 +1,4 @@
-use crate::{
-    dcps::dcps_mail::WireMail,
-    dds_async::domain_participant_factory::WireSender,
-    infrastructure::instance::InstanceHandle,
-    transport::types::{Guid, Locator},
-};
+use crate::transport::types::{Locator, TransportHandle};
 
 pub trait Write {
     fn write(&mut self, buf: &[u8]);
@@ -11,18 +6,19 @@ pub trait Write {
 }
 
 pub trait RtpsParticipant {
-    fn default_unicast_locator_list(&self, guid: Guid) -> &[Locator];
-    fn metatraffic_unicast_locator_list(&self, guid: Guid) -> &[Locator];
-    fn metatraffic_multicast_locator_list(&self, guid: Guid) -> &[Locator];
-    fn default_multicast_locator_list(&self, guid: Guid) -> &[Locator];
-    fn fragment_size(&self, guid: Guid) -> usize;
+    fn default_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn metatraffic_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn metatraffic_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn default_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn fragment_size(&self, handle: TransportHandle) -> usize;
 }
 pub trait Transport: Send + 'static {
-    fn create_participant(&mut self, domain_id: i32) -> Guid;
+    fn create_participant(&mut self, domain_id: i32) -> TransportHandle;
 
-    fn delete_participant(&mut self, guid: Guid);
+    fn delete_participant(&mut self, handle: TransportHandle);
 
-    fn writer(&mut self, guid: Guid, locator: &[Locator]) -> impl Write + '_;
+    fn writer<'a>(&'a mut self, handle: TransportHandle, locator: &'a [Locator])
+    -> impl Write + 'a;
 
-    fn read(&mut self) -> impl Future<Output = &[u8]>;
+    fn read(&mut self) -> impl Future<Output = &[u8]> + Send;
 }
