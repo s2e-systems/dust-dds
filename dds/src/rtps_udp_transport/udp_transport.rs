@@ -1,19 +1,22 @@
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    std_runtime::{self},
+    std_runtime,
     transport::{
-        interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
-        },
-        types::LOCATOR_KIND_UDP_V6,
+        interface::{RtpsParticipant, Transport, Write},
+        types::{LOCATOR_KIND_UDP_V6, TransportHandle},
     },
 };
-use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use core::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    sync::atomic::AtomicU32,
+};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::Channel;
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
+    collections::HashMap,
     net::{ToSocketAddrs, UdpSocket},
     sync::Arc,
 };
@@ -137,11 +140,29 @@ pub enum IpVersion {
     Both,
 }
 
+pub struct ParticipantSockets {
+    default_unicast_locator_list: Vec<Locator>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    fragment_size: usize,
+    socket_v4: Option<UdpSocket>,
+    socket_v6: Option<UdpSocket>,
+    v4_multicast_addresses: Vec<Ipv4Addr>,
+    v6_multicast_indices: Vec<u32>,
+}
+
 pub struct RtpsUdpTransport {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
+    entity_counter: AtomicU32,
+    participants: HashMap<TransportHandle, ParticipantSockets>,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, Vec<u8>, 256>>,
+    receive_buffer: Vec<u8>,
+    write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
+    write_buffer_len: usize,
 }
 
 impl RtpsUdpTransport {
@@ -207,16 +228,130 @@ impl Default for RtpsUdpTransport {
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
+            entity_counter: AtomicU32::new(0),
+            participants: HashMap::new(),
+            receive_channel: Arc::new(Channel::new()),
+            receive_buffer: Vec::new(),
+            write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
+            write_buffer_len: 0,
         }
     }
 }
 
-impl TransportParticipantFactory for RtpsUdpTransport {
-    fn create_participant(
-        &self,
-        domain_id: i32,
-        data_channel_sender: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
+impl RtpsParticipant for RtpsUdpTransport {
+    fn default_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
+        self.participants
+            .get(&handle)
+            .map(|p| p.default_unicast_locator_list.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn metatraffic_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
+        self.participants
+            .get(&handle)
+            .map(|p| p.metatraffic_unicast_locator_list.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn metatraffic_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
+        self.participants
+            .get(&handle)
+            .map(|p| p.metatraffic_multicast_locator_list.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn default_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
+        self.participants
+            .get(&handle)
+            .map(|p| p.default_multicast_locator_list.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn fragment_size(&self, handle: TransportHandle) -> usize {
+        self.participants
+            .get(&handle)
+            .map(|p| p.fragment_size)
+            .unwrap_or(self.fragment_size)
+    }
+}
+
+pub struct UdpWriter<'a> {
+    socket_v4: Option<&'a UdpSocket>,
+    socket_v6: Option<&'a UdpSocket>,
+    v4_multicast_addresses: &'a [Ipv4Addr],
+    v6_multicast_indices: &'a [u32],
+    locator: &'a [Locator],
+    buffer: &'a mut [u8; MAX_DATAGRAM_SIZE],
+    buffer_len: &'a mut usize,
+}
+
+impl<'a> Write for UdpWriter<'a> {
+    fn write(&mut self, buf: &[u8]) {
+        let new_len = *self.buffer_len + buf.len();
+        if new_len <= self.buffer.len() {
+            self.buffer[*self.buffer_len..new_len].copy_from_slice(buf);
+            *self.buffer_len = new_len;
+        }
+    }
+
+    fn flush(&mut self) {
+        if *self.buffer_len == 0 {
+            return;
+        }
+        let data = &self.buffer[..*self.buffer_len];
+        for &destination_locator in self.locator {
+            match destination_locator.kind() {
+                LOCATOR_KIND_UDP_V4 => {
+                    if let Some(socket) = self.socket_v4 {
+                        if UdpLocator(destination_locator).is_multicast() {
+                            let socket2: socket2::Socket = socket.try_clone().unwrap().into();
+                            for address in self.v4_multicast_addresses {
+                                if socket2.set_multicast_if_v4(address).is_ok() {
+                                    socket
+                                        .send_to(data, UdpLocator(destination_locator))
+                                        .ok();
+                                }
+                            }
+                        } else {
+                            socket
+                                .send_to(data, UdpLocator(destination_locator))
+                                .ok();
+                        }
+                    }
+                }
+                LOCATOR_KIND_UDP_V6 => {
+                    if let Some(socket) = self.socket_v6 {
+                        if UdpLocator(destination_locator).is_multicast() {
+                            let socket2: socket2::Socket = socket.try_clone().unwrap().into();
+                            if self.v6_multicast_indices.is_empty() {
+                                socket
+                                    .send_to(data, UdpLocator(destination_locator))
+                                    .ok();
+                            } else {
+                                for &index in self.v6_multicast_indices {
+                                    if socket2.set_multicast_if_v6(index).is_ok() {
+                                        socket
+                                            .send_to(data, UdpLocator(destination_locator))
+                                            .ok();
+                                    }
+                                }
+                            }
+                        } else {
+                            socket
+                                .send_to(data, UdpLocator(destination_locator))
+                                .ok();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        *self.buffer_len = 0;
+    }
+}
+
+impl Transport for RtpsUdpTransport {
+    fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -355,7 +490,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficMulticastSocket".to_string())
                 .spawn(move || {
@@ -364,7 +499,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -372,7 +507,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficUnicastSocket".to_string())
                 .spawn(move || {
@@ -381,7 +516,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -389,7 +524,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnDefaultUnicastSocket".to_string())
                 .spawn(move || {
@@ -398,7 +533,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -490,7 +625,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                     .expect("Socket cloning"),
             );
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficMulticastSocketV6".to_string())
                 .spawn(move || {
@@ -499,7 +634,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -507,7 +642,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficUnicastSocketV6".to_string())
                 .spawn(move || {
@@ -516,7 +651,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -524,7 +659,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnDefaultUnicastSocketV6".to_string())
                 .spawn(move || {
@@ -533,7 +668,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send(buf[..size].to_vec()),
                                 );
                             }
                         }
@@ -542,21 +677,65 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 .expect("failed to spawn thread");
         }
 
-        let message_writer = MessageWriter::new(
-            socket_v4,
-            socket_v6,
-            v4_multicast_addresses,
-            v6_multicast_indices,
-        );
+        let handle: TransportHandle = self
+            .entity_counter
+            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+            .to_ne_bytes();
 
-        RtpsTransportParticipant {
-            message_writer: Box::new(message_writer),
+        let participant_sockets = ParticipantSockets {
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             default_multicast_locator_list: Vec::new(),
             fragment_size: self.fragment_size,
+            socket_v4,
+            socket_v6,
+            v4_multicast_addresses,
+            v6_multicast_indices,
+        };
+
+        self.participants.insert(handle, participant_sockets);
+
+        handle
+    }
+
+    fn delete_participant(&mut self, handle: TransportHandle) {
+        self.participants.remove(&handle);
+    }
+
+    fn writer<'a>(
+        &'a mut self,
+        handle: TransportHandle,
+        locator: &'a [Locator],
+    ) -> impl Write + 'a {
+        self.write_buffer_len = 0;
+        if let Some(sockets) = self.participants.get(&handle) {
+            UdpWriter {
+                socket_v4: sockets.socket_v4.as_ref(),
+                socket_v6: sockets.socket_v6.as_ref(),
+                v4_multicast_addresses: &sockets.v4_multicast_addresses,
+                v6_multicast_indices: &sockets.v6_multicast_indices,
+                locator,
+                buffer: &mut self.write_buffer,
+                buffer_len: &mut self.write_buffer_len,
+            }
+        } else {
+            UdpWriter {
+                socket_v4: None,
+                socket_v6: None,
+                v4_multicast_addresses: &[],
+                v6_multicast_indices: &[],
+                locator,
+                buffer: &mut self.write_buffer,
+                buffer_len: &mut self.write_buffer_len,
+            }
         }
+    }
+
+    async fn read(&mut self) -> &[u8] {
+        let msg = self.receive_channel.receive().await;
+        self.receive_buffer = msg;
+        &self.receive_buffer
     }
 }
 
@@ -633,112 +812,6 @@ impl UdpLocator {
             .is_multicast(),
             LOCATOR_KIND_UDP_V6 => Ipv6Addr::from(locator_address).is_multicast(),
             _ => false,
-        }
-    }
-}
-
-struct MessageWriter {
-    socket_v4: Option<UdpSocket>,
-    socket_v6: Option<UdpSocket>,
-    buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
-    v4_multicast_addresses: Vec<Ipv4Addr>,
-    v6_multicast_indices: Vec<u32>,
-}
-
-impl Clone for MessageWriter {
-    fn clone(&self) -> Self {
-        Self {
-            socket_v4: self
-                .socket_v4
-                .as_ref()
-                .map(|s| s.try_clone().expect("Socket cloning")),
-            socket_v6: self
-                .socket_v6
-                .as_ref()
-                .map(|s| s.try_clone().expect("Socket cloning")),
-            buffer: vec![0u8; MAX_DATAGRAM_SIZE]
-                .into_boxed_slice()
-                .try_into()
-                .unwrap(),
-            v4_multicast_addresses: self.v4_multicast_addresses.clone(),
-            v6_multicast_indices: self.v6_multicast_indices.clone(),
-        }
-    }
-}
-
-impl MessageWriter {
-    fn new(
-        socket_v4: Option<UdpSocket>,
-        socket_v6: Option<UdpSocket>,
-        v4_multicast_addresses: Vec<Ipv4Addr>,
-        v6_multicast_indices: Vec<u32>,
-    ) -> Self {
-        Self {
-            socket_v4,
-            socket_v6,
-            buffer: vec![0u8; MAX_DATAGRAM_SIZE]
-                .into_boxed_slice()
-                .try_into()
-                .unwrap(),
-            v4_multicast_addresses,
-            v6_multicast_indices,
-        }
-    }
-}
-
-impl WriteMessage for MessageWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        self.buffer.as_mut_slice()
-    }
-
-    fn write_message(&mut self, len: usize, locator_list: &[Locator]) {
-        let datagram = &self.buffer[..len];
-        for &destination_locator in locator_list {
-            match destination_locator.kind() {
-                LOCATOR_KIND_UDP_V4 => {
-                    if let Some(ref socket) = self.socket_v4 {
-                        if UdpLocator(destination_locator).is_multicast() {
-                            let socket2: socket2::Socket = socket.try_clone().unwrap().into();
-                            for address in &self.v4_multicast_addresses {
-                                if socket2.set_multicast_if_v4(address).is_ok() {
-                                    socket
-                                        .send_to(datagram, UdpLocator(destination_locator))
-                                        .ok();
-                                }
-                            }
-                        } else {
-                            socket
-                                .send_to(datagram, UdpLocator(destination_locator))
-                                .ok();
-                        }
-                    }
-                }
-                LOCATOR_KIND_UDP_V6 => {
-                    if let Some(ref socket) = self.socket_v6 {
-                        if UdpLocator(destination_locator).is_multicast() {
-                            let socket2: socket2::Socket = socket.try_clone().unwrap().into();
-                            if self.v6_multicast_indices.is_empty() {
-                                socket
-                                    .send_to(datagram, UdpLocator(destination_locator))
-                                    .ok();
-                            } else {
-                                for &index in &self.v6_multicast_indices {
-                                    if socket2.set_multicast_if_v6(index).is_ok() {
-                                        socket
-                                            .send_to(datagram, UdpLocator(destination_locator))
-                                            .ok();
-                                    }
-                                }
-                            }
-                        } else {
-                            socket
-                                .send_to(datagram, UdpLocator(destination_locator))
-                                .ok();
-                        }
-                    }
-                }
-                _ => {}
-            }
         }
     }
 }

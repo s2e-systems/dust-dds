@@ -4,7 +4,7 @@ use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
         channels::rpc::{RpcClient, RpcMailbox},
-        dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail, WireMail},
+        dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
     dds_async::domain_participant_listener::DomainParticipantListener,
@@ -12,7 +12,6 @@ use crate::{
         configuration::DustDdsConfiguration,
         domain::DomainId,
         error::DdsResult,
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -24,63 +23,24 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
-    transport::{
-        interface::{TransportDataReceiver, TransportParticipantFactory},
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
-    },
+    transport::interface::{RtpsParticipant, Transport},
 };
-
-const WIRE_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
 pub type DcpsSender = RpcClient;
-
-#[doc(hidden)]
-pub type WireChannel = embassy_sync::channel::Channel<
-    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    WireMail,
-    WIRE_CHANNEL_SIZE,
->;
-
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct WireSender {
-    channel: Arc<WireChannel>,
-}
-
-impl WireSender {
-    pub async fn send(&self, message: WireMail) {
-        self.channel.send(message).await;
-    }
-}
-
-#[doc(hidden)]
-pub struct WireReceiver {
-    channel: Arc<WireChannel>,
-}
-
-impl WireReceiver {
-    pub async fn receive(&self) -> WireMail {
-        self.channel.receive().await
-    }
-}
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
+pub struct DomainParticipantFactoryAsync<T: Transport + RtpsParticipant> {
     dcps_sender: DcpsSender,
-    wire_sender: WireSender,
-    entity_counter: core::sync::atomic::AtomicU32,
-    app_id: [u8; 4],
-    host_id: [u8; 4],
-    transport: T,
+    _transport: core::marker::PhantomData<T>,
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
+impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -89,13 +49,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let guid_prefix = self.create_new_guid_prefix();
-        let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport_participant = self.transport.create_participant(
-            domain_id,
-            TransportDataReceiver::new(participant_handle, self.wire_sender.clone()),
-        );
-
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
 
@@ -103,12 +56,10 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
             .dcps_sender
             .call(DcpsMail::ParticipantFactory(
                 ParticipantFactoryMail::CreateParticipant(Box::new(CreateParticipantMail {
-                    guid_prefix,
                     domain_id,
                     qos,
                     dcps_listener,
                     listener_mask,
-                    transport_participant,
                 })),
             ))
             .await?;
@@ -268,7 +219,7 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     }
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
+impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
     #[doc(hidden)]
     pub fn new<
         R: DdsRuntime,
@@ -276,22 +227,15 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         Access: AccessControl,
         Crypto: Cryptographic,
     >(
-        app_id: [u8; 4],
-        host_id: [u8; 4],
+        _app_id: [u8; 4],
+        _host_id: [u8; 4],
         configuration: DustDdsConfiguration,
         runtime: R,
-        transport: T,
+        mut transport: T,
         mut security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());
-        let wire_channel = Arc::new(WireChannel::new());
-        let wire_sender = WireSender {
-            channel: wire_channel.clone(),
-        };
-        let wire_receiver = WireReceiver {
-            channel: wire_channel,
-        };
         let spawner_handle = runtime.spawner();
         let mut timer_handle = runtime.timer();
 
@@ -313,7 +257,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     match select3_future(
                         rpc_mailbox.receive_request(),
                         timer_handle.delay(next_task_time.into()),
-                        wire_receiver.receive(),
+                        transport.read(),
                     )
                     .await
                     {
@@ -324,6 +268,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 now,
                                 &runtime,
                                 &mut security,
+                                &mut transport,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
@@ -336,7 +281,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.remove_stale_writer_samples(now);
                                 dp.remove_stale_reader_samples(now);
                                 dp.check_pending_writer_sample_timeout(now);
-                                dp.process_pending_write_samples(now);
+                                dp.process_pending_write_samples(now, &mut transport);
                                 dp.announce_participant_if_needed(
                                     now,
                                     domain_participant_factory
@@ -347,35 +292,33 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                         .configuration
                                         .domain_tag()
                                         .to_string(),
+                                    &mut transport,
                                 );
                                 dp.notify_find_topic_senders(now);
-                                dp.poke(now);
+                                dp.poke(now, &mut transport);
                             }
                         }
-                        Either3::C(wire_mail) => {
+                        Either3::C(data) => {
                             let now = runtime.clock().now();
-                            if let Some(dp) = domain_participant_factory
-                                .domain_participant_list
-                                .iter_mut()
-                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
-                            {
-                                dp.handle_data(&wire_mail.data_message, now);
+                            let mut datagram = alloc::vec::Vec::new();
+                            datagram.extend_from_slice(data);
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.handle_data(&datagram, now, &mut transport);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
                                         .configuration
                                         .domain_tag()
                                         .to_string(),
+                                    &mut transport,
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now);
+                                dp.request_topic_type_representation(now, &mut transport);
                             }
                         }
                     };
                 } else {
-                    match select_future(rpc_mailbox.receive_request(), wire_receiver.receive())
-                        .await
-                    {
+                    match select_future(rpc_mailbox.receive_request(), transport.read()).await {
                         Either::A(user_mail) => {
                             let now = runtime.clock().now();
                             let reply = domain_participant_factory.handle(
@@ -383,26 +326,26 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 now,
                                 &runtime,
                                 &mut security,
+                                &mut transport,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
-                        Either::B(wire_mail) => {
+                        Either::B(data) => {
                             let now = runtime.clock().now();
-                            if let Some(dp) = domain_participant_factory
-                                .domain_participant_list
-                                .iter_mut()
-                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
-                            {
-                                dp.handle_data(&wire_mail.data_message, now);
+                            let mut datagram = alloc::vec::Vec::new();
+                            datagram.extend_from_slice(data);
+                            for dp in &mut domain_participant_factory.domain_participant_list {
+                                dp.handle_data(&datagram, now, &mut transport);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
                                         .configuration
                                         .domain_tag()
                                         .to_string(),
+                                    &mut transport,
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now);
+                                dp.request_topic_type_representation(now, &mut transport);
                             }
                         }
                     };
@@ -411,36 +354,10 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         });
         Self {
             dcps_sender,
-            wire_sender,
-            app_id,
-            host_id,
-            entity_counter: core::sync::atomic::AtomicU32::new(0),
-            transport,
+            _transport: core::marker::PhantomData,
             worker_task: Box::new(worker_task),
             run_loop,
         }
-    }
-
-    fn create_new_guid_prefix(&self) -> GuidPrefix {
-        let instance_id = self
-            .entity_counter
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
-            .to_ne_bytes();
-
-        [
-            self.host_id[0],
-            self.host_id[1],
-            self.host_id[2],
-            self.host_id[3], // Host ID
-            self.app_id[0],
-            self.app_id[1],
-            self.app_id[2],
-            self.app_id[3], // App ID
-            instance_id[0],
-            instance_id[1],
-            instance_id[2],
-            instance_id[3], // Instance ID
-        ]
     }
 
     #[doc(hidden)]

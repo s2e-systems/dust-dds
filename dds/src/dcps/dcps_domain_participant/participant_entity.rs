@@ -35,10 +35,7 @@ use crate::{
         IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
         PermissionsToken,
     },
-    transport::{
-        interface::RtpsTransportParticipant,
-        types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
-    },
+    transport::types::{GuidPrefix, Locator, TransportHandle, USER_DEFINED_TOPIC},
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
@@ -65,7 +62,7 @@ pub struct DiscoveredParticipantInfo {
 }
 
 pub struct DcpsDomainParticipant {
-    pub transport: RtpsTransportParticipant,
+    pub transport_handle: TransportHandle,
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,

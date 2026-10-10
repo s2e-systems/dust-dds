@@ -32,7 +32,6 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 
@@ -49,12 +48,10 @@ pub enum DcpsMail {
 }
 
 pub struct CreateParticipantMail {
-    pub guid_prefix: GuidPrefix,
     pub domain_id: DomainId,
     pub qos: QosKind<DomainParticipantQos>,
     pub dcps_listener: Option<DcpsDomainParticipantListener>,
     pub listener_mask: StatusMask,
-    pub transport_participant: RtpsTransportParticipant,
 }
 
 pub enum ParticipantFactoryMail {
@@ -501,11 +498,6 @@ pub enum MessageServiceMail {
         data_reader_handle: InstanceHandle,
         reply_sender: OneshotSender<DdsResult<()>>,
     },
-}
-
-pub struct WireMail {
-    pub participant_handle: InstanceHandle,
-    pub data_message: Vec<u8>,
 }
 
 #[derive(Debug)]

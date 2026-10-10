@@ -6,6 +6,7 @@ pub type Short = i16;
 pub type Long = i32;
 pub type UnsignedLong = u32;
 pub type OctetArray3 = [Octet; 3];
+pub type TransportHandle = [u8; 4];
 
 // Table 9.1 - entityKind octet of an EntityId_t
 pub const USER_DEFINED_UNKNOWN: Octet = 0x00;
@@ -33,7 +34,7 @@ pub const USER_DEFINED_TOPIC: Octet = 0x0a;
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct Guid {
     prefix: GuidPrefix,
@@ -114,11 +115,15 @@ pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
+pub const fn transport_handle_from_guid_prefix(prefix: &GuidPrefix) -> TransportHandle {
+    [prefix[8], prefix[9], prefix[10], prefix[11]]
+}
+
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Debug, TypeSupport)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct EntityId {
     pub(crate) entity_key: OctetArray3,

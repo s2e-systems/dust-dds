@@ -11,48 +11,72 @@ use dust_dds::{
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
-        interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
-        },
-        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator},
+        interface::{RtpsParticipant, Transport, Write},
+        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator, TransportHandle},
     },
 };
 
 use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-struct MockWriter {
-    buffer: [u8; 512],
-}
-impl WriteMessage for MockWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        &mut self.buffer
-    }
-    fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
+struct MockWriter;
+
+impl Write for MockWriter {
+    fn write(&mut self, _buf: &[u8]) {}
+    fn flush(&mut self) {}
 }
 
-struct MockTransport(std::sync::mpsc::SyncSender<TransportDataReceiver>);
-impl TransportParticipantFactory for MockTransport {
-    fn create_participant(
-        &self,
-        _domain_id: i32,
-        data_receiver: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
-        self.0.send(data_receiver).unwrap();
-        RtpsTransportParticipant {
-            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
-            default_unicast_locator_list: Vec::new(),
-            metatraffic_unicast_locator_list: Vec::new(),
-            metatraffic_multicast_locator_list: Vec::new(),
-            default_multicast_locator_list: Vec::new(),
-            fragment_size: 1000,
+struct MockTransport {
+    incoming_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
+    current_message: Vec<u8>,
+}
+
+impl RtpsParticipant for MockTransport {
+    fn default_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &[]
+    }
+    fn metatraffic_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &[]
+    }
+    fn metatraffic_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &[]
+    }
+    fn default_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &[]
+    }
+    fn fragment_size(&self, _handle: TransportHandle) -> usize {
+        1000
+    }
+}
+
+impl Transport for MockTransport {
+    fn create_participant(&mut self, _domain_id: i32) -> TransportHandle {
+        [0; 4]
+    }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
+
+    fn writer<'a>(
+        &'a mut self,
+        _handle: TransportHandle,
+        _locator: &'a [Locator],
+    ) -> impl Write + 'a {
+        MockWriter
+    }
+
+    async fn read(&mut self) -> &[u8] {
+        if let Some(msg) = self.incoming_rx.recv().await {
+            self.current_message = msg;
+            &self.current_message
+        } else {
+            // Keep pending if channel closed
+            core::future::pending().await
         }
     }
 }
 
 #[test]
 fn detect_stale_participant() {
-    let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
+    let (data_sender, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -65,7 +89,10 @@ fn detect_stale_participant() {
         host_id,
         configuration,
         runtime,
-        MockTransport(data_receiver_send),
+        MockTransport {
+            incoming_rx,
+            current_message: Vec::new(),
+        },
         DdsSecurityPlugins::disabled(),
     );
 
@@ -82,8 +109,6 @@ fn detect_stale_participant() {
     let guid_prefix: [u8; 12] = <[u8; 16]>::from(participant.get_instance_handle())[0..12]
         .try_into()
         .unwrap();
-
-    let data_receiver = data_receiver_recv.recv().unwrap();
 
     let reader_id = ENTITYID_UNKNOWN;
     const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -131,9 +156,7 @@ fn detect_stale_participant() {
     let spdp_rtps_message =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
 
-    dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(spdp_rtps_message.buffer().to_vec()),
-    );
+    let _ = data_sender.send(spdp_rtps_message.buffer().to_vec());
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 
@@ -147,7 +170,7 @@ fn detect_stale_participant() {
 
 #[test]
 fn xtypes_mismatch_does_not_abort_discovery() {
-    let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
+    let (data_sender, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -160,7 +183,10 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         host_id,
         configuration,
         runtime,
-        MockTransport(data_receiver_send),
+        MockTransport {
+            incoming_rx,
+            current_message: Vec::new(),
+        },
         DdsSecurityPlugins::disabled(),
     );
 
@@ -173,8 +199,6 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ))
         .unwrap(),
     );
-
-    let data_receiver = data_receiver_recv.recv().unwrap();
 
     #[derive(dust_dds::infrastructure::type_support::DdsType)]
     struct LocalType1 {
@@ -246,9 +270,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let mut buf = [0u8; 1024];
     let spdp_msg =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
-    dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(spdp_msg.buffer().to_vec()),
-    );
+    let _ = data_sender.send(spdp_msg.buffer().to_vec());
 
     std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -335,9 +357,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         &[&sedp_submsg1, &sedp_submsg2],
         remote_guid_prefix,
     );
-    dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(sedp_msg.buffer().to_vec()),
-    );
+    let _ = data_sender.send(sedp_msg.buffer().to_vec());
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 

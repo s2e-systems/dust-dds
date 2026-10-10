@@ -85,12 +85,13 @@ impl DcpsDomainParticipant {
         Ok(topic.qos.clone())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport))]
     pub fn enable_topic(
         &mut self,
         topic_name: String,
         now: Time,
         enable_type_information: bool,
+        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
     ) -> DdsResult<()> {
         let Some(topic) = self
             .domain_participant
@@ -103,7 +104,7 @@ impl DcpsDomainParticipant {
 
         if !topic.enabled {
             topic.enabled = true;
-            self.announce_topic(topic_name, now, enable_type_information);
+            self.announce_topic(topic_name, now, enable_type_information, transport);
         }
 
         Ok(())
