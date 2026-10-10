@@ -161,6 +161,8 @@ pub struct RtpsUdpTransport {
     participants: HashMap<TransportHandle, ParticipantSockets>,
     receive_channel: Arc<Channel<CriticalSectionRawMutex, Vec<u8>, 256>>,
     receive_buffer: Vec<u8>,
+    write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
+    write_buffer_len: usize,
 }
 
 impl RtpsUdpTransport {
@@ -230,6 +232,8 @@ impl Default for RtpsUdpTransport {
             participants: HashMap::new(),
             receive_channel: Arc::new(Channel::new()),
             receive_buffer: Vec::new(),
+            write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
+            write_buffer_len: 0,
         }
     }
 }
@@ -277,18 +281,24 @@ pub struct UdpWriter<'a> {
     v4_multicast_addresses: &'a [Ipv4Addr],
     v6_multicast_indices: &'a [u32],
     locator: &'a [Locator],
-    buffer: Vec<u8>,
+    buffer: &'a mut [u8; MAX_DATAGRAM_SIZE],
+    buffer_len: &'a mut usize,
 }
 
 impl<'a> Write for UdpWriter<'a> {
     fn write(&mut self, buf: &[u8]) {
-        self.buffer.extend_from_slice(buf);
+        let new_len = *self.buffer_len + buf.len();
+        if new_len <= self.buffer.len() {
+            self.buffer[*self.buffer_len..new_len].copy_from_slice(buf);
+            *self.buffer_len = new_len;
+        }
     }
 
     fn flush(&mut self) {
-        if self.buffer.is_empty() {
+        if *self.buffer_len == 0 {
             return;
         }
+        let data = &self.buffer[..*self.buffer_len];
         for &destination_locator in self.locator {
             match destination_locator.kind() {
                 LOCATOR_KIND_UDP_V4 => {
@@ -298,13 +308,13 @@ impl<'a> Write for UdpWriter<'a> {
                             for address in self.v4_multicast_addresses {
                                 if socket2.set_multicast_if_v4(address).is_ok() {
                                     socket
-                                        .send_to(&self.buffer, UdpLocator(destination_locator))
+                                        .send_to(data, UdpLocator(destination_locator))
                                         .ok();
                                 }
                             }
                         } else {
                             socket
-                                .send_to(&self.buffer, UdpLocator(destination_locator))
+                                .send_to(data, UdpLocator(destination_locator))
                                 .ok();
                         }
                     }
@@ -315,20 +325,20 @@ impl<'a> Write for UdpWriter<'a> {
                             let socket2: socket2::Socket = socket.try_clone().unwrap().into();
                             if self.v6_multicast_indices.is_empty() {
                                 socket
-                                    .send_to(&self.buffer, UdpLocator(destination_locator))
+                                    .send_to(data, UdpLocator(destination_locator))
                                     .ok();
                             } else {
                                 for &index in self.v6_multicast_indices {
                                     if socket2.set_multicast_if_v6(index).is_ok() {
                                         socket
-                                            .send_to(&self.buffer, UdpLocator(destination_locator))
+                                            .send_to(data, UdpLocator(destination_locator))
                                             .ok();
                                     }
                                 }
                             }
                         } else {
                             socket
-                                .send_to(&self.buffer, UdpLocator(destination_locator))
+                                .send_to(data, UdpLocator(destination_locator))
                                 .ok();
                         }
                     }
@@ -336,7 +346,7 @@ impl<'a> Write for UdpWriter<'a> {
                 _ => {}
             }
         }
-        self.buffer.clear();
+        *self.buffer_len = 0;
     }
 }
 
@@ -698,6 +708,7 @@ impl Transport for RtpsUdpTransport {
         handle: TransportHandle,
         locator: &'a [Locator],
     ) -> impl Write + 'a {
+        self.write_buffer_len = 0;
         if let Some(sockets) = self.participants.get(&handle) {
             UdpWriter {
                 socket_v4: sockets.socket_v4.as_ref(),
@@ -705,7 +716,8 @@ impl Transport for RtpsUdpTransport {
                 v4_multicast_addresses: &sockets.v4_multicast_addresses,
                 v6_multicast_indices: &sockets.v6_multicast_indices,
                 locator,
-                buffer: Vec::new(),
+                buffer: &mut self.write_buffer,
+                buffer_len: &mut self.write_buffer_len,
             }
         } else {
             UdpWriter {
@@ -714,7 +726,8 @@ impl Transport for RtpsUdpTransport {
                 v4_multicast_addresses: &[],
                 v6_multicast_indices: &[],
                 locator,
-                buffer: Vec::new(),
+                buffer: &mut self.write_buffer,
+                buffer_len: &mut self.write_buffer_len,
             }
         }
     }

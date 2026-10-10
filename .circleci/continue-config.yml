@@ -182,7 +182,7 @@ jobs:
           name: Install cargo-bloat
           command: |
             if ! command -v cargo-bloat &> /dev/null; then
-              cargo install cargo-bloat
+              cargo install cargo-bloat --locked
             fi
       - save_cache:
           key: cargo-bloat-bin-v1-{{ arch }}
