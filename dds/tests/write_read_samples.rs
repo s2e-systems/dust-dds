@@ -4743,6 +4743,45 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
 }
 
 #[test]
+fn custom_struct_member_name_should_be_used_for_hash_autoid() {
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct FirstRustType {
+        value: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct SecondRustType {
+        #[dust_dds(name = "value")]
+        second_rust_field: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct MismatchedRustType {
+        mismatched_rust_field: u32,
+    }
+
+    let first_type = FirstRustType::get_type();
+    let second_type = SecondRustType::get_type();
+    let mismatched_type = MismatchedRustType::get_type();
+
+    let first_member = first_type.get_member_by_index(0).unwrap();
+    let second_member = second_type.get_member_by_index(0).unwrap();
+    let mismatched_member = mismatched_type.get_member_by_index(0).unwrap();
+
+    assert_eq!(first_member.get_name(), "value");
+    assert_eq!(second_member.get_name(), "value");
+    assert_eq!(mismatched_member.get_name(), "mismatched_rust_field");
+    assert_eq!(first_member.get_id(), second_member.get_id());
+    assert_ne!(first_member.get_id(), mismatched_member.get_id());
+
+    assert_eq!(first_type, second_type);
+    assert_ne!(first_type, mismatched_type);
+}
+
+#[test]
 fn custom_struct_and_union_variant_name_should_read_and_write() {
     #[derive(Clone, Debug, DdsType)]
     struct Data {
@@ -4899,7 +4938,6 @@ fn custom_struct_and_union_variant_name_should_read_and_write() {
 }
 
 #[test]
-#[should_panic(expected = "called `Result::unwrap()` on an `Err` value: Timeout")]
 fn mismatched_struct_field_name_should_not_read_and_write() {
     #[derive(Clone, Debug, DdsType)]
     struct Data {
@@ -4997,11 +5035,26 @@ fn mismatched_struct_field_name_should_not_read_and_write() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(3, 0)).unwrap();
+
+    let data_type = Data::get_type();
+    let my_data_type = MyData::get_type();
+    assert_eq!(
+        data_type.get_member_by_index(1).unwrap().get_name(),
+        "value"
+    );
+    assert_eq!(
+        my_data_type.get_member_by_index(1).unwrap().get_name(),
+        "invalid"
+    );
+    assert_ne!(data_type, my_data_type);
+
+    assert!(matches!(
+        wait_set.wait(Duration::new(3, 0)),
+        Err(DdsError::Timeout)
+    ));
 }
 
 #[test]
-#[should_panic(expected = "called `Result::unwrap()` on an `Err` value: Timeout")]
 fn custom_union_variant_name_should_not_read_and_write() {
     #[derive(Clone, Debug, DdsType)]
     #[dust_dds(switch(u8))]
@@ -5105,5 +5158,24 @@ fn custom_union_variant_name_should_not_read_and_write() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(3, 0)).unwrap();
+
+    let data_value_type = DataValue::get_type();
+    let my_data_value_type = MyDataValue::get_type();
+    assert_eq!(
+        data_value_type.get_member_by_index(3).unwrap().get_name(),
+        "C"
+    );
+    assert_eq!(
+        my_data_value_type
+            .get_member_by_index(3)
+            .unwrap()
+            .get_name(),
+        "invalid"
+    );
+    assert_ne!(data_value_type, my_data_value_type);
+
+    assert!(matches!(
+        wait_set.wait(Duration::new(3, 0)),
+        Err(DdsError::Timeout)
+    ));
 }
