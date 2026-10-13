@@ -158,8 +158,6 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &mut (impl WriteMessage + ?Sized),
-        now: Time,
     ) -> Option<SequenceNumber> {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -186,15 +184,6 @@ impl RtpsStatefulWriter {
                         reader_proxy.heartbeat_machine().reset_heartbeat_time();
                     }
 
-                    reader_proxy.write_message_reliable(
-                        self.guid.entity_id(),
-                        &self.changes,
-                        self.data_max_size_serialized,
-                        self.heartbeat_period,
-                        message_writer,
-                        now,
-                        self.guid.prefix(),
-                    );
                     return Some(acked_changes);
                 }
             }
@@ -206,7 +195,6 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
-        message_writer: &mut (impl WriteMessage + ?Sized),
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
@@ -220,74 +208,10 @@ impl RtpsStatefulWriter {
             {
                 reader_proxy.set_last_received_nack_frag_count(nackfrag_submessage.count());
                 let change_seq_num = nackfrag_submessage.writer_sn();
-                if let Some(cache_change) = self
-                    .changes
-                    .iter()
-                    .find(|cc| cc.sequence_number == change_seq_num)
-                {
-                    let number_of_fragments = cache_change
-                        .data_value
-                        .len()
-                        .div_ceil(self.data_max_size_serialized);
-
-                    for request_fragment_number in
-                        core::iter::once(nackfrag_submessage.fragment_number_state().base())
-                            .chain(nackfrag_submessage.fragment_number_state().set())
-                    {
-                        let request_fragment_number = request_fragment_number as usize;
-                        // Either send a DATAFRAG submessages or send a single DATA submessage
-                        if (1..=number_of_fragments).contains(&request_fragment_number)
-                            && cache_change.kind == ChangeKind::Alive
-                        {
-                            let writer_id = self.guid.entity_id();
-                            let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                            let data_frag = cache_change.as_data_frag_submessage(
-                                reader_id,
-                                writer_id,
-                                self.data_max_size_serialized,
-                                request_fragment_number - 1,
-                            );
-
-                            let info_dst = InfoDestinationSubmessage::new(
-                                reader_proxy.remote_reader_guid().prefix(),
-                            );
-                            let info_timestamp =
-                                if let Some(timestamp) = cache_change.source_timestamp {
-                                    InfoTimestampSubmessage::new(false, timestamp.into())
-                                } else {
-                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
-                                };
-
-                            let len = RtpsMessageWrite::from_submessages(
-                                message_writer.write_buffer_mut(),
-                                &[&info_dst, &info_timestamp, &data_frag],
-                                self.guid.prefix(),
-                            )
-                            .buffer()
-                            .len();
-                            message_writer.write_message(len, reader_proxy.unicast_locator_list())
-                        }
-                    }
-                } else {
-                    let writer_id = self.guid.entity_id();
-                    let info_dst =
-                        InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
-                    let gap_submessage = GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        change_seq_num,
-                        SequenceNumberSet::new(change_seq_num + 1, []),
-                    );
-
-                    let len = RtpsMessageWrite::from_submessages(
-                        message_writer.write_buffer_mut(),
-                        &[&info_dst, &gap_submessage],
-                        self.guid.prefix(),
-                    )
-                    .buffer()
-                    .len();
-                    message_writer.write_message(len, reader_proxy.unicast_locator_list())
-                }
+                let frag_iter =
+                    core::iter::once(nackfrag_submessage.fragment_number_state().base())
+                        .chain(nackfrag_submessage.fragment_number_state().set());
+                reader_proxy.requested_fragments_set(change_seq_num, frag_iter);
             }
         }
     }
@@ -730,6 +654,70 @@ impl RtpsReaderProxy {
                 }
             }
         }
+
+        if !self.requested_fragments().is_empty() {
+            while let Some((change_seq_num, request_fragment_number)) =
+                self.next_requested_fragment()
+            {
+                if let Some(cache_change) = changes.iter().find(|cc| {
+                    cc.sequence_number == change_seq_num
+                        && change_seq_num >= self.first_relevant_sample_seq_num()
+                }) {
+                    let number_of_fragments = cache_change
+                        .data_value
+                        .len()
+                        .div_ceil(data_max_size_serialized);
+                    let request_fragment_number = request_fragment_number as usize;
+                    if (1..=number_of_fragments).contains(&request_fragment_number)
+                        && cache_change.kind == ChangeKind::Alive
+                    {
+                        let reader_id = self.remote_reader_guid().entity_id();
+                        let data_frag = cache_change.as_data_frag_submessage(
+                            reader_id,
+                            writer_id,
+                            data_max_size_serialized,
+                            request_fragment_number - 1,
+                        );
+
+                        let info_dst =
+                            InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
+                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
+                        {
+                            InfoTimestampSubmessage::new(false, timestamp.into())
+                        } else {
+                            InfoTimestampSubmessage::new(true, TIME_INVALID)
+                        };
+
+                        let len = RtpsMessageWrite::from_submessages(
+                            message_writer.write_buffer_mut(),
+                            &[&info_dst, &info_timestamp, &data_frag],
+                            guid_prefix,
+                        )
+                        .buffer()
+                        .len();
+                        message_writer.write_message(len, self.unicast_locator_list());
+                    }
+                } else {
+                    let info_dst =
+                        InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
+                    let gap_submessage = GapSubmessage::new(
+                        ENTITYID_UNKNOWN,
+                        writer_id,
+                        change_seq_num,
+                        SequenceNumberSet::new(change_seq_num + 1, []),
+                    );
+
+                    let len = RtpsMessageWrite::from_submessages(
+                        message_writer.write_buffer_mut(),
+                        &[&info_dst, &gap_submessage],
+                        guid_prefix,
+                    )
+                    .buffer()
+                    .len();
+                    message_writer.write_message(len, self.unicast_locator_list());
+                }
+            }
+        }
     }
 }
 
@@ -868,11 +856,8 @@ mod tests {
             total_fragments_sent: Mutex::new(0),
             buffer: [0; 65535],
         };
-        writer.on_nack_frag_submessage_received(
-            &nackfrag_submessage,
-            remote_reader_guid_prefix,
-            &mut message_writer,
-        );
+        writer.on_nack_frag_submessage_received(&nackfrag_submessage, remote_reader_guid_prefix);
+        writer.write_message(&mut message_writer, Time::new(1, 0));
 
         assert_eq!(*message_writer.total_fragments_sent.lock().unwrap(), 1);
     }
@@ -1038,12 +1023,8 @@ mod tests {
             data_count: Mutex::new(0),
             buffer: [0; 65535],
         };
-        writer.on_acknack_submessage_received(
-            &acknack_submessage,
-            remote_reader_guid_prefix,
-            &mut ack_response_writer,
-            Time::new(1, 0),
-        );
+        writer.on_acknack_submessage_received(&acknack_submessage, remote_reader_guid_prefix);
+        writer.write_message(&mut ack_response_writer, Time::new(1, 0));
 
         // Now DATA should have been sent in response to the AckNack
         assert_eq!(*ack_response_writer.data_count.lock().unwrap(), 1);

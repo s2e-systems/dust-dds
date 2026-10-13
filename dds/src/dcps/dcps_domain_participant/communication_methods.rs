@@ -943,7 +943,6 @@ impl DcpsDomainParticipant {
                                 message_receiver.source_guid_prefix(),
                                 heartbeat_frag_submessage.writer_id(),
                             );
-                            let reader_guid = dr.transport_reader.guid();
                             if let Some(writer_proxy) =
                                 dr.transport_reader.matched_writer_lookup(writer_guid)
                             {
@@ -953,10 +952,7 @@ impl DcpsDomainParticipant {
                                     writer_proxy.set_last_received_heartbeat_frag_count(
                                         heartbeat_frag_submessage.count(),
                                     );
-                                    writer_proxy.write_message(
-                                        &reader_guid,
-                                        self.transport.message_writer.as_mut(),
-                                    );
+                                    writer_proxy.set_must_send_acknacks(true);
                                 }
                             }
                         }
@@ -973,8 +969,6 @@ impl DcpsDomainParticipant {
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
-                                    self.transport.message_writer.as_mut(),
-                                    now,
                                 )
                                 .is_some()
                             {
@@ -1000,11 +994,8 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_mut(),
-                                now,
                             );
                         }
-                        self.process_pending_write_samples(now);
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                         for dw in self
@@ -1016,7 +1007,6 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_mut(),
                             );
                         }
                         for dw in self
@@ -1027,7 +1017,6 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                self.transport.message_writer.as_mut(),
                             );
                         }
                     }
@@ -1118,7 +1107,6 @@ impl DcpsDomainParticipant {
                     message_receiver.source_guid_prefix(),
                     heartbeat_submessage.writer_id(),
                 );
-                let reader_guid = dr.transport_reader.guid();
                 if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
                     if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                         writer_proxy
@@ -1130,9 +1118,6 @@ impl DcpsDomainParticipant {
                             || (!heartbeat_submessage.liveliness_flag()
                                 && writer_proxy.missing_changes().count() > 0);
                         writer_proxy.set_must_send_acknacks(must_send_acknacks);
-
-                        writer_proxy
-                            .write_message(&reader_guid, self.transport.message_writer.as_mut());
                     }
                 }
 
@@ -1152,7 +1137,6 @@ impl DcpsDomainParticipant {
                 message_receiver.source_guid_prefix(),
                 heartbeat_submessage.writer_id(),
             );
-            let reader_guid = dr.transport_reader.guid();
             if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
                 if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                     writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
@@ -1163,9 +1147,6 @@ impl DcpsDomainParticipant {
                         || (!heartbeat_submessage.liveliness_flag()
                             && writer_proxy.missing_changes().count() > 0);
                     writer_proxy.set_must_send_acknacks(must_send_acknacks);
-
-                    writer_proxy
-                        .write_message(&reader_guid, self.transport.message_writer.as_mut());
                 }
             }
         }
@@ -1195,12 +1176,27 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn poke(&mut self, now: Time) {
+    pub fn write_messages(&mut self, now: Time) {
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
             .transport_writer
             .write_message(self.transport.message_writer.as_mut());
+        for dr in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter(),
+            )
+        {
+            dr.transport_reader
+                .write_message(self.transport.message_writer.as_mut());
+        }
         for dw in self
             .domain_participant
             .builtin_publisher
@@ -1218,5 +1214,6 @@ impl DcpsDomainParticipant {
             dw.transport_writer
                 .write_message(self.transport.message_writer.as_mut(), now);
         }
+        self.process_pending_write_samples(now);
     }
 }
