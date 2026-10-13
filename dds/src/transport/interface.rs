@@ -1,49 +1,24 @@
-use crate::{
-    dcps::dcps_mail::WireMail, dds_async::domain_participant_factory::WireSender,
-    infrastructure::instance::InstanceHandle, transport::types::Locator,
-};
-use alloc::{boxed::Box, vec::Vec};
+use crate::transport::types::{Locator, TransportHandle};
 
-pub trait WriteMessage {
-    fn write_buffer_mut(&mut self) -> &mut [u8];
-    fn write_message(&mut self, len: usize, locators: &[Locator]);
+pub trait Write {
+    fn write(&mut self, buf: &[u8]);
+    fn flush(&mut self);
 }
 
-#[derive(Clone)]
-pub struct TransportDataReceiver {
-    participant_handle: InstanceHandle,
-    wire_sender: WireSender,
+pub trait RtpsParticipant {
+    fn default_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn metatraffic_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn metatraffic_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn default_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator];
+    fn fragment_size(&self, handle: TransportHandle) -> usize;
 }
-impl TransportDataReceiver {
-    pub(crate) fn new(participant_handle: InstanceHandle, wire_sender: WireSender) -> Self {
-        Self {
-            participant_handle,
-            wire_sender,
-        }
-    }
+pub trait Transport: Send + 'static {
+    fn create_participant(&mut self, domain_id: i32) -> TransportHandle;
 
-    pub async fn receive_message(&self, data_message: Vec<u8>) {
-        self.wire_sender
-            .send(WireMail {
-                participant_handle: self.participant_handle,
-                data_message,
-            })
-            .await;
-    }
-}
+    fn delete_participant(&mut self, handle: TransportHandle);
 
-pub struct RtpsTransportParticipant {
-    pub message_writer: Box<dyn WriteMessage + Send + Sync>,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub fragment_size: usize,
-}
-pub trait TransportParticipantFactory: Send + 'static {
-    fn create_participant(
-        &self,
-        domain_id: i32,
-        data_receiver: TransportDataReceiver,
-    ) -> RtpsTransportParticipant;
+    fn writer<'a>(&'a mut self, handle: TransportHandle, locator: &'a [Locator])
+    -> impl Write + 'a;
+
+    fn read(&mut self) -> impl Future<Output = &[u8]> + Send;
 }

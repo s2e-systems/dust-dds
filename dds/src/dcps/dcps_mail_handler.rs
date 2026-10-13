@@ -24,6 +24,11 @@ impl DcpsParticipantFactory {
         now: Time,
         runtime: &impl DdsRuntime,
         security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        transport: &mut (
+                 impl crate::transport::interface::Transport
+                 + crate::transport::interface::RtpsParticipant
+                 + ?Sized
+             ),
     ) -> DcpsReply
     where
         Auth: Authentication,
@@ -33,12 +38,11 @@ impl DcpsParticipantFactory {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant(p)) => {
                 DcpsReply::InstanceHandle(self.create_participant(
-                    p.guid_prefix,
                     p.domain_id,
                     p.qos,
                     p.dcps_listener,
                     p.listener_mask,
-                    p.transport_participant,
+                    transport,
                     now,
                     runtime,
                     security,
@@ -46,7 +50,7 @@ impl DcpsParticipantFactory {
             }
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
-            }) => DcpsReply::Ok(self.delete_participant(&participant_handle, now)),
+            }) => DcpsReply::Ok(self.delete_participant(&participant_handle, now, transport)),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
             }) => DcpsReply::Ok(self.set_default_participant_qos(*qos)),
@@ -125,6 +129,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
+                        transport,
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -208,7 +213,7 @@ impl DcpsParticipantFactory {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => DcpsReply::Ok(p.delete_participant_contained_entities(now)),
+                Ok(p) => DcpsReply::Ok(p.delete_participant_contained_entities(now, transport)),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
@@ -300,6 +305,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.domain_tag().to_string(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -332,6 +338,7 @@ impl DcpsParticipantFactory {
                     Ok(p) => DcpsReply::Ok(p.enable_domain_participant(
                         now,
                         self.configuration.domain_tag().to_string(),
+                        transport,
                     )),
                     Err(e) => DcpsReply::Ok(Err(e)),
                 }
@@ -373,6 +380,7 @@ impl DcpsParticipantFactory {
                     topic_name,
                     now,
                     self.configuration.enable_type_information(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -399,6 +407,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
+                        transport,
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -413,9 +422,12 @@ impl DcpsParticipantFactory {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => {
-                    DcpsReply::Ok(p.delete_data_writer(&publisher_handle, &datawriter_handle, now))
-                }
+                Ok(p) => DcpsReply::Ok(p.delete_data_writer(
+                    &publisher_handle,
+                    &datawriter_handle,
+                    now,
+                    transport,
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Publisher(PublisherServiceMail::GetDefaultDataWriterQos {
@@ -577,6 +589,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
+                        transport,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -614,6 +627,7 @@ impl DcpsParticipantFactory {
                             timestamp,
                             now,
                             reply_sender,
+                            transport,
                         );
                     }
                     Err(e) => reply_sender.send(Err(e)),
@@ -640,6 +654,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
+                        transport,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -669,6 +684,7 @@ impl DcpsParticipantFactory {
                     &data_writer_handle,
                     now,
                     self.configuration.enable_type_information(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -689,6 +705,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -708,6 +725,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
+                        transport,
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -722,9 +740,12 @@ impl DcpsParticipantFactory {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => {
-                    DcpsReply::Ok(p.delete_data_reader(&subscriber_handle, &datareader_handle, now))
-                }
+                Ok(p) => DcpsReply::Ok(p.delete_data_reader(
+                    &subscriber_handle,
+                    &datareader_handle,
+                    now,
+                    transport,
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::LookupDataReader {
@@ -801,6 +822,7 @@ impl DcpsParticipantFactory {
                     &data_reader_handle,
                     now,
                     self.configuration.enable_type_information(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -931,6 +953,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
+                    transport,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },

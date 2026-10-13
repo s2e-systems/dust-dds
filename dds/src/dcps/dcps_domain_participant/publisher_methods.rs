@@ -26,7 +26,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime, transport))]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -37,6 +37,11 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
         now: Time,
         enable_type_information: bool,
+        transport: &mut (
+                 impl crate::transport::interface::Transport
+                 + crate::transport::interface::RtpsParticipant
+                 + ?Sized
+             ),
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -110,7 +115,7 @@ impl DcpsDomainParticipant {
         let guid = Guid::from(*self.domain_participant.instance_handle.as_ref());
         let transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid.prefix(), entity_id),
-            self.transport.fragment_size,
+            transport.fragment_size(self.transport_handle),
         );
         let key_holder_type = super::topic_entity::get_topic_type_support(
             &topic.topic_name,
@@ -142,18 +147,20 @@ impl DcpsDomainParticipant {
                 &writer_handle,
                 now,
                 enable_type_information,
+                transport,
             )?;
         }
 
         Ok(data_writer_handle)
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport))]
     pub fn delete_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         datawriter_handle: &InstanceHandle,
         now: Time,
+        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -170,7 +177,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer, now);
+            self.announce_deleted_data_writer(data_writer, now, transport);
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)

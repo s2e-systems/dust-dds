@@ -428,7 +428,16 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_builtin_cache_changes(&mut self, reception_timestamp: Time, domain_tag: String) {
+    pub fn process_builtin_cache_changes(
+        &mut self,
+        reception_timestamp: Time,
+        domain_tag: String,
+        transport: &mut (
+                 impl crate::transport::interface::Transport
+                 + crate::transport::interface::RtpsParticipant
+                 + ?Sized
+             ),
+    ) {
         // 1. SPDP Participant Reader
         if !self
             .domain_participant
@@ -455,11 +464,30 @@ impl DcpsDomainParticipant {
                         let instance_handle = InstanceHandle::new(
                             discovered_participant_data.dds_participant_data.key.value,
                         );
-                        self.add_discovered_participant(
+                        if self.add_discovered_participant(
                             &discovered_participant_data,
                             reception_timestamp,
                             domain_tag.clone(),
-                        );
+                            transport,
+                        ) {
+                            self.domain_participant
+                                .builtin_subscriber
+                                .dcps_participant_reader
+                                .add_reader_change(
+                                    cache_change.writer_guid,
+                                    cache_change.data_value,
+                                    cache_change.kind,
+                                    instance_handle.into(),
+                                    cache_change.source_timestamp.map(Into::into),
+                                    reception_timestamp,
+                                )
+                                .ok();
+                        }
+                    }
+                } else {
+                    let instance_handle =
+                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
+                    if self.remove_discovered_participant(&instance_handle, reception_timestamp) {
                         self.domain_participant
                             .builtin_subscriber
                             .dcps_participant_reader
@@ -473,22 +501,6 @@ impl DcpsDomainParticipant {
                             )
                             .ok();
                     }
-                } else {
-                    let instance_handle =
-                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
-                    self.remove_discovered_participant(&instance_handle, reception_timestamp);
-                    self.domain_participant
-                        .builtin_subscriber
-                        .dcps_participant_reader
-                        .add_reader_change(
-                            cache_change.writer_guid,
-                            cache_change.data_value,
-                            cache_change.kind,
-                            instance_handle.into(),
-                            cache_change.source_timestamp.map(Into::into),
-                            reception_timestamp,
-                        )
-                        .ok();
                 }
             }
         }
@@ -856,7 +868,11 @@ impl DcpsDomainParticipant {
                 .ok()
                 .and_then(|mut d| TypeLookupRequest::create_sample(&mut d))
                 {
-                    self.handle_type_lookup_request(type_lookup_request, reception_timestamp);
+                    self.handle_type_lookup_request(
+                        type_lookup_request,
+                        reception_timestamp,
+                        transport,
+                    );
                 }
             }
         }
@@ -899,7 +915,11 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, data_message))]
-    pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
+    pub fn handle_data(
+        &mut self,
+        data_message: &[u8],
+        now: Time,
+    ) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
             if let Some(matched_participant) = self
                 .domain_participant
@@ -924,7 +944,10 @@ impl DcpsDomainParticipant {
                         self.handle_gap_submessage(&message_receiver, gap_submessage);
                     }
                     RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                        self.handle_heartbeat_submessage(&message_receiver, heartbeat_submessage);
+                        self.handle_heartbeat_submessage(
+                            &message_receiver,
+                            heartbeat_submessage,
+                        );
                     }
                     RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
                         for dr in self
@@ -1176,12 +1199,16 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn write_messages(&mut self, now: Time) {
+    pub fn write_messages(
+        &mut self,
+        now: Time,
+        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+    ) {
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut());
+            .write_message(transport);
         for dr in self
             .domain_participant
             .user_defined_subscriber_list
@@ -1194,16 +1221,14 @@ impl DcpsDomainParticipant {
                     .into_iter(),
             )
         {
-            dr.transport_reader
-                .write_message(self.transport.message_writer.as_mut());
+            dr.transport_reader.write_message(transport);
         }
         for dw in self
             .domain_participant
             .builtin_publisher
             .stateful_data_writer_list_mut()
         {
-            dw.transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+            dw.transport_writer.write_message(transport, now);
         }
         for dw in self
             .domain_participant
@@ -1211,9 +1236,8 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
-            dw.transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+            dw.transport_writer.write_message(transport, now);
         }
-        self.process_pending_write_samples(now);
+        self.process_pending_write_samples(now, transport);
     }
 }
