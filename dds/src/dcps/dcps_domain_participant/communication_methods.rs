@@ -464,12 +464,30 @@ impl DcpsDomainParticipant {
                         let instance_handle = InstanceHandle::new(
                             discovered_participant_data.dds_participant_data.key.value,
                         );
-                        self.add_discovered_participant(
+                        if self.add_discovered_participant(
                             &discovered_participant_data,
                             reception_timestamp,
                             domain_tag.clone(),
                             transport,
-                        );
+                        ) {
+                            self.domain_participant
+                                .builtin_subscriber
+                                .dcps_participant_reader
+                                .add_reader_change(
+                                    cache_change.writer_guid,
+                                    cache_change.data_value,
+                                    cache_change.kind,
+                                    instance_handle.into(),
+                                    cache_change.source_timestamp.map(Into::into),
+                                    reception_timestamp,
+                                )
+                                .ok();
+                        }
+                    }
+                } else {
+                    let instance_handle =
+                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
+                    if self.remove_discovered_participant(&instance_handle, reception_timestamp) {
                         self.domain_participant
                             .builtin_subscriber
                             .dcps_participant_reader
@@ -483,22 +501,6 @@ impl DcpsDomainParticipant {
                             )
                             .ok();
                     }
-                } else {
-                    let instance_handle =
-                        InstanceHandle::new(cache_change.instance_handle.unwrap_or_default());
-                    self.remove_discovered_participant(&instance_handle, reception_timestamp);
-                    self.domain_participant
-                        .builtin_subscriber
-                        .dcps_participant_reader
-                        .add_reader_change(
-                            cache_change.writer_guid,
-                            cache_change.data_value,
-                            cache_change.kind,
-                            instance_handle.into(),
-                            cache_change.source_timestamp.map(Into::into),
-                            reception_timestamp,
-                        )
-                        .ok();
                 }
             }
         }
@@ -912,12 +914,11 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, data_message, transport))]
+    #[tracing::instrument(skip(self, data_message))]
     pub fn handle_data(
         &mut self,
         data_message: &[u8],
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
     ) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
             if let Some(matched_participant) = self
@@ -946,7 +947,6 @@ impl DcpsDomainParticipant {
                         self.handle_heartbeat_submessage(
                             &message_receiver,
                             heartbeat_submessage,
-                            transport,
                         );
                     }
                     RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
@@ -966,7 +966,6 @@ impl DcpsDomainParticipant {
                                 message_receiver.source_guid_prefix(),
                                 heartbeat_frag_submessage.writer_id(),
                             );
-                            let reader_guid = dr.transport_reader.guid();
                             if let Some(writer_proxy) =
                                 dr.transport_reader.matched_writer_lookup(writer_guid)
                             {
@@ -976,7 +975,7 @@ impl DcpsDomainParticipant {
                                     writer_proxy.set_last_received_heartbeat_frag_count(
                                         heartbeat_frag_submessage.count(),
                                     );
-                                    writer_proxy.write_message(&reader_guid, transport);
+                                    writer_proxy.set_must_send_acknacks(true);
                                 }
                             }
                         }
@@ -993,8 +992,6 @@ impl DcpsDomainParticipant {
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
-                                    transport,
-                                    now,
                                 )
                                 .is_some()
                             {
@@ -1020,11 +1017,8 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
-                                transport,
-                                now,
                             );
                         }
-                        self.process_pending_write_samples(now, transport);
                     }
                     RtpsSubmessageReadKind::NackFrag(nack_frag_submessage) => {
                         for dw in self
@@ -1036,7 +1030,6 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                transport,
                             );
                         }
                         for dw in self
@@ -1047,7 +1040,6 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
-                                transport,
                             );
                         }
                     }
@@ -1127,7 +1119,6 @@ impl DcpsDomainParticipant {
         &mut self,
         message_receiver: &MessageReceiver<'_>,
         heartbeat_submessage: &HeartbeatSubmessage,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
     ) {
         for s in self
             .domain_participant
@@ -1139,7 +1130,6 @@ impl DcpsDomainParticipant {
                     message_receiver.source_guid_prefix(),
                     heartbeat_submessage.writer_id(),
                 );
-                let reader_guid = dr.transport_reader.guid();
                 if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
                     if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                         writer_proxy
@@ -1151,8 +1141,6 @@ impl DcpsDomainParticipant {
                             || (!heartbeat_submessage.liveliness_flag()
                                 && writer_proxy.missing_changes().count() > 0);
                         writer_proxy.set_must_send_acknacks(must_send_acknacks);
-
-                        writer_proxy.write_message(&reader_guid, transport);
                     }
                 }
 
@@ -1172,7 +1160,6 @@ impl DcpsDomainParticipant {
                 message_receiver.source_guid_prefix(),
                 heartbeat_submessage.writer_id(),
             );
-            let reader_guid = dr.transport_reader.guid();
             if let Some(writer_proxy) = dr.transport_reader.matched_writer_lookup(writer_guid) {
                 if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count() {
                     writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count());
@@ -1183,8 +1170,6 @@ impl DcpsDomainParticipant {
                         || (!heartbeat_submessage.liveliness_flag()
                             && writer_proxy.missing_changes().count() > 0);
                     writer_proxy.set_must_send_acknacks(must_send_acknacks);
-
-                    writer_proxy.write_message(&reader_guid, transport);
                 }
             }
         }
@@ -1214,7 +1199,7 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn poke(
+    pub fn write_messages(
         &mut self,
         now: Time,
         transport: &mut (impl crate::transport::interface::Transport + ?Sized),
@@ -1224,6 +1209,20 @@ impl DcpsDomainParticipant {
             .dcps_participant_writer
             .transport_writer
             .write_message(transport);
+        for dr in self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .flat_map(|s| s.data_reader_list.iter_mut().map(|dr| &mut dr.reader))
+            .chain(
+                self.domain_participant
+                    .builtin_subscriber
+                    .stateful_data_reader_list_mut()
+                    .into_iter(),
+            )
+        {
+            dr.transport_reader.write_message(transport);
+        }
         for dw in self
             .domain_participant
             .builtin_publisher
@@ -1239,5 +1238,6 @@ impl DcpsDomainParticipant {
         {
             dw.transport_writer.write_message(transport, now);
         }
+        self.process_pending_write_samples(now, transport);
     }
 }

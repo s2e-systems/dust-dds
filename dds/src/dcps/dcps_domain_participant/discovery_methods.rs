@@ -2650,7 +2650,7 @@ impl DcpsDomainParticipant {
                  + crate::transport::interface::RtpsParticipant
                  + ?Sized
              ),
-    ) {
+    ) -> bool {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -2734,11 +2734,25 @@ impl DcpsDomainParticipant {
                 p.lease_duration = discovered_participant_data.lease_duration;
                 p.last_communication_timestamp = now;
             }
+            true
+        } else {
+            false
         }
     }
 
     /// Remove discovered [domain participant](SpdpDiscoveredParticipantData) with the speficied [handle](InstanceHandle).
-    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle, now: Time) {
+    pub fn remove_discovered_participant(&mut self, handle: &InstanceHandle, now: Time) -> bool {
+        let is_participant_discovered = self
+            .domain_participant
+            .discovered_participant_list
+            .iter()
+            .any(|domain_participant| {
+                &domain_participant.dds_participant_data.key.value == handle
+            });
+        if !is_participant_discovered {
+            return false;
+        }
+
         self.domain_participant
             .discovered_participant_list
             .retain(|domain_participant| {
@@ -2799,6 +2813,7 @@ impl DcpsDomainParticipant {
         self.remove_matched_service_request_data_writer(prefix);
         self.remove_matched_service_reply_data_reader(prefix);
         self.remove_matched_service_reply_data_writer(prefix);
+        true
     }
 
     #[tracing::instrument(skip(self))]

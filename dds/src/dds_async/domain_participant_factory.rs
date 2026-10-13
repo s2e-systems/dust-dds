@@ -281,7 +281,6 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
                                 dp.remove_stale_writer_samples(now);
                                 dp.remove_stale_reader_samples(now);
                                 dp.check_pending_writer_sample_timeout(now);
-                                dp.process_pending_write_samples(now, &mut transport);
                                 dp.announce_participant_if_needed(
                                     now,
                                     domain_participant_factory
@@ -295,15 +294,15 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
                                     &mut transport,
                                 );
                                 dp.notify_find_topic_senders(now);
-                                dp.poke(now, &mut transport);
+                                dp.write_messages(now, &mut transport);
                             }
                         }
                         Either3::C(data) => {
                             let now = runtime.clock().now();
-                            let mut datagram = alloc::vec::Vec::new();
-                            datagram.extend_from_slice(data);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.handle_data(&datagram, now, &mut transport);
+                                dp.handle_data(data, now);
+                            }
+                            for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
@@ -314,6 +313,7 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now, &mut transport);
+                                dp.write_messages(now, &mut transport);
                             }
                         }
                     };
@@ -332,10 +332,10 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
                         }
                         Either::B(data) => {
                             let now = runtime.clock().now();
-                            let mut datagram = alloc::vec::Vec::new();
-                            datagram.extend_from_slice(data);
                             for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.handle_data(&datagram, now, &mut transport);
+                                dp.handle_data(data, now);
+                            }
+                            for dp in &mut domain_participant_factory.domain_participant_list {
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
@@ -346,6 +346,7 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now, &mut transport);
+                                dp.write_messages(now, &mut transport);
                             }
                         }
                     };
