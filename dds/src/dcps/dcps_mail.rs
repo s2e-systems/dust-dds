@@ -32,7 +32,7 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    transport::{interface::RtpsTransportParticipant, types::GuidPrefix},
+    transport::types::GuidPrefix,
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 

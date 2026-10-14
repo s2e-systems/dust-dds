@@ -140,7 +140,7 @@ pub struct RtpsUdpTransport {
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
-    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 512>>,
     receive_buffer: Vec<u8>,
     entity_counter: u32,
 }
