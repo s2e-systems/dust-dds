@@ -316,7 +316,7 @@ impl DomainParticipantFactoryAsync {
                                 .iter_mut()
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
-                                dp.handle_data(&data, now);
+                                dp.handle_data(data, now);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
@@ -350,7 +350,7 @@ impl DomainParticipantFactoryAsync {
                                 .iter_mut()
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
-                                dp.handle_data(&data, now);
+                                dp.handle_data(data, now);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
