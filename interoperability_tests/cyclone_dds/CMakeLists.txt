@@ -20,7 +20,7 @@ if(NOT CycloneDDS_FOUND)
     CycloneDDS
     GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
     # FIXME: proper tag and not a commit hash
-    GIT_TAG 2f0d07d241f62f7121749b46721049e4dea5c58b
+    GIT_TAG fa9f12342c28c11b29231b57795f873ed58ce2f9
     # FIXME: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
     # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
     # GIT_SHALLOW ON
