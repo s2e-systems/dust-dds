@@ -12,7 +12,6 @@ use crate::{
         configuration::DustDdsConfiguration,
         domain::DomainId,
         error::DdsResult,
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -24,10 +23,7 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
-    transport::{
-        interface::{TransportDataReceiver, TransportParticipantFactory},
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
-    },
+    transport::{interface::TransportParticipantFactory, types::GuidPrefix},
 };
 
 const WIRE_CHANNEL_SIZE: usize = 256;
@@ -42,45 +38,20 @@ pub type WireChannel = embassy_sync::channel::Channel<
     WIRE_CHANNEL_SIZE,
 >;
 
-#[doc(hidden)]
-#[derive(Clone)]
-pub struct WireSender {
-    channel: Arc<WireChannel>,
-}
-
-impl WireSender {
-    pub async fn send(&self, message: WireMail) {
-        self.channel.send(message).await;
-    }
-}
-
-#[doc(hidden)]
-pub struct WireReceiver {
-    channel: Arc<WireChannel>,
-}
-
-impl WireReceiver {
-    pub async fn receive(&self) -> WireMail {
-        self.channel.receive().await
-    }
-}
-
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
 /// a constructor by passing a DDS runtime. This allows the factory
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
-pub struct DomainParticipantFactoryAsync<T: TransportParticipantFactory> {
+pub struct DomainParticipantFactoryAsync {
     dcps_sender: DcpsSender,
-    wire_sender: WireSender,
     entity_counter: core::sync::atomic::AtomicU32,
     app_id: [u8; 4],
     host_id: [u8; 4],
-    transport: T,
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
+impl DomainParticipantFactoryAsync {
     /// Async version of [`create_participant`](crate::domain::domain_participant_factory::DomainParticipantFactory::create_participant).
     pub async fn create_participant(
         &self,
@@ -90,11 +61,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
         let guid_prefix = self.create_new_guid_prefix();
-        let participant_handle = InstanceHandle::from(Guid::new(guid_prefix, ENTITYID_PARTICIPANT));
-        let transport_participant = self.transport.create_participant(
-            domain_id,
-            TransportDataReceiver::new(participant_handle, self.wire_sender.clone()),
-        );
 
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
@@ -108,7 +74,6 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     qos,
                     dcps_listener,
                     listener_mask,
-                    transport_participant,
                 })),
             ))
             .await?;
@@ -228,7 +193,7 @@ pub fn get_host_id() -> [u8; 4] {
 }
 
 #[cfg(feature = "std")]
-impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::RtpsUdpTransport> {
+impl DomainParticipantFactoryAsync {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
     #[tracing::instrument]
@@ -254,11 +219,7 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     ) -> &'static Self {
         use std::sync::OnceLock;
 
-        static PARTICIPANT_FACTORY_ASYNC: OnceLock<
-            DomainParticipantFactoryAsync<
-                crate::rtps_udp_transport::udp_transport::RtpsUdpTransport,
-            >,
-        > = OnceLock::new();
+        static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let runtime = crate::std_runtime::StdRuntime::default();
             let host_id = get_host_id();
@@ -268,10 +229,11 @@ impl DomainParticipantFactoryAsync<crate::rtps_udp_transport::udp_transport::Rtp
     }
 }
 
-impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
+impl DomainParticipantFactoryAsync {
     #[doc(hidden)]
     pub fn new<
         R: DdsRuntime,
+        T: TransportParticipantFactory,
         Auth: Authentication,
         Access: AccessControl,
         Crypto: Cryptographic,
@@ -280,18 +242,12 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         host_id: [u8; 4],
         configuration: DustDdsConfiguration,
         runtime: R,
-        transport: T,
+        mut transport: T,
         mut security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());
-        let wire_channel = Arc::new(WireChannel::new());
-        let wire_sender = WireSender {
-            channel: wire_channel.clone(),
-        };
-        let wire_receiver = WireReceiver {
-            channel: wire_channel,
-        };
+
         let spawner_handle = runtime.spawner();
         let mut timer_handle = runtime.timer();
 
@@ -313,7 +269,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                     match select3_future(
                         rpc_mailbox.receive_request(),
                         timer_handle.delay(next_task_time.into()),
-                        wire_receiver.receive(),
+                        transport.read(),
                     )
                     .await
                     {
@@ -323,6 +279,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 user_mail,
                                 now,
                                 &runtime,
+                                &mut transport,
                                 &mut security,
                             );
                             rpc_mailbox.send_reply(reply).await;
@@ -352,14 +309,14 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 dp.write_messages(now);
                             }
                         }
-                        Either3::C(wire_mail) => {
+                        Either3::C((transport_handle, data)) => {
                             let now = runtime.clock().now();
                             if let Some(dp) = domain_participant_factory
                                 .domain_participant_list
                                 .iter_mut()
-                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+                                .find(|x| x.get_transport_handle() == &transport_handle)
                             {
-                                dp.handle_data(&wire_mail.data_message, now);
+                                dp.handle_data(data, now);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
@@ -374,27 +331,26 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                         }
                     };
                 } else {
-                    match select_future(rpc_mailbox.receive_request(), wire_receiver.receive())
-                        .await
-                    {
+                    match select_future(rpc_mailbox.receive_request(), transport.read()).await {
                         Either::A(user_mail) => {
                             let now = runtime.clock().now();
                             let reply = domain_participant_factory.handle(
                                 user_mail,
                                 now,
                                 &runtime,
+                                &mut transport,
                                 &mut security,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
-                        Either::B(wire_mail) => {
+                        Either::B((transport_handle, data)) => {
                             let now = runtime.clock().now();
                             if let Some(dp) = domain_participant_factory
                                 .domain_participant_list
                                 .iter_mut()
-                                .find(|x| x.get_instance_handle() == &wire_mail.participant_handle)
+                                .find(|x| x.get_transport_handle() == &transport_handle)
                             {
-                                dp.handle_data(&wire_mail.data_message, now);
+                                dp.handle_data(data, now);
                                 dp.process_builtin_cache_changes(
                                     now,
                                     domain_participant_factory
@@ -413,11 +369,9 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
         });
         Self {
             dcps_sender,
-            wire_sender,
             app_id,
             host_id,
             entity_counter: core::sync::atomic::AtomicU32::new(0),
-            transport,
             worker_task: Box::new(worker_task),
             run_loop,
         }

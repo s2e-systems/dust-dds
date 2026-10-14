@@ -37,7 +37,7 @@ use crate::{
     },
     transport::{
         interface::RtpsTransportParticipant,
-        types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
+        types::{GuidPrefix, Locator, TransportHandle, USER_DEFINED_TOPIC},
     },
     xtypes::dynamic_type::DynamicType,
 };
@@ -266,6 +266,10 @@ impl DcpsDomainParticipant {
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {
         &self.domain_participant.instance_handle
+    }
+
+    pub fn get_transport_handle(&self) -> &TransportHandle {
+        &self.transport.transport_handle
     }
 }
 

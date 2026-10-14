@@ -62,7 +62,7 @@ use crate::{
         },
     },
     transport::{
-        interface::RtpsTransportParticipant,
+        interface::TransportParticipantFactory,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
     xtypes::type_support::Type,
@@ -101,7 +101,7 @@ impl DcpsParticipantFactory {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        transport_participant: RtpsTransportParticipant,
+        transport: &mut impl TransportParticipantFactory,
         now: Time,
         runtime: &impl DdsRuntime,
         _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
@@ -111,6 +111,7 @@ impl DcpsParticipantFactory {
         Access: AccessControl,
         Crypto: Cryptographic,
     {
+        let transport_participant = transport.create_participant(domain_id);
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
