@@ -1,5 +1,8 @@
 mod domain_id_generator;
 
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use std::sync::Arc;
+
 use dust_dds::{
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant::DomainParticipant,
@@ -11,11 +14,8 @@ use dust_dds::{
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
-        interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
-        },
-        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator},
+        interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
+        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator, TransportHandle},
     },
 };
 
@@ -31,15 +31,26 @@ impl WriteMessage for MockWriter {
     fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
 }
 
-struct MockTransport(std::sync::mpsc::SyncSender<TransportDataReceiver>);
+struct MockTransport {
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    receive_buffer: Vec<u8>,
+}
+
+impl MockTransport {
+    fn new(
+        receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    ) -> Self {
+        Self {
+            receive_channel,
+            receive_buffer: Vec::new(),
+        }
+    }
+}
+
 impl TransportParticipantFactory for MockTransport {
-    fn create_participant(
-        &self,
-        _domain_id: i32,
-        data_receiver: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
-        self.0.send(data_receiver).unwrap();
+    fn create_participant(&mut self, _domain_id: i32) -> RtpsTransportParticipant {
         RtpsTransportParticipant {
+            transport_handle: 0,
             message_writer: Box::new(MockWriter { buffer: [0; 512] }),
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
@@ -48,11 +59,17 @@ impl TransportParticipantFactory for MockTransport {
             fragment_size: 1000,
         }
     }
+
+    async fn read(&mut self) -> (TransportHandle, &[u8]) {
+        let (handle, data) = self.receive_channel.receive().await;
+        self.receive_buffer = data;
+        (handle, &self.receive_buffer)
+    }
 }
 
 #[test]
 fn detect_stale_participant() {
-    let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
+    let receive_channel = Arc::new(Channel::new());
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -65,7 +82,7 @@ fn detect_stale_participant() {
         host_id,
         configuration,
         runtime,
-        MockTransport(data_receiver_send),
+        MockTransport::new(receive_channel.clone()),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -82,8 +99,6 @@ fn detect_stale_participant() {
     let guid_prefix: [u8; 12] = <[u8; 16]>::from(participant.get_instance_handle())[0..12]
         .try_into()
         .unwrap();
-
-    let data_receiver = data_receiver_recv.recv().unwrap();
 
     let reader_id = ENTITYID_UNKNOWN;
     const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -132,7 +147,7 @@ fn detect_stale_participant() {
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
 
     dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(spdp_rtps_message.buffer().to_vec()),
+        receive_channel.send((0, spdp_rtps_message.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -147,7 +162,7 @@ fn detect_stale_participant() {
 
 #[test]
 fn xtypes_mismatch_does_not_abort_discovery() {
-    let (data_receiver_send, data_receiver_recv) = std::sync::mpsc::sync_channel(1);
+    let receive_channel = Arc::new(Channel::new());
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -160,7 +175,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         host_id,
         configuration,
         runtime,
-        MockTransport(data_receiver_send),
+        MockTransport::new(receive_channel.clone()),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -173,8 +188,6 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ))
         .unwrap(),
     );
-
-    let data_receiver = data_receiver_recv.recv().unwrap();
 
     #[derive(dust_dds::infrastructure::type_support::DdsType)]
     struct LocalType1 {
@@ -247,7 +260,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let spdp_msg =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
     dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(spdp_msg.buffer().to_vec()),
+        receive_channel.send((0, spdp_msg.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -336,7 +349,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         remote_guid_prefix,
     );
     dust_dds::std_runtime::executor::block_on(
-        data_receiver.receive_message(sedp_msg.buffer().to_vec()),
+        receive_channel.send((0, sedp_msg.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_millis(500));

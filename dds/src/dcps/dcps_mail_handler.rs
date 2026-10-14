@@ -15,6 +15,7 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
+    transport::interface::TransportParticipantFactory,
 };
 
 impl DcpsParticipantFactory {
@@ -23,6 +24,7 @@ impl DcpsParticipantFactory {
         message: DcpsMail,
         now: Time,
         runtime: &impl DdsRuntime,
+        transport: &mut impl TransportParticipantFactory,
         security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DcpsReply
     where
@@ -38,7 +40,7 @@ impl DcpsParticipantFactory {
                     p.qos,
                     p.dcps_listener,
                     p.listener_mask,
-                    p.transport_participant,
+                    transport,
                     now,
                     runtime,
                     security,
