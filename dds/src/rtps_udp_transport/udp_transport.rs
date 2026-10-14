@@ -2,15 +2,13 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
     std_runtime::{self},
     transport::{
-        interface::{
-            RtpsTransportParticipant, TransportDataReceiver, TransportParticipantFactory,
-            WriteMessage,
-        },
-        types::LOCATOR_KIND_UDP_V6,
+        interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
+        types::{LOCATOR_KIND_UDP_V6, TransportHandle},
     },
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -142,6 +140,9 @@ pub struct RtpsUdpTransport {
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    receive_buffer: Vec<u8>,
+    entity_counter: u32,
 }
 
 impl RtpsUdpTransport {
@@ -203,20 +204,22 @@ impl RtpsUdpTransport {
 impl Default for RtpsUdpTransport {
     fn default() -> Self {
         Self {
+            entity_counter: 0,
             interface_name: None,
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
+            receive_channel: Arc::new(Channel::new()),
+            receive_buffer: Vec::new(),
         }
     }
 }
 
 impl TransportParticipantFactory for RtpsUdpTransport {
-    fn create_participant(
-        &self,
-        domain_id: i32,
-        data_channel_sender: TransportDataReceiver,
-    ) -> RtpsTransportParticipant {
+    fn create_participant(&mut self, domain_id: i32) -> RtpsTransportParticipant {
+        let transport_handle = self.entity_counter;
+        self.entity_counter += 1;
+
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -355,7 +358,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficMulticastSocket".to_string())
                 .spawn(move || {
@@ -364,7 +367,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -372,7 +375,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficUnicastSocket".to_string())
                 .spawn(move || {
@@ -381,7 +384,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -389,7 +392,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnDefaultUnicastSocket".to_string())
                 .spawn(move || {
@@ -398,7 +401,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -490,7 +493,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                     .expect("Socket cloning"),
             );
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficMulticastSocketV6".to_string())
                 .spawn(move || {
@@ -499,7 +502,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -507,7 +510,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnMetatrafficUnicastSocketV6".to_string())
                 .spawn(move || {
@@ -516,7 +519,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -524,7 +527,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
 
-            let data_channel_sender_clone = data_channel_sender.clone();
+            let channel_clone = self.receive_channel.clone();
             std::thread::Builder::new()
                 .name("SomethingOnDefaultUnicastSocketV6".to_string())
                 .spawn(move || {
@@ -533,7 +536,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    data_channel_sender_clone.receive_message(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -550,6 +553,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
         );
 
         RtpsTransportParticipant {
+            transport_handle,
             message_writer: Box::new(message_writer),
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
@@ -557,6 +561,12 @@ impl TransportParticipantFactory for RtpsUdpTransport {
             default_multicast_locator_list: Vec::new(),
             fragment_size: self.fragment_size,
         }
+    }
+
+    async fn read(&mut self) -> (TransportHandle, &[u8]) {
+        let received = self.receive_channel.receive().await;
+        self.receive_buffer = received.1;
+        (received.0, &self.receive_buffer)
     }
 }
 

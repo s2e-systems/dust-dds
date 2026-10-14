@@ -6,6 +6,7 @@ pub type Short = i16;
 pub type Long = i32;
 pub type UnsignedLong = u32;
 pub type OctetArray3 = [Octet; 3];
+pub type TransportHandle = u32;
 
 // Table 9.1 - entityKind octet of an EntityId_t
 pub const USER_DEFINED_UNKNOWN: Octet = 0x00;

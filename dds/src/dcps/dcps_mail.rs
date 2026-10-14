@@ -54,7 +54,6 @@ pub struct CreateParticipantMail {
     pub qos: QosKind<DomainParticipantQos>,
     pub dcps_listener: Option<DcpsDomainParticipantListener>,
     pub listener_mask: StatusMask,
-    pub transport_participant: RtpsTransportParticipant,
 }
 
 pub enum ParticipantFactoryMail {
