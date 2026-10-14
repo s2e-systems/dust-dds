@@ -349,7 +349,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                         .to_string(),
                                 );
                                 dp.notify_find_topic_senders(now);
-                                dp.poke(now);
+                                dp.write_messages(now);
                             }
                         }
                         Either3::C(wire_mail) => {
@@ -369,6 +369,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
+                                dp.write_messages(now);
                             }
                         }
                     };
@@ -403,6 +404,7 @@ impl<T: TransportParticipantFactory> DomainParticipantFactoryAsync<T> {
                                 );
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
+                                dp.write_messages(now);
                             }
                         }
                     };
