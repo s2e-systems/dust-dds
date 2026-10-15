@@ -102,6 +102,7 @@ pub struct RtpsReaderProxy {
     highest_sent_seq_num: SequenceNumber,
     highest_acked_seq_num: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
+    requested_fragments: Vec<(SequenceNumber, FragmentNumber)>,
     expects_inline_qos: bool,
     is_active: bool,
     last_received_acknack_count: Count,
@@ -137,6 +138,7 @@ impl RtpsReaderProxy {
             highest_sent_seq_num,
             highest_acked_seq_num: 0,
             requested_changes: Vec::new(),
+            requested_fragments: Vec::new(),
             expects_inline_qos,
             is_active,
             last_received_acknack_count: 0,
@@ -229,6 +231,32 @@ impl RtpsReaderProxy {
         for seq_num in req_seq_num_set {
             if !self.requested_changes.contains(&seq_num) {
                 self.requested_changes.push(seq_num);
+            }
+        }
+    }
+
+    pub fn next_requested_fragment(&mut self) -> Option<(SequenceNumber, FragmentNumber)> {
+        let next_requested_fragment = self.requested_fragments.iter().min().copied();
+
+        if let Some(next_frag) = &next_requested_fragment {
+            self.requested_fragments.retain(|frag| frag != next_frag);
+        }
+
+        next_requested_fragment
+    }
+
+    pub fn requested_fragments(&self) -> &[(SequenceNumber, FragmentNumber)] {
+        &self.requested_fragments
+    }
+
+    pub fn requested_fragments_set(
+        &mut self,
+        seq_num: SequenceNumber,
+        req_frag_num_set: impl Iterator<Item = FragmentNumber>,
+    ) {
+        for frag_num in req_frag_num_set {
+            if !self.requested_fragments.contains(&(seq_num, frag_num)) {
+                self.requested_fragments.push((seq_num, frag_num));
             }
         }
     }
