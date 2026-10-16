@@ -319,6 +319,7 @@ impl DomainParticipantFactoryAsync {
                                         .domain_tag()
                                         .to_string(),
                                 );
+                                dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                                 dp.write_messages(now);
@@ -353,6 +354,7 @@ impl DomainParticipantFactoryAsync {
                                         .domain_tag()
                                         .to_string(),
                                 );
+                                dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                                 dp.write_messages(now);
