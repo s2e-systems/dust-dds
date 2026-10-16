@@ -18,7 +18,7 @@ use crate::{
             builtin_publisher::BuiltinPublisher,
             builtin_subscriber::BuiltinSubscriber,
             data_writer_entity::DataWriterEntity,
-            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
+            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity, TimedEvent},
             type_register::TypeRegister,
         },
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
@@ -328,19 +328,47 @@ impl DcpsParticipantFactory {
         self.qos.clone()
     }
 
-    pub fn time_until_next_event(&self, now: Time) -> Option<Duration> {
-        self.domain_participant_list
-            .iter()
-            .filter_map(|x| {
-                x.time_until_next_event(
-                    now,
-                    self.configuration
-                        .participant_announcement_interval()
-                        .into(),
-                )
-            })
-            .min()
+    pub fn next_timed_event(&self, now: Time) -> Option<ScheduledTimedEvent> {
+        let mut min_event: Option<ScheduledTimedEvent> = None;
+        for dp in &self.domain_participant_list {
+            if let Some((delay, event)) = dp.time_until_next_event(
+                now,
+                self.configuration
+                    .participant_announcement_interval()
+                    .into(),
+            ) {
+                match &min_event {
+                    Some(current) if delay < current.delay => {
+                        min_event = Some(ScheduledTimedEvent {
+                            delay,
+                            participant_handle: *dp.get_instance_handle(),
+                            event,
+                        });
+                    }
+                    None => {
+                        min_event = Some(ScheduledTimedEvent {
+                            delay,
+                            participant_handle: *dp.get_instance_handle(),
+                            event,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
+        min_event
     }
+}
+
+/// Represents a scheduled timed event for a specific domain participant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScheduledTimedEvent {
+    /// Duration until the event should fire.
+    pub delay: Duration,
+    /// Handle of the domain participant the event belongs to.
+    pub participant_handle: InstanceHandle,
+    /// The specific timed event.
+    pub event: TimedEvent,
 }
 
 impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {
