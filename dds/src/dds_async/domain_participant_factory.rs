@@ -263,12 +263,12 @@ impl DomainParticipantFactoryAsync {
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let now = runtime.clock().now();
-                let next_task_time = domain_participant_factory.time_until_next_event(now);
+                let next_event = domain_participant_factory.next_timed_event(now);
 
-                if let Some(next_task_time) = next_task_time {
+                if let Some(scheduled_event) = next_event {
                     match select3_future(
                         rpc_mailbox.receive_request(),
-                        timer_handle.delay(next_task_time.into()),
+                        timer_handle.delay(scheduled_event.delay.into()),
                         transport.read(),
                     )
                     .await
@@ -286,27 +286,22 @@ impl DomainParticipantFactoryAsync {
                         }
                         Either3::B(_) => {
                             let now = runtime.clock().now();
-                            for dp in &mut domain_participant_factory.domain_participant_list {
-                                dp.remove_stale_participants(now);
-                                dp.check_missed_reader_deadline(now);
-                                dp.check_missed_writer_deadline(now);
-                                dp.remove_stale_writer_samples(now);
-                                dp.remove_stale_reader_samples(now);
-                                dp.check_pending_writer_sample_timeout(now);
-                                dp.process_pending_write_samples(now);
-                                dp.announce_participant_if_needed(
+                            if let Some(dp) = domain_participant_factory
+                                .domain_participant_list
+                                .iter_mut()
+                                .find(|x| {
+                                    x.get_instance_handle() == &scheduled_event.participant_handle
+                                })
+                            {
+                                dp.handle_timed_event(
+                                    scheduled_event.event,
                                     now,
                                     domain_participant_factory
                                         .configuration
                                         .participant_announcement_interval()
                                         .into(),
-                                    domain_participant_factory
-                                        .configuration
-                                        .domain_tag()
-                                        .to_string(),
+                                    domain_participant_factory.configuration.domain_tag(),
                                 );
-                                dp.notify_find_topic_senders(now);
-                                dp.write_messages(now);
                             }
                         }
                         Either3::C((transport_handle, data)) => {
@@ -324,6 +319,7 @@ impl DomainParticipantFactoryAsync {
                                         .domain_tag()
                                         .to_string(),
                                 );
+                                dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                                 dp.write_messages(now);
@@ -358,6 +354,7 @@ impl DomainParticipantFactoryAsync {
                                         .domain_tag()
                                         .to_string(),
                                 );
+                                dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
                                 dp.request_topic_type_representation(now);
                                 dp.write_messages(now);
