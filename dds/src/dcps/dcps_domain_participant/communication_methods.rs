@@ -1190,8 +1190,7 @@ impl DcpsDomainParticipant {
             .chain(
                 self.domain_participant
                     .builtin_subscriber
-                    .stateful_data_reader_list_mut()
-                    .into_iter(),
+                    .stateful_data_reader_list_mut(),
             )
         {
             dr.transport_reader
