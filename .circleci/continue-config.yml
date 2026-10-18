@@ -179,7 +179,7 @@ jobs:
           keys:
             - cargo-bloat-bin-v1-{{ arch }}
       - run:
-          name: Install cargo-bloat
+          name: Install cargo-bloat --version 0.11.1
           command: |
             if ! command -v cargo-bloat &> /dev/null; then
               cargo install cargo-bloat
