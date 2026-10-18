@@ -542,7 +542,9 @@ impl TransportParticipantFactory for RtpsUdpTransport {
             socket2_default_unicast_socket_v6
                 .bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)).into())
                 .unwrap();
-            socket2_default_unicast_socket_v6.set_nonblocking(true).unwrap();
+            socket2_default_unicast_socket_v6
+                .set_nonblocking(true)
+                .unwrap();
             if let Some(buffer_size) = self.udp_receive_buffer_size {
                 socket2_default_unicast_socket_v6
                     .set_recv_buffer_size(buffer_size)
