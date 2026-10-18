@@ -1,6 +1,5 @@
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    std_runtime::{self},
     transport::{
         interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
         types::{LOCATOR_KIND_UDP_V6, TransportHandle},
@@ -8,12 +7,18 @@ use crate::{
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use mio::{Events, Interest, Poll, Token, Waker};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
+    future::Future,
     net::{ToSocketAddrs, UdpSocket},
-    sync::Arc,
+    pin::Pin,
+    sync::{
+        Arc, Condvar, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+    task::{Context, Poll as TaskPoll, Waker as TaskWaker},
 };
 use tracing::info;
 
@@ -35,6 +40,41 @@ fn port_builtin_multicast(domain_id: i32) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 
+const WAKER: Token = Token(0);
+
+struct WaitForReadable<'b> {
+    read_waker: &'b (Mutex<Option<TaskWaker>>, Condvar),
+    waker: &'b Arc<Waker>,
+    registered: bool,
+}
+
+impl<'b> Future for WaitForReadable<'b> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> TaskPoll<Self::Output> {
+        let mut guard = self.read_waker.0.lock().unwrap();
+        if self.registered && guard.is_none() {
+            TaskPoll::Ready(())
+        } else {
+            *guard = Some(cx.waker().clone());
+            self.registered = true;
+            self.read_waker.1.notify_one();
+            self.waker.wake().ok();
+            TaskPoll::Pending
+        }
+    }
+}
+
+impl<'b> Drop for WaitForReadable<'b> {
+    fn drop(&mut self) {
+        let mut guard = self.read_waker.0.lock().unwrap();
+        if guard.is_some() {
+            *guard = None;
+            self.waker.wake().ok();
+        }
+    }
+}
+
 fn get_multicast_socket_v4(
     multicast_address: LocatorAddress,
     port: u16,
@@ -51,7 +91,7 @@ fn get_multicast_socket_v4(
     socket.set_reuse_address(true)?;
     #[cfg(target_family = "unix")]
     socket.set_reuse_port(true)?;
-    socket.set_nonblocking(false)?;
+    socket.set_nonblocking(true)?;
 
     socket.bind(&socket_addr.into())?;
     let addr = Ipv4Addr::new(
@@ -92,7 +132,7 @@ fn get_multicast_socket_v6(
     #[cfg(target_family = "unix")]
     socket.set_reuse_port(true)?;
     socket.set_only_v6(true)?;
-    socket.set_nonblocking(false)?;
+    socket.set_nonblocking(true)?;
 
     socket.bind(&socket_addr.into())?;
     let addr = Ipv6Addr::from(multicast_address);
@@ -135,17 +175,58 @@ pub enum IpVersion {
     Both,
 }
 
+struct TransportSocket {
+    transport_handle: TransportHandle,
+    socket: mio::net::UdpSocket,
+}
+
 pub struct RtpsUdpTransport {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
-    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 512>>,
-    receive_buffer: Vec<u8>,
     entity_counter: u32,
+    sockets: Vec<TransportSocket>,
+    last_read_socket_index: usize,
+    receive_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
+    registry: mio::Registry,
+    read_waker: Arc<(Mutex<Option<TaskWaker>>, Condvar)>,
+    waker: Arc<Waker>,
+    is_running: Arc<AtomicBool>,
+    reactor_thread: Option<std::thread::JoinHandle<()>>,
 }
 
 impl RtpsUdpTransport {
+    fn add_socket(&mut self, transport_handle: TransportHandle, mut socket: mio::net::UdpSocket) {
+        let token = Token(self.sockets.len() + 1);
+        self.registry
+            .register(&mut socket, token, Interest::READABLE)
+            .expect("Failed to register socket");
+        self.sockets.push(TransportSocket {
+            transport_handle,
+            socket,
+        });
+    }
+
+    fn try_recv(&mut self) -> Option<(TransportHandle, usize)> {
+        let num_sockets = self.sockets.len();
+        if num_sockets == 0 {
+            return None;
+        }
+        for i in 0..num_sockets {
+            let idx = (self.last_read_socket_index + 1 + i) % num_sockets;
+            let s = &mut self.sockets[idx];
+            match s.socket.recv(&mut *self.receive_buffer) {
+                Ok(size) if size > 0 => {
+                    self.last_read_socket_index = idx;
+                    return Some((s.transport_handle, size));
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
     /// Set the name of the specific interface to use or None for communicating
     /// through all available interfaces
     pub fn set_interface_name(&mut self, interface_name: Option<String>) -> &mut Self {
@@ -203,14 +284,89 @@ impl RtpsUdpTransport {
 
 impl Default for RtpsUdpTransport {
     fn default() -> Self {
+        let mut poll = Poll::new().expect("Failed to create mio Poll");
+        let registry = poll
+            .registry()
+            .try_clone()
+            .expect("Failed to clone mio Registry");
+        let waker =
+            Arc::new(Waker::new(poll.registry(), WAKER).expect("Failed to create mio Waker"));
+        let read_waker = Arc::new((Mutex::new(None::<TaskWaker>), Condvar::new()));
+        let is_running = Arc::new(AtomicBool::new(true));
+
+        let is_running_clone = is_running.clone();
+        let read_waker_clone = read_waker.clone();
+        let reactor_thread = std::thread::Builder::new()
+            .name("DustDdsUdpReactor".to_string())
+            .spawn(move || {
+                let mut events = Events::with_capacity(128);
+                while is_running_clone.load(Ordering::Relaxed) {
+                    {
+                        let mut guard = read_waker_clone.0.lock().unwrap();
+                        while guard.is_none() && is_running_clone.load(Ordering::Relaxed) {
+                            guard = read_waker_clone.1.wait(guard).unwrap();
+                        }
+                    }
+                    if !is_running_clone.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    match poll.poll(&mut events, None) {
+                        Ok(_) => {}
+                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
+
+                    if !is_running_clone.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    let mut has_socket_event = false;
+                    for event in events.iter() {
+                        if event.token() != WAKER {
+                            has_socket_event = true;
+                            break;
+                        }
+                    }
+
+                    if has_socket_event {
+                        let mut guard = read_waker_clone.0.lock().unwrap();
+                        if let Some(w) = guard.take() {
+                            w.wake();
+                        }
+                    }
+                }
+            })
+            .expect("Failed to spawn reactor thread");
+
         Self {
             entity_counter: 0,
             interface_name: None,
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
-            receive_channel: Arc::new(Channel::new()),
-            receive_buffer: Vec::new(),
+            sockets: Vec::new(),
+            last_read_socket_index: 0,
+            receive_buffer: vec![0u8; MAX_DATAGRAM_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
+            registry,
+            read_waker,
+            waker,
+            is_running,
+            reactor_thread: Some(reactor_thread),
+        }
+    }
+}
+
+impl Drop for RtpsUdpTransport {
+    fn drop(&mut self) {
+        self.is_running.store(false, Ordering::Relaxed);
+        self.read_waker.1.notify_all();
+        self.waker.wake().ok();
+        if let Some(thread) = self.reactor_thread.take() {
+            let _ = thread.join();
         }
     }
 }
@@ -272,7 +428,7 @@ impl TransportParticipantFactory for RtpsUdpTransport {
             default_unicast_socket
                 .bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())
                 .unwrap();
-            default_unicast_socket.set_nonblocking(false).unwrap();
+            default_unicast_socket.set_nonblocking(true).unwrap();
             if let Some(buffer_size) = self.udp_receive_buffer_size {
                 default_unicast_socket
                     .set_recv_buffer_size(buffer_size)
@@ -307,10 +463,9 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 ));
             }
 
-            let metatraffic_unicast_socket = Arc::new(
-                std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).unwrap(),
-            );
-            metatraffic_unicast_socket.set_nonblocking(false).unwrap();
+            let metatraffic_unicast_socket =
+                std::net::UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).unwrap();
+            metatraffic_unicast_socket.set_nonblocking(true).unwrap();
             let metatraffic_unicast_port = metatraffic_unicast_socket
                 .local_addr()
                 .unwrap()
@@ -347,67 +502,27 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             ));
 
-            let metatraffic_multicast_socket = Arc::new(
-                get_multicast_socket_v4(
-                    DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-                    port_builtin_multicast(domain_id),
-                    v4_multicast_addresses.clone(),
-                )
-                .unwrap(),
-            );
+            let metatraffic_multicast_socket = get_multicast_socket_v4(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(domain_id),
+                v4_multicast_addresses.clone(),
+            )
+            .unwrap();
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnMetatrafficMulticastSocket".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
-
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnMetatrafficUnicastSocket".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
-
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnDefaultUnicastSocket".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = default_unicast_socket.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(metatraffic_multicast_socket),
+            );
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(metatraffic_unicast_socket),
+            );
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(default_unicast_socket),
+            );
         }
 
         if use_v6 {
@@ -421,21 +536,22 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 })
                 .collect();
 
-            let default_unicast_socket_v6 =
+            let socket2_default_unicast_socket_v6 =
                 socket2::Socket::new(socket2::Domain::IPV6, socket2::Type::DGRAM, None).unwrap();
-            default_unicast_socket_v6.set_only_v6(true).ok();
-            default_unicast_socket_v6
+            socket2_default_unicast_socket_v6.set_only_v6(true).ok();
+            socket2_default_unicast_socket_v6
                 .bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)).into())
                 .unwrap();
-            default_unicast_socket_v6.set_nonblocking(false).unwrap();
+            socket2_default_unicast_socket_v6.set_nonblocking(true).unwrap();
             if let Some(buffer_size) = self.udp_receive_buffer_size {
-                default_unicast_socket_v6
+                socket2_default_unicast_socket_v6
                     .set_recv_buffer_size(buffer_size)
                     .unwrap();
             }
 
-            let default_unicast_socket_v6 = std::net::UdpSocket::from(default_unicast_socket_v6);
-            let user_defined_unicast_port = default_unicast_socket_v6
+            let std_default_unicast_socket_v6 =
+                std::net::UdpSocket::from(socket2_default_unicast_socket_v6);
+            let user_defined_unicast_port = std_default_unicast_socket_v6
                 .local_addr()
                 .unwrap()
                 .port()
@@ -448,18 +564,18 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 ));
             }
 
-            let metatraffic_unicast_socket_v6 =
+            let socket2_metatraffic_unicast_socket_v6 =
                 socket2::Socket::new(socket2::Domain::IPV6, socket2::Type::DGRAM, None).unwrap();
-            metatraffic_unicast_socket_v6.set_only_v6(true).ok();
-            metatraffic_unicast_socket_v6
+            socket2_metatraffic_unicast_socket_v6.set_only_v6(true).ok();
+            socket2_metatraffic_unicast_socket_v6
                 .bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)).into())
                 .unwrap();
-            metatraffic_unicast_socket_v6
-                .set_nonblocking(false)
+            socket2_metatraffic_unicast_socket_v6
+                .set_nonblocking(true)
                 .unwrap();
-            let metatraffic_unicast_socket_v6 =
-                std::net::UdpSocket::from(metatraffic_unicast_socket_v6);
-            let metatraffic_unicast_port = metatraffic_unicast_socket_v6
+            let std_metatraffic_unicast_socket_v6 =
+                std::net::UdpSocket::from(socket2_metatraffic_unicast_socket_v6);
+            let metatraffic_unicast_port = std_metatraffic_unicast_socket_v6
                 .local_addr()
                 .unwrap()
                 .port()
@@ -472,14 +588,12 @@ impl TransportParticipantFactory for RtpsUdpTransport {
                 ));
             }
 
-            let metatraffic_multicast_socket_v6 = Arc::new(
-                get_multicast_socket_v6(
-                    DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6,
-                    port_builtin_multicast(domain_id),
-                    v6_multicast_indices.clone(),
-                )
-                .unwrap(),
-            );
+            let std_metatraffic_multicast_socket_v6 = get_multicast_socket_v6(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS_V6,
+                port_builtin_multicast(domain_id),
+                v6_multicast_indices.clone(),
+            )
+            .unwrap();
 
             metatraffic_multicast_locator_list.push(Locator::new(
                 LOCATOR_KIND_UDP_V6,
@@ -488,61 +602,27 @@ impl TransportParticipantFactory for RtpsUdpTransport {
             ));
 
             socket_v6 = Some(
-                default_unicast_socket_v6
+                std_default_unicast_socket_v6
                     .try_clone()
                     .expect("Socket cloning"),
             );
 
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnMetatrafficMulticastSocketV6".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = metatraffic_multicast_socket_v6.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(std_metatraffic_multicast_socket_v6),
+            );
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(std_metatraffic_unicast_socket_v6),
+            );
+            self.add_socket(
+                transport_handle,
+                mio::net::UdpSocket::from_std(std_default_unicast_socket_v6),
+            );
+        }
 
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnMetatrafficUnicastSocketV6".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = metatraffic_unicast_socket_v6.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
-
-            let channel_clone = self.receive_channel.clone();
-            std::thread::Builder::new()
-                .name("SomethingOnDefaultUnicastSocketV6".to_string())
-                .spawn(move || {
-                    let mut buf = [0; MAX_DATAGRAM_SIZE];
-                    loop {
-                        if let Ok(size) = default_unicast_socket_v6.recv(&mut buf) {
-                            if size > 0 {
-                                std_runtime::executor::block_on(
-                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
-                                );
-                            }
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
+        if use_v4 || use_v6 {
+            self.waker.wake().ok();
         }
 
         let message_writer = MessageWriter::new(
@@ -564,9 +644,17 @@ impl TransportParticipantFactory for RtpsUdpTransport {
     }
 
     async fn read(&mut self) -> (TransportHandle, &[u8]) {
-        let received = self.receive_channel.receive().await;
-        self.receive_buffer = received.1;
-        (received.0, &self.receive_buffer)
+        loop {
+            if let Some((handle, size)) = self.try_recv() {
+                return (handle, &self.receive_buffer[..size]);
+            }
+            WaitForReadable {
+                read_waker: &self.read_waker,
+                waker: &self.waker,
+                registered: false,
+            }
+            .await;
+        }
     }
 }
 
@@ -758,6 +846,35 @@ mod tests {
     use super::*;
     use core::net::Ipv6Addr;
     use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6};
+
+    #[test]
+    fn test_mio_multicast_udp() {
+        let mut poll = Poll::new().unwrap();
+        let mc_port = 17400;
+        let mc_socket = get_multicast_socket_v4(
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+            mc_port,
+            [Ipv4Addr::LOCALHOST, Ipv4Addr::new(127, 0, 0, 1)],
+        )
+        .unwrap();
+
+        let mut mio_mc = mio::net::UdpSocket::from_std(mc_socket);
+        poll.registry()
+            .register(&mut mio_mc, Token(1), Interest::READABLE)
+            .unwrap();
+
+        let sender = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        let dest = SocketAddr::from(([239, 255, 0, 1], mc_port));
+        let socket2: socket2::Socket = sender.try_clone().unwrap().into();
+        socket2.set_multicast_if_v4(&Ipv4Addr::LOCALHOST).unwrap();
+        sender.send_to(b"multicast ping", dest).unwrap();
+
+        let mut events = Events::with_capacity(10);
+        poll.poll(&mut events, Some(std::time::Duration::from_millis(500)))
+            .unwrap();
+        let tokens: Vec<_> = events.iter().map(|e| e.token()).collect();
+        assert!(tokens.contains(&Token(1)));
+    }
 
     #[test]
     fn udp_locator_v4_to_socket_addrs() {

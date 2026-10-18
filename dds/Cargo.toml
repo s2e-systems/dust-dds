@@ -19,6 +19,7 @@ md5.workspace = true
 
 socket2 = { version = "0.5", features = ["all"], optional = true }
 network-interface = { version = "2.0.3", optional = true }
+mio = { version = "1", features = ["os-poll", "net"], optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [
 	"attributes",
@@ -46,7 +47,7 @@ tracing-opentelemetry = "0.32.0"
 
 [features]
 default = ["rtps_udp_transport", "std"]
-rtps_udp_transport = ["dep:socket2", "dep:network-interface"]
+rtps_udp_transport = ["dep:socket2", "dep:network-interface", "dep:mio"]
 std = ["critical-section/std"]
 xtypes-xml = ["dep:roxmltree"]
 
