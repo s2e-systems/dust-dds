@@ -307,15 +307,11 @@ impl<'a> Write for UdpWriter<'a> {
                             let socket2: socket2::Socket = socket.try_clone().unwrap().into();
                             for address in self.v4_multicast_addresses {
                                 if socket2.set_multicast_if_v4(address).is_ok() {
-                                    socket
-                                        .send_to(data, UdpLocator(destination_locator))
-                                        .ok();
+                                    socket.send_to(data, UdpLocator(destination_locator)).ok();
                                 }
                             }
                         } else {
-                            socket
-                                .send_to(data, UdpLocator(destination_locator))
-                                .ok();
+                            socket.send_to(data, UdpLocator(destination_locator)).ok();
                         }
                     }
                 }
@@ -324,22 +320,16 @@ impl<'a> Write for UdpWriter<'a> {
                         if UdpLocator(destination_locator).is_multicast() {
                             let socket2: socket2::Socket = socket.try_clone().unwrap().into();
                             if self.v6_multicast_indices.is_empty() {
-                                socket
-                                    .send_to(data, UdpLocator(destination_locator))
-                                    .ok();
+                                socket.send_to(data, UdpLocator(destination_locator)).ok();
                             } else {
                                 for &index in self.v6_multicast_indices {
                                     if socket2.set_multicast_if_v6(index).is_ok() {
-                                        socket
-                                            .send_to(data, UdpLocator(destination_locator))
-                                            .ok();
+                                        socket.send_to(data, UdpLocator(destination_locator)).ok();
                                     }
                                 }
                             }
                         } else {
-                            socket
-                                .send_to(data, UdpLocator(destination_locator))
-                                .ok();
+                            socket.send_to(data, UdpLocator(destination_locator)).ok();
                         }
                     }
                 }

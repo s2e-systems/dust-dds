@@ -915,11 +915,7 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self, data_message))]
-    pub fn handle_data(
-        &mut self,
-        data_message: &[u8],
-        now: Time,
-    ) {
+    pub fn handle_data(&mut self, data_message: &[u8], now: Time) {
         if let Ok(rtps_message) = RtpsMessageRead::try_from(data_message) {
             if let Some(matched_participant) = self
                 .domain_participant
@@ -944,10 +940,7 @@ impl DcpsDomainParticipant {
                         self.handle_gap_submessage(&message_receiver, gap_submessage);
                     }
                     RtpsSubmessageReadKind::Heartbeat(heartbeat_submessage) => {
-                        self.handle_heartbeat_submessage(
-                            &message_receiver,
-                            heartbeat_submessage,
-                        );
+                        self.handle_heartbeat_submessage(&message_receiver, heartbeat_submessage);
                     }
                     RtpsSubmessageReadKind::HeartbeatFrag(heartbeat_frag_submessage) => {
                         for dr in self

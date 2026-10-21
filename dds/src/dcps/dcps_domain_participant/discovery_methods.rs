@@ -2746,9 +2746,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .discovered_participant_list
             .iter()
-            .any(|domain_participant| {
-                &domain_participant.dds_participant_data.key.value == handle
-            });
+            .any(|domain_participant| &domain_participant.dds_participant_data.key.value == handle);
         if !is_participant_discovered {
             return false;
         }
