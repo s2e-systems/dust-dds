@@ -388,17 +388,19 @@ impl DcpsParticipantFactory {
                     &p.participant_handle,
                     transport,
                 ) {
-                    Ok((participant, tp)) => DcpsReply::InstanceHandle(participant.create_data_writer(
-                        &p.publisher_handle,
-                        p.topic_name,
-                        p.qos,
-                        p.dcps_listener,
-                        p.listener_mask,
-                        runtime,
-                        now,
-                        self.configuration.enable_type_information(),
-                        tp,
-                    )),
+                    Ok((participant, tp)) => {
+                        DcpsReply::InstanceHandle(participant.create_data_writer(
+                            &p.publisher_handle,
+                            p.topic_name,
+                            p.qos,
+                            p.dcps_listener,
+                            p.listener_mask,
+                            runtime,
+                            now,
+                            self.configuration.enable_type_information(),
+                            tp,
+                        ))
+                    }
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
             }
@@ -699,17 +701,19 @@ impl DcpsParticipantFactory {
                     &p.participant_handle,
                     transport,
                 ) {
-                    Ok((participant, tp)) => DcpsReply::InstanceHandle(participant.create_data_reader(
-                        &p.subscriber_handle,
-                        p.topic_name,
-                        p.qos,
-                        p.dcps_listener,
-                        p.listener_mask,
-                        runtime,
-                        now,
-                        self.configuration.enable_type_information(),
-                        tp,
-                    )),
+                    Ok((participant, tp)) => {
+                        DcpsReply::InstanceHandle(participant.create_data_reader(
+                            &p.subscriber_handle,
+                            p.topic_name,
+                            p.qos,
+                            p.dcps_listener,
+                            p.listener_mask,
+                            runtime,
+                            now,
+                            self.configuration.enable_type_information(),
+                            tp,
+                        ))
+                    }
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
             }

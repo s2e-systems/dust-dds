@@ -127,11 +127,9 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let transport_handle = transport.create_participant(domain_id);
-        let transport_participant = transport
-            .get_participant_mut(&transport_handle)
-            .ok_or(DdsError::PreconditionNotMet(String::from(
-                "Transport participant not found",
-            )))?;
+        let transport_participant = transport.get_participant_mut(&transport_handle).ok_or(
+            DdsError::PreconditionNotMet(String::from("Transport participant not found")),
+        )?;
         let guid_prefix: GuidPrefix = [
             self.host_id[0],
             self.host_id[1],
