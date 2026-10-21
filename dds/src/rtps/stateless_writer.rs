@@ -1,6 +1,4 @@
-use super::{
-    message_creator::write_submessages_into_transport, reader_locator::RtpsReaderLocator,
-};
+use super::{message_creator::write_submessages_into_transport, reader_locator::RtpsReaderLocator};
 use crate::{
     rtps_messages::{
         submessage_elements::SequenceNumberSet,
