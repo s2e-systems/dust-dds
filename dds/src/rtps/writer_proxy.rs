@@ -1,6 +1,6 @@
+use super::message_creator::write_submessages_into_transport;
 use crate::{
     rtps_messages::{
-        overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -289,10 +289,7 @@ impl RtpsWriterProxy {
 
             let handle =
                 crate::transport::types::transport_handle_from_guid_prefix(&reader_guid.prefix());
-            let mut buffer = alloc::vec![0u8; 65507];
-            let message = if let Some(missing_change_fragments_seq_num) =
-                missing_change_fragments_seq_num
-            {
+            if let Some(missing_change_fragments_seq_num) = missing_change_fragments_seq_num {
                 let frag = self
                     .frag_buffer
                     .iter()
@@ -322,26 +319,26 @@ impl RtpsWriterProxy {
                     self.nack_frag_count,
                 );
 
-                RtpsMessageWrite::from_submessages(
-                    &mut buffer,
+                let mut writer = transport.writer(handle, self.unicast_locator_list());
+                write_submessages_into_transport(
                     &[
                         &info_dst_submessage,
                         &acknack_submessage,
                         &nack_frag_submessage,
                     ],
                     reader_guid.prefix(),
-                )
+                    &mut writer,
+                );
+                writer.flush();
             } else {
-                RtpsMessageWrite::from_submessages(
-                    &mut buffer,
+                let mut writer = transport.writer(handle, self.unicast_locator_list());
+                write_submessages_into_transport(
                     &[&info_dst_submessage, &acknack_submessage],
                     reader_guid.prefix(),
-                )
-            };
-
-            let mut writer = transport.writer(handle, self.unicast_locator_list());
-            writer.write(message.buffer());
-            writer.flush();
+                    &mut writer,
+                );
+                writer.flush();
+            }
         }
     }
 
