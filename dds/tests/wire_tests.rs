@@ -1,5 +1,8 @@
 mod domain_id_generator;
 
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use std::sync::Arc;
+
 use dust_dds::{
     dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
     domain::domain_participant::DomainParticipant,
@@ -26,8 +29,19 @@ impl Write for MockWriter {
 }
 
 struct MockTransport {
-    incoming_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
-    current_message: Vec<u8>,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    receive_buffer: Vec<u8>,
+}
+
+impl MockTransport {
+    fn new(
+        receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 256>>,
+    ) -> Self {
+        Self {
+            receive_channel,
+            receive_buffer: Vec::new(),
+        }
+    }
 }
 
 impl RtpsParticipant for MockTransport {
@@ -63,20 +77,16 @@ impl Transport for MockTransport {
         MockWriter
     }
 
-    async fn read(&mut self) -> &[u8] {
-        if let Some(msg) = self.incoming_rx.recv().await {
-            self.current_message = msg;
-            &self.current_message
-        } else {
-            // Keep pending if channel closed
-            core::future::pending().await
-        }
+    async fn read(&mut self) -> (TransportHandle, &[u8]) {
+        let (handle, data) = self.receive_channel.receive().await;
+        self.receive_buffer = data;
+        (handle, &self.receive_buffer)
     }
 }
 
 #[test]
 fn detect_stale_participant() {
-    let (data_sender, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
+    let receive_channel = Arc::new(Channel::new());
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -89,10 +99,7 @@ fn detect_stale_participant() {
         host_id,
         configuration,
         runtime,
-        MockTransport {
-            incoming_rx,
-            current_message: Vec::new(),
-        },
+        MockTransport::new(receive_channel.clone()),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -156,7 +163,9 @@ fn detect_stale_participant() {
     let spdp_rtps_message =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
 
-    let _ = data_sender.send(spdp_rtps_message.buffer().to_vec());
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], spdp_rtps_message.buffer().to_vec())),
+    );
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 
@@ -170,7 +179,7 @@ fn detect_stale_participant() {
 
 #[test]
 fn xtypes_mismatch_does_not_abort_discovery() {
-    let (data_sender, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
+    let receive_channel = Arc::new(Channel::new());
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
@@ -183,10 +192,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         host_id,
         configuration,
         runtime,
-        MockTransport {
-            incoming_rx,
-            current_message: Vec::new(),
-        },
+        MockTransport::new(receive_channel.clone()),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -270,7 +276,9 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let mut buf = [0u8; 1024];
     let spdp_msg =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
-    let _ = data_sender.send(spdp_msg.buffer().to_vec());
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], spdp_msg.buffer().to_vec())),
+    );
 
     std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -357,7 +365,9 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         &[&sedp_submsg1, &sedp_submsg2],
         remote_guid_prefix,
     );
-    let _ = data_sender.send(sedp_msg.buffer().to_vec());
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], sedp_msg.buffer().to_vec())),
+    );
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 

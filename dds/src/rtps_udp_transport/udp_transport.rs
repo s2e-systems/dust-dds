@@ -11,8 +11,7 @@ use core::{
     sync::atomic::AtomicU32,
 };
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -159,7 +158,7 @@ pub struct RtpsUdpTransport {
     ip_version: IpVersion,
     entity_counter: AtomicU32,
     participants: HashMap<TransportHandle, ParticipantSockets>,
-    receive_channel: Arc<Channel<CriticalSectionRawMutex, Vec<u8>, 256>>,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 512>>,
     receive_buffer: Vec<u8>,
     write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
     write_buffer_len: usize,
@@ -342,6 +341,10 @@ impl<'a> Write for UdpWriter<'a> {
 
 impl Transport for RtpsUdpTransport {
     fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
+        let transport_handle: TransportHandle = self
+            .entity_counter
+            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+            .to_ne_bytes();
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -489,7 +492,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -506,7 +509,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -523,7 +526,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -624,7 +627,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_multicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -641,7 +644,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = metatraffic_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -658,7 +661,7 @@ impl Transport for RtpsUdpTransport {
                         if let Ok(size) = default_unicast_socket_v6.recv(&mut buf) {
                             if size > 0 {
                                 std_runtime::executor::block_on(
-                                    channel_clone.send(buf[..size].to_vec()),
+                                    channel_clone.send((transport_handle, buf[..size].to_vec())),
                                 );
                             }
                         }
@@ -666,11 +669,6 @@ impl Transport for RtpsUdpTransport {
                 })
                 .expect("failed to spawn thread");
         }
-
-        let handle: TransportHandle = self
-            .entity_counter
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
-            .to_ne_bytes();
 
         let participant_sockets = ParticipantSockets {
             default_unicast_locator_list,
@@ -684,9 +682,10 @@ impl Transport for RtpsUdpTransport {
             v6_multicast_indices,
         };
 
-        self.participants.insert(handle, participant_sockets);
+        self.participants
+            .insert(transport_handle, participant_sockets);
 
-        handle
+        transport_handle
     }
 
     fn delete_participant(&mut self, handle: TransportHandle) {
@@ -722,10 +721,10 @@ impl Transport for RtpsUdpTransport {
         }
     }
 
-    async fn read(&mut self) -> &[u8] {
-        let msg = self.receive_channel.receive().await;
-        self.receive_buffer = msg;
-        &self.receive_buffer
+    async fn read(&mut self) -> (TransportHandle, &[u8]) {
+        let received = self.receive_channel.receive().await;
+        self.receive_buffer = received.1;
+        (received.0, &self.receive_buffer)
     }
 }
 

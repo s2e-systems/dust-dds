@@ -797,8 +797,8 @@ mod tests {
             }
         }
 
-        async fn read(&mut self) -> &[u8] {
-            &[]
+        async fn read(&mut self) -> (crate::transport::types::TransportHandle, &[u8]) {
+            ([0; 4], &[])
         }
     }
 

@@ -137,6 +137,10 @@ impl InstanceState {
     pub fn last_received_time_stamp(&self) -> Time {
         self.last_received_time_stamp
     }
+
+    pub fn update_last_received_time_stamp(&mut self, time: Time) {
+        self.last_received_time_stamp = time;
+    }
 }
 
 #[derive(Debug)]

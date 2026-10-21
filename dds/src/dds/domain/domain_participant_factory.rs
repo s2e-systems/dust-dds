@@ -15,20 +15,19 @@ use crate::{
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
     std_runtime::executor::block_on,
-    transport::interface::{RtpsParticipant, Transport},
 };
 use tracing::warn;
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory<T: Transport + RtpsParticipant = RtpsUdpTransport> {
-    participant_factory_async: &'static DomainParticipantFactoryAsync<T>,
+pub struct DomainParticipantFactory {
+    participant_factory_async: &'static DomainParticipantFactoryAsync,
 }
 
-impl<T: Transport + RtpsParticipant> DomainParticipantFactory<T> {
+impl DomainParticipantFactory {
     /// Construct a new ['DomainParticipantFactory'] from an existing ['DomainParticipantFactoryAsync'] static reference
-    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync<T>) -> Self {
+    pub fn new(participant_factory_async: &'static DomainParticipantFactoryAsync) -> Self {
         Self {
             participant_factory_async,
         }
@@ -118,21 +117,20 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactory<T> {
     }
 }
 
-impl<T: Transport + RtpsParticipant> DomainParticipantFactory<T> {
+impl DomainParticipantFactory {
     #[doc(hidden)]
     pub fn shutdown(&self) {
         self.participant_factory_async.shutdown();
     }
 }
 
-impl DomainParticipantFactory<RtpsUdpTransport> {
+impl DomainParticipantFactory {
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
     #[tracing::instrument]
     pub fn get_instance() -> &'static Self {
-        static PARTICIPANT_FACTORY: std::sync::OnceLock<
-            DomainParticipantFactory<RtpsUdpTransport>,
-        > = std::sync::OnceLock::new();
+        static PARTICIPANT_FACTORY: std::sync::OnceLock<DomainParticipantFactory> =
+            std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_instance(),
         })
@@ -150,9 +148,8 @@ impl DomainParticipantFactory<RtpsUdpTransport> {
         transport: RtpsUdpTransport,
         security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> &'static Self {
-        static PARTICIPANT_FACTORY: std::sync::OnceLock<
-            DomainParticipantFactory<RtpsUdpTransport>,
-        > = std::sync::OnceLock::new();
+        static PARTICIPANT_FACTORY: std::sync::OnceLock<DomainParticipantFactory> =
+            std::sync::OnceLock::new();
         PARTICIPANT_FACTORY.get_or_init(|| DomainParticipantFactory {
             participant_factory_async: DomainParticipantFactoryAsync::get_custom_instance(
                 configuration,

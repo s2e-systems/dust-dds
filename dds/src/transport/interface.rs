@@ -20,5 +20,5 @@ pub trait Transport: Send + 'static {
     fn writer<'a>(&'a mut self, handle: TransportHandle, locator: &'a [Locator])
     -> impl Write + 'a;
 
-    fn read(&mut self) -> impl Future<Output = &[u8]> + Send;
+    fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send;
 }

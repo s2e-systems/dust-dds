@@ -1,5 +1,5 @@
 use crate::micro_runtime::MicroRuntime;
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{sync::Arc, vec, vec::Vec};
 use chrono::NaiveDate;
 use core::{future::Future, net::Ipv4Addr};
 use defmt::{info, unwrap};
@@ -69,11 +69,6 @@ fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + D0) as u16
 }
 
-const READER_CHANNEL_SIZE: usize = 256;
-type ReaderChannel =
-    embassy_sync::channel::Channel<CriticalSectionRawMutex, Vec<u8>, READER_CHANNEL_SIZE>;
-static READER_CHANNEL: ReaderChannel = ReaderChannel::new();
-
 type SubscriptionSender = embassy_sync::channel::Sender<'static, CriticalSectionRawMutex, i32, 1>;
 type SubscriptionChannel = embassy_sync::channel::Channel<CriticalSectionRawMutex, i32, 1>;
 static SUBSCRIPTION_CHANNEL: SubscriptionChannel = SubscriptionChannel::new();
@@ -133,24 +128,103 @@ async fn writer_task(stack: Stack<'static>) -> ! {
     }
 }
 
+struct SocketBuffers {
+    rx_meta: [PacketMetadata; 16],
+    tx_meta: [PacketMetadata; 16],
+    rx_buffer: [u8; RX_BUFFER],
+    tx_buffer: [u8; TX_BUFFER],
+}
+
+static METATRAFFIC_MULTICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::new();
+static METATRAFFIC_UNICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::new();
+static DEFAULT_UNICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::new();
+
 pub struct EmbeddedTransport {
     addr: Ipv4Addr,
+    transport_handle: TransportHandle,
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
-    rx_buffer: Vec<u8>,
+    metatraffic_multicast_socket: UdpSocket<'static>,
+    metatraffic_unicast_socket: UdpSocket<'static>,
+    default_unicast_socket: UdpSocket<'static>,
+    metatraffic_multicast_buf: [u8; RX_BUFFER],
+    metatraffic_unicast_buf: [u8; RX_BUFFER],
+    default_unicast_buf: [u8; RX_BUFFER],
     tx_buffer: [u8; TX_BUFFER],
     tx_buffer_len: usize,
 }
 
+unsafe impl Send for EmbeddedTransport {}
+
 impl EmbeddedTransport {
-    pub fn new(addr: Ipv4Addr) -> Self {
+    pub fn new(stack: Stack<'static>, addr: Ipv4Addr) -> Self {
+        let mm_buffers = METATRAFFIC_MULTICAST_BUFFERS.init(SocketBuffers {
+            rx_meta: [PacketMetadata::EMPTY; 16],
+            tx_meta: [PacketMetadata::EMPTY; 16],
+            rx_buffer: [0; RX_BUFFER],
+            tx_buffer: [0; TX_BUFFER],
+        });
+        let mut metatraffic_multicast_socket = UdpSocket::new(
+            stack,
+            &mut mm_buffers.rx_meta,
+            &mut mm_buffers.rx_buffer,
+            &mut mm_buffers.tx_meta,
+            &mut mm_buffers.tx_buffer,
+        );
+        unwrap!(metatraffic_multicast_socket.bind(IpEndpoint::new(
+            IpAddress::Ipv4(addr),
+            port_builtin_multicast(0),
+        )));
+
+        let mu_buffers = METATRAFFIC_UNICAST_BUFFERS.init(SocketBuffers {
+            rx_meta: [PacketMetadata::EMPTY; 16],
+            tx_meta: [PacketMetadata::EMPTY; 16],
+            rx_buffer: [0; RX_BUFFER],
+            tx_buffer: [0; TX_BUFFER],
+        });
+        let mut metatraffic_unicast_socket = UdpSocket::new(
+            stack,
+            &mut mu_buffers.rx_meta,
+            &mut mu_buffers.rx_buffer,
+            &mut mu_buffers.tx_meta,
+            &mut mu_buffers.tx_buffer,
+        );
+        unwrap!(metatraffic_unicast_socket.bind(IpEndpoint::new(
+            IpAddress::Ipv4(addr),
+            METATRAFFIC_UNICAST_PORT as u16,
+        )));
+
+        let du_buffers = DEFAULT_UNICAST_BUFFERS.init(SocketBuffers {
+            rx_meta: [PacketMetadata::EMPTY; 16],
+            tx_meta: [PacketMetadata::EMPTY; 16],
+            rx_buffer: [0; RX_BUFFER],
+            tx_buffer: [0; TX_BUFFER],
+        });
+        let mut default_unicast_socket = UdpSocket::new(
+            stack,
+            &mut du_buffers.rx_meta,
+            &mut du_buffers.rx_buffer,
+            &mut du_buffers.tx_meta,
+            &mut du_buffers.tx_buffer,
+        );
+        unwrap!(default_unicast_socket.bind(IpEndpoint::new(
+            IpAddress::Ipv4(addr),
+            DEFAULT_UNICAST_PORT as u16,
+        )));
+
         Self {
             addr,
+            transport_handle: [0, 0, 0, 1],
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),
-            rx_buffer: Vec::new(),
+            metatraffic_multicast_socket,
+            metatraffic_unicast_socket,
+            default_unicast_socket,
+            metatraffic_multicast_buf: [0; RX_BUFFER],
+            metatraffic_unicast_buf: [0; RX_BUFFER],
+            default_unicast_buf: [0; RX_BUFFER],
             tx_buffer: [0; TX_BUFFER],
             tx_buffer_len: 0,
         }
@@ -192,7 +266,7 @@ impl Transport for EmbeddedTransport {
         self.metatraffic_unicast_locator_list =
             vec![Locator::new(1, METATRAFFIC_UNICAST_PORT, local_addr)];
 
-        [0, 0, 0, 1]
+        self.transport_handle
     }
 
     fn delete_participant(&mut self, _handle: TransportHandle) {}
@@ -210,9 +284,49 @@ impl Transport for EmbeddedTransport {
         }
     }
 
-    async fn read(&mut self) -> &[u8] {
-        self.rx_buffer = READER_CHANNEL.receiver().receive().await;
-        &self.rx_buffer
+    fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send {
+        let transport_handle = self.transport_handle;
+        let metatraffic_multicast_socket = &mut self.metatraffic_multicast_socket;
+        let metatraffic_multicast_buf = &mut self.metatraffic_multicast_buf;
+        let metatraffic_unicast_socket = &mut self.metatraffic_unicast_socket;
+        let metatraffic_unicast_buf = &mut self.metatraffic_unicast_buf;
+        let default_unicast_socket = &mut self.default_unicast_socket;
+        let default_unicast_buf = &mut self.default_unicast_buf;
+
+        SendFuture(async move {
+            match embassy_futures::select::select3(
+                metatraffic_multicast_socket.recv_from(metatraffic_multicast_buf),
+                metatraffic_unicast_socket.recv_from(metatraffic_unicast_buf),
+                default_unicast_socket.recv_from(default_unicast_buf),
+            )
+            .await
+            {
+                embassy_futures::select::Either3::First(res) => {
+                    let (size, _) = unwrap!(res);
+                    (transport_handle, &metatraffic_multicast_buf[..size])
+                }
+                embassy_futures::select::Either3::Second(res) => {
+                    let (size, _) = unwrap!(res);
+                    (transport_handle, &metatraffic_unicast_buf[..size])
+                }
+                embassy_futures::select::Either3::Third(res) => {
+                    let (size, _) = unwrap!(res);
+                    (transport_handle, &default_unicast_buf[..size])
+                }
+            }
+        })
+    }
+}
+
+struct SendFuture<F>(F);
+unsafe impl<F> Send for SendFuture<F> {}
+impl<F: core::future::Future> core::future::Future for SendFuture<F> {
+    type Output = F::Output;
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        unsafe { self.map_unchecked_mut(|s| &mut s.0).poll(cx) }
     }
 }
 
@@ -279,108 +393,6 @@ async fn blinky() -> ! {
         if HEAP.used() > HEAP_SIZE * 90 / 100 {
             defmt::warn!("{}B of {}B heap used", HEAP.used(), HEAP_SIZE);
         }
-    }
-}
-
-#[embassy_executor::task]
-async fn metatraffic_multicast(stack: Stack<'static>) -> ! {
-    let addr = if let Some(config) = stack.config_v4() {
-        config.address.address()
-    } else {
-        Ipv4Address::UNSPECIFIED
-    };
-
-    let mut rx_meta = [PacketMetadata::EMPTY; 16];
-    let mut tx_meta = [PacketMetadata::EMPTY; 16];
-    let mut rx_buffer = [0; RX_BUFFER];
-    let mut tx_buffer = [0; TX_BUFFER];
-
-    let mut socket = UdpSocket::new(
-        stack,
-        &mut rx_meta,
-        &mut rx_buffer,
-        &mut tx_meta,
-        &mut tx_buffer,
-    );
-    unwrap!(socket.bind(IpEndpoint::new(
-        IpAddress::Ipv4(addr),
-        port_builtin_multicast(0),
-    )));
-    let mut buf = [0; RX_BUFFER];
-    loop {
-        let (size, _metadata) = unwrap!(socket.recv_from(&mut buf).await);
-        // info!("Received {:?} B of data on metatraffic_multicast", size);
-        READER_CHANNEL.sender().send(buf[..size].to_vec()).await;
-    }
-}
-
-#[embassy_executor::task]
-async fn metatraffic_unicast(stack: Stack<'static>) -> ! {
-    let addr = if let Some(config) = stack.config_v4() {
-        config.address.address()
-    } else {
-        Ipv4Address::UNSPECIFIED
-    };
-
-    let mut rx_meta = [PacketMetadata::EMPTY; 16];
-    let mut tx_meta = [PacketMetadata::EMPTY; 16];
-    let mut rx_buffer = [0; RX_BUFFER];
-    let mut tx_buffer = [0; TX_BUFFER];
-
-    let mut socket = UdpSocket::new(
-        stack,
-        &mut rx_meta,
-        &mut rx_buffer,
-        &mut tx_meta,
-        &mut tx_buffer,
-    );
-    socket
-        .bind(IpEndpoint::new(
-            IpAddress::Ipv4(addr),
-            METATRAFFIC_UNICAST_PORT as u16,
-        ))
-        .unwrap();
-
-    let mut buf = Box::new([0; RX_BUFFER]);
-
-    loop {
-        let (size, _metadata) = unwrap!(socket.recv_from(buf.as_mut()).await);
-        // info!("received metatraffic_unicast {:?} B", size,);
-        READER_CHANNEL.sender().send(buf[..size].into()).await;
-    }
-}
-
-#[embassy_executor::task]
-async fn default_unicast(stack: Stack<'static>) -> ! {
-    let addr = if let Some(config) = stack.config_v4() {
-        config.address.address()
-    } else {
-        Ipv4Address::UNSPECIFIED
-    };
-
-    let mut rx_meta = [PacketMetadata::EMPTY; 16];
-    let mut tx_meta = [PacketMetadata::EMPTY; 16];
-    let mut rx_buffer = [0; RX_BUFFER];
-    let mut tx_buffer = [0; TX_BUFFER];
-
-    let mut socket = UdpSocket::new(
-        stack,
-        &mut rx_meta,
-        &mut rx_buffer,
-        &mut tx_meta,
-        &mut tx_buffer,
-    );
-    unwrap!(socket.bind(IpEndpoint::new(
-        IpAddress::Ipv4(addr),
-        DEFAULT_UNICAST_PORT as u16,
-    )));
-
-    let mut buf = [0; RX_BUFFER];
-
-    loop {
-        let (size, _metadata) = unwrap!(socket.recv_from(buf.as_mut()).await);
-        // info!("received unicast {:?} B", size,);
-        READER_CHANNEL.sender().send(buf[..size].into()).await;
     }
 }
 
@@ -528,7 +540,7 @@ async fn main(spawner: Spawner) -> ! {
         [5, 6, 7, 8],
         DustDdsConfiguration::default(),
         runtime,
-        EmbeddedTransport::new(addr),
+        EmbeddedTransport::new(stack, addr),
         DdsSecurityPlugins::disabled(),
     );
 
@@ -626,10 +638,6 @@ async fn main(spawner: Spawner) -> ! {
     green_led.set_low();
     yellow_led.set_low();
     red_led.set_high();
-
-    spawner.spawn(unwrap!(default_unicast(stack)));
-    spawner.spawn(unwrap!(metatraffic_unicast(stack)));
-    spawner.spawn(unwrap!(metatraffic_multicast(stack)));
 
     spawner.spawn(unwrap!(writer_task(stack)));
 
