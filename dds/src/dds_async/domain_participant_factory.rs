@@ -23,7 +23,7 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
-    transport::interface::{RtpsParticipant, Transport},
+    transport::interface::Transport,
 };
 
 #[doc(hidden)]
@@ -217,7 +217,7 @@ impl DomainParticipantFactoryAsync {
     #[doc(hidden)]
     pub fn new<
         R: DdsRuntime,
-        T: Transport + RtpsParticipant,
+        T: Transport,
         Auth: Authentication,
         Access: AccessControl,
         Crypto: Cryptographic,
@@ -286,7 +286,7 @@ impl DomainParticipantFactoryAsync {
                                         .participant_announcement_interval()
                                         .into(),
                                     domain_participant_factory.configuration.domain_tag(),
-                                    &mut transport,
+                                    transport.get_participant_mut(&dp.transport_handle),
                                 );
                             }
                         }
@@ -304,12 +304,18 @@ impl DomainParticipantFactoryAsync {
                                         .configuration
                                         .domain_tag()
                                         .to_string(),
-                                    &mut transport,
+                                    transport.get_participant_mut(&dp.transport_handle),
                                 );
                                 dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now, &mut transport);
-                                dp.write_messages(now, &mut transport);
+                                dp.request_topic_type_representation(
+                                    now,
+                                    transport.get_participant_mut(&dp.transport_handle),
+                                );
+                                dp.write_messages(
+                                    now,
+                                    transport.get_participant_mut(&dp.transport_handle),
+                                );
                             }
                         }
                     };
@@ -340,12 +346,18 @@ impl DomainParticipantFactoryAsync {
                                         .configuration
                                         .domain_tag()
                                         .to_string(),
-                                    &mut transport,
+                                    transport.get_participant_mut(&dp.transport_handle),
                                 );
                                 dp.notify_find_topic_senders(now);
                                 dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now, &mut transport);
-                                dp.write_messages(now, &mut transport);
+                                dp.request_topic_type_representation(
+                                    now,
+                                    transport.get_participant_mut(&dp.transport_handle),
+                                );
+                                dp.write_messages(
+                                    now,
+                                    transport.get_participant_mut(&dp.transport_handle),
+                                );
                             }
                         }
                     };

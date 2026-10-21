@@ -149,8 +149,49 @@ pub struct ParticipantSockets {
     socket_v6: Option<UdpSocket>,
     v4_multicast_addresses: Vec<Ipv4Addr>,
     v6_multicast_indices: Vec<u32>,
+    handle: TransportHandle,
+    write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
+    write_buffer_len: usize,
 }
+impl RtpsParticipant for ParticipantSockets {
+    fn default_unicast_locator_list(&self) -> &[Locator] {
+        &self.default_unicast_locator_list
+    }
 
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    fn default_multicast_locator_list(&self) -> &[Locator] {
+        &self.default_multicast_locator_list
+    }
+
+    fn fragment_size(&self) -> usize {
+        self.fragment_size
+    }
+
+    fn handle(&self) -> TransportHandle {
+        self.handle
+    }
+
+    fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> impl Write + 'a {
+        self.write_buffer_len = 0;
+
+        UdpWriter {
+            socket_v4: self.socket_v4.as_ref(),
+            socket_v6: self.socket_v6.as_ref(),
+            v4_multicast_addresses: &self.v4_multicast_addresses,
+            v6_multicast_indices: &self.v6_multicast_indices,
+            locator,
+            buffer: &mut self.write_buffer,
+            buffer_len: &mut self.write_buffer_len,
+        }
+    }
+}
 pub struct RtpsUdpTransport {
     interface_name: Option<String>,
     fragment_size: usize,
@@ -160,8 +201,6 @@ pub struct RtpsUdpTransport {
     participants: HashMap<TransportHandle, ParticipantSockets>,
     receive_channel: Arc<Channel<CriticalSectionRawMutex, (TransportHandle, Vec<u8>), 512>>,
     receive_buffer: Vec<u8>,
-    write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
-    write_buffer_len: usize,
 }
 
 impl RtpsUdpTransport {
@@ -231,46 +270,7 @@ impl Default for RtpsUdpTransport {
             participants: HashMap::new(),
             receive_channel: Arc::new(Channel::new()),
             receive_buffer: Vec::new(),
-            write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
-            write_buffer_len: 0,
         }
-    }
-}
-
-impl RtpsParticipant for RtpsUdpTransport {
-    fn default_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
-        self.participants
-            .get(&handle)
-            .map(|p| p.default_unicast_locator_list.as_slice())
-            .unwrap_or(&[])
-    }
-
-    fn metatraffic_unicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
-        self.participants
-            .get(&handle)
-            .map(|p| p.metatraffic_unicast_locator_list.as_slice())
-            .unwrap_or(&[])
-    }
-
-    fn metatraffic_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
-        self.participants
-            .get(&handle)
-            .map(|p| p.metatraffic_multicast_locator_list.as_slice())
-            .unwrap_or(&[])
-    }
-
-    fn default_multicast_locator_list(&self, handle: TransportHandle) -> &[Locator] {
-        self.participants
-            .get(&handle)
-            .map(|p| p.default_multicast_locator_list.as_slice())
-            .unwrap_or(&[])
-    }
-
-    fn fragment_size(&self, handle: TransportHandle) -> usize {
-        self.participants
-            .get(&handle)
-            .map(|p| p.fragment_size)
-            .unwrap_or(self.fragment_size)
     }
 }
 
@@ -680,6 +680,9 @@ impl Transport for RtpsUdpTransport {
             socket_v6,
             v4_multicast_addresses,
             v6_multicast_indices,
+            handle: transport_handle,
+            write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
+            write_buffer_len: 0,
         };
 
         self.participants
@@ -692,39 +695,16 @@ impl Transport for RtpsUdpTransport {
         self.participants.remove(&handle);
     }
 
-    fn writer<'a>(
-        &'a mut self,
-        handle: TransportHandle,
-        locator: &'a [Locator],
-    ) -> impl Write + 'a {
-        self.write_buffer_len = 0;
-        if let Some(sockets) = self.participants.get(&handle) {
-            UdpWriter {
-                socket_v4: sockets.socket_v4.as_ref(),
-                socket_v6: sockets.socket_v6.as_ref(),
-                v4_multicast_addresses: &sockets.v4_multicast_addresses,
-                v6_multicast_indices: &sockets.v6_multicast_indices,
-                locator,
-                buffer: &mut self.write_buffer,
-                buffer_len: &mut self.write_buffer_len,
-            }
-        } else {
-            UdpWriter {
-                socket_v4: None,
-                socket_v6: None,
-                v4_multicast_addresses: &[],
-                v6_multicast_indices: &[],
-                locator,
-                buffer: &mut self.write_buffer,
-                buffer_len: &mut self.write_buffer_len,
-            }
-        }
-    }
-
     async fn read(&mut self) -> (TransportHandle, &[u8]) {
         let received = self.receive_channel.receive().await;
         self.receive_buffer = received.1;
         (received.0, &self.receive_buffer)
+    }
+
+    type Participant = ParticipantSockets;
+
+    fn get_participant_mut(&mut self, handle: &TransportHandle) -> &mut Self::Participant {
+        self.participants.get_mut(handle).unwrap()
     }
 }
 

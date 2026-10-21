@@ -251,6 +251,10 @@ impl RtpsParticipant for EmbeddedTransport {
     fn fragment_size(&self, _handle: TransportHandle) -> usize {
         1400
     }
+
+    fn handle(&self) -> TransportHandle {
+        todo!()
+    }
 }
 
 impl Transport for EmbeddedTransport {
@@ -316,6 +320,9 @@ impl Transport for EmbeddedTransport {
             }
         })
     }
+
+    type Participant = EmbeddedTransport;
+
 }
 
 struct SendFuture<F>(F);

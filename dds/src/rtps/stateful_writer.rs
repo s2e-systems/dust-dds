@@ -14,7 +14,7 @@ use crate::{
         types::TIME_INVALID,
     },
     transport::{
-        interface::{Transport, Write},
+        interface::{RtpsParticipant, Write},
         types::{
             CacheChange, ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
             ReaderProxy, ReliabilityKind, SequenceNumber,
@@ -137,7 +137,7 @@ impl RtpsStatefulWriter {
             .retain(|reader_proxy| reader_proxy.remote_reader_guid() != reader_guid);
     }
 
-    pub fn write_message(&mut self, transport: &mut (impl Transport + ?Sized), now: Time) {
+    pub fn write_message(&mut self, transport_participant: &mut impl RtpsParticipant, now: Time) {
         if self.changes.is_empty() || self.matched_readers.is_empty() {
             return;
         }
@@ -147,7 +147,7 @@ impl RtpsStatefulWriter {
                 &self.changes,
                 self.data_max_size_serialized,
                 self.heartbeat_period,
-                transport,
+                transport_participant,
                 now,
                 self.guid.prefix(),
             )
@@ -235,7 +235,7 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        transport: &mut (impl Transport + ?Sized),
+        transport: &mut impl RtpsParticipant,
         now: Time,
         guid_prefix: GuidPrefix,
     ) {
@@ -264,7 +264,7 @@ impl RtpsReaderProxy {
         writer_id: EntityId,
         changes: &[CacheChange],
         data_max_size_serialized: usize,
-        transport: &mut (impl Transport + ?Sized),
+        transport_participant: &mut impl RtpsParticipant,
         guid_prefix: GuidPrefix,
     ) {
         // a_change_seq_num := the_reader_proxy.next_unsent_change();
@@ -279,7 +279,6 @@ impl RtpsReaderProxy {
         //      send DATA;
         // }
         // the_reader_proxy.highest_sent_seq_num := a_change_seq_num;
-        let handle = crate::transport::types::transport_handle_from_guid_prefix(&guid_prefix);
         while let Some(next_unsent_change_seq_num) = self.next_unsent_change(changes) {
             if let Some(cache_change) = changes.iter().find(|cc| {
                 cc.sequence_number == next_unsent_change_seq_num
@@ -308,7 +307,7 @@ impl RtpsReaderProxy {
                             data_max_size_serialized,
                             fragment_number,
                         );
-                        let mut writer = transport.writer(handle, self.unicast_locator_list());
+                        let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
                             &[&info_dst, &info_timestamp, &data_frag],
                             guid_prefix,
@@ -332,7 +331,7 @@ impl RtpsReaderProxy {
                         inline_qos,
                     );
 
-                    let mut writer = transport.writer(handle, self.unicast_locator_list());
+                    let mut writer = transport_participant.writer(self.unicast_locator_list());
                     write_submessages_into_transport(
                         &[&info_dst, &info_timestamp, &data_submessage],
                         guid_prefix,
@@ -353,11 +352,10 @@ impl RtpsReaderProxy {
         changes: &[CacheChange],
         data_max_size_serialized: usize,
         heartbeat_period: Duration,
-        transport: &mut (impl Transport + ?Sized),
+        transport_participant: &mut impl RtpsParticipant,
         now: Time,
         guid_prefix: GuidPrefix,
     ) {
-        let handle = crate::transport::types::transport_handle_from_guid_prefix(&guid_prefix);
         let seq_num_min = changes.first().map(|cc| cc.sequence_number);
         let seq_num_max = changes.last().map(|cc| cc.sequence_number);
         // Top part of the state machine - Figure 8.19 RTPS standard
@@ -375,7 +373,7 @@ impl RtpsReaderProxy {
                     let info_dst =
                         InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
                     {
-                        let mut writer = transport.writer(handle, self.unicast_locator_list());
+                        let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
                             &[&info_dst, &gap_submessage],
                             guid_prefix,
@@ -426,7 +424,8 @@ impl RtpsReaderProxy {
                             } else {
                                 None
                             };
-                            let mut writer = transport.writer(handle, self.unicast_locator_list());
+                            let mut writer =
+                                transport_participant.writer(self.unicast_locator_list());
                             if let Some(heartbeat) = &heartbeat {
                                 write_submessages_into_transport(
                                     &[&info_dst, &info_timestamp, &data_frag, heartbeat],
@@ -476,7 +475,7 @@ impl RtpsReaderProxy {
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
-                        let mut writer = transport.writer(handle, self.unicast_locator_list());
+                        let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
                             &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
                             guid_prefix,
@@ -495,7 +494,7 @@ impl RtpsReaderProxy {
                         SequenceNumberSet::new(next_unsent_change_seq_num + 1, []),
                     );
 
-                    let mut writer = transport.writer(handle, self.unicast_locator_list());
+                    let mut writer = transport_participant.writer(self.unicast_locator_list());
                     write_submessages_into_transport(
                         &[&info_dst, &gap_submessage],
                         guid_prefix,
@@ -522,7 +521,7 @@ impl RtpsReaderProxy {
 
             let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-            let mut writer = transport.writer(handle, self.unicast_locator_list());
+            let mut writer = transport_participant.writer(self.unicast_locator_list());
             write_submessages_into_transport(
                 &[&info_dst, &heartbeat_submessage],
                 guid_prefix,
@@ -578,7 +577,8 @@ impl RtpsReaderProxy {
                             } else {
                                 None
                             };
-                            let mut writer = transport.writer(handle, self.unicast_locator_list());
+                            let mut writer =
+                                transport_participant.writer(self.unicast_locator_list());
                             if let Some(heartbeat) = &heartbeat {
                                 write_submessages_into_transport(
                                     &[&info_dst, &info_timestamp, &data_frag, heartbeat],
@@ -628,7 +628,7 @@ impl RtpsReaderProxy {
                             .heartbeat_machine()
                             .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
 
-                        let mut writer = transport.writer(handle, self.unicast_locator_list());
+                        let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
                             &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
                             guid_prefix,
@@ -647,7 +647,7 @@ impl RtpsReaderProxy {
                         SequenceNumberSet::new(next_requested_change_seq_num + 1, []),
                     );
 
-                    let mut writer = transport.writer(handle, self.unicast_locator_list());
+                    let mut writer = transport_participant.writer(self.unicast_locator_list());
                     write_submessages_into_transport(
                         &[&info_dst, &gap_submessage],
                         guid_prefix,
@@ -691,7 +691,7 @@ impl RtpsReaderProxy {
                             InfoTimestampSubmessage::new(true, TIME_INVALID)
                         };
 
-                        let mut writer = transport.writer(handle, self.unicast_locator_list());
+                        let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
                             &[&info_dst, &info_timestamp, &data_frag],
                             guid_prefix,
@@ -709,7 +709,7 @@ impl RtpsReaderProxy {
                         SequenceNumberSet::new(change_seq_num + 1, []),
                     );
 
-                    let mut writer = transport.writer(handle, self.unicast_locator_list());
+                    let mut writer = transport_participant.writer(self.unicast_locator_list());
                     write_submessages_into_transport(
                         &[&info_dst, &gap_submessage],
                         guid_prefix,
@@ -732,7 +732,10 @@ mod tests {
             overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
             submessage_elements::FragmentNumberSet,
         },
-        transport::{interface::Write, types::Locator},
+        transport::{
+            interface::{RtpsParticipant, Write},
+            types::{Locator, TransportHandle},
+        },
     };
 
     use super::*;
@@ -779,29 +782,36 @@ mod tests {
         submessages: Mutex<Vec<RecordedSubmessage>>,
     }
 
-    impl Transport for MockTransport {
-        fn create_participant(
-            &mut self,
-            _domain_id: i32,
-        ) -> crate::transport::types::TransportHandle {
+    impl RtpsParticipant for MockTransport {
+        fn default_unicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn default_multicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn fragment_size(&self) -> usize {
+            500
+        }
+
+        fn handle(&self) -> TransportHandle {
             [0; 4]
         }
 
-        fn delete_participant(&mut self, _handle: crate::transport::types::TransportHandle) {}
-
-        fn writer<'a>(
-            &'a mut self,
-            _handle: crate::transport::types::TransportHandle,
-            _locator: &'a [Locator],
-        ) -> impl Write + 'a {
+        fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> impl Write + 'a {
             MockTransportWriter {
                 submessages: &self.submessages,
                 buffer: Vec::new(),
             }
-        }
-
-        async fn read(&mut self) -> (crate::transport::types::TransportHandle, &[u8]) {
-            ([0; 4], &[])
         }
     }
 

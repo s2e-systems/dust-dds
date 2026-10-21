@@ -89,11 +89,7 @@ impl DcpsDomainParticipant {
         now: Time,
         participant_announcement_interval: Duration,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         if let Some(time_until) =
             self.time_until_participant_announcement(now, participant_announcement_interval)
@@ -104,16 +100,12 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn announce_participant(
         &mut self,
         now: Time,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         if self.domain_participant.enabled {
             self.domain_participant.last_announcement_timestamp = Some(now);
@@ -127,17 +119,17 @@ impl DcpsDomainParticipant {
                 guid_prefix: guid.prefix(),
                 vendor_id: VENDOR_ID_S2E,
                 expects_inline_qos: false,
-                metatraffic_unicast_locator_list: transport
-                    .metatraffic_unicast_locator_list(self.transport_handle)
+                metatraffic_unicast_locator_list: transport_participant
+                    .metatraffic_unicast_locator_list()
                     .to_vec(),
-                metatraffic_multicast_locator_list: transport
-                    .metatraffic_multicast_locator_list(self.transport_handle)
+                metatraffic_multicast_locator_list: transport_participant
+                    .metatraffic_multicast_locator_list()
                     .to_vec(),
-                default_unicast_locator_list: transport
-                    .default_unicast_locator_list(self.transport_handle)
+                default_unicast_locator_list: transport_participant
+                    .default_unicast_locator_list()
                     .to_vec(),
-                default_multicast_locator_list: transport
-                    .default_multicast_locator_list(self.transport_handle)
+                default_multicast_locator_list: transport_participant
+                    .default_multicast_locator_list()
                     .to_vec(),
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: 0,
@@ -177,15 +169,15 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .dcps_participant_writer
                 .transport_writer
-                .write_message(transport);
+                .write_message(transport_participant);
         }
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn announce_deleted_participant(
         &mut self,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         if self.domain_participant.enabled {
             let timestamp = now;
@@ -208,7 +200,7 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .dcps_participant_writer
                 .transport_writer
-                .write_message(transport);
+                .write_message(transport_participant);
         }
     }
 
@@ -476,14 +468,14 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn announce_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -571,15 +563,15 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .dcps_publications_writer
             .transport_writer
-            .write_message(transport, now);
+            .write_message(transport_participant, now);
     }
 
-    #[tracing::instrument(skip(self, data_writer, transport))]
+    #[tracing::instrument(skip(self, data_writer, transport_participant))]
     pub(super) fn announce_deleted_data_writer(
         &mut self,
         data_writer: UserDefinedDataWriter,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let timestamp = now;
         {
@@ -600,17 +592,17 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .dcps_publications_writer
             .transport_writer
-            .write_message(transport, now);
+            .write_message(transport_participant, now);
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn announce_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let Some(subscriber) = self
             .domain_participant
@@ -718,15 +710,15 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .dcps_subscriptions_writer
             .transport_writer
-            .write_message(transport, now);
+            .write_message(transport_participant, now);
     }
 
-    #[tracing::instrument(skip(self, data_reader, transport))]
+    #[tracing::instrument(skip(self, data_reader, transport_participant))]
     pub(super) fn announce_deleted_data_reader(
         &mut self,
         data_reader: UserDefinedDataReader,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let timestamp = now;
         {
@@ -747,16 +739,16 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .dcps_subscriptions_writer
             .transport_writer
-            .write_message(transport, now);
+            .write_message(transport_participant, now);
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn announce_topic(
         &mut self,
         topic_name: String,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let Some(topic) = self
             .domain_participant
@@ -809,7 +801,7 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .dcps_topics_writer
             .transport_writer
-            .write_message(transport, now);
+            .write_message(transport_participant, now);
     }
 
     #[tracing::instrument(skip(self))]
@@ -2052,7 +2044,7 @@ impl DcpsDomainParticipant {
         &mut self,
         type_lookup_request: TypeLookupRequest,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         match type_lookup_request.call {
             TypeLookupCall::TypeLookupGetTypesHashId { get_types } => {
@@ -2096,7 +2088,7 @@ impl DcpsDomainParticipant {
                         .ok();
                     type_lookup_reply_writer
                         .transport_writer
-                        .write_message(transport, now);
+                        .write_message(transport_participant, now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2134,7 +2126,7 @@ impl DcpsDomainParticipant {
                             .ok();
                         type_lookup_reply_writer
                             .transport_writer
-                            .write_message(transport, now);
+                            .write_message(transport_participant, now);
                     }
                 }
             }
@@ -2458,7 +2450,7 @@ impl DcpsDomainParticipant {
     pub fn request_topic_type_representation(
         &mut self,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         if self.domain_participant.discovered_topic_list.is_empty()
             || self
@@ -2534,7 +2526,7 @@ impl DcpsDomainParticipant {
                                     .ok();
                                 type_request_writer
                                     .transport_writer
-                                    .write_message(transport, now);
+                                    .write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2600,7 +2592,7 @@ impl DcpsDomainParticipant {
                                     .ok();
                                 type_request_writer
                                     .transport_writer
-                                    .write_message(transport, now);
+                                    .write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_types_lookup(unresolved);
@@ -2612,17 +2604,13 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub(crate) fn add_discovered_participant(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
         now: Time,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> bool {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
@@ -2673,7 +2661,7 @@ impl DcpsDomainParticipant {
                     .discovered_participant_list
                     .push(discovered_participant_info);
 
-                self.announce_participant(now, domain_tag, transport);
+                self.announce_participant(now, domain_tag, transport_participant);
 
                 self.add_matched_publications_detector(discovered_participant_data);
                 self.add_matched_publications_announcer(discovered_participant_data);

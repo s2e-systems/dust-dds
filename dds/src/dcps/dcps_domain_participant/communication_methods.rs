@@ -432,11 +432,7 @@ impl DcpsDomainParticipant {
         &mut self,
         reception_timestamp: Time,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         // 1. SPDP Participant Reader
         if !self
@@ -468,7 +464,7 @@ impl DcpsDomainParticipant {
                             &discovered_participant_data,
                             reception_timestamp,
                             domain_tag.clone(),
-                            transport,
+                            transport_participant,
                         ) {
                             self.domain_participant
                                 .builtin_subscriber
@@ -871,7 +867,7 @@ impl DcpsDomainParticipant {
                     self.handle_type_lookup_request(
                         type_lookup_request,
                         reception_timestamp,
-                        transport,
+                        transport_participant,
                     );
                 }
             }
@@ -1195,13 +1191,13 @@ impl DcpsDomainParticipant {
     pub fn write_messages(
         &mut self,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
             .transport_writer
-            .write_message(transport);
+            .write_message(transport_participant);
         for dr in self
             .domain_participant
             .user_defined_subscriber_list
@@ -1214,14 +1210,15 @@ impl DcpsDomainParticipant {
                     .into_iter(),
             )
         {
-            dr.transport_reader.write_message(transport);
+            dr.transport_reader.write_message(transport_participant);
         }
         for dw in self
             .domain_participant
             .builtin_publisher
             .stateful_data_writer_list_mut()
         {
-            dw.transport_writer.write_message(transport, now);
+            dw.transport_writer
+                .write_message(transport_participant, now);
         }
         for dw in self
             .domain_participant
@@ -1229,8 +1226,9 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
-            dw.transport_writer.write_message(transport, now);
+            dw.transport_writer
+                .write_message(transport_participant, now);
         }
-        self.process_pending_write_samples(now, transport);
+        self.process_pending_write_samples(now, transport_participant);
     }
 }

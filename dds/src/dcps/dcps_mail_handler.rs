@@ -24,11 +24,7 @@ impl DcpsParticipantFactory {
         now: Time,
         runtime: &impl DdsRuntime,
         security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport: &mut impl crate::transport::interface::Transport,
     ) -> DcpsReply
     where
         Auth: Authentication,
@@ -129,7 +125,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
-                        transport,
+                        transport.get_participant_mut(&participant.transport_handle),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -213,7 +209,10 @@ impl DcpsParticipantFactory {
                 .find(|x| x.get_instance_handle() == &participant_handle)
                 .ok_or(DdsError::AlreadyDeleted)
             {
-                Ok(p) => DcpsReply::Ok(p.delete_participant_contained_entities(now, transport)),
+                Ok(p) => DcpsReply::Ok(p.delete_participant_contained_entities(
+                    now,
+                    transport.get_participant_mut(&p.transport_handle),
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
@@ -305,7 +304,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.domain_tag().to_string(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -338,7 +337,7 @@ impl DcpsParticipantFactory {
                     Ok(p) => DcpsReply::Ok(p.enable_domain_participant(
                         now,
                         self.configuration.domain_tag().to_string(),
-                        transport,
+                        transport.get_participant_mut(&p.transport_handle),
                     )),
                     Err(e) => DcpsReply::Ok(Err(e)),
                 }
@@ -380,7 +379,7 @@ impl DcpsParticipantFactory {
                     topic_name,
                     now,
                     self.configuration.enable_type_information(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -407,7 +406,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
-                        transport,
+                        transport.get_participant_mut(&participant.transport_handle),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -426,7 +425,7 @@ impl DcpsParticipantFactory {
                     &publisher_handle,
                     &datawriter_handle,
                     now,
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -589,7 +588,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
-                        transport,
+                        transport.get_participant_mut(&p.transport_handle),
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -627,7 +626,7 @@ impl DcpsParticipantFactory {
                             timestamp,
                             now,
                             reply_sender,
-                            transport,
+                            transport.get_participant_mut(&p.transport_handle),
                         );
                     }
                     Err(e) => reply_sender.send(Err(e)),
@@ -654,7 +653,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
-                        transport,
+                        transport.get_participant_mut(&p.transport_handle),
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -684,7 +683,7 @@ impl DcpsParticipantFactory {
                     &data_writer_handle,
                     now,
                     self.configuration.enable_type_information(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -705,7 +704,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -725,7 +724,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
-                        transport,
+                        transport.get_participant_mut(&participant.transport_handle),
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -744,7 +743,7 @@ impl DcpsParticipantFactory {
                     &subscriber_handle,
                     &datareader_handle,
                     now,
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -822,7 +821,7 @@ impl DcpsParticipantFactory {
                     &data_reader_handle,
                     now,
                     self.configuration.enable_type_information(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -953,7 +952,7 @@ impl DcpsParticipantFactory {
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
-                    transport,
+                    transport.get_participant_mut(&p.transport_handle),
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },

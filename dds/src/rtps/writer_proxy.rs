@@ -9,7 +9,7 @@ use crate::{
         types::Count,
     },
     transport::{
-        interface::{Transport, Write},
+        interface::{RtpsParticipant, Write},
         types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     },
 };
@@ -261,7 +261,7 @@ impl RtpsWriterProxy {
         self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
     }
 
-    pub fn write_message(&mut self, reader_guid: &Guid, transport: &mut (impl Transport + ?Sized)) {
+    pub fn write_message(&mut self, reader_guid: &Guid, transport: &mut impl RtpsParticipant) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -287,8 +287,6 @@ impl RtpsWriterProxy {
                 .take(256)
                 .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s));
 
-            let handle =
-                crate::transport::types::transport_handle_from_guid_prefix(&reader_guid.prefix());
             if let Some(missing_change_fragments_seq_num) = missing_change_fragments_seq_num {
                 let frag = self
                     .frag_buffer
@@ -319,7 +317,7 @@ impl RtpsWriterProxy {
                     self.nack_frag_count,
                 );
 
-                let mut writer = transport.writer(handle, self.unicast_locator_list());
+                let mut writer = transport.writer(self.unicast_locator_list());
                 write_submessages_into_transport(
                     &[
                         &info_dst_submessage,
@@ -331,7 +329,7 @@ impl RtpsWriterProxy {
                 );
                 writer.flush();
             } else {
-                let mut writer = transport.writer(handle, self.unicast_locator_list());
+                let mut writer = transport.writer(self.unicast_locator_list());
                 write_submessages_into_transport(
                     &[&info_dst_submessage, &acknack_submessage],
                     reader_guid.prefix(),

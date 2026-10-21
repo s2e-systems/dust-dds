@@ -31,7 +31,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, runtime, transport))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime, transport_participant))]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
@@ -42,7 +42,7 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<InstanceHandle> {
         let topic = if let Some(content_filtered_topic) = self
             .domain_participant
@@ -158,19 +158,19 @@ impl DcpsDomainParticipant {
                 &data_reader_handle,
                 now,
                 enable_type_information,
-                transport,
+                transport_participant,
             )?;
         }
         Ok(data_reader_handle)
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn delete_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         datareader_handle: &InstanceHandle,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -187,7 +187,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datareader_handle)
         {
             let data_reader = subscriber.data_reader_list.remove(index);
-            self.announce_deleted_data_reader(data_reader, now, transport);
+            self.announce_deleted_data_reader(data_reader, now, transport_participant);
         } else {
             return Err(DdsError::AlreadyDeleted);
         };

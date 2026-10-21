@@ -6,7 +6,7 @@ use crate::{
         types::TIME_INVALID,
     },
     transport::{
-        interface::{Transport, Write},
+        interface::{RtpsParticipant, Write},
         types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
     },
 };
@@ -35,12 +35,11 @@ impl RtpsStatelessWriter {
         self.changes.push(cache_change);
     }
 
-    pub fn write_message(&mut self, transport: &mut (impl Transport + ?Sized)) {
+    pub fn write_message(&mut self, transport_participant: &mut impl RtpsParticipant) {
         if self.changes.is_empty() || self.reader_locators.is_empty() {
             return;
         }
-        let handle =
-            crate::transport::types::transport_handle_from_guid_prefix(&self.guid.prefix());
+
         for reader_locator in &mut self.reader_locators {
             while let Some(unsent_change_seq_num) =
                 reader_locator.next_unsent_change(self.changes.iter())
@@ -48,6 +47,8 @@ impl RtpsStatelessWriter {
                 // The post-condition:
                 // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
                 // should be full-filled by next_unsent_change()
+                let locators = [reader_locator.locator()];
+                let mut transport_writer = transport_participant.writer(&locators);
 
                 if let Some(cache_change) = self
                     .changes
@@ -75,14 +76,12 @@ impl RtpsStatelessWriter {
                         inline_qos,
                     );
 
-                    let locators = [reader_locator.locator()];
-                    let mut writer = transport.writer(handle, &locators);
                     write_submessages_into_transport(
                         &[&info_ts_submessage, &data_submessage],
                         self.guid.prefix(),
-                        &mut writer,
+                        &mut transport_writer,
                     );
-                    writer.flush();
+                    transport_writer.flush();
                 } else {
                     let gap_submessage = GapSubmessage::new(
                         ENTITYID_UNKNOWN,
@@ -90,14 +89,12 @@ impl RtpsStatelessWriter {
                         unsent_change_seq_num,
                         SequenceNumberSet::new(unsent_change_seq_num + 1, []),
                     );
-                    let locators = [reader_locator.locator()];
-                    let mut writer = transport.writer(handle, &locators);
                     write_submessages_into_transport(
                         &[&gap_submessage],
                         self.guid.prefix(),
-                        &mut writer,
+                        &mut transport_writer,
                     );
-                    writer.flush();
+                    transport_writer.flush();
                 }
                 reader_locator.set_highest_sent_change_sn(unsent_change_seq_num);
             }

@@ -219,7 +219,7 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support, runtime, transport))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, runtime, transport_participant))]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -231,7 +231,7 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<InstanceHandle> {
         if BUILT_IN_TOPIC_NAME_LIST.contains(&topic_name.as_str()) {
             return Err(DdsError::BadParameter);
@@ -301,7 +301,12 @@ impl DcpsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            self.enable_topic(topic_name, now, enable_type_information, transport)?;
+            self.enable_topic(
+                topic_name,
+                now,
+                enable_type_information,
+                transport_participant,
+            )?;
         }
 
         Ok(topic_handle)
@@ -513,17 +518,17 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn delete_participant_contained_entities(
         &mut self,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let deleted_publisher_list: Vec<PublisherEntity> =
             core::mem::take(&mut self.domain_participant.user_defined_publisher_list);
         for mut publisher in deleted_publisher_list {
             for data_writer in publisher.data_writer_list.drain(..) {
-                self.announce_deleted_data_writer(data_writer, now, transport);
+                self.announce_deleted_data_writer(data_writer, now, transport_participant);
             }
         }
 
@@ -531,7 +536,7 @@ impl DcpsDomainParticipant {
             core::mem::take(&mut self.domain_participant.user_defined_subscriber_list);
         for mut subscriber in deleted_subscriber_list {
             for data_reader in subscriber.data_reader_list.drain(..) {
-                self.announce_deleted_data_reader(data_reader, now, transport);
+                self.announce_deleted_data_reader(data_reader, now, transport_participant);
             }
         }
 
@@ -651,17 +656,13 @@ impl DcpsDomainParticipant {
         Ok(handle.clone())
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn set_domain_participant_qos(
         &mut self,
         qos: QosKind<DomainParticipantQos>,
         now: Time,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -670,7 +671,7 @@ impl DcpsDomainParticipant {
 
         self.domain_participant.qos = qos;
         if self.domain_participant.enabled {
-            self.announce_participant(now, domain_tag, transport);
+            self.announce_participant(now, domain_tag, transport_participant);
         }
         Ok(())
     }
@@ -694,16 +695,12 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn enable_domain_participant(
         &mut self,
         now: Time,
         domain_tag: String,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         if !self.domain_participant.enabled {
             for t in &mut self.domain_participant.locally_created_topic_list {
@@ -714,7 +711,7 @@ impl DcpsDomainParticipant {
             self.domain_participant.builtin_subscriber.enable();
             self.domain_participant.enabled = true;
 
-            self.announce_participant(now, domain_tag, transport);
+            self.announce_participant(now, domain_tag, transport_participant);
         }
 
         Ok(())
