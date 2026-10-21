@@ -80,16 +80,25 @@ pub struct DcpsParticipantFactory {
     pub default_participant_qos: DomainParticipantQos,
     pub configuration: DustDdsConfiguration,
     pub dcps_sender: DcpsSender,
+    app_id: [u8; 4],
+    host_id: [u8; 4],
 }
 
 impl DcpsParticipantFactory {
-    pub fn new(configuration: DustDdsConfiguration, dcps_sender: DcpsSender) -> Self {
+    pub fn new(
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        configuration: DustDdsConfiguration,
+        dcps_sender: DcpsSender,
+    ) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration,
             dcps_sender,
+            app_id,
+            host_id,
         }
     }
 
@@ -118,17 +127,15 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let transport_handle = transport.create_participant(domain_id);
-        let host_id = crate::dds_async::domain_participant_factory::get_host_id();
-        let app_id = std::process::id().to_ne_bytes();
         let guid_prefix: GuidPrefix = [
-            host_id[0],
-            host_id[1],
-            host_id[2],
-            host_id[3],
-            app_id[0],
-            app_id[1],
-            app_id[2],
-            app_id[3],
+            self.host_id[0],
+            self.host_id[1],
+            self.host_id[2],
+            self.host_id[3],
+            self.app_id[0],
+            self.app_id[1],
+            self.app_id[2],
+            self.app_id[3],
             transport_handle[0],
             transport_handle[1],
             transport_handle[2],

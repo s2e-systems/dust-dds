@@ -143,8 +143,7 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
 }
 
 #[cfg(feature = "std")]
-#[doc(hidden)]
-pub fn get_host_id() -> [u8; 4] {
+fn get_host_id() -> [u8; 4] {
     use core::net::IpAddr;
     use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
     use tracing::warn;
@@ -227,8 +226,8 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
         Access: AccessControl,
         Crypto: Cryptographic,
     >(
-        _app_id: [u8; 4],
-        _host_id: [u8; 4],
+        app_id: [u8; 4],
+        host_id: [u8; 4],
         configuration: DustDdsConfiguration,
         runtime: R,
         mut transport: T,
@@ -241,6 +240,8 @@ impl<T: Transport + RtpsParticipant> DomainParticipantFactoryAsync<T> {
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
+                app_id,
+                host_id,
                 configuration,
                 dcps_sender.clone(),
             );

@@ -19,8 +19,8 @@ use dust_dds::{
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
-        interface::{TransportDataReceiver, WriteMessage},
-        types::Locator,
+        interface::{RtpsParticipant, Transport, Write},
+        types::{Locator, TransportHandle},
     },
 };
 use embassy_executor::Spawner;
@@ -69,9 +69,10 @@ fn port_builtin_multicast(domain_id: DomainId) -> u16 {
     (PB + DG * domain_id + D0) as u16
 }
 
-type DataReceiverChannel =
-    embassy_sync::watch::Watch<CriticalSectionRawMutex, TransportDataReceiver, 1>;
-static DDS_DATA_RECEIVER_CHANNEL: DataReceiverChannel = DataReceiverChannel::new();
+const READER_CHANNEL_SIZE: usize = 256;
+type ReaderChannel =
+    embassy_sync::channel::Channel<CriticalSectionRawMutex, Vec<u8>, READER_CHANNEL_SIZE>;
+static READER_CHANNEL: ReaderChannel = ReaderChannel::new();
 
 type SubscriptionSender = embassy_sync::channel::Sender<'static, CriticalSectionRawMutex, i32, 1>;
 type SubscriptionChannel = embassy_sync::channel::Channel<CriticalSectionRawMutex, i32, 1>;
@@ -134,37 +135,84 @@ async fn writer_task(stack: Stack<'static>) -> ! {
 
 pub struct EmbeddedTransport {
     addr: Ipv4Addr,
+    default_unicast_locator_list: Vec<Locator>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    rx_buffer: Vec<u8>,
+    tx_buffer: [u8; TX_BUFFER],
+    tx_buffer_len: usize,
 }
 
-impl dust_dds::transport::interface::TransportParticipantFactory for EmbeddedTransport {
-    fn create_participant(
-        &self,
-        domain_id: i32,
-        data_receiver: TransportDataReceiver,
-    ) -> dust_dds::transport::interface::RtpsTransportParticipant {
-        DDS_DATA_RECEIVER_CHANNEL.sender().send(data_receiver);
+impl EmbeddedTransport {
+    pub fn new(addr: Ipv4Addr) -> Self {
+        Self {
+            addr,
+            default_unicast_locator_list: Vec::new(),
+            metatraffic_unicast_locator_list: Vec::new(),
+            metatraffic_multicast_locator_list: Vec::new(),
+            rx_buffer: Vec::new(),
+            tx_buffer: [0; TX_BUFFER],
+            tx_buffer_len: 0,
+        }
+    }
+}
 
-        let metatraffic_multicast_locator_list = vec![Locator::new(
+impl RtpsParticipant for EmbeddedTransport {
+    fn default_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &self.default_unicast_locator_list
+    }
+
+    fn metatraffic_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    fn metatraffic_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    fn default_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+        &[]
+    }
+
+    fn fragment_size(&self, _handle: TransportHandle) -> usize {
+        1400
+    }
+}
+
+impl Transport for EmbeddedTransport {
+    fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
+        self.metatraffic_multicast_locator_list = vec![Locator::new(
             1,
             port_builtin_multicast(domain_id) as u32,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         )];
         let a = self.addr.octets();
         let local_addr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a[0], a[1], a[2], a[3]];
-        let default_unicast_locator_list = vec![Locator::new(1, DEFAULT_UNICAST_PORT, local_addr)];
-        let metatraffic_unicast_locator_list =
+        self.default_unicast_locator_list = vec![Locator::new(1, DEFAULT_UNICAST_PORT, local_addr)];
+        self.metatraffic_unicast_locator_list =
             vec![Locator::new(1, METATRAFFIC_UNICAST_PORT, local_addr)];
 
-        dust_dds::transport::interface::RtpsTransportParticipant {
-            message_writer: Box::new(MessageWriter {
-                tx_buffer: [0; TX_BUFFER],
-            }),
-            default_unicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_multicast_locator_list: vec![],
-            fragment_size: 1400,
+        [0, 0, 0, 1]
+    }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
+
+    fn writer<'a>(
+        &'a mut self,
+        _handle: TransportHandle,
+        locators: &'a [Locator],
+    ) -> impl Write + 'a {
+        self.tx_buffer_len = 0;
+        MessageWriter {
+            tx_buffer: &mut self.tx_buffer,
+            tx_buffer_len: &mut self.tx_buffer_len,
+            locators,
         }
+    }
+
+    async fn read(&mut self) -> &[u8] {
+        self.rx_buffer = READER_CHANNEL.receiver().receive().await;
+        &self.rx_buffer
     }
 }
 
@@ -186,24 +234,36 @@ impl From<&UdpLocator> for IpEndpoint {
     }
 }
 
-#[derive(Clone)]
-struct MessageWriter {
-    tx_buffer: [u8; TX_BUFFER],
+struct MessageWriter<'a> {
+    tx_buffer: &'a mut [u8; TX_BUFFER],
+    tx_buffer_len: &'a mut usize,
+    locators: &'a [Locator],
 }
 
-impl WriteMessage for MessageWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        &mut self.tx_buffer
+impl Write for MessageWriter<'_> {
+    fn write(&mut self, buf: &[u8]) {
+        let new_len = *self.tx_buffer_len + buf.len();
+        if new_len <= self.tx_buffer.len() {
+            self.tx_buffer[*self.tx_buffer_len..new_len].copy_from_slice(buf);
+            *self.tx_buffer_len = new_len;
+        }
     }
 
-    fn write_message(&mut self, len: usize, locators: &[Locator]) {
+    fn flush(&mut self) {
+        if *self.tx_buffer_len == 0 {
+            return;
+        }
         if WRITER_CHANNEL
             .sender()
-            .try_send((self.tx_buffer[..len].to_vec(), locators.to_vec()))
+            .try_send((
+                self.tx_buffer[..*self.tx_buffer_len].to_vec(),
+                self.locators.to_vec(),
+            ))
             .is_err()
         {
             defmt::warn!("Dropped a message");
         }
+        *self.tx_buffer_len = 0;
     }
 }
 
@@ -246,14 +306,11 @@ async fn metatraffic_multicast(stack: Stack<'static>) -> ! {
         IpAddress::Ipv4(addr),
         port_builtin_multicast(0),
     )));
-    let dds_data_receiver = unwrap!(DDS_DATA_RECEIVER_CHANNEL.receiver()).get().await;
     let mut buf = [0; RX_BUFFER];
     loop {
         let (size, _metadata) = unwrap!(socket.recv_from(&mut buf).await);
         // info!("Received {:?} B of data on metatraffic_multicast", size);
-        dds_data_receiver
-            .receive_message(buf[..size].to_vec())
-            .await;
+        READER_CHANNEL.sender().send(buf[..size].to_vec()).await;
     }
 }
 
@@ -284,13 +341,12 @@ async fn metatraffic_unicast(stack: Stack<'static>) -> ! {
         ))
         .unwrap();
 
-    let dds_data_receiver = unwrap!(DDS_DATA_RECEIVER_CHANNEL.receiver()).get().await;
     let mut buf = Box::new([0; RX_BUFFER]);
 
     loop {
         let (size, _metadata) = unwrap!(socket.recv_from(buf.as_mut()).await);
         // info!("received metatraffic_unicast {:?} B", size,);
-        dds_data_receiver.receive_message(buf[..size].into()).await;
+        READER_CHANNEL.sender().send(buf[..size].into()).await;
     }
 }
 
@@ -319,13 +375,12 @@ async fn default_unicast(stack: Stack<'static>) -> ! {
         DEFAULT_UNICAST_PORT as u16,
     )));
 
-    let dds_data_receiver = unwrap!(DDS_DATA_RECEIVER_CHANNEL.receiver()).get().await;
     let mut buf = [0; RX_BUFFER];
 
     loop {
         let (size, _metadata) = unwrap!(socket.recv_from(buf.as_mut()).await);
         // info!("received unicast {:?} B", size,);
-        dds_data_receiver.receive_message(buf[..size].into()).await;
+        READER_CHANNEL.sender().send(buf[..size].into()).await;
     }
 }
 
@@ -473,7 +528,7 @@ async fn main(spawner: Spawner) -> ! {
         [5, 6, 7, 8],
         DustDdsConfiguration::default(),
         runtime,
-        EmbeddedTransport { addr },
+        EmbeddedTransport::new(addr),
         DdsSecurityPlugins::disabled(),
     );
 
