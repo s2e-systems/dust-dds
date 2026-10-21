@@ -699,8 +699,8 @@ impl Transport for RtpsUdpTransport {
 
     type Participant = ParticipantSockets;
 
-    fn get_participant_mut(&mut self, handle: &TransportHandle) -> &mut Self::Participant {
-        self.participants.get_mut(handle).unwrap()
+    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant> {
+        self.participants.get_mut(handle)
     }
 }
 

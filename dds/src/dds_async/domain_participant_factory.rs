@@ -278,16 +278,20 @@ impl DomainParticipantFactoryAsync {
                                     x.get_instance_handle() == &scheduled_event.participant_handle
                                 })
                             {
-                                dp.handle_timed_event(
-                                    scheduled_event.event,
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .participant_announcement_interval()
-                                        .into(),
-                                    domain_participant_factory.configuration.domain_tag(),
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.handle_timed_event(
+                                        scheduled_event.event,
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .participant_announcement_interval()
+                                            .into(),
+                                        domain_participant_factory.configuration.domain_tag(),
+                                        transport_participant,
+                                    );
+                                }
                             }
                         }
                         Either3::C((transport_handle, data)) => {
@@ -298,24 +302,25 @@ impl DomainParticipantFactoryAsync {
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
                                 dp.handle_data(data, now);
-                                dp.process_builtin_cache_changes(
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .domain_tag()
-                                        .to_string(),
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
-                                dp.notify_find_topic_senders(now);
-                                dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(
-                                    now,
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
-                                dp.write_messages(
-                                    now,
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.process_builtin_cache_changes(
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .domain_tag()
+                                            .to_string(),
+                                        transport_participant,
+                                    );
+                                    dp.notify_find_topic_senders(now);
+                                    dp.process_user_defined_received_cache_changes(now);
+                                    dp.request_topic_type_representation(
+                                        now,
+                                        transport_participant,
+                                    );
+                                    dp.write_messages(now, transport_participant);
+                                }
                             }
                         }
                     };
@@ -340,24 +345,25 @@ impl DomainParticipantFactoryAsync {
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
                                 dp.handle_data(data, now);
-                                dp.process_builtin_cache_changes(
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .domain_tag()
-                                        .to_string(),
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
-                                dp.notify_find_topic_senders(now);
-                                dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(
-                                    now,
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
-                                dp.write_messages(
-                                    now,
-                                    transport.get_participant_mut(&dp.transport_handle),
-                                );
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.process_builtin_cache_changes(
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .domain_tag()
+                                            .to_string(),
+                                        transport_participant,
+                                    );
+                                    dp.notify_find_topic_senders(now);
+                                    dp.process_user_defined_received_cache_changes(now);
+                                    dp.request_topic_type_representation(
+                                        now,
+                                        transport_participant,
+                                    );
+                                    dp.write_messages(now, transport_participant);
+                                }
                             }
                         }
                     };

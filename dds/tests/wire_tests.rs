@@ -75,8 +75,8 @@ impl Transport for MockTransport {
         [0; 4]
     }
 
-    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> &mut Self::Participant {
-        self
+    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> Option<&mut Self::Participant> {
+        Some(self)
     }
 
     fn delete_participant(&mut self, _handle: TransportHandle) {}

@@ -734,7 +734,7 @@ mod tests {
         },
         transport::{
             interface::{RtpsParticipant, Write},
-            types::{Locator, TransportHandle},
+            types::Locator,
         },
     };
 

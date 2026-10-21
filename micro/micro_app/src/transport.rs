@@ -282,8 +282,12 @@ impl Transport for EmbeddedTransport {
         self.transport_handle
     }
 
-    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> &mut Self::Participant {
-        self
+    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant> {
+        if handle == &self.transport_handle {
+            Some(self)
+        } else {
+            None
+        }
     }
 
     fn delete_participant(&mut self, _handle: TransportHandle) {}

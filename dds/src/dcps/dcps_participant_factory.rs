@@ -127,7 +127,11 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let transport_handle = transport.create_participant(domain_id);
-        let transport_participant = transport.get_participant_mut(&transport_handle);
+        let transport_participant = transport
+            .get_participant_mut(&transport_handle)
+            .ok_or(DdsError::PreconditionNotMet(String::from(
+                "Transport participant not found",
+            )))?;
         let guid_prefix: GuidPrefix = [
             self.host_id[0],
             self.host_id[1],
@@ -309,7 +313,9 @@ impl DcpsParticipantFactory {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        let transport_participant = transport.get_participant_mut(&participant.transport_handle);
+        let transport_participant = transport
+            .get_participant_mut(&participant.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
         participant.announce_deleted_participant(now, transport_participant);
         transport.delete_participant(participant.transport_handle);
         Ok(())
@@ -323,6 +329,21 @@ impl DcpsParticipantFactory {
             .iter_mut()
             .find(|x| x.get_instance_handle() == participant_handle)
             .ok_or(DdsError::AlreadyDeleted)
+    }
+
+    pub fn get_participant_and_transport<'a, 'b, T: crate::transport::interface::Transport>(
+        domain_participant_list: &'a mut [DcpsDomainParticipant],
+        participant_handle: &InstanceHandle,
+        transport: &'b mut T,
+    ) -> DdsResult<(&'a mut DcpsDomainParticipant, &'b mut T::Participant)> {
+        let p = domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let tp = transport
+            .get_participant_mut(&p.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        Ok((p, tp))
     }
 
     pub fn set_default_participant_qos(
