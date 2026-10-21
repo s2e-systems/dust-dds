@@ -63,10 +63,6 @@ impl RtpsParticipant for MockTransport {
         1000
     }
 
-    fn handle(&self) -> TransportHandle {
-        [0; 4]
-    }
-
     fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
         MockWriter
     }

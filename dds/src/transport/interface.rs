@@ -6,14 +6,15 @@ pub trait Write {
 }
 
 pub trait RtpsParticipant {
-    type Writer<'a>: Write where Self: 'a;
+    type Writer<'a>: Write
+    where
+        Self: 'a;
 
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn metatraffic_unicast_locator_list(&self) -> &[Locator];
     fn metatraffic_multicast_locator_list(&self) -> &[Locator];
     fn default_multicast_locator_list(&self) -> &[Locator];
     fn fragment_size(&self) -> usize;
-    fn handle(&self) -> TransportHandle;
 
     fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> Self::Writer<'a>;
 }

@@ -149,7 +149,6 @@ pub struct ParticipantSockets {
     socket_v6: Option<UdpSocket>,
     v4_multicast_addresses: Vec<Ipv4Addr>,
     v6_multicast_indices: Vec<u32>,
-    handle: TransportHandle,
     write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
     write_buffer_len: usize,
 }
@@ -174,10 +173,6 @@ impl RtpsParticipant for ParticipantSockets {
 
     fn fragment_size(&self) -> usize {
         self.fragment_size
-    }
-
-    fn handle(&self) -> TransportHandle {
-        self.handle
     }
 
     fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> Self::Writer<'a> {
@@ -682,7 +677,6 @@ impl Transport for RtpsUdpTransport {
             socket_v6,
             v4_multicast_addresses,
             v6_multicast_indices,
-            handle: transport_handle,
             write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
             write_buffer_len: 0,
         };

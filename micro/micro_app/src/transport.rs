@@ -254,10 +254,6 @@ impl RtpsParticipant for EmbeddedTransport {
         1400
     }
 
-    fn handle(&self) -> TransportHandle {
-        self.transport_handle
-    }
-
     fn writer<'a>(&'a mut self, locators: &'a [Locator]) -> Self::Writer<'a> {
         self.tx_buffer_len = 0;
         MessageWriter {

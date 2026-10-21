@@ -805,10 +805,6 @@ mod tests {
             500
         }
 
-        fn handle(&self) -> TransportHandle {
-            [0; 4]
-        }
-
         fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
             MockTransportWriter {
                 submessages: &self.submessages,
