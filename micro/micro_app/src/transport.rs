@@ -232,32 +232,43 @@ impl EmbeddedTransport {
 }
 
 impl RtpsParticipant for EmbeddedTransport {
-    fn default_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn default_unicast_locator_list(&self) -> &[Locator] {
         &self.default_unicast_locator_list
     }
 
-    fn metatraffic_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
         &self.metatraffic_unicast_locator_list
     }
 
-    fn metatraffic_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
         &self.metatraffic_multicast_locator_list
     }
 
-    fn default_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
 
-    fn fragment_size(&self, _handle: TransportHandle) -> usize {
+    fn fragment_size(&self) -> usize {
         1400
     }
 
     fn handle(&self) -> TransportHandle {
-        todo!()
+        self.transport_handle
+    }
+
+    fn writer<'a>(&'a mut self, locators: &'a [Locator]) -> impl Write + 'a {
+        self.tx_buffer_len = 0;
+        MessageWriter {
+            tx_buffer: &mut self.tx_buffer,
+            tx_buffer_len: &mut self.tx_buffer_len,
+            locators,
+        }
     }
 }
 
 impl Transport for EmbeddedTransport {
+    type Participant = EmbeddedTransport;
+
     fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
         self.metatraffic_multicast_locator_list = vec![Locator::new(
             1,
@@ -273,20 +284,11 @@ impl Transport for EmbeddedTransport {
         self.transport_handle
     }
 
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
-
-    fn writer<'a>(
-        &'a mut self,
-        _handle: TransportHandle,
-        locators: &'a [Locator],
-    ) -> impl Write + 'a {
-        self.tx_buffer_len = 0;
-        MessageWriter {
-            tx_buffer: &mut self.tx_buffer,
-            tx_buffer_len: &mut self.tx_buffer_len,
-            locators,
-        }
+    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> &mut Self::Participant {
+        self
     }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
 
     fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send {
         let transport_handle = self.transport_handle;
@@ -320,9 +322,6 @@ impl Transport for EmbeddedTransport {
             }
         })
     }
-
-    type Participant = EmbeddedTransport;
-
 }
 
 struct SendFuture<F>(F);
