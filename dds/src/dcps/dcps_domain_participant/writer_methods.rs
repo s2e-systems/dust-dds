@@ -263,7 +263,9 @@ impl DcpsDomainParticipant {
 
         let res = data_writer.unregister_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
-            data_writer.transport_writer.write_message(transport_participant, now);
+            data_writer
+                .transport_writer
+                .write_message(transport_participant, now);
         }
         res
     }
