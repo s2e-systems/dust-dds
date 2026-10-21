@@ -783,6 +783,8 @@ mod tests {
     }
 
     impl RtpsParticipant for MockTransport {
+        type Writer<'a> = MockTransportWriter<'a>;
+
         fn default_unicast_locator_list(&self) -> &[Locator] {
             &[]
         }
@@ -807,7 +809,7 @@ mod tests {
             [0; 4]
         }
 
-        fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> impl Write + 'a {
+        fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
             MockTransportWriter {
                 submessages: &self.submessages,
                 buffer: Vec::new(),

@@ -45,6 +45,8 @@ impl MockTransport {
 }
 
 impl RtpsParticipant for MockTransport {
+    type Writer<'a> = MockWriter;
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &[]
     }
@@ -65,7 +67,7 @@ impl RtpsParticipant for MockTransport {
         [0; 4]
     }
 
-    fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> impl Write + 'a {
+    fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
         MockWriter
     }
 }

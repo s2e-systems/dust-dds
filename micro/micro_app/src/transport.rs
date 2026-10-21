@@ -232,6 +232,8 @@ impl EmbeddedTransport {
 }
 
 impl RtpsParticipant for EmbeddedTransport {
+    type Writer<'a> = MessageWriter<'a>;
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &self.default_unicast_locator_list
     }
@@ -256,7 +258,7 @@ impl RtpsParticipant for EmbeddedTransport {
         self.transport_handle
     }
 
-    fn writer<'a>(&'a mut self, locators: &'a [Locator]) -> impl Write + 'a {
+    fn writer<'a>(&'a mut self, locators: &'a [Locator]) -> Self::Writer<'a> {
         self.tx_buffer_len = 0;
         MessageWriter {
             tx_buffer: &mut self.tx_buffer,
@@ -354,7 +356,7 @@ impl From<&UdpLocator> for IpEndpoint {
     }
 }
 
-struct MessageWriter<'a> {
+pub struct MessageWriter<'a> {
     tx_buffer: &'a mut [u8; TX_BUFFER],
     tx_buffer_len: &'a mut usize,
     locators: &'a [Locator],

@@ -154,6 +154,8 @@ pub struct ParticipantSockets {
     write_buffer_len: usize,
 }
 impl RtpsParticipant for ParticipantSockets {
+    type Writer<'a> = UdpWriter<'a>;
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &self.default_unicast_locator_list
     }
@@ -178,7 +180,7 @@ impl RtpsParticipant for ParticipantSockets {
         self.handle
     }
 
-    fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> impl Write + 'a {
+    fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> Self::Writer<'a> {
         self.write_buffer_len = 0;
 
         UdpWriter {
