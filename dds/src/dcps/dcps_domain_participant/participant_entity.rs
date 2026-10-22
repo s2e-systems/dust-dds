@@ -25,11 +25,11 @@ use crate::{
     dds_async::domain_participant_factory::DcpsSender,
     infrastructure::{
         domain::DomainId,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
-        time::{Duration, DurationKind, Time},
+        time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
         IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
@@ -62,6 +62,67 @@ pub struct DiscoveredParticipantInfo {
     pub default_multicast_locator_list: Vec<Locator>,
     pub lease_duration: Duration,
     pub last_communication_timestamp: Time,
+}
+
+/// Represents a specific timed event that has expired or is scheduled to run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimedEvent {
+    /// Announce the domain participant.
+    AnnounceParticipant,
+    /// Remove a stale discovered participant whose lease duration expired.
+    RemoveStaleParticipant {
+        /// Handle of the discovered participant.
+        handle: InstanceHandle,
+    },
+    /// Check deadline for a specific data reader.
+    CheckMissedReaderDeadline {
+        /// Handle of the subscriber containing the reader.
+        subscriber_handle: InstanceHandle,
+        /// Handle of the data reader.
+        reader_handle: InstanceHandle,
+    },
+    /// Check deadline for a specific data writer.
+    CheckMissedWriterDeadline {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Remove stale samples for a specific data writer.
+    RemoveStaleWriterSamples {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Remove stale samples for a specific data reader.
+    RemoveStaleReaderSamples {
+        /// Handle of the subscriber containing the reader.
+        subscriber_handle: InstanceHandle,
+        /// Handle of the data reader.
+        reader_handle: InstanceHandle,
+    },
+    /// Check timeout for a pending write sample on a specific data writer.
+    CheckPendingWriterSampleTimeout {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Send heartbeat for a specific builtin stateful data writer.
+    SendBuiltinWriterHeartbeat {
+        /// Handle of the builtin writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Send heartbeat for a specific user-defined data writer.
+    SendUserWriterHeartbeat {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Notify senders waiting on topic discovery whose deadlines expired.
+    NotifyFindTopicSenders,
 }
 
 pub struct DcpsDomainParticipant {
@@ -128,9 +189,27 @@ impl DcpsDomainParticipant {
         &self,
         now: Time,
         participant_announcement_interval: Duration,
-    ) -> Option<Duration> {
-        let mut min_time =
-            self.time_until_participant_announcement(now, participant_announcement_interval);
+    ) -> Option<(Duration, TimedEvent)> {
+        let mut min_time: Option<Duration> = None;
+        let mut earliest_event: Option<TimedEvent> = None;
+
+        let mut update = |duration: Duration, event: TimedEvent| match min_time {
+            Some(m) if duration < m => {
+                min_time = Some(duration);
+                earliest_event = Some(event);
+            }
+            None => {
+                min_time = Some(duration);
+                earliest_event = Some(event);
+            }
+            _ => (),
+        };
+
+        if let Some(announcement_time) =
+            self.time_until_participant_announcement(now, participant_announcement_interval)
+        {
+            update(announcement_time, TimedEvent::AnnounceParticipant);
+        }
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -139,7 +218,12 @@ impl DcpsDomainParticipant {
             } else {
                 Duration::new(0, 0)
             };
-            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+            update(
+                remaining,
+                TimedEvent::RemoveStaleParticipant {
+                    handle: InstanceHandle::new(dp.dds_participant_data.key.value),
+                },
+            );
         }
 
         for t in &self.domain_participant.find_topic_sender_list {
@@ -148,7 +232,7 @@ impl DcpsDomainParticipant {
             } else {
                 Duration::new(0, 0)
             };
-            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+            update(remaining, TimedEvent::NotifyFindTopicSenders);
         }
 
         for dw in self
@@ -158,7 +242,12 @@ impl DcpsDomainParticipant {
         {
             if !dw.transport_writer.changes().is_empty() {
                 if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
-                    min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                    update(
+                        hb_time,
+                        TimedEvent::SendBuiltinWriterHeartbeat {
+                            writer_handle: dw.instance_handle,
+                        },
+                    );
                 }
             }
         }
@@ -166,14 +255,23 @@ impl DcpsDomainParticipant {
         for subscriber in &self.domain_participant.user_defined_subscriber_list {
             for data_reader in &subscriber.data_reader_list {
                 if let DurationKind::Finite(deadline) = data_reader.qos.deadline.period {
-                    for instance in &data_reader.instance_ownership {
-                        let elapsed = now - instance.last_received_time;
-                        let remaining = if deadline > elapsed {
-                            deadline - elapsed
-                        } else {
-                            Duration::new(0, 0)
-                        };
-                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                    for instance in &data_reader.instances {
+                        let last_received = instance.last_received_time_stamp();
+                        if last_received != Time::new(TIME_INVALID_SEC, TIME_INVALID_NSEC) {
+                            let elapsed = now - last_received;
+                            let remaining = if deadline > elapsed {
+                                deadline - elapsed
+                            } else {
+                                Duration::new(0, 0)
+                            };
+                            update(
+                                remaining,
+                                TimedEvent::CheckMissedReaderDeadline {
+                                    subscriber_handle: subscriber.instance_handle,
+                                    reader_handle: data_reader.instance_handle,
+                                },
+                            );
+                        }
                     }
                 }
 
@@ -199,8 +297,13 @@ impl DcpsDomainParticipant {
                                 } else {
                                     Duration::new(0, 0)
                                 };
-                                min_time =
-                                    min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                                update(
+                                    remaining,
+                                    TimedEvent::RemoveStaleReaderSamples {
+                                        subscriber_handle: subscriber.instance_handle,
+                                        reader_handle: data_reader.instance_handle,
+                                    },
+                                );
                             }
                         }
                     }
@@ -219,7 +322,13 @@ impl DcpsDomainParticipant {
                             } else {
                                 Duration::new(0, 0)
                             };
-                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                            update(
+                                remaining,
+                                TimedEvent::CheckMissedWriterDeadline {
+                                    publisher_handle: publisher.instance_handle,
+                                    writer_handle: data_writer.instance_handle,
+                                },
+                            );
                         }
                     }
                 }
@@ -233,7 +342,13 @@ impl DcpsDomainParticipant {
                             } else {
                                 Duration::new(0, 0)
                             };
-                            min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                            update(
+                                remaining,
+                                TimedEvent::RemoveStaleWriterSamples {
+                                    publisher_handle: publisher.instance_handle,
+                                    writer_handle: data_writer.instance_handle,
+                                },
+                            );
                         }
                     }
                 }
@@ -245,7 +360,13 @@ impl DcpsDomainParticipant {
                         } else {
                             Duration::new(0, 0)
                         };
-                        min_time = min_time.map_or(Some(remaining), |m| Some(m.min(remaining)));
+                        update(
+                            remaining,
+                            TimedEvent::CheckPendingWriterSampleTimeout {
+                                publisher_handle: publisher.instance_handle,
+                                writer_handle: data_writer.instance_handle,
+                            },
+                        );
                     }
                 }
 
@@ -255,13 +376,170 @@ impl DcpsDomainParticipant {
                     if let Some(hb_time) =
                         data_writer.transport_writer.time_until_next_heartbeat(now)
                     {
-                        min_time = min_time.map_or(Some(hb_time), |m| Some(m.min(hb_time)));
+                        update(
+                            hb_time,
+                            TimedEvent::SendUserWriterHeartbeat {
+                                publisher_handle: publisher.instance_handle,
+                                writer_handle: data_writer.instance_handle,
+                            },
+                        );
                     }
                 }
             }
         }
 
-        min_time
+        min_time.zip(earliest_event)
+    }
+
+    pub fn handle_timed_event(
+        &mut self,
+        event: TimedEvent,
+        now: Time,
+        announcement_interval: Duration,
+        domain_tag: &str,
+    ) {
+        match event {
+            TimedEvent::AnnounceParticipant => {
+                self.announce_participant_if_needed(
+                    now,
+                    announcement_interval,
+                    domain_tag.to_string(),
+                );
+            }
+            TimedEvent::RemoveStaleParticipant { handle } => {
+                self.remove_discovered_participant(&handle, now);
+            }
+            TimedEvent::CheckMissedReaderDeadline {
+                subscriber_handle,
+                reader_handle,
+            } => {
+                self.check_missed_reader_deadline_for_reader(
+                    &subscriber_handle,
+                    &reader_handle,
+                    now,
+                );
+            }
+            TimedEvent::CheckMissedWriterDeadline {
+                publisher_handle,
+                writer_handle,
+            } => {
+                self.check_missed_writer_deadline_for_writer(
+                    &publisher_handle,
+                    &writer_handle,
+                    now,
+                );
+            }
+            TimedEvent::RemoveStaleWriterSamples {
+                publisher_handle,
+                writer_handle,
+            } => {
+                if let Some(publisher) = self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                    .find(|p| p.instance_handle == publisher_handle)
+                {
+                    if let Some(data_writer) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|w| w.instance_handle == writer_handle)
+                    {
+                        if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
+                            data_writer.transport_writer.changes_mut().retain(|cc| {
+                                if let Some(timestamp) = &cc.source_timestamp {
+                                    Time::from(*timestamp) + lifespan > now
+                                } else {
+                                    true
+                                }
+                            });
+                        }
+                    }
+                }
+                self.process_pending_write_samples(now);
+                self.write_messages(now);
+            }
+            TimedEvent::RemoveStaleReaderSamples {
+                subscriber_handle,
+                reader_handle,
+            } => {
+                if let Some(subscriber) = self
+                    .domain_participant
+                    .user_defined_subscriber_list
+                    .iter_mut()
+                    .find(|s| s.instance_handle == subscriber_handle)
+                {
+                    if let Some(data_reader) = subscriber
+                        .data_reader_list
+                        .iter_mut()
+                        .find(|r| r.instance_handle == reader_handle)
+                    {
+                        data_reader.remove_stale_samples(now);
+                    }
+                }
+            }
+            TimedEvent::CheckPendingWriterSampleTimeout {
+                publisher_handle,
+                writer_handle,
+            } => {
+                if let Some(publisher) = self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                    .find(|p| p.instance_handle == publisher_handle)
+                {
+                    if let Some(data_writer) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|w| w.instance_handle == writer_handle)
+                    {
+                        if let Some(pending) = &data_writer.pending_write_sample {
+                            if let Some(expiration_time) = pending.expiration_time {
+                                if now >= expiration_time {
+                                    let pending = data_writer.pending_write_sample.take().unwrap();
+                                    pending.reply_sender.send(Err(DdsError::Timeout));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            TimedEvent::SendBuiltinWriterHeartbeat { writer_handle } => {
+                for dw in self
+                    .domain_participant
+                    .builtin_publisher
+                    .stateful_data_writer_list_mut()
+                {
+                    if dw.instance_handle == writer_handle {
+                        dw.transport_writer
+                            .write_message(self.transport.message_writer.as_mut(), now);
+                        break;
+                    }
+                }
+            }
+            TimedEvent::SendUserWriterHeartbeat {
+                publisher_handle,
+                writer_handle,
+            } => {
+                if let Some(publisher) = self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                    .find(|p| p.instance_handle == publisher_handle)
+                {
+                    if let Some(dw) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|w| w.instance_handle == writer_handle)
+                    {
+                        dw.transport_writer
+                            .write_message(self.transport.message_writer.as_mut(), now);
+                    }
+                }
+            }
+            TimedEvent::NotifyFindTopicSenders => {
+                self.notify_find_topic_senders(now);
+            }
+        }
     }
 
     pub fn get_instance_handle(&self) -> &InstanceHandle {

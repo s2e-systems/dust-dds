@@ -743,19 +743,4 @@ impl DcpsDomainParticipant {
             }
         }
     }
-
-    pub fn check_pending_writer_sample_timeout(&mut self, now: Time) {
-        for publisher in &mut self.domain_participant.user_defined_publisher_list {
-            for data_writer in &mut publisher.data_writer_list {
-                if let Some(pending) = &data_writer.pending_write_sample {
-                    if let Some(expiration_time) = pending.expiration_time {
-                        if now >= expiration_time {
-                            let pending = data_writer.pending_write_sample.take().unwrap();
-                            pending.reply_sender.send(Err(DdsError::Timeout));
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
