@@ -282,20 +282,23 @@ pub trait Submessage {
     fn write_submessage_elements_into_bytes(&self, buf: &mut dyn Write);
 }
 
+struct ByteCounter(usize);
+
+impl Write for ByteCounter {
+    #[inline]
+    fn write_all(&mut self, buf: &[u8]) -> RtpsMessageResult<()> {
+        self.0 += buf.len();
+        Ok(())
+    }
+}
+
 impl dyn Submessage + Send + '_ {
-    fn write_submessage_into_bytes<T>(&self, buf: &mut Cursor<T>)
-    where
-        Cursor<T>: Write,
-    {
-        let header_position: u64 = buf.position();
-        let elements_position = header_position + 4;
-        buf.set_position(elements_position);
+    fn write_submessage_into_bytes(&self, buf: &mut dyn Write) {
+        let mut counter = ByteCounter(0);
+        self.write_submessage_elements_into_bytes(&mut counter);
+        let len = counter.0 as u16;
+        self.write_submessage_header_into_bytes(len, buf);
         self.write_submessage_elements_into_bytes(buf);
-        let pos = buf.position();
-        buf.set_position(header_position);
-        let len = pos - elements_position;
-        self.write_submessage_header_into_bytes(len as u16, buf);
-        buf.set_position(pos);
     }
 }
 
@@ -523,6 +526,17 @@ impl Write for Cursor<&mut [u8]> {
     }
 }
 
+pub fn write_rtps_message(
+    header: &RtpsMessageHeader,
+    submessages: &[&(dyn Submessage + Send)],
+    buf: &mut dyn Write,
+) {
+    header.write_into_bytes(buf);
+    for submessage in submessages {
+        submessage.write_submessage_into_bytes(buf);
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessageWrite<'a> {
     buffer: &'a [u8],
@@ -535,10 +549,7 @@ impl<'a> RtpsMessageWrite<'a> {
         submessages: &[&(dyn Submessage + Send)],
     ) -> Self {
         let mut cursor = Cursor::new(buffer);
-        header.write_into_bytes(&mut cursor);
-        for submessage in submessages {
-            submessage.write_submessage_into_bytes(&mut cursor);
-        }
+        write_rtps_message(header, submessages, &mut cursor);
         let len = cursor.position() as usize;
         Self {
             buffer: &cursor.into_inner()[..len],

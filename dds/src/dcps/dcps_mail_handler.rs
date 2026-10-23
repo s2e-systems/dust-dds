@@ -15,7 +15,6 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
-    transport::interface::TransportParticipantFactory,
 };
 
 impl DcpsParticipantFactory {
@@ -24,8 +23,8 @@ impl DcpsParticipantFactory {
         message: DcpsMail,
         now: Time,
         runtime: &impl DdsRuntime,
-        transport: &mut impl TransportParticipantFactory,
         security: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        transport: &mut impl crate::transport::interface::Transport,
     ) -> DcpsReply
     where
         Auth: Authentication,
@@ -35,7 +34,6 @@ impl DcpsParticipantFactory {
         match message {
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::CreateParticipant(p)) => {
                 DcpsReply::InstanceHandle(self.create_participant(
-                    p.guid_prefix,
                     p.domain_id,
                     p.qos,
                     p.dcps_listener,
@@ -48,7 +46,7 @@ impl DcpsParticipantFactory {
             }
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::DeleteParticipant {
                 participant_handle,
-            }) => DcpsReply::Ok(self.delete_participant(&participant_handle, now)),
+            }) => DcpsReply::Ok(self.delete_participant(&participant_handle, now, transport)),
             DcpsMail::ParticipantFactory(ParticipantFactoryMail::SetDefaultParticipantQos {
                 qos,
             }) => DcpsReply::Ok(self.set_default_participant_qos(*qos)),
@@ -111,13 +109,12 @@ impl DcpsParticipantFactory {
                 p.delete_user_defined_subscriber(&parent_participant_handle, &subscriber_handle)
             })),
             DcpsMail::Participant(ParticipantServiceMail::CreateTopic(p)) => {
-                match self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &p.participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    Ok(participant) => DcpsReply::InstanceHandle(participant.create_topic(
+                match Self::get_participant_and_transport(
+                    &mut self.domain_participant_list,
+                    &p.participant_handle,
+                    transport,
+                ) {
+                    Ok((participant, tp)) => DcpsReply::InstanceHandle(participant.create_topic(
                         p.topic_name,
                         p.type_name,
                         p.qos,
@@ -127,6 +124,7 @@ impl DcpsParticipantFactory {
                         runtime,
                         now,
                         self.configuration.enable_type_information(),
+                        tp,
                     )),
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
@@ -204,13 +202,12 @@ impl DcpsParticipantFactory {
             ),
             DcpsMail::Participant(ParticipantServiceMail::DeleteContainedEntities {
                 participant_handle,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.delete_participant_contained_entities(now)),
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.delete_participant_contained_entities(now, tp)),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Participant(ParticipantServiceMail::SetDefaultPublisherQos {
@@ -292,16 +289,16 @@ impl DcpsParticipantFactory {
             DcpsMail::Participant(ParticipantServiceMail::SetQos {
                 participant_handle,
                 qos,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.set_domain_participant_qos(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.set_domain_participant_qos(
                     *qos,
                     now,
                     self.configuration.domain_tag().to_string(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -325,15 +322,15 @@ impl DcpsParticipantFactory {
                     }),
             ),
             DcpsMail::Participant(ParticipantServiceMail::Enable { participant_handle }) => {
-                match self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    Ok(p) => DcpsReply::Ok(p.enable_domain_participant(
+                match Self::get_participant_and_transport(
+                    &mut self.domain_participant_list,
+                    &participant_handle,
+                    transport,
+                ) {
+                    Ok((p, tp)) => DcpsReply::Ok(p.enable_domain_participant(
                         now,
                         self.configuration.domain_tag().to_string(),
+                        tp,
                     )),
                     Err(e) => DcpsReply::Ok(Err(e)),
                 }
@@ -365,16 +362,16 @@ impl DcpsParticipantFactory {
             DcpsMail::Topic(TopicServiceMail::Enable {
                 participant_handle,
                 topic_name,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.enable_topic(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.enable_topic(
                     topic_name,
                     now,
                     self.configuration.enable_type_information(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -386,22 +383,24 @@ impl DcpsParticipantFactory {
                     .and_then(|p| p.get_type_support(topic_name)),
             ),
             DcpsMail::Publisher(PublisherServiceMail::CreateDataWriter(p)) => {
-                match self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &p.participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    Ok(participant) => DcpsReply::InstanceHandle(participant.create_data_writer(
-                        &p.publisher_handle,
-                        p.topic_name,
-                        p.qos,
-                        p.dcps_listener,
-                        p.listener_mask,
-                        runtime,
-                        now,
-                        self.configuration.enable_type_information(),
-                    )),
+                match Self::get_participant_and_transport(
+                    &mut self.domain_participant_list,
+                    &p.participant_handle,
+                    transport,
+                ) {
+                    Ok((participant, tp)) => {
+                        DcpsReply::InstanceHandle(participant.create_data_writer(
+                            &p.publisher_handle,
+                            p.topic_name,
+                            p.qos,
+                            p.dcps_listener,
+                            p.listener_mask,
+                            runtime,
+                            now,
+                            self.configuration.enable_type_information(),
+                            tp,
+                        ))
+                    }
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
             }
@@ -409,15 +408,17 @@ impl DcpsParticipantFactory {
                 participant_handle,
                 publisher_handle,
                 datawriter_handle,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => {
-                    DcpsReply::Ok(p.delete_data_writer(&publisher_handle, &datawriter_handle, now))
-                }
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.delete_data_writer(
+                    &publisher_handle,
+                    &datawriter_handle,
+                    now,
+                    tp,
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Publisher(PublisherServiceMail::GetDefaultDataWriterQos {
@@ -565,13 +566,12 @@ impl DcpsParticipantFactory {
                 data_writer_handle,
                 dynamic_data,
                 timestamp,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => {
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => {
                     let timestamp = timestamp.unwrap_or(now);
                     DcpsReply::Ok(p.unregister_instance(
                         &publisher_handle,
@@ -579,6 +579,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
+                        tp,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -601,13 +602,12 @@ impl DcpsParticipantFactory {
                 timestamp,
                 reply_sender,
             }) => {
-                match self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    Ok(p) => {
+                match Self::get_participant_and_transport(
+                    &mut self.domain_participant_list,
+                    &participant_handle,
+                    transport,
+                ) {
+                    Ok((p, tp)) => {
                         let timestamp = timestamp.unwrap_or(now);
                         p.write_w_timestamp(
                             &publisher_handle,
@@ -616,6 +616,7 @@ impl DcpsParticipantFactory {
                             timestamp,
                             now,
                             reply_sender,
+                            tp,
                         );
                     }
                     Err(e) => reply_sender.send(Err(e)),
@@ -628,13 +629,12 @@ impl DcpsParticipantFactory {
                 data_writer_handle,
                 dynamic_data,
                 timestamp,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => {
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => {
                     let timestamp = timestamp.unwrap_or(now);
                     DcpsReply::Ok(p.dispose_w_timestamp(
                         &publisher_handle,
@@ -642,6 +642,7 @@ impl DcpsParticipantFactory {
                         &dynamic_data,
                         timestamp,
                         now,
+                        tp,
                     ))
                 }
                 Err(e) => DcpsReply::Ok(Err(e)),
@@ -660,17 +661,17 @@ impl DcpsParticipantFactory {
                 participant_handle,
                 publisher_handle,
                 data_writer_handle,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.enable_data_writer(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.enable_data_writer(
                     &publisher_handle,
                     &data_writer_handle,
                     now,
                     self.configuration.enable_type_information(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -679,38 +680,40 @@ impl DcpsParticipantFactory {
                 publisher_handle,
                 data_writer_handle,
                 qos,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.set_data_writer_qos(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.set_data_writer_qos(
                     &publisher_handle,
                     &data_writer_handle,
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::CreateDataReader(p)) => {
-                match self
-                    .domain_participant_list
-                    .iter_mut()
-                    .find(|x| x.get_instance_handle() == &p.participant_handle)
-                    .ok_or(DdsError::AlreadyDeleted)
-                {
-                    Ok(participant) => DcpsReply::InstanceHandle(participant.create_data_reader(
-                        &p.subscriber_handle,
-                        p.topic_name,
-                        p.qos,
-                        p.dcps_listener,
-                        p.listener_mask,
-                        runtime,
-                        now,
-                        self.configuration.enable_type_information(),
-                    )),
+                match Self::get_participant_and_transport(
+                    &mut self.domain_participant_list,
+                    &p.participant_handle,
+                    transport,
+                ) {
+                    Ok((participant, tp)) => {
+                        DcpsReply::InstanceHandle(participant.create_data_reader(
+                            &p.subscriber_handle,
+                            p.topic_name,
+                            p.qos,
+                            p.dcps_listener,
+                            p.listener_mask,
+                            runtime,
+                            now,
+                            self.configuration.enable_type_information(),
+                            tp,
+                        ))
+                    }
                     Err(e) => DcpsReply::InstanceHandle(Err(e)),
                 }
             }
@@ -718,15 +721,17 @@ impl DcpsParticipantFactory {
                 participant_handle,
                 subscriber_handle,
                 datareader_handle,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => {
-                    DcpsReply::Ok(p.delete_data_reader(&subscriber_handle, &datareader_handle, now))
-                }
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.delete_data_reader(
+                    &subscriber_handle,
+                    &datareader_handle,
+                    now,
+                    tp,
+                )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
             DcpsMail::Subscriber(SubscriberServiceMail::LookupDataReader {
@@ -792,17 +797,17 @@ impl DcpsParticipantFactory {
                 participant_handle,
                 subscriber_handle,
                 data_reader_handle,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.enable_data_reader(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.enable_data_reader(
                     &subscriber_handle,
                     &data_reader_handle,
                     now,
                     self.configuration.enable_type_information(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },
@@ -921,18 +926,18 @@ impl DcpsParticipantFactory {
                 subscriber_handle,
                 data_reader_handle,
                 qos,
-            }) => match self
-                .domain_participant_list
-                .iter_mut()
-                .find(|x| x.get_instance_handle() == &participant_handle)
-                .ok_or(DdsError::AlreadyDeleted)
-            {
-                Ok(p) => DcpsReply::Ok(p.set_data_reader_qos(
+            }) => match Self::get_participant_and_transport(
+                &mut self.domain_participant_list,
+                &participant_handle,
+                transport,
+            ) {
+                Ok((p, tp)) => DcpsReply::Ok(p.set_data_reader_qos(
                     &subscriber_handle,
                     &data_reader_handle,
                     *qos,
                     now,
                     self.configuration.enable_type_information(),
+                    tp,
                 )),
                 Err(e) => DcpsReply::Ok(Err(e)),
             },

@@ -14,21 +14,18 @@ use dust_dds::{
     },
     security::plugins::types::DdsSecurityPlugins,
     transport::{
-        interface::{RtpsTransportParticipant, TransportParticipantFactory, WriteMessage},
+        interface::{RtpsParticipant, Transport, Write},
         types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator, TransportHandle},
     },
 };
 
 use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 
-struct MockWriter {
-    buffer: [u8; 512],
-}
-impl WriteMessage for MockWriter {
-    fn write_buffer_mut(&mut self) -> &mut [u8] {
-        &mut self.buffer
-    }
-    fn write_message(&mut self, _len: usize, _locators: &[Locator]) {}
+struct MockWriter;
+
+impl Write for MockWriter {
+    fn write(&mut self, _buf: &[u8]) {}
+    fn flush(&mut self) {}
 }
 
 struct MockTransport {
@@ -47,18 +44,42 @@ impl MockTransport {
     }
 }
 
-impl TransportParticipantFactory for MockTransport {
-    fn create_participant(&mut self, _domain_id: i32) -> RtpsTransportParticipant {
-        RtpsTransportParticipant {
-            transport_handle: 0,
-            message_writer: Box::new(MockWriter { buffer: [0; 512] }),
-            default_unicast_locator_list: Vec::new(),
-            metatraffic_unicast_locator_list: Vec::new(),
-            metatraffic_multicast_locator_list: Vec::new(),
-            default_multicast_locator_list: Vec::new(),
-            fragment_size: 1000,
-        }
+impl RtpsParticipant for MockTransport {
+    type Writer<'a> = MockWriter;
+
+    fn default_unicast_locator_list(&self) -> &[Locator] {
+        &[]
     }
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        &[]
+    }
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        &[]
+    }
+    fn default_multicast_locator_list(&self) -> &[Locator] {
+        &[]
+    }
+    fn fragment_size(&self) -> usize {
+        1000
+    }
+
+    fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
+        MockWriter
+    }
+}
+
+impl Transport for MockTransport {
+    type Participant = MockTransport;
+
+    fn create_participant(&mut self, _domain_id: i32) -> TransportHandle {
+        [0; 4]
+    }
+
+    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> Option<&mut Self::Participant> {
+        Some(self)
+    }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
 
     async fn read(&mut self) -> (TransportHandle, &[u8]) {
         let (handle, data) = self.receive_channel.receive().await;
@@ -147,7 +168,7 @@ fn detect_stale_participant() {
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_data_submessage], guid_prefix);
 
     dust_dds::std_runtime::executor::block_on(
-        receive_channel.send((0, spdp_rtps_message.buffer().to_vec())),
+        receive_channel.send(([0; 4], spdp_rtps_message.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -260,7 +281,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let spdp_msg =
         RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
     dust_dds::std_runtime::executor::block_on(
-        receive_channel.send((0, spdp_msg.buffer().to_vec())),
+        receive_channel.send(([0; 4], spdp_msg.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -349,7 +370,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         remote_guid_prefix,
     );
     dust_dds::std_runtime::executor::block_on(
-        receive_channel.send((0, sedp_msg.buffer().to_vec())),
+        receive_channel.send(([0; 4], sedp_msg.buffer().to_vec())),
     );
 
     std::thread::sleep(std::time::Duration::from_millis(500));

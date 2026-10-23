@@ -35,10 +35,7 @@ use crate::{
         IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
         PermissionsToken,
     },
-    transport::{
-        interface::RtpsTransportParticipant,
-        types::{GuidPrefix, Locator, TransportHandle, USER_DEFINED_TOPIC},
-    },
+    transport::types::{GuidPrefix, Locator, TransportHandle, USER_DEFINED_TOPIC},
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
@@ -126,7 +123,7 @@ pub enum TimedEvent {
 }
 
 pub struct DcpsDomainParticipant {
-    pub transport: RtpsTransportParticipant,
+    pub transport_handle: TransportHandle,
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,
@@ -397,6 +394,7 @@ impl DcpsDomainParticipant {
         now: Time,
         announcement_interval: Duration,
         domain_tag: &str,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         match event {
             TimedEvent::AnnounceParticipant => {
@@ -404,6 +402,7 @@ impl DcpsDomainParticipant {
                     now,
                     announcement_interval,
                     domain_tag.to_string(),
+                    transport_participant,
                 );
             }
             TimedEvent::RemoveStaleParticipant { handle } => {
@@ -455,8 +454,8 @@ impl DcpsDomainParticipant {
                         }
                     }
                 }
-                self.process_pending_write_samples(now);
-                self.write_messages(now);
+                self.process_pending_write_samples(now, transport_participant);
+                self.write_messages(now, transport_participant);
             }
             TimedEvent::RemoveStaleReaderSamples {
                 subscriber_handle,
@@ -511,7 +510,7 @@ impl DcpsDomainParticipant {
                 {
                     if dw.instance_handle == writer_handle {
                         dw.transport_writer
-                            .write_message(self.transport.message_writer.as_mut(), now);
+                            .write_message(transport_participant, now);
                         break;
                     }
                 }
@@ -532,7 +531,7 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         dw.transport_writer
-                            .write_message(self.transport.message_writer.as_mut(), now);
+                            .write_message(transport_participant, now);
                     }
                 }
             }
@@ -547,7 +546,7 @@ impl DcpsDomainParticipant {
     }
 
     pub fn get_transport_handle(&self) -> &TransportHandle {
-        &self.transport.transport_handle
+        &self.transport_handle
     }
 }
 
