@@ -21,6 +21,7 @@ use dust_dds::{
         type_support::DdsType,
     },
     wait_set::{Condition, WaitSet},
+    xtypes::type_support::TypeSupport,
 };
 
 mod domain_id_generator;
@@ -4739,4 +4740,442 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
 
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
+}
+
+#[test]
+fn custom_struct_member_name_should_be_used_for_hash_autoid() {
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct FirstRustType {
+        value: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct SecondRustType {
+        #[dust_dds(name = "value")]
+        second_rust_field: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "HashNamedData", autoid = "hash")]
+    struct MismatchedRustType {
+        mismatched_rust_field: u32,
+    }
+
+    let first_type = FirstRustType::get_type();
+    let second_type = SecondRustType::get_type();
+    let mismatched_type = MismatchedRustType::get_type();
+
+    let first_member = first_type.get_member_by_index(0).unwrap();
+    let second_member = second_type.get_member_by_index(0).unwrap();
+    let mismatched_member = mismatched_type.get_member_by_index(0).unwrap();
+
+    assert_eq!(first_member.get_name(), "value");
+    assert_eq!(second_member.get_name(), "value");
+    assert_eq!(mismatched_member.get_name(), "mismatched_rust_field");
+    assert_eq!(first_member.get_id(), second_member.get_id());
+    assert_ne!(first_member.get_id(), mismatched_member.get_id());
+
+    assert_eq!(first_type, second_type);
+    assert_ne!(first_type, mismatched_type);
+}
+
+#[test]
+fn custom_struct_and_union_variant_name_should_read_and_write() {
+    #[derive(Clone, Debug, DdsType)]
+    struct Data {
+        #[dust_dds(key)]
+        id: u32,
+        value: DataValue,
+    }
+
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(switch(u8))]
+    enum DataValue {
+        #[dust_dds(case = 0)]
+        A,
+        #[dust_dds(case = 1)]
+        B(u16),
+        #[dust_dds(case = 2)]
+        C { c: u32 },
+    }
+
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(name = "Data")]
+    struct MyData {
+        #[dust_dds(key, name = "id")]
+        my_id: u32,
+        #[dust_dds(name = "value")]
+        my_value: MyDataValue,
+    }
+
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(name = "DataValue", switch(u8))]
+    enum MyDataValue {
+        #[dust_dds(case = 0, name = "A")]
+        MyA,
+        #[dust_dds(case = 1, name = "B")]
+        MyB(u16),
+        #[dust_dds(case = 2, name = "C")]
+        MyC { my_c: u32 },
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<Data>(
+            "Data",
+            Data::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<MyData>(
+            "Data",
+            MyData::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<MyData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(3, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(3, 0)).unwrap();
+
+    let data = Data {
+        id: 1,
+        value: DataValue::C { c: 1 },
+    };
+
+    writer.write(data.clone(), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(3, 0))
+        .unwrap();
+
+    let mut samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    let my_data = samples.remove(0).data.unwrap();
+    assert_eq!(my_data.my_id, data.id);
+    match (my_data.my_value, data.value) {
+        (MyDataValue::MyA, DataValue::A) => (),
+        (MyDataValue::MyB(my_b), DataValue::B(b)) if my_b == b => (),
+        (MyDataValue::MyC { my_c }, DataValue::C { c }) if my_c == c => (),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn mismatched_struct_field_name_should_not_read_and_write() {
+    #[derive(Clone, Debug, DdsType)]
+    struct Data {
+        #[dust_dds(key)]
+        id: u32,
+        value: u8,
+    }
+
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(name = "Data")]
+    struct MyData {
+        #[dust_dds(key, name = "id")]
+        my_id: u32,
+        #[dust_dds(name = "invalid")]
+        my_value: u8,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<Data>(
+            "Data",
+            Data::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter::<Data>(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<MyData>(
+            "Data",
+            MyData::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader::<MyData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+
+    let data_type = Data::get_type();
+    let my_data_type = MyData::get_type();
+    assert_eq!(
+        data_type.get_member_by_index(1).unwrap().get_name(),
+        "value"
+    );
+    assert_eq!(
+        my_data_type.get_member_by_index(1).unwrap().get_name(),
+        "invalid"
+    );
+    assert_ne!(data_type, my_data_type);
+
+    assert!(matches!(
+        wait_set.wait(Duration::new(3, 0)),
+        Err(DdsError::Timeout)
+    ));
+}
+
+#[test]
+fn custom_union_variant_name_should_not_read_and_write() {
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(switch(u8))]
+    enum DataValue {
+        #[dust_dds(case = 0)]
+        A,
+        #[dust_dds(case = 1)]
+        B(u16),
+        #[dust_dds(case = 2)]
+        C { c: u32 },
+    }
+
+    #[derive(Clone, Debug, DdsType)]
+    #[dust_dds(name = "DataValue", switch(u8))]
+    enum MyDataValue {
+        #[dust_dds(case = 0, name = "A")]
+        MyA,
+        #[dust_dds(case = 1, name = "B")]
+        MyB(u16),
+        #[dust_dds(case = 2, name = "invalid")]
+        MyC { my_c: u32 },
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<DataValue>(
+            "DataValue",
+            DataValue::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter::<DataValue>(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<MyDataValue>(
+            "DataValue",
+            MyDataValue::get_type().get_name(),
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader::<MyDataValue>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+
+    let data_value_type = DataValue::get_type();
+    let my_data_value_type = MyDataValue::get_type();
+    assert_eq!(
+        data_value_type.get_member_by_index(3).unwrap().get_name(),
+        "C"
+    );
+    assert_eq!(
+        my_data_value_type
+            .get_member_by_index(3)
+            .unwrap()
+            .get_name(),
+        "invalid"
+    );
+    assert_ne!(data_value_type, my_data_value_type);
+
+    assert!(matches!(
+        wait_set.wait(Duration::new(3, 0)),
+        Err(DdsError::Timeout)
+    ));
 }

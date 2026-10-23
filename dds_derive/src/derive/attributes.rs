@@ -74,6 +74,7 @@ impl FromStr for TryConstructKind {
 pub struct StructureMemberAttributes {
     pub id: Option<Expr>,
     pub key: bool,
+    pub name: String,
     pub optional: bool,
     pub non_serialized: bool,
     pub external: bool,
@@ -82,9 +83,13 @@ pub struct StructureMemberAttributes {
     pub try_construct: TryConstructKind,
 }
 
-pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberAttributes> {
+pub fn get_structure_member_attributes(
+    field: &Field,
+    index: u32,
+) -> Result<StructureMemberAttributes> {
     let mut id = None;
     let mut key = None;
+    let mut name = None;
     let mut optional = None;
     let mut default_value = None;
     let mut non_serialized = None;
@@ -103,6 +108,9 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
                     .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("key") {
                 key.replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("name") {
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
                     .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("default_value") {
                 default_value
@@ -149,6 +157,9 @@ pub fn get_structure_member_attributes(field: &Field) -> Result<StructureMemberA
     Ok(StructureMemberAttributes {
         id,
         key: key.unwrap_or_default(),
+        name: name
+            .or_else(|| field.ident.as_ref().map(ToString::to_string))
+            .unwrap_or_else(|| index.to_string()),
         optional: optional.unwrap_or_default(),
         non_serialized: non_serialized.unwrap_or_default(),
         external: external.unwrap_or_default(),
@@ -410,11 +421,13 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
 }
 
 pub struct UnionVariantAttributes {
+    pub name: String,
     pub case: Vec<Expr>,
     pub is_default: bool,
 }
 
 pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAttributes> {
+    let mut name = None;
     let mut case = Vec::new();
     let mut is_default = None;
 
@@ -424,7 +437,10 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
         .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
     {
         attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("case") {
+            if meta.path.is_ident("name") {
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("case") {
                 case.push(meta.value()?.parse()?);
                 Ok(())
             } else if meta.path.is_ident("default") {
@@ -438,6 +454,7 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     }
 
     Ok(UnionVariantAttributes {
+        name: name.unwrap_or_else(|| variant.ident.to_string()),
         case,
         is_default: is_default.unwrap_or_default(),
     })

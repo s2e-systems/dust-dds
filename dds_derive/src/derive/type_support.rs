@@ -79,7 +79,8 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     continue;
                 }
 
-                let struct_member_attributes = get_structure_member_attributes(member)?;
+                let struct_member_attributes =
+                    get_structure_member_attributes(member, direct_member_index)?;
 
                 if struct_member_attributes.non_serialized {
                     let member_type = &member.ty;
@@ -105,11 +106,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 let index = direct_member_index;
                 direct_member_index += 1;
 
-                let member_name = member
-                    .ident
-                    .as_ref()
-                    .map(|i| i.to_string())
-                    .unwrap_or(index.to_string());
+                let member_name = struct_member_attributes.name;
 
                 let member_id = if let Some(ref hashid_name) = struct_member_attributes.hashid {
                     let target = if hashid_name.is_empty() {
@@ -455,7 +452,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 };
                 let first_discriminator = case_list[0].clone();
                 let variant_ident = &variant.ident;
-                let variant_name = variant_ident.to_string();
+                let variant_name = variant_attributes.name;
 
                 match &variant.fields {
                     // If there is a single field we handle this as the single type wrapper which is the most common case
