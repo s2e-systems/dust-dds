@@ -1,6 +1,6 @@
+use super::message_creator::write_submessages_into_transport;
 use crate::{
     rtps_messages::{
-        overall_structure::RtpsMessageWrite,
         submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
         submessages::{
             ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
@@ -9,7 +9,7 @@ use crate::{
         types::Count,
     },
     transport::{
-        interface::WriteMessage,
+        interface::{RtpsParticipant, Write},
         types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     },
 };
@@ -261,11 +261,7 @@ impl RtpsWriterProxy {
         self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
     }
 
-    pub fn write_message(
-        &mut self,
-        reader_guid: &Guid,
-        message_writer: &mut (impl WriteMessage + ?Sized),
-    ) {
+    pub fn write_message(&mut self, reader_guid: &Guid, transport: &mut impl RtpsParticipant) {
         if self.must_send_acknacks() || !self.missing_changes().count() == 0 {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -291,9 +287,7 @@ impl RtpsWriterProxy {
                 .take(256)
                 .find(|s| self.frag_buffer.iter().any(|x| &x.writer_sn() == s));
 
-            let len = if let Some(missing_change_fragments_seq_num) =
-                missing_change_fragments_seq_num
-            {
+            if let Some(missing_change_fragments_seq_num) = missing_change_fragments_seq_num {
                 let frag = self
                     .frag_buffer
                     .iter()
@@ -323,28 +317,26 @@ impl RtpsWriterProxy {
                     self.nack_frag_count,
                 );
 
-                RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
+                let mut writer = transport.writer(self.unicast_locator_list());
+                write_submessages_into_transport(
                     &[
                         &info_dst_submessage,
                         &acknack_submessage,
                         &nack_frag_submessage,
                     ],
                     reader_guid.prefix(),
-                )
-                .buffer()
-                .len()
+                    &mut writer,
+                );
+                writer.flush();
             } else {
-                RtpsMessageWrite::from_submessages(
-                    message_writer.write_buffer_mut(),
+                let mut writer = transport.writer(self.unicast_locator_list());
+                write_submessages_into_transport(
                     &[&info_dst_submessage, &acknack_submessage],
                     reader_guid.prefix(),
-                )
-                .buffer()
-                .len()
-            };
-
-            message_writer.write_message(len, self.unicast_locator_list());
+                    &mut writer,
+                );
+                writer.flush();
+            }
         }
     }
 

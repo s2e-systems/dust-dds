@@ -212,7 +212,7 @@ impl DcpsDomainParticipant {
         data_writer.register_w_timestamp(dynamic_data, &type_support, timestamp)
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn unregister_instance(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -220,6 +220,7 @@ impl DcpsDomainParticipant {
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         now: Time,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -264,7 +265,7 @@ impl DcpsDomainParticipant {
         if res.is_ok() {
             data_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+                .write_message(transport_participant, now);
         }
         res
     }
@@ -314,7 +315,7 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, reply_sender))]
+    #[tracing::instrument(skip(self, reply_sender, transport_participant))]
     pub fn write_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -323,6 +324,7 @@ impl DcpsDomainParticipant {
         timestamp: Time,
         now: Time,
         reply_sender: OneshotSender<DdsResult<()>>,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         let Some(publisher) = self
             .domain_participant
@@ -429,10 +431,10 @@ impl DcpsDomainParticipant {
 
         data_writer
             .transport_writer
-            .write_message(self.transport.message_writer.as_mut(), now);
+            .write_message(transport_participant, now);
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn dispose_w_timestamp(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -440,6 +442,7 @@ impl DcpsDomainParticipant {
         dynamic_data: &DynamicData<'static>,
         timestamp: Time,
         now: Time,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -484,7 +487,7 @@ impl DcpsDomainParticipant {
         if res.is_ok() {
             data_writer
                 .transport_writer
-                .write_message(self.transport.message_writer.as_mut(), now);
+                .write_message(transport_participant, now);
         }
         res
     }
@@ -514,13 +517,14 @@ impl DcpsDomainParticipant {
         Ok(data_writer.get_offered_deadline_missed_status())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn enable_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         now: Time,
         enable_type_information: bool,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -545,6 +549,7 @@ impl DcpsDomainParticipant {
                 data_writer_handle,
                 now,
                 enable_type_information,
+                transport_participant,
             );
             self.process_discovered_readers(now);
 
@@ -561,14 +566,14 @@ impl DcpsDomainParticipant {
                 {
                     data_writer
                         .transport_writer
-                        .write_message(self.transport.message_writer.as_mut(), now);
+                        .write_message(transport_participant, now);
                 }
             }
         }
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn set_data_writer_qos(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -576,6 +581,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<DataWriterQos>,
         now: Time,
         enable_type_information: bool,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -609,6 +615,7 @@ impl DcpsDomainParticipant {
                 data_writer_handle,
                 now,
                 enable_type_information,
+                transport_participant,
             );
         }
         Ok(())
@@ -653,7 +660,11 @@ impl DcpsDomainParticipant {
         }
     }
 
-    pub fn process_pending_write_samples(&mut self, now: Time) {
+    pub fn process_pending_write_samples(
+        &mut self,
+        now: Time,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
+    ) {
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
                 if let Some(pending) = &data_writer.pending_write_sample {
@@ -736,7 +747,7 @@ impl DcpsDomainParticipant {
                             pending.reply_sender.send(Ok(()));
                             data_writer
                                 .transport_writer
-                                .write_message(self.transport.message_writer.as_mut(), now);
+                                .write_message(transport_participant, now);
                         }
                     }
                 }

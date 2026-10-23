@@ -62,7 +62,7 @@ use crate::{
         },
     },
     transport::{
-        interface::TransportParticipantFactory,
+        interface::RtpsParticipant,
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
     },
     xtypes::type_support::Type,
@@ -80,28 +80,36 @@ pub struct DcpsParticipantFactory {
     pub default_participant_qos: DomainParticipantQos,
     pub configuration: DustDdsConfiguration,
     pub dcps_sender: DcpsSender,
+    app_id: [u8; 4],
+    host_id: [u8; 4],
 }
 
 impl DcpsParticipantFactory {
-    pub fn new(configuration: DustDdsConfiguration, dcps_sender: DcpsSender) -> Self {
+    pub fn new(
+        app_id: [u8; 4],
+        host_id: [u8; 4],
+        configuration: DustDdsConfiguration,
+        dcps_sender: DcpsSender,
+    ) -> Self {
         Self {
             domain_participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration,
             dcps_sender,
+            app_id,
+            host_id,
         }
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_participant<Auth, Access, Crypto>(
         &mut self,
-        guid_prefix: GuidPrefix,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        transport: &mut impl TransportParticipantFactory,
+        transport: &mut impl crate::transport::interface::Transport,
         now: Time,
         runtime: &impl DdsRuntime,
         _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
@@ -111,7 +119,6 @@ impl DcpsParticipantFactory {
         Access: AccessControl,
         Crypto: Cryptographic,
     {
-        let transport_participant = transport.create_participant(domain_id);
         let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.clone(),
             QosKind::Specific(q) => q,
@@ -119,16 +126,32 @@ impl DcpsParticipantFactory {
 
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
+        let transport_handle = transport.create_participant(domain_id);
+        let transport_participant = transport.get_participant_mut(&transport_handle).ok_or(
+            DdsError::PreconditionNotMet(String::from("Transport participant not found")),
+        )?;
+        let guid_prefix: GuidPrefix = [
+            self.host_id[0],
+            self.host_id[1],
+            self.host_id[2],
+            self.host_id[3],
+            self.app_id[0],
+            self.app_id[1],
+            self.app_id[2],
+            self.app_id[3],
+            transport_handle[0],
+            transport_handle[1],
+            transport_handle[2],
+            transport_handle[3],
+        ];
         let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
         let security_data = None;
-
-        let guid_prefix = guid.prefix();
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
             guid_prefix,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         ));
-        for &discovery_locator in &transport_participant.metatraffic_multicast_locator_list {
+        for &discovery_locator in transport_participant.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
@@ -139,9 +162,11 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&ParticipantBuiltinTopicData::TYPE),
         );
 
+        let fragment_size = transport_participant.fragment_size();
+
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-            transport_participant.fragment_size,
+            fragment_size,
         );
         let dcps_topics_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_topics_transport_writer.guid().into()),
@@ -153,7 +178,7 @@ impl DcpsParticipantFactory {
 
         let dcps_publications_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-            transport_participant.fragment_size,
+            fragment_size,
         );
         let dcps_publications_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_publications_transport_writer.guid().into()),
@@ -165,7 +190,7 @@ impl DcpsParticipantFactory {
 
         let dcps_subscriptions_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-            transport_participant.fragment_size,
+            fragment_size,
         );
         let dcps_subscriptions_writer = DataWriterEntity::new(
             InstanceHandle::new(dcps_subscriptions_transport_writer.guid().into()),
@@ -177,7 +202,7 @@ impl DcpsParticipantFactory {
 
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
-            transport_participant.fragment_size,
+            fragment_size,
         );
         let type_lookup_request_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_request_transport_writer.guid().into()),
@@ -189,7 +214,7 @@ impl DcpsParticipantFactory {
 
         let type_lookup_reply_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_WRITER),
-            transport_participant.fragment_size,
+            fragment_size,
         );
         let type_lookup_reply_writer = DataWriterEntity::new(
             InstanceHandle::new(type_lookup_reply_transport_writer.guid().into()),
@@ -245,7 +270,7 @@ impl DcpsParticipantFactory {
         };
 
         let mut dcps_participant = DcpsDomainParticipant {
-            transport: transport_participant,
+            transport_handle,
             reader_counter: 0,
             writer_counter: 0,
             publisher_counter: 0,
@@ -257,8 +282,11 @@ impl DcpsParticipantFactory {
         let participant_handle = *dcps_participant.get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
-            dcps_participant
-                .enable_domain_participant(now, self.configuration.domain_tag().to_string())?;
+            dcps_participant.enable_domain_participant(
+                now,
+                self.configuration.domain_tag().to_string(),
+                transport_participant,
+            )?;
         }
 
         self.domain_participant_list.push(dcps_participant);
@@ -270,6 +298,7 @@ impl DcpsParticipantFactory {
         &mut self,
         participant_handle: &InstanceHandle,
         now: Time,
+        transport: &mut impl crate::transport::interface::Transport,
     ) -> DdsResult<()> {
         let index = self
             .domain_participant_list
@@ -282,7 +311,11 @@ impl DcpsParticipantFactory {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant(now);
+        let transport_participant = transport
+            .get_participant_mut(&participant.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        participant.announce_deleted_participant(now, transport_participant);
+        transport.delete_participant(participant.transport_handle);
         Ok(())
     }
 
@@ -294,6 +327,21 @@ impl DcpsParticipantFactory {
             .iter_mut()
             .find(|x| x.get_instance_handle() == participant_handle)
             .ok_or(DdsError::AlreadyDeleted)
+    }
+
+    pub fn get_participant_and_transport<'a, 'b, T: crate::transport::interface::Transport>(
+        domain_participant_list: &'a mut [DcpsDomainParticipant],
+        participant_handle: &InstanceHandle,
+        transport: &'b mut T,
+    ) -> DdsResult<(&'a mut DcpsDomainParticipant, &'b mut T::Participant)> {
+        let p = domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let tp = transport
+            .get_participant_mut(&p.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        Ok((p, tp))
     }
 
     pub fn set_default_participant_qos(
