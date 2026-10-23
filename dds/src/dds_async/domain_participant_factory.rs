@@ -4,7 +4,7 @@ use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
         channels::rpc::{RpcClient, RpcMailbox},
-        dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail, WireMail},
+        dcps_mail::{CreateParticipantMail, DcpsMail, ParticipantFactoryMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
     dds_async::domain_participant_listener::DomainParticipantListener,
@@ -23,20 +23,11 @@ use crate::{
         access_control::AccessControl, authentication::Authentication,
         cryptographic::Cryptographic, types::DdsSecurityPlugins,
     },
-    transport::{interface::TransportParticipantFactory, types::GuidPrefix},
+    transport::interface::Transport,
 };
-
-const WIRE_CHANNEL_SIZE: usize = 256;
 
 #[doc(hidden)]
 pub type DcpsSender = RpcClient;
-
-#[doc(hidden)]
-pub type WireChannel = embassy_sync::channel::Channel<
-    embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    WireMail,
-    WIRE_CHANNEL_SIZE,
->;
 
 /// Async version of [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory).
 /// Unlike the sync version, the [`DomainParticipantFactoryAsync`] is not a singleton and can be created by means of
@@ -44,9 +35,6 @@ pub type WireChannel = embassy_sync::channel::Channel<
 /// to spin tasks on an existing runtime which can be shared with other things outside Dust DDS.
 pub struct DomainParticipantFactoryAsync {
     dcps_sender: DcpsSender,
-    entity_counter: core::sync::atomic::AtomicU32,
-    app_id: [u8; 4],
-    host_id: [u8; 4],
     worker_task: alloc::boxed::Box<dyn TaskHandle>,
     run_loop: Arc<core::sync::atomic::AtomicBool>,
 }
@@ -60,8 +48,6 @@ impl DomainParticipantFactoryAsync {
         a_listener: Option<impl DomainParticipantListener + Send + 'static>,
         mask: &[StatusKind],
     ) -> DdsResult<DomainParticipantAsync> {
-        let guid_prefix = self.create_new_guid_prefix();
-
         let listener_mask = mask.iter().collect();
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
 
@@ -69,7 +55,6 @@ impl DomainParticipantFactoryAsync {
             .dcps_sender
             .call(DcpsMail::ParticipantFactory(
                 ParticipantFactoryMail::CreateParticipant(Box::new(CreateParticipantMail {
-                    guid_prefix,
                     domain_id,
                     qos,
                     dcps_listener,
@@ -157,8 +142,7 @@ impl DomainParticipantFactoryAsync {
 }
 
 #[cfg(feature = "std")]
-#[doc(hidden)]
-pub fn get_host_id() -> [u8; 4] {
+fn get_host_id() -> [u8; 4] {
     use core::net::IpAddr;
     use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
     use tracing::warn;
@@ -233,7 +217,7 @@ impl DomainParticipantFactoryAsync {
     #[doc(hidden)]
     pub fn new<
         R: DdsRuntime,
-        T: TransportParticipantFactory,
+        T: Transport,
         Auth: Authentication,
         Access: AccessControl,
         Crypto: Cryptographic,
@@ -247,12 +231,13 @@ impl DomainParticipantFactoryAsync {
     ) -> Self {
         let rpc_mailbox = Arc::new(RpcMailbox::new());
         let dcps_sender = RpcClient::new(rpc_mailbox.clone());
-
         let spawner_handle = runtime.spawner();
         let mut timer_handle = runtime.timer();
 
         let mut domain_participant_factory =
             crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
+                app_id,
+                host_id,
                 configuration,
                 dcps_sender.clone(),
             );
@@ -279,8 +264,8 @@ impl DomainParticipantFactoryAsync {
                                 user_mail,
                                 now,
                                 &runtime,
-                                &mut transport,
                                 &mut security,
+                                &mut transport,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
@@ -293,15 +278,20 @@ impl DomainParticipantFactoryAsync {
                                     x.get_instance_handle() == &scheduled_event.participant_handle
                                 })
                             {
-                                dp.handle_timed_event(
-                                    scheduled_event.event,
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .participant_announcement_interval()
-                                        .into(),
-                                    domain_participant_factory.configuration.domain_tag(),
-                                );
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.handle_timed_event(
+                                        scheduled_event.event,
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .participant_announcement_interval()
+                                            .into(),
+                                        domain_participant_factory.configuration.domain_tag(),
+                                        transport_participant,
+                                    );
+                                }
                             }
                         }
                         Either3::C((transport_handle, data)) => {
@@ -312,17 +302,25 @@ impl DomainParticipantFactoryAsync {
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
                                 dp.handle_data(data, now);
-                                dp.process_builtin_cache_changes(
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .domain_tag()
-                                        .to_string(),
-                                );
-                                dp.notify_find_topic_senders(now);
-                                dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now);
-                                dp.write_messages(now);
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.process_builtin_cache_changes(
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .domain_tag()
+                                            .to_string(),
+                                        transport_participant,
+                                    );
+                                    dp.notify_find_topic_senders(now);
+                                    dp.process_user_defined_received_cache_changes(now);
+                                    dp.request_topic_type_representation(
+                                        now,
+                                        transport_participant,
+                                    );
+                                    dp.write_messages(now, transport_participant);
+                                }
                             }
                         }
                     };
@@ -334,8 +332,8 @@ impl DomainParticipantFactoryAsync {
                                 user_mail,
                                 now,
                                 &runtime,
-                                &mut transport,
                                 &mut security,
+                                &mut transport,
                             );
                             rpc_mailbox.send_reply(reply).await;
                         }
@@ -347,17 +345,25 @@ impl DomainParticipantFactoryAsync {
                                 .find(|x| x.get_transport_handle() == &transport_handle)
                             {
                                 dp.handle_data(data, now);
-                                dp.process_builtin_cache_changes(
-                                    now,
-                                    domain_participant_factory
-                                        .configuration
-                                        .domain_tag()
-                                        .to_string(),
-                                );
-                                dp.notify_find_topic_senders(now);
-                                dp.process_user_defined_received_cache_changes(now);
-                                dp.request_topic_type_representation(now);
-                                dp.write_messages(now);
+                                if let Some(transport_participant) =
+                                    transport.get_participant_mut(&dp.transport_handle)
+                                {
+                                    dp.process_builtin_cache_changes(
+                                        now,
+                                        domain_participant_factory
+                                            .configuration
+                                            .domain_tag()
+                                            .to_string(),
+                                        transport_participant,
+                                    );
+                                    dp.notify_find_topic_senders(now);
+                                    dp.process_user_defined_received_cache_changes(now);
+                                    dp.request_topic_type_representation(
+                                        now,
+                                        transport_participant,
+                                    );
+                                    dp.write_messages(now, transport_participant);
+                                }
                             }
                         }
                     };
@@ -366,34 +372,9 @@ impl DomainParticipantFactoryAsync {
         });
         Self {
             dcps_sender,
-            app_id,
-            host_id,
-            entity_counter: core::sync::atomic::AtomicU32::new(0),
             worker_task: Box::new(worker_task),
             run_loop,
         }
-    }
-
-    fn create_new_guid_prefix(&self) -> GuidPrefix {
-        let instance_id = self
-            .entity_counter
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
-            .to_ne_bytes();
-
-        [
-            self.host_id[0],
-            self.host_id[1],
-            self.host_id[2],
-            self.host_id[3], // Host ID
-            self.app_id[0],
-            self.app_id[1],
-            self.app_id[2],
-            self.app_id[3], // App ID
-            instance_id[0],
-            instance_id[1],
-            instance_id[2],
-            instance_id[3], // Instance ID
-        ]
     }
 
     #[doc(hidden)]
