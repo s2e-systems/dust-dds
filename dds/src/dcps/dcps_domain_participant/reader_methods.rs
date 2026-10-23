@@ -409,7 +409,7 @@ impl DcpsDomainParticipant {
         Ok(data_reader.get_matched_publications())
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn set_data_reader_qos(
         &mut self,
         subscriber_handle: &InstanceHandle,
@@ -417,7 +417,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<DataReaderQos>,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -452,7 +452,7 @@ impl DcpsDomainParticipant {
                 data_reader_handle,
                 now,
                 enable_type_information,
-                transport,
+                transport_participant,
             );
         }
         Ok(())
@@ -558,14 +558,14 @@ impl DcpsDomainParticipant {
         }
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn enable_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -590,7 +590,7 @@ impl DcpsDomainParticipant {
                 data_reader_handle,
                 now,
                 enable_type_information,
-                transport,
+                transport_participant,
             );
             self.process_discovered_writers(now);
         }

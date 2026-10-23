@@ -26,7 +26,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, runtime, transport))]
+    #[tracing::instrument(skip(self, dcps_listener, runtime, transport_participant))]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -37,11 +37,7 @@ impl DcpsDomainParticipant {
         runtime: &impl DdsRuntime,
         now: Time,
         enable_type_information: bool,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<InstanceHandle> {
         let Some(topic) = self
             .domain_participant
@@ -113,10 +109,9 @@ impl DcpsDomainParticipant {
             }
         };
         let guid = Guid::from(*self.domain_participant.instance_handle.as_ref());
-        let transport_writer = RtpsStatefulWriter::new(
-            Guid::new(guid.prefix(), entity_id),
-            transport.fragment_size(self.transport_handle),
-        );
+        let fragment_size = transport_participant.fragment_size();
+        let transport_writer =
+            RtpsStatefulWriter::new(Guid::new(guid.prefix(), entity_id), fragment_size);
         let key_holder_type = super::topic_entity::get_topic_type_support(
             &topic.topic_name,
             &self.domain_participant.content_filtered_topic_list,
@@ -147,20 +142,20 @@ impl DcpsDomainParticipant {
                 &writer_handle,
                 now,
                 enable_type_information,
-                transport,
+                transport_participant,
             )?;
         }
 
         Ok(data_writer_handle)
     }
 
-    #[tracing::instrument(skip(self, transport))]
+    #[tracing::instrument(skip(self, transport_participant))]
     pub fn delete_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         datawriter_handle: &InstanceHandle,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -177,7 +172,7 @@ impl DcpsDomainParticipant {
             .position(|x| &x.instance_handle == datawriter_handle)
         {
             let data_writer = publisher.data_writer_list.remove(index);
-            self.announce_deleted_data_writer(data_writer, now, transport);
+            self.announce_deleted_data_writer(data_writer, now, transport_participant);
             Ok(())
         } else {
             Err(DdsError::AlreadyDeleted)

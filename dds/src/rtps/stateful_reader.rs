@@ -5,7 +5,7 @@ use crate::{
         types::Time,
     },
     transport::{
-        interface::Transport,
+        interface::RtpsParticipant,
         types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
     },
 };
@@ -164,7 +164,7 @@ impl RtpsStatefulReader {
             .any(|p| !p.is_historical_data_received())
     }
 
-    pub fn write_message(&mut self, transport: &mut (impl Transport + ?Sized)) {
+    pub fn write_message(&mut self, transport: &mut impl RtpsParticipant) {
         for writer_proxy in &mut self.matched_writers {
             writer_proxy.write_message(&self.guid, transport);
         }

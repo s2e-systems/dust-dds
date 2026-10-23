@@ -394,11 +394,7 @@ impl DcpsDomainParticipant {
         now: Time,
         announcement_interval: Duration,
         domain_tag: &str,
-        transport: &mut (
-                 impl crate::transport::interface::Transport
-                 + crate::transport::interface::RtpsParticipant
-                 + ?Sized
-             ),
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
     ) {
         match event {
             TimedEvent::AnnounceParticipant => {
@@ -406,7 +402,7 @@ impl DcpsDomainParticipant {
                     now,
                     announcement_interval,
                     domain_tag.to_string(),
-                    transport,
+                    transport_participant,
                 );
             }
             TimedEvent::RemoveStaleParticipant { handle } => {
@@ -458,8 +454,8 @@ impl DcpsDomainParticipant {
                         }
                     }
                 }
-                self.process_pending_write_samples(now, transport);
-                self.write_messages(now, transport);
+                self.process_pending_write_samples(now, transport_participant);
+                self.write_messages(now, transport_participant);
             }
             TimedEvent::RemoveStaleReaderSamples {
                 subscriber_handle,
@@ -513,7 +509,8 @@ impl DcpsDomainParticipant {
                     .stateful_data_writer_list_mut()
                 {
                     if dw.instance_handle == writer_handle {
-                        dw.transport_writer.write_message(transport, now);
+                        dw.transport_writer
+                            .write_message(transport_participant, now);
                         break;
                     }
                 }
@@ -533,7 +530,8 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|w| w.instance_handle == writer_handle)
                     {
-                        dw.transport_writer.write_message(transport, now);
+                        dw.transport_writer
+                            .write_message(transport_participant, now);
                     }
                 }
             }

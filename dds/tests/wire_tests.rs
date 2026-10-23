@@ -45,37 +45,41 @@ impl MockTransport {
 }
 
 impl RtpsParticipant for MockTransport {
-    fn default_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    type Writer<'a> = MockWriter;
+
+    fn default_unicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    fn metatraffic_unicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    fn metatraffic_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    fn default_multicast_locator_list(&self, _handle: TransportHandle) -> &[Locator] {
+    fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
     }
-    fn fragment_size(&self, _handle: TransportHandle) -> usize {
+    fn fragment_size(&self) -> usize {
         1000
+    }
+
+    fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
+        MockWriter
     }
 }
 
 impl Transport for MockTransport {
+    type Participant = MockTransport;
+
     fn create_participant(&mut self, _domain_id: i32) -> TransportHandle {
         [0; 4]
     }
 
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
-
-    fn writer<'a>(
-        &'a mut self,
-        _handle: TransportHandle,
-        _locator: &'a [Locator],
-    ) -> impl Write + 'a {
-        MockWriter
+    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> Option<&mut Self::Participant> {
+        Some(self)
     }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
 
     async fn read(&mut self) -> (TransportHandle, &[u8]) {
         let (handle, data) = self.receive_channel.receive().await;

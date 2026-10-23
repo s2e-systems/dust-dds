@@ -109,7 +109,7 @@ impl DcpsParticipantFactory {
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        transport: &mut (impl crate::transport::interface::Transport + RtpsParticipant + ?Sized),
+        transport: &mut impl crate::transport::interface::Transport,
         now: Time,
         runtime: &impl DdsRuntime,
         _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
@@ -127,6 +127,9 @@ impl DcpsParticipantFactory {
         let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
 
         let transport_handle = transport.create_participant(domain_id);
+        let transport_participant = transport.get_participant_mut(&transport_handle).ok_or(
+            DdsError::PreconditionNotMet(String::from("Transport participant not found")),
+        )?;
         let guid_prefix: GuidPrefix = [
             self.host_id[0],
             self.host_id[1],
@@ -148,7 +151,7 @@ impl DcpsParticipantFactory {
             guid_prefix,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         ));
-        for &discovery_locator in transport.metatraffic_multicast_locator_list(transport_handle) {
+        for &discovery_locator in transport_participant.metatraffic_multicast_locator_list() {
             dcps_participant_transport_writer.reader_locator_add(discovery_locator);
         }
         let dcps_participant_writer = DataWriterEntity::new(
@@ -159,7 +162,7 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&ParticipantBuiltinTopicData::TYPE),
         );
 
-        let fragment_size = transport.fragment_size(transport_handle);
+        let fragment_size = transport_participant.fragment_size();
 
         let dcps_topics_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
@@ -282,7 +285,7 @@ impl DcpsParticipantFactory {
             dcps_participant.enable_domain_participant(
                 now,
                 self.configuration.domain_tag().to_string(),
-                transport,
+                transport_participant,
             )?;
         }
 
@@ -295,7 +298,7 @@ impl DcpsParticipantFactory {
         &mut self,
         participant_handle: &InstanceHandle,
         now: Time,
-        transport: &mut (impl crate::transport::interface::Transport + ?Sized),
+        transport: &mut impl crate::transport::interface::Transport,
     ) -> DdsResult<()> {
         let index = self
             .domain_participant_list
@@ -308,7 +311,10 @@ impl DcpsParticipantFactory {
             )));
         }
         let mut participant = self.domain_participant_list.remove(index);
-        participant.announce_deleted_participant(now, transport);
+        let transport_participant = transport
+            .get_participant_mut(&participant.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        participant.announce_deleted_participant(now, transport_participant);
         transport.delete_participant(participant.transport_handle);
         Ok(())
     }
@@ -321,6 +327,21 @@ impl DcpsParticipantFactory {
             .iter_mut()
             .find(|x| x.get_instance_handle() == participant_handle)
             .ok_or(DdsError::AlreadyDeleted)
+    }
+
+    pub fn get_participant_and_transport<'a, 'b, T: crate::transport::interface::Transport>(
+        domain_participant_list: &'a mut [DcpsDomainParticipant],
+        participant_handle: &InstanceHandle,
+        transport: &'b mut T,
+    ) -> DdsResult<(&'a mut DcpsDomainParticipant, &'b mut T::Participant)> {
+        let p = domain_participant_list
+            .iter_mut()
+            .find(|x| x.get_instance_handle() == participant_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        let tp = transport
+            .get_participant_mut(&p.transport_handle)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        Ok((p, tp))
     }
 
     pub fn set_default_participant_qos(
