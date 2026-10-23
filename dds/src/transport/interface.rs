@@ -1,22 +1,28 @@
 use crate::transport::types::{Locator, TransportHandle};
-use alloc::{boxed::Box, vec::Vec};
 
-pub trait WriteMessage {
-    fn write_buffer_mut(&mut self) -> &mut [u8];
-    fn write_message(&mut self, len: usize, locators: &[Locator]);
+pub trait Write {
+    fn write(&mut self, buf: &[u8]);
+    fn flush(&mut self);
 }
 
-pub struct RtpsTransportParticipant {
-    pub transport_handle: TransportHandle,
-    pub message_writer: Box<dyn WriteMessage + Send + Sync>,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub fragment_size: usize,
+pub trait RtpsParticipant {
+    type Writer<'a>: Write
+    where
+        Self: 'a;
+
+    fn default_unicast_locator_list(&self) -> &[Locator];
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator];
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator];
+    fn default_multicast_locator_list(&self) -> &[Locator];
+    fn fragment_size(&self) -> usize;
+
+    fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> Self::Writer<'a>;
 }
-pub trait TransportParticipantFactory: Send + 'static {
-    fn create_participant(&mut self, domain_id: i32) -> RtpsTransportParticipant;
+pub trait Transport: Send + 'static {
+    type Participant: RtpsParticipant;
+    fn create_participant(&mut self, domain_id: i32) -> TransportHandle;
+    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant>;
+    fn delete_participant(&mut self, handle: TransportHandle);
 
     fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send;
 }
