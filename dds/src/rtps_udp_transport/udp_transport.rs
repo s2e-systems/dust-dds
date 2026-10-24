@@ -5,23 +5,20 @@ use crate::{
         types::{LOCATOR_KIND_UDP_V6, TransportHandle},
     },
 };
-use core::{
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
-    sync::atomic::AtomicU32,
-};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
+use embassy_sync::waitqueue::AtomicWaker;
 use mio::{Events, Interest, Poll, Token, Waker};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
-    collections::HashMap,
     net::{ToSocketAddrs, UdpSocket},
     pin::Pin,
     sync::{
-        Arc, Condvar, Mutex,
+        Arc,
         atomic::{AtomicBool, Ordering},
     },
-    task::{Context, Poll as TaskPoll, Waker as TaskWaker},
+    task::{Context, Poll as TaskPoll},
 };
 use tracing::info;
 
@@ -43,45 +40,7 @@ fn port_builtin_multicast(domain_id: i32) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 
-struct TransportSocket {
-    transport_handle: TransportHandle,
-    socket: mio::net::UdpSocket,
-}
-
 const WAKER: Token = Token(0);
-
-struct WaitForReadable<'b> {
-    read_waker: &'b (Mutex<Option<TaskWaker>>, Condvar),
-    waker: &'b Arc<Waker>,
-    registered: bool,
-}
-
-impl<'b> Future for WaitForReadable<'b> {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> TaskPoll<Self::Output> {
-        let mut guard = self.read_waker.0.lock().unwrap();
-        if self.registered && guard.is_none() {
-            TaskPoll::Ready(())
-        } else {
-            *guard = Some(cx.waker().clone());
-            self.registered = true;
-            self.read_waker.1.notify_one();
-            self.waker.wake().ok();
-            TaskPoll::Pending
-        }
-    }
-}
-
-impl<'b> Drop for WaitForReadable<'b> {
-    fn drop(&mut self) {
-        let mut guard = self.read_waker.0.lock().unwrap();
-        if guard.is_some() {
-            *guard = None;
-            self.waker.wake().ok();
-        }
-    }
-}
 
 fn get_multicast_socket_v4(
     multicast_address: LocatorAddress,
@@ -195,7 +154,63 @@ pub struct ParticipantSockets {
     v6_multicast_indices: Vec<u32>,
     write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
     write_buffer_len: usize,
+    sockets: Vec<mio::net::UdpSocket>,
+    waker: Arc<Waker>,
+    read_waker: Arc<AtomicWaker>,
+    is_running: Arc<AtomicBool>,
+    reactor_thread: Option<std::thread::JoinHandle<()>>,
+    last_read_socket_index: usize,
+    receive_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
 }
+
+struct WaitForReadable<'a> {
+    sockets: &'a mut [mio::net::UdpSocket],
+    receive_buffer: &'a mut [u8],
+    last_read_socket_index: &'a mut usize,
+    read_waker: &'a AtomicWaker,
+}
+
+impl Future for WaitForReadable<'_> {
+    type Output = usize;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> TaskPoll<Self::Output> {
+        let WaitForReadable {
+            sockets,
+            receive_buffer,
+            last_read_socket_index,
+            read_waker,
+        } = &mut *self;
+        let num_sockets = sockets.len();
+        if num_sockets == 0 {
+            return TaskPoll::Pending;
+        }
+        for i in 0..num_sockets {
+            let idx = (**last_read_socket_index + 1 + i) % num_sockets;
+            let s = &mut sockets[idx];
+            match s.recv(receive_buffer) {
+                Ok(size) if size > 0 => {
+                    **last_read_socket_index = idx;
+                    return TaskPoll::Ready(size);
+                }
+                _ => {}
+            }
+        }
+        read_waker.register(cx.waker());
+        for i in 0..num_sockets {
+            let idx = (**last_read_socket_index + 1 + i) % num_sockets;
+            let s = &mut sockets[idx];
+            match s.recv(receive_buffer) {
+                Ok(size) if size > 0 => {
+                    **last_read_socket_index = idx;
+                    return TaskPoll::Ready(size);
+                }
+                _ => {}
+            }
+        }
+        TaskPoll::Pending
+    }
+}
+
 impl RtpsParticipant for ParticipantSockets {
     type Writer<'a> = UdpWriter<'a>;
 
@@ -232,55 +247,37 @@ impl RtpsParticipant for ParticipantSockets {
             buffer_len: &mut self.write_buffer_len,
         }
     }
+
+    async fn read(&mut self) -> &[u8] {
+        let size = WaitForReadable {
+            sockets: &mut self.sockets,
+            receive_buffer: &mut *self.receive_buffer,
+            last_read_socket_index: &mut self.last_read_socket_index,
+            read_waker: &self.read_waker,
+        }
+        .await;
+        &self.receive_buffer[..size]
+    }
 }
+
+impl Drop for ParticipantSockets {
+    fn drop(&mut self) {
+        self.is_running.store(false, Ordering::Relaxed);
+        self.waker.wake().ok();
+        if let Some(reactor_thread) = self.reactor_thread.take() {
+            reactor_thread.join().ok();
+        }
+    }
+}
+
 pub struct RtpsUdpTransport {
     interface_name: Option<String>,
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
-    entity_counter: AtomicU32,
-    participants: HashMap<TransportHandle, ParticipantSockets>,
-    registry: mio::Registry,
-    sockets: Vec<TransportSocket>,
-    waker: Arc<Waker>,
-    read_waker: Arc<(Mutex<Option<TaskWaker>>, Condvar)>,
-    is_running: Arc<AtomicBool>,
-    reactor_thread: Option<std::thread::JoinHandle<()>>,
-    last_read_socket_index: usize,
-    receive_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
 }
 
 impl RtpsUdpTransport {
-    fn add_socket(&mut self, transport_handle: TransportHandle, mut socket: mio::net::UdpSocket) {
-        let token = Token(self.sockets.len() + 1);
-        self.registry
-            .register(&mut socket, token, Interest::READABLE)
-            .expect("Failed to register socket");
-        self.sockets.push(TransportSocket {
-            transport_handle,
-            socket,
-        });
-    }
-
-    fn try_recv(&mut self) -> Option<(TransportHandle, usize)> {
-        let num_sockets = self.sockets.len();
-        if num_sockets == 0 {
-            return None;
-        }
-        for i in 0..num_sockets {
-            let idx = (self.last_read_socket_index + 1 + i) % num_sockets;
-            let s = &mut self.sockets[idx];
-            match s.socket.recv(&mut *self.receive_buffer) {
-                Ok(size) if size > 0 => {
-                    self.last_read_socket_index = idx;
-                    return Some((s.transport_handle, size));
-                }
-                _ => {}
-            }
-        }
-        None
-    }
-
     /// Set the name of the specific interface to use or None for communicating
     /// through all available interfaces
     pub fn set_interface_name(&mut self, interface_name: Option<String>) -> &mut Self {
@@ -338,79 +335,11 @@ impl RtpsUdpTransport {
 
 impl Default for RtpsUdpTransport {
     fn default() -> Self {
-        let mut poll = Poll::new().expect("Failed to create mio Poll");
-        let registry = poll
-            .registry()
-            .try_clone()
-            .expect("Failed to clone mio Registry");
-        let waker =
-            Arc::new(Waker::new(poll.registry(), WAKER).expect("Failed to create mio Waker"));
-        let read_waker = Arc::new((Mutex::new(None::<TaskWaker>), Condvar::new()));
-        let is_running = Arc::new(AtomicBool::new(true));
-
-        let is_running_clone = is_running.clone();
-        let read_waker_clone = read_waker.clone();
-        let reactor_thread = std::thread::Builder::new()
-            .name("DustDdsUdpReactor".to_string())
-            .spawn(move || {
-                let mut events = Events::with_capacity(128);
-                while is_running_clone.load(Ordering::Relaxed) {
-                    {
-                        let mut guard = read_waker_clone.0.lock().unwrap();
-                        while guard.is_none() && is_running_clone.load(Ordering::Relaxed) {
-                            guard = read_waker_clone.1.wait(guard).unwrap();
-                        }
-                    }
-                    if !is_running_clone.load(Ordering::Relaxed) {
-                        break;
-                    }
-
-                    match poll.poll(&mut events, None) {
-                        Ok(_) => {}
-                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-
-                    if !is_running_clone.load(Ordering::Relaxed) {
-                        break;
-                    }
-
-                    let mut has_socket_event = false;
-                    for event in events.iter() {
-                        if event.token() != WAKER {
-                            has_socket_event = true;
-                            break;
-                        }
-                    }
-
-                    if has_socket_event {
-                        let mut guard = read_waker_clone.0.lock().unwrap();
-                        if let Some(w) = guard.take() {
-                            w.wake();
-                        }
-                    }
-                }
-            })
-            .expect("Failed to spawn reactor thread");
-
         Self {
             interface_name: None,
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
-            entity_counter: AtomicU32::new(0),
-            participants: HashMap::new(),
-            registry,
-            sockets: Vec::new(),
-            waker,
-            is_running,
-            read_waker,
-            reactor_thread: Some(reactor_thread),
-            last_read_socket_index: 0,
-            receive_buffer: vec![0u8; MAX_DATAGRAM_SIZE]
-                .into_boxed_slice()
-                .try_into()
-                .unwrap(),
         }
     }
 }
@@ -481,11 +410,16 @@ impl<'a> Write for UdpWriter<'a> {
 }
 
 impl Transport for RtpsUdpTransport {
-    fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
-        let transport_handle: TransportHandle = self
-            .entity_counter
-            .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
-            .to_ne_bytes();
+    type Participant = ParticipantSockets;
+
+    fn create_participant(&mut self, domain_id: i32) -> Self::Participant {
+        let mut poll = Poll::new().expect("Failed to create mio Poll");
+        let waker =
+            Arc::new(Waker::new(poll.registry(), WAKER).expect("Failed to create mio Waker"));
+        let read_waker = Arc::new(AtomicWaker::new());
+        let is_running = Arc::new(AtomicBool::new(true));
+        let mut sockets = Vec::new();
+
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -621,18 +555,17 @@ impl Transport for RtpsUdpTransport {
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(metatraffic_multicast_socket),
-            );
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(metatraffic_unicast_socket),
-            );
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(default_unicast_socket),
-            );
+            let mut add_sock = |mut socket: mio::net::UdpSocket| {
+                let token = Token(sockets.len() + 1);
+                poll.registry()
+                    .register(&mut socket, token, Interest::READABLE)
+                    .expect("Failed to register socket");
+                sockets.push(socket);
+            };
+
+            add_sock(mio::net::UdpSocket::from_std(metatraffic_multicast_socket));
+            add_sock(mio::net::UdpSocket::from_std(metatraffic_unicast_socket));
+            add_sock(mio::net::UdpSocket::from_std(default_unicast_socket));
         }
 
         if use_v6 {
@@ -719,25 +652,56 @@ impl Transport for RtpsUdpTransport {
                     .expect("Socket cloning"),
             );
 
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(std_metatraffic_multicast_socket_v6),
-            );
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(std_metatraffic_unicast_socket_v6),
-            );
-            self.add_socket(
-                transport_handle,
-                mio::net::UdpSocket::from_std(std_default_unicast_socket_v6),
-            );
+            let mut add_sock = |mut socket: mio::net::UdpSocket| {
+                let token = Token(sockets.len() + 1);
+                poll.registry()
+                    .register(&mut socket, token, Interest::READABLE)
+                    .expect("Failed to register socket");
+                sockets.push(socket);
+            };
+
+            add_sock(mio::net::UdpSocket::from_std(
+                std_metatraffic_multicast_socket_v6,
+            ));
+            add_sock(mio::net::UdpSocket::from_std(
+                std_metatraffic_unicast_socket_v6,
+            ));
+            add_sock(mio::net::UdpSocket::from_std(std_default_unicast_socket_v6));
         }
 
-        if use_v4 || use_v6 {
-            self.waker.wake().ok();
-        }
+        let is_running_clone = is_running.clone();
+        let read_waker_clone = read_waker.clone();
+        let reactor_thread = std::thread::Builder::new()
+            .name("DustDdsParticipantReactor".to_string())
+            .spawn(move || {
+                let mut events = Events::with_capacity(128);
+                while is_running_clone.load(Ordering::Relaxed) {
+                    match poll.poll(&mut events, None) {
+                        Ok(_) => {}
+                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
 
-        let participant_sockets = ParticipantSockets {
+                    if !is_running_clone.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    let mut has_socket_event = false;
+                    for event in events.iter() {
+                        if event.token() != WAKER {
+                            has_socket_event = true;
+                            break;
+                        }
+                    }
+
+                    if has_socket_event {
+                        read_waker_clone.wake();
+                    }
+                }
+            })
+            .expect("Failed to spawn reactor thread");
+
+        ParticipantSockets {
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -749,37 +713,20 @@ impl Transport for RtpsUdpTransport {
             v6_multicast_indices,
             write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
             write_buffer_len: 0,
-        };
-
-        self.participants
-            .insert(transport_handle, participant_sockets);
-
-        transport_handle
-    }
-
-    fn delete_participant(&mut self, handle: TransportHandle) {
-        self.participants.remove(&handle);
-    }
-
-    async fn read(&mut self) -> (TransportHandle, &[u8]) {
-        loop {
-            if let Some((handle, size)) = self.try_recv() {
-                return (handle, &self.receive_buffer[..size]);
-            }
-            WaitForReadable {
-                read_waker: &self.read_waker,
-                waker: &self.waker,
-                registered: false,
-            }
-            .await;
+            sockets,
+            waker,
+            read_waker,
+            is_running,
+            reactor_thread: Some(reactor_thread),
+            last_read_socket_index: 0,
+            receive_buffer: vec![0u8; MAX_DATAGRAM_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 
-    type Participant = ParticipantSockets;
-
-    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant> {
-        self.participants.get_mut(handle)
-    }
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
 }
 
 impl Locator {

@@ -811,6 +811,10 @@ mod tests {
                 buffer: Vec::new(),
             }
         }
+
+        async fn read(&mut self) -> &[u8] {
+            &[]
+        }
     }
 
     #[test]

@@ -66,26 +66,25 @@ impl RtpsParticipant for MockTransport {
     fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
         MockWriter
     }
+
+    async fn read(&mut self) -> &[u8] {
+        let (_handle, data) = self.receive_channel.receive().await;
+        self.receive_buffer = data;
+        &self.receive_buffer
+    }
 }
 
 impl Transport for MockTransport {
     type Participant = MockTransport;
 
-    fn create_participant(&mut self, _domain_id: i32) -> TransportHandle {
-        [0; 4]
-    }
-
-    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> Option<&mut Self::Participant> {
-        Some(self)
+    fn create_participant(&mut self, _domain_id: i32) -> Self::Participant {
+        Self {
+            receive_channel: self.receive_channel.clone(),
+            receive_buffer: Vec::new(),
+        }
     }
 
     fn delete_participant(&mut self, _handle: TransportHandle) {}
-
-    async fn read(&mut self) -> (TransportHandle, &[u8]) {
-        let (handle, data) = self.receive_channel.receive().await;
-        self.receive_buffer = data;
-        (handle, &self.receive_buffer)
-    }
 }
 
 #[test]

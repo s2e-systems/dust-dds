@@ -139,9 +139,7 @@ static METATRAFFIC_MULTICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::ne
 static METATRAFFIC_UNICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::new();
 static DEFAULT_UNICAST_BUFFERS: StaticCell<SocketBuffers> = StaticCell::new();
 
-pub struct EmbeddedTransport {
-    addr: Ipv4Addr,
-    transport_handle: TransportHandle,
+pub struct EmbeddedParticipant {
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
@@ -153,6 +151,13 @@ pub struct EmbeddedTransport {
     default_unicast_buf: [u8; RX_BUFFER],
     tx_buffer: [u8; TX_BUFFER],
     tx_buffer_len: usize,
+}
+
+unsafe impl Send for EmbeddedParticipant {}
+
+pub struct EmbeddedTransport {
+    addr: Ipv4Addr,
+    participant: Option<EmbeddedParticipant>,
 }
 
 unsafe impl Send for EmbeddedTransport {}
@@ -213,9 +218,7 @@ impl EmbeddedTransport {
             DEFAULT_UNICAST_PORT as u16,
         )));
 
-        Self {
-            addr,
-            transport_handle: [0, 0, 0, 1],
+        let participant = EmbeddedParticipant {
             default_unicast_locator_list: Vec::new(),
             metatraffic_unicast_locator_list: Vec::new(),
             metatraffic_multicast_locator_list: Vec::new(),
@@ -227,11 +230,16 @@ impl EmbeddedTransport {
             default_unicast_buf: [0; RX_BUFFER],
             tx_buffer: [0; TX_BUFFER],
             tx_buffer_len: 0,
+        };
+
+        Self {
+            addr,
+            participant: Some(participant),
         }
     }
 }
 
-impl RtpsParticipant for EmbeddedTransport {
+impl RtpsParticipant for EmbeddedParticipant {
     type Writer<'a> = MessageWriter<'a>;
 
     fn default_unicast_locator_list(&self) -> &[Locator] {
@@ -262,38 +270,8 @@ impl RtpsParticipant for EmbeddedTransport {
             locators,
         }
     }
-}
 
-impl Transport for EmbeddedTransport {
-    type Participant = EmbeddedTransport;
-
-    fn create_participant(&mut self, domain_id: i32) -> TransportHandle {
-        self.metatraffic_multicast_locator_list = vec![Locator::new(
-            1,
-            port_builtin_multicast(domain_id) as u32,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        )];
-        let a = self.addr.octets();
-        let local_addr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a[0], a[1], a[2], a[3]];
-        self.default_unicast_locator_list = vec![Locator::new(1, DEFAULT_UNICAST_PORT, local_addr)];
-        self.metatraffic_unicast_locator_list =
-            vec![Locator::new(1, METATRAFFIC_UNICAST_PORT, local_addr)];
-
-        self.transport_handle
-    }
-
-    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant> {
-        if handle == &self.transport_handle {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
-
-    fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send {
-        let transport_handle = self.transport_handle;
+    fn read(&mut self) -> impl Future<Output = &[u8]> + Send {
         let metatraffic_multicast_socket = &mut self.metatraffic_multicast_socket;
         let metatraffic_multicast_buf = &mut self.metatraffic_multicast_buf;
         let metatraffic_unicast_socket = &mut self.metatraffic_unicast_socket;
@@ -311,19 +289,45 @@ impl Transport for EmbeddedTransport {
             {
                 embassy_futures::select::Either3::First(res) => {
                     let (size, _) = unwrap!(res);
-                    (transport_handle, &metatraffic_multicast_buf[..size])
+                    &metatraffic_multicast_buf[..size]
                 }
                 embassy_futures::select::Either3::Second(res) => {
                     let (size, _) = unwrap!(res);
-                    (transport_handle, &metatraffic_unicast_buf[..size])
+                    &metatraffic_unicast_buf[..size]
                 }
                 embassy_futures::select::Either3::Third(res) => {
                     let (size, _) = unwrap!(res);
-                    (transport_handle, &default_unicast_buf[..size])
+                    &default_unicast_buf[..size]
                 }
             }
         })
     }
+}
+
+impl Transport for EmbeddedTransport {
+    type Participant = EmbeddedParticipant;
+
+    fn create_participant(&mut self, domain_id: i32) -> Self::Participant {
+        let mut participant = self
+            .participant
+            .take()
+            .expect("EmbeddedTransport supports one participant");
+        participant.metatraffic_multicast_locator_list = vec![Locator::new(
+            1,
+            port_builtin_multicast(domain_id) as u32,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        )];
+        let a = self.addr.octets();
+        let local_addr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a[0], a[1], a[2], a[3]];
+        participant.default_unicast_locator_list =
+            vec![Locator::new(1, DEFAULT_UNICAST_PORT, local_addr)];
+        participant.metatraffic_unicast_locator_list =
+            vec![Locator::new(1, METATRAFFIC_UNICAST_PORT, local_addr)];
+
+        participant
+    }
+
+    fn delete_participant(&mut self, _handle: TransportHandle) {}
 }
 
 struct SendFuture<F>(F);

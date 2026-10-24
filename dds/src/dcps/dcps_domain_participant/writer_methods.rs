@@ -23,7 +23,7 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
-    runtime::DdsRuntime,
+    runtime::Spawner,
     transport::types::TopicKind,
     xtypes::dynamic_type::DynamicData,
 };
@@ -59,14 +59,14 @@ impl DcpsDomainParticipant {
         Ok(status)
     }
 
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn set_listener_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
         data_writer_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -84,7 +84,7 @@ impl DcpsDomainParticipant {
             return Ok(());
         };
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         data_writer.listener_sender = listener_sender;
         data_writer.listener_mask = listener_mask;
 
