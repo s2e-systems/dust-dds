@@ -298,12 +298,14 @@ impl FromStr for BitBound {
 
 pub struct EnumeratedTypeAttributes {
     pub name: String,
+    pub extensibility: Extensibility,
     pub is_nested: bool,
     pub bit_bound: BitBound,
 }
 
 pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedTypeAttributes> {
     let mut name = None;
+    let mut extensibility = None;
     let mut is_nested = None;
     let mut bit_bound = None;
 
@@ -315,6 +317,17 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("extensibility") {
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                extensibility
+                    .replace(value)
                     .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("nested") {
                 is_nested
@@ -339,6 +352,7 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
 
     Ok(EnumeratedTypeAttributes {
         name: name.unwrap_or_else(|| input.ident.to_string()),
+        extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         bit_bound: bit_bound.unwrap_or_default(),
     })

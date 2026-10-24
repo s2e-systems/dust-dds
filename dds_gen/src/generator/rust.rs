@@ -424,8 +424,10 @@ impl<'a> RustGenerator<'a> {
                 .expect("Must have an identifier according to the grammar");
             let identifier_str = identifier.as_str();
 
-            #[allow(clippy::single_match)]
             match identifier_str {
+                "final" | "appendable" => {
+                    attr_meta.push(format!("extensibility = \"{identifier_str}\""));
+                }
                 "bit_bound" => {
                     if let Some(annotation_appl_params) = inner_pairs
                         .clone()

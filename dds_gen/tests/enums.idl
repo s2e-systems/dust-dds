@@ -22,3 +22,9 @@ enum Priority {
     MEDIUM,
     HIGH
 };
+
+@appendable
+enum ExtensibleEnum {
+    V1,
+    V2
+};
