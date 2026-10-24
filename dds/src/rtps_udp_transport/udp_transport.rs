@@ -17,7 +17,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU8, Ordering},
     },
     task::{Context, Poll as TaskPoll},
 };
@@ -42,6 +42,21 @@ fn port_builtin_multicast(domain_id: i32) -> u16 {
 }
 
 const WAKER: Token = Token(0);
+
+const NUM_SOCKETS: usize = 6;
+const METATRAFFIC_MULTICAST_V4_INDEX: usize = 0;
+const METATRAFFIC_UNICAST_V4_INDEX: usize = 1;
+const DEFAULT_UNICAST_V4_INDEX: usize = 2;
+const METATRAFFIC_MULTICAST_V6_INDEX: usize = 3;
+const METATRAFFIC_UNICAST_V6_INDEX: usize = 4;
+const DEFAULT_UNICAST_V6_INDEX: usize = 5;
+
+const METATRAFFIC_MULTICAST_V4_TOKEN: Token = Token(1);
+const METATRAFFIC_UNICAST_V4_TOKEN: Token = Token(2);
+const DEFAULT_UNICAST_V4_TOKEN: Token = Token(3);
+const METATRAFFIC_MULTICAST_V6_TOKEN: Token = Token(4);
+const METATRAFFIC_UNICAST_V6_TOKEN: Token = Token(5);
+const DEFAULT_UNICAST_V6_TOKEN: Token = Token(6);
 
 fn get_multicast_socket_v4(
     multicast_address: LocatorAddress,
@@ -156,17 +171,21 @@ pub struct ParticipantSockets {
     v6_multicast_indices: Vec<u32>,
     write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
     write_buffer_len: usize,
-    sockets: Vec<mio::net::UdpSocket>,
+    sockets: [Option<mio::net::UdpSocket>; NUM_SOCKETS],
     read_waker: Arc<AtomicWaker>,
+    ready_sockets: Arc<AtomicU8>,
+    cached_ready_sockets: u8,
     last_read_socket_index: usize,
     receive_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
 }
 
 struct WaitForReadable<'a> {
-    sockets: &'a mut [mio::net::UdpSocket],
+    sockets: &'a mut [Option<mio::net::UdpSocket>; NUM_SOCKETS],
     receive_buffer: &'a mut [u8],
     last_read_socket_index: &'a mut usize,
     read_waker: &'a AtomicWaker,
+    ready_sockets: &'a AtomicU8,
+    cached_ready_sockets: &'a mut u8,
 }
 
 impl Future for WaitForReadable<'_> {
@@ -178,34 +197,57 @@ impl Future for WaitForReadable<'_> {
             receive_buffer,
             last_read_socket_index,
             read_waker,
+            ready_sockets,
+            cached_ready_sockets,
         } = &mut *self;
-        let num_sockets = sockets.len();
-        if num_sockets == 0 {
-            return TaskPoll::Pending;
-        }
-        for i in 0..num_sockets {
-            let idx = (**last_read_socket_index + 1 + i) % num_sockets;
-            let s = &mut sockets[idx];
-            match s.recv(receive_buffer) {
-                Ok(size) if size > 0 => {
-                    **last_read_socket_index = idx;
-                    return TaskPoll::Ready(size);
+
+        **cached_ready_sockets |= ready_sockets.swap(0, Ordering::AcqRel);
+
+        if **cached_ready_sockets != 0 {
+            for i in 0..NUM_SOCKETS {
+                let idx = (**last_read_socket_index + 1 + i) % NUM_SOCKETS;
+                if (**cached_ready_sockets & (1 << idx)) != 0 {
+                    if let Some(s) = &mut sockets[idx] {
+                        match s.recv(receive_buffer) {
+                            Ok(size) if size > 0 => {
+                                **last_read_socket_index = idx;
+                                return TaskPoll::Ready(size);
+                            }
+                            _ => {
+                                **cached_ready_sockets &= !(1 << idx);
+                            }
+                        }
+                    } else {
+                        **cached_ready_sockets &= !(1 << idx);
+                    }
                 }
-                _ => {}
             }
         }
+
         read_waker.register(cx.waker());
-        for i in 0..num_sockets {
-            let idx = (**last_read_socket_index + 1 + i) % num_sockets;
-            let s = &mut sockets[idx];
-            match s.recv(receive_buffer) {
-                Ok(size) if size > 0 => {
-                    **last_read_socket_index = idx;
-                    return TaskPoll::Ready(size);
+
+        **cached_ready_sockets |= ready_sockets.swap(0, Ordering::AcqRel);
+        if **cached_ready_sockets != 0 {
+            for i in 0..NUM_SOCKETS {
+                let idx = (**last_read_socket_index + 1 + i) % NUM_SOCKETS;
+                if (**cached_ready_sockets & (1 << idx)) != 0 {
+                    if let Some(s) = &mut sockets[idx] {
+                        match s.recv(receive_buffer) {
+                            Ok(size) if size > 0 => {
+                                **last_read_socket_index = idx;
+                                return TaskPoll::Ready(size);
+                            }
+                            _ => {
+                                **cached_ready_sockets &= !(1 << idx);
+                            }
+                        }
+                    } else {
+                        **cached_ready_sockets &= !(1 << idx);
+                    }
                 }
-                _ => {}
             }
         }
+
         TaskPoll::Pending
     }
 }
@@ -257,6 +299,8 @@ impl RtpsParticipant for ParticipantSockets {
             receive_buffer: &mut *self.receive_buffer,
             last_read_socket_index: &mut self.last_read_socket_index,
             read_waker: &self.read_waker,
+            ready_sockets: &self.ready_sockets,
+            cached_ready_sockets: &mut self.cached_ready_sockets,
         }
         .await;
         &self.receive_buffer[..size]
@@ -420,8 +464,10 @@ impl Transport for RtpsUdpTransport {
         let waker =
             Arc::new(Waker::new(poll.registry(), WAKER).expect("Failed to create mio Waker"));
         let read_waker = Arc::new(AtomicWaker::new());
+        let ready_sockets = Arc::new(AtomicU8::new(0));
         let is_running = Arc::new(AtomicBool::new(true));
-        let mut sockets = Vec::new();
+        let mut sockets: [Option<mio::net::UdpSocket>; NUM_SOCKETS] = Default::default();
+        let mut enabled_socket_mask = 0u8;
 
         let interfaces: Vec<_> = NetworkInterface::show()
             .expect("Could not scan interfaces")
@@ -600,17 +646,29 @@ impl Transport for RtpsUdpTransport {
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            let mut add_sock = |mut socket: mio::net::UdpSocket| {
-                let token = Token(sockets.len() + 1);
+            let mut add_sock = |mut socket: mio::net::UdpSocket, token: Token, idx: usize| {
                 poll.registry()
                     .register(&mut socket, token, Interest::READABLE)
                     .expect("Failed to register socket");
-                sockets.push(socket);
+                sockets[idx] = Some(socket);
+                enabled_socket_mask |= 1 << idx;
             };
 
-            add_sock(mio::net::UdpSocket::from_std(metatraffic_multicast_socket));
-            add_sock(mio::net::UdpSocket::from_std(metatraffic_unicast_socket));
-            add_sock(mio::net::UdpSocket::from_std(default_unicast_socket));
+            add_sock(
+                mio::net::UdpSocket::from_std(metatraffic_multicast_socket),
+                METATRAFFIC_MULTICAST_V4_TOKEN,
+                METATRAFFIC_MULTICAST_V4_INDEX,
+            );
+            add_sock(
+                mio::net::UdpSocket::from_std(metatraffic_unicast_socket),
+                METATRAFFIC_UNICAST_V4_TOKEN,
+                METATRAFFIC_UNICAST_V4_INDEX,
+            );
+            add_sock(
+                mio::net::UdpSocket::from_std(default_unicast_socket),
+                DEFAULT_UNICAST_V4_TOKEN,
+                DEFAULT_UNICAST_V4_INDEX,
+            );
         }
 
         if use_v6 {
@@ -697,25 +755,34 @@ impl Transport for RtpsUdpTransport {
                     .expect("Socket cloning"),
             );
 
-            let mut add_sock = |mut socket: mio::net::UdpSocket| {
-                let token = Token(sockets.len() + 1);
+            let mut add_sock = |mut socket: mio::net::UdpSocket, token: Token, idx: usize| {
                 poll.registry()
                     .register(&mut socket, token, Interest::READABLE)
                     .expect("Failed to register socket");
-                sockets.push(socket);
+                sockets[idx] = Some(socket);
+                enabled_socket_mask |= 1 << idx;
             };
 
-            add_sock(mio::net::UdpSocket::from_std(
-                std_metatraffic_multicast_socket_v6,
-            ));
-            add_sock(mio::net::UdpSocket::from_std(
-                std_metatraffic_unicast_socket_v6,
-            ));
-            add_sock(mio::net::UdpSocket::from_std(std_default_unicast_socket_v6));
+            add_sock(
+                mio::net::UdpSocket::from_std(std_metatraffic_multicast_socket_v6),
+                METATRAFFIC_MULTICAST_V6_TOKEN,
+                METATRAFFIC_MULTICAST_V6_INDEX,
+            );
+            add_sock(
+                mio::net::UdpSocket::from_std(std_metatraffic_unicast_socket_v6),
+                METATRAFFIC_UNICAST_V6_TOKEN,
+                METATRAFFIC_UNICAST_V6_INDEX,
+            );
+            add_sock(
+                mio::net::UdpSocket::from_std(std_default_unicast_socket_v6),
+                DEFAULT_UNICAST_V6_TOKEN,
+                DEFAULT_UNICAST_V6_INDEX,
+            );
         }
 
         let is_running_clone = is_running.clone();
         let read_waker_clone = read_waker.clone();
+        let ready_sockets_clone = ready_sockets.clone();
         let reactor_thread = std::thread::Builder::new()
             .name("DustDdsParticipantReactor".to_string())
             .spawn(move || {
@@ -731,15 +798,16 @@ impl Transport for RtpsUdpTransport {
                         break;
                     }
 
-                    let mut has_socket_event = false;
+                    let mut ready_mask = 0u8;
                     for event in events.iter() {
-                        if event.token() != WAKER {
-                            has_socket_event = true;
-                            break;
+                        let token = event.token().0;
+                        if (1..=NUM_SOCKETS).contains(&token) {
+                            ready_mask |= 1 << (token - 1);
                         }
                     }
 
-                    if has_socket_event {
+                    if ready_mask != 0 {
+                        ready_sockets_clone.fetch_or(ready_mask, Ordering::Release);
                         read_waker_clone.wake();
                     }
                 }
@@ -770,6 +838,8 @@ impl Transport for RtpsUdpTransport {
             write_buffer_len: 0,
             sockets,
             read_waker,
+            ready_sockets,
+            cached_ready_sockets: enabled_socket_mask,
             last_read_socket_index: 0,
             receive_buffer: vec![0u8; MAX_DATAGRAM_SIZE]
                 .into_boxed_slice()
