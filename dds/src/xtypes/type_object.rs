@@ -1954,7 +1954,9 @@ impl<'a> From<DynamicType<'a>> for MinimalTypeObject {
                     common: CommonEnumeratedHeader { bit_bound },
                 };
 
-                let literal_seq = value.member_list.iter().map(From::from).collect();
+                let mut literal_seq: Vec<MinimalEnumeratedLiteral> =
+                    value.member_list.iter().map(From::from).collect();
+                literal_seq.sort_by_key(|l| l.common.value);
 
                 let enumerated_type = MinimalEnumeratedType {
                     enum_flags,
@@ -2090,7 +2092,9 @@ impl From<DynamicType<'_>> for CompleteTypeObject {
                     },
                 };
 
-                let literal_seq = value.member_list.iter().map(From::from).collect();
+                let mut literal_seq: Vec<CompleteEnumeratedLiteral> =
+                    value.member_list.iter().map(From::from).collect();
+                literal_seq.sort_by_key(|l| l.common.value);
 
                 let enumerated_type = CompleteEnumeratedType {
                     enum_flags,
@@ -4244,6 +4248,32 @@ mod tests {
             assert_eq!(enumerated_type.literal_seq[2].common.value, 2);
         } else {
             panic!("Expected TkEnum for discriminator dependency");
+        }
+    }
+
+    #[test]
+    fn test_enum_literals_sorted_by_numeric_value() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        enum UnorderedEnum {
+            B = 20,
+            A = 10,
+            C = 30,
+        }
+
+        let complete_obj = CompleteTypeObject::from(UnorderedEnum::TYPE);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = complete_obj {
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "A");
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 10);
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "B");
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 20);
+            assert_eq!(enumerated_type.literal_seq[2].detail.name, "C");
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 30);
+        } else {
+            panic!("Expected TkEnum");
         }
     }
 }
