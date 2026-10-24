@@ -1,6 +1,11 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use dust_dds::{
-    dds_async::data_reader::DataReaderAsync,
+    dds_async::{
+        data_reader::DataReaderAsync,
+        data_reader_listener::DataReaderListener as DataReaderListenerAsync,
+        domain_participant_factory::DomainParticipantFactoryAsync,
+        wait_set::{ConditionAsync, WaitSetAsync},
+    },
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listener::NO_LISTENER,
@@ -302,11 +307,160 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     });
 }
 
+struct DustDdsExecutor;
+
+impl criterion::async_executor::AsyncExecutor for DustDdsExecutor {
+    fn block_on<T>(&self, future: impl std::future::Future<Output = T>) -> T {
+        dust_dds::std_runtime::executor::block_on(future)
+    }
+}
+
+#[derive(Default)]
+struct AsyncNotify {
+    state: std::sync::Mutex<(bool, Option<std::task::Waker>)>,
+}
+
+impl AsyncNotify {
+    fn notify(&self) {
+        let mut lock = self.state.lock().unwrap();
+        lock.0 = true;
+        if let Some(waker) = lock.1.take() {
+            waker.wake();
+        }
+    }
+
+    fn notified(&self) -> Notified<'_> {
+        Notified { notify: self }
+    }
+}
+
+struct Notified<'a> {
+    notify: &'a AsyncNotify,
+}
+
+impl std::future::Future for Notified<'_> {
+    type Output = ();
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let mut lock = self.notify.state.lock().unwrap();
+        if lock.0 {
+            lock.0 = false;
+            std::task::Poll::Ready(())
+        } else {
+            lock.1 = Some(cx.waker().clone());
+            std::task::Poll::Pending
+        }
+    }
+}
+
+fn best_effort_write_and_receive_async(c: &mut Criterion) {
+    let notify = std::sync::Arc::new(AsyncNotify::default());
+
+    struct Listener {
+        notify: std::sync::Arc<AsyncNotify>,
+    }
+    impl DataReaderListenerAsync<KeyedData> for Listener {
+        async fn on_data_available(&mut self, the_reader: DataReaderAsync<KeyedData>) {
+            the_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .await
+                .ok();
+            self.notify.notify();
+        }
+    }
+
+    let (writer, _reader) = dust_dds::std_runtime::executor::block_on(async {
+        let domain_id = 204;
+        let participant_factory = DomainParticipantFactoryAsync::get_instance();
+        let participant = participant_factory
+            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+            .await
+            .unwrap();
+        let topic = participant
+            .create_topic::<KeyedData>(
+                "TestTopicAsync",
+                "KeyedData",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .await
+            .unwrap();
+        let subscriber = participant
+            .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+            .await
+            .unwrap();
+
+        let listener = Listener {
+            notify: notify.clone(),
+        };
+        let reader = subscriber
+            .create_datareader(
+                &topic,
+                QosKind::Default,
+                Some(listener),
+                &[StatusKind::DataAvailable],
+            )
+            .await
+            .unwrap();
+        let reader_cond = reader.get_statuscondition();
+        let publisher = participant
+            .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+            .await
+            .unwrap();
+        let writer = publisher
+            .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+            .await
+            .unwrap();
+        let writer_cond = writer.get_statuscondition();
+        writer_cond
+            .set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .await
+            .unwrap();
+
+        let mut wait_set = WaitSetAsync::new();
+        reader_cond
+            .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+            .await
+            .unwrap();
+        wait_set
+            .attach_condition(ConditionAsync::StatusCondition(reader_cond))
+            .await
+            .unwrap();
+        wait_set.wait().await.unwrap();
+
+        let mut wait_set2 = WaitSetAsync::new();
+        wait_set2
+            .attach_condition(ConditionAsync::StatusCondition(writer_cond))
+            .await
+            .unwrap();
+        wait_set2.wait().await.unwrap();
+
+        (writer, reader)
+    });
+
+    c.bench_function("best_effort_write_and_receive_async", |b| {
+        b.to_async(DustDdsExecutor).iter(|| {
+            let notified = notify.notified();
+            let writer = &writer;
+            async move {
+                let (res, ()) =
+                    futures::join!(writer.write(KeyedData { id: 1, value: 7 }, None), notified);
+                res.unwrap();
+            }
+        })
+    });
+}
+
 criterion_group!(
     benches,
     best_effort_write_only,
     best_effort_read_only,
     best_effort_write_and_receive,
-    best_effort_write_and_receive_frag
+    best_effort_write_and_receive_frag,
+    best_effort_write_and_receive_async,
 );
 criterion_main!(benches);

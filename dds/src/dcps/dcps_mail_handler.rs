@@ -461,19 +461,20 @@ impl DcpsDomainParticipant {
                     data_writer_handle,
                     dynamic_data,
                     timestamp,
-                    reply_sender,
                 } => {
                     let timestamp = timestamp.unwrap_or(now);
-                    self.write_w_timestamp(
+                    match self.write_w_timestamp(
                         &publisher_handle,
                         &data_writer_handle,
                         &dynamic_data,
                         timestamp,
                         now,
-                        reply_sender,
                         transport_participant,
-                    );
-                    DcpsReply::Ok(Ok(()))
+                    ) {
+                        Ok(None) => DcpsReply::Ok(Ok(())),
+                        Ok(Some(receiver)) => DcpsReply::PendingWrite(receiver),
+                        Err(e) => DcpsReply::Ok(Err(e)),
+                    }
                 }
                 WriterServiceMail::DisposeWTimestamp {
                     participant_handle: _,

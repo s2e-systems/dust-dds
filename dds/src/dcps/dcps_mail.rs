@@ -6,7 +6,11 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::{notification::NotificationSender, oneshot::OneshotSender, rpc::RpcClient},
+        channels::{
+            notification::NotificationSender,
+            oneshot::{OneshotReceiver, OneshotSender},
+            rpc::RpcClient,
+        },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -375,7 +379,6 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
         timestamp: Option<Time>,
-        reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
         participant_handle: InstanceHandle,
@@ -505,6 +508,7 @@ pub enum MessageServiceMail {
 #[derive(Debug)]
 pub enum DcpsReply {
     Ok(DdsResult<()>),
+    PendingWrite(OneshotReceiver<DdsResult<()>>),
     InstanceHandle(DdsResult<InstanceHandle>),
     OptionInstanceHandle(DdsResult<Option<InstanceHandle>>),
     CreatedParticipant(DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)>),
