@@ -912,19 +912,25 @@ impl<'a> DynamicType<'a> {
 
     /// Retrieves a member by name.
     pub fn get_member_by_name(&self, name: ObjectName) -> Result<&DynamicTypeMember, XTypesError> {
-        self.member_list
-            .iter()
-            .find(|m| m.get_name() == name)
-            .ok_or(XTypesError::InvalidName)
+        if let Some(m) = self.member_list.iter().find(|m| m.get_name() == name) {
+            Ok(m)
+        } else if let Some(base_type) = &self.descriptor.base_type {
+            base_type.get_member_by_name(name)
+        } else {
+            Err(XTypesError::InvalidName)
+        }
     }
 
     // DDS::ReturnCode_t get_all_members_by_name(inout DynamicTypeMembersByName member);
     /// Retrieves a member by ID.
     pub fn get_member(&self, id: MemberId) -> Result<&DynamicTypeMember, XTypesError> {
-        self.member_list
-            .iter()
-            .find(|m| m.get_id() == id)
-            .ok_or(XTypesError::InvalidId(id))
+        if let Some(m) = self.member_list.iter().find(|m| m.get_id() == id) {
+            Ok(m)
+        } else if let Some(base_type) = &self.descriptor.base_type {
+            base_type.get_member(id)
+        } else {
+            Err(XTypesError::InvalidId(id))
+        }
     }
 
     // DDS::ReturnCode_t get_all_members(inout DynamicTypeMembersById member);
@@ -1167,13 +1173,7 @@ impl<'a> DynamicData<'a> {
 
     /// Returns a reference to the descriptor of the specified member.
     pub fn get_descriptor(&self, id: MemberId) -> XTypesResult<&MemberDescriptor> {
-        if let Ok(x) = self.r#type.get_member(id) {
-            Ok(&x.descriptor)
-        } else if let Some(b) = &self.r#type.descriptor.base_type {
-            b.get_member(id)?.get_descriptor()
-        } else {
-            Err(XTypesError::InvalidId(id))
-        }
+        self.r#type.get_member(id).map(|x| &x.descriptor)
     }
 
     /// Sets the descriptor of the specified member.
