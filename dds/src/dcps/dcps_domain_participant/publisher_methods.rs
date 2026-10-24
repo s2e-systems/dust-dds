@@ -18,7 +18,7 @@ use crate::{
         time::Time,
     },
     rtps::stateful_writer::RtpsStatefulWriter,
-    runtime::DdsRuntime,
+    runtime::Spawner,
     transport::types::{
         EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
     },
@@ -26,7 +26,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, runtime, transport_participant))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner, transport_participant))]
     pub fn create_data_writer(
         &mut self,
         publisher_handle: &InstanceHandle,
@@ -34,7 +34,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<DataWriterQos>,
         dcps_listener: Option<DcpsDataWriterListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
         now: Time,
         enable_type_information: bool,
         transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
@@ -122,7 +122,7 @@ impl DcpsDomainParticipant {
         .map(crate::dcps::xtypes_glue::key_and_instance_handle::KeyHolderType::new)
         .unwrap_or_default();
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let data_writer = UserDefinedDataWriter::new(
             writer_handle,
             transport_writer,
@@ -259,13 +259,13 @@ impl DcpsDomainParticipant {
         Ok(publisher.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn set_publisher_listener(
         &mut self,
         publisher_handle: &InstanceHandle,
         dcps_listener: Option<DcpsPublisherListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<()> {
         let Some(publisher) = self
             .domain_participant
@@ -275,7 +275,7 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         publisher.listener_sender = listener_sender;
         publisher.listener_mask = listener_mask;
         Ok(())

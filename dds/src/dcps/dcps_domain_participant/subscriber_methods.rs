@@ -22,7 +22,7 @@ use crate::{
         time::Time,
     },
     rtps::stateful_reader::RtpsStatefulReader,
-    runtime::DdsRuntime,
+    runtime::Spawner,
     transport::types::{
         EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
         USER_DEFINED_READER_WITH_KEY,
@@ -31,7 +31,7 @@ use crate::{
 
 impl DcpsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, runtime, transport_participant))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner, transport_participant))]
     pub fn create_data_reader(
         &mut self,
         subscriber_handle: &InstanceHandle,
@@ -39,7 +39,7 @@ impl DcpsDomainParticipant {
         qos: QosKind<DataReaderQos>,
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
         now: Time,
         enable_type_information: bool,
         transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
@@ -138,7 +138,7 @@ impl DcpsDomainParticipant {
 
         let transport_reader = RtpsStatefulReader::new(guid, reliablity_kind);
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let data_reader = UserDefinedDataReader::new(
             reader_handle,
             qos,
@@ -352,13 +352,13 @@ impl DcpsDomainParticipant {
         Ok(subscriber.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, listener_sender_task, runtime))]
+    #[tracing::instrument(skip(self, listener_sender_task, spawner))]
     pub fn set_subscriber_listener(
         &mut self,
         subscriber_handle: &InstanceHandle,
         listener_sender_task: Option<DcpsSubscriberListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -369,7 +369,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        let listener_sender = listener_sender_task.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = listener_sender_task.map(|l| l.spawn(spawner));
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = listener_mask;
         Ok(())

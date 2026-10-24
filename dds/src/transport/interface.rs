@@ -1,14 +1,16 @@
-use crate::transport::types::{Locator, TransportHandle};
+use crate::transport::types::{Guid, Locator};
 
 pub trait Write {
     fn write(&mut self, buf: &[u8]);
     fn flush(&mut self);
 }
 
-pub trait RtpsParticipant {
+pub trait RtpsParticipant: Send + 'static {
     type Writer<'a>: Write
     where
         Self: 'a;
+
+    fn guid(&self) -> Guid;
 
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn metatraffic_unicast_locator_list(&self) -> &[Locator];
@@ -17,12 +19,12 @@ pub trait RtpsParticipant {
     fn fragment_size(&self) -> usize;
 
     fn writer<'a>(&'a mut self, locator: &'a [Locator]) -> Self::Writer<'a>;
+
+    fn read(&mut self) -> impl Future<Output = &[u8]> + Send;
 }
 pub trait Transport: Send + 'static {
     type Participant: RtpsParticipant;
-    fn create_participant(&mut self, domain_id: i32) -> TransportHandle;
-    fn get_participant_mut(&mut self, handle: &TransportHandle) -> Option<&mut Self::Participant>;
-    fn delete_participant(&mut self, handle: TransportHandle);
+    fn create_participant(&mut self, domain_id: i32) -> Self::Participant;
 
-    fn read(&mut self) -> impl Future<Output = (TransportHandle, &[u8])> + Send;
+    fn delete_participant(&mut self, handle: Guid);
 }

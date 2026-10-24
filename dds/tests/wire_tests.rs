@@ -15,7 +15,10 @@ use dust_dds::{
     security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{RtpsParticipant, Transport, Write},
-        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator, TransportHandle},
+        types::{
+            BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, EntityId, Guid,
+            Locator, TransportHandle,
+        },
     },
 };
 
@@ -47,6 +50,10 @@ impl MockTransport {
 impl RtpsParticipant for MockTransport {
     type Writer<'a> = MockWriter;
 
+    fn guid(&self) -> Guid {
+        Guid::new([1; 12], ENTITYID_PARTICIPANT)
+    }
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &[]
     }
@@ -66,26 +73,25 @@ impl RtpsParticipant for MockTransport {
     fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
         MockWriter
     }
+
+    async fn read(&mut self) -> &[u8] {
+        let (_handle, data) = self.receive_channel.receive().await;
+        self.receive_buffer = data;
+        &self.receive_buffer
+    }
 }
 
 impl Transport for MockTransport {
     type Participant = MockTransport;
 
-    fn create_participant(&mut self, _domain_id: i32) -> TransportHandle {
-        [0; 4]
+    fn create_participant(&mut self, _domain_id: i32) -> Self::Participant {
+        Self {
+            receive_channel: self.receive_channel.clone(),
+            receive_buffer: Vec::new(),
+        }
     }
 
-    fn get_participant_mut(&mut self, _handle: &TransportHandle) -> Option<&mut Self::Participant> {
-        Some(self)
-    }
-
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
-
-    async fn read(&mut self) -> (TransportHandle, &[u8]) {
-        let (handle, data) = self.receive_channel.receive().await;
-        self.receive_buffer = data;
-        (handle, &self.receive_buffer)
-    }
+    fn delete_participant(&mut self, _handle: Guid) {}
 }
 
 #[test]
@@ -94,13 +100,9 @@ fn detect_stale_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
-    let app_id = [1, 2, 3, 4];
-    let host_id = [5, 6, 7, 8];
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        app_id,
-        host_id,
         configuration,
         runtime,
         MockTransport::new(receive_channel.clone()),
@@ -187,13 +189,9 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
-    let app_id = [1, 2, 3, 4];
-    let host_id = [5, 6, 7, 8];
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        app_id,
-        host_id,
         configuration,
         runtime,
         MockTransport::new(receive_channel.clone()),
