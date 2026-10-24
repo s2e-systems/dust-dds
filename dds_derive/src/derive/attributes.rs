@@ -40,7 +40,7 @@ impl std::fmt::Display for DuplicateAttributeMetaError {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub enum TryConstructKind {
     #[default]
     Discard,
@@ -48,12 +48,13 @@ pub enum TryConstructKind {
     Trim,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct TryConstructKindParseError;
 
 impl std::fmt::Display for TryConstructKindParseError {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#
+        r#"Invalid try_construct specified. Valid options are "discard", "use_default", "trim". "#
             .fmt(f)
     }
 }
@@ -63,9 +64,9 @@ impl FromStr for TryConstructKind {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "DISCARD" => Ok(Self::Discard),
-            "USE_DEFAULT" => Ok(Self::UseDefault),
-            "TRIM" => Ok(Self::Trim),
+            "discard" => Ok(Self::Discard),
+            "use_default" => Ok(Self::UseDefault),
+            "trim" => Ok(Self::Trim),
             _ => Err(TryConstructKindParseError),
         }
     }
