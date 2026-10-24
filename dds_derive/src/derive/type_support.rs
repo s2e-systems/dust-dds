@@ -1,8 +1,8 @@
 use crate::derive::{
     attributes::{
-        BitBound, Extensibility, TryConstructKind, get_enumerated_type_attributes,
-        get_struct_attributes, get_structure_member_attributes, get_union_type_attributes,
-        get_union_variant_attributes,
+        BitBound, Extensibility, TryConstructKind, get_enum_variant_attributes,
+        get_enumerated_type_attributes, get_struct_attributes, get_structure_member_attributes,
+        get_union_type_attributes, get_union_variant_attributes,
     },
     enum_support::read_enum_variant_discriminant_mapping,
 };
@@ -656,13 +656,19 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 BitBound::I32 => quote! {*src.get_int32_value(0).ok()?},
             };
 
+            let bound = match enum_type_attributes.bit_bound {
+                BitBound::I8 => 8u32,
+                BitBound::I16 => 16u32,
+                BitBound::I32 => 32u32,
+            };
+
             let enum_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
                     name: #type_name,
                     base_type: None,
                     discriminator_type: Some(#discriminator_type),
-                    bound: &[],
+                    bound: &[#bound],
                     element_type: None,
                     key_element_type: None,
                     extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
@@ -670,25 +676,71 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     is_autoid_hash: false,
                 }
             };
+
+            let enum_variant_mapping = read_enum_variant_discriminant_mapping(xtypes_enum);
+            let has_explicit_default = xtypes_enum.variants.iter().any(|v| {
+                get_enum_variant_attributes(v)
+                    .map(|a| a.is_default)
+                    .unwrap_or(false)
+            });
+
+            let mut member_list = Vec::new();
+            let mut create_sample_quote_variants = Vec::new();
+
+            for (variant_index, (variant, (_, variant_discriminant))) in xtypes_enum
+                .variants
+                .iter()
+                .zip(enum_variant_mapping.iter())
+                .enumerate()
+            {
+                let variant_attributes = get_enum_variant_attributes(variant)?;
+                let variant_ident = &variant.ident;
+                let variant_name = variant_attributes.name;
+                let is_default_label = if has_explicit_default {
+                    variant_attributes.is_default
+                } else {
+                    variant_index == 0
+                };
+                let variant_index_u32 = variant_index as u32;
+                let discriminant_i32 = *variant_discriminant;
+
+                create_sample_quote_variants
+                    .push(quote! {#discriminant_i32 => Self::#variant_ident,});
+
+                member_list.push(quote! {
+                    dust_dds::xtypes::dynamic_type::DynamicTypeMember {
+                        descriptor: dust_dds::xtypes::dynamic_type::MemberDescriptor {
+                            name: #variant_name,
+                            id: #variant_index_u32,
+                            r#type: #discriminator_type,
+                            default_value: None,
+                            index: #variant_index_u32,
+                            try_construct_kind: dust_dds::xtypes::dynamic_type::TryConstructKind::Discard,
+                            label: &[#discriminant_i32],
+                            is_key: false,
+                            is_optional: false,
+                            is_must_understand: false,
+                            is_shared: false,
+                            is_default_label: #is_default_label,
+                            is_external: false,
+                        }
+                    }
+                });
+            }
+
             let get_type_quote = quote! {
                 const TYPE: dust_dds::xtypes::dynamic_type::DynamicType<'static> =
                     dust_dds::xtypes::dynamic_type::DynamicType {
                         descriptor: #enum_descriptor,
-                        member_list: &[]
+                        member_list: &[#(#member_list,)*]
                     };
             };
 
             let create_dynamic_sample_quote = quote! {
                 #discriminator_dynamic_value
             };
-            let enum_variant_mapping = read_enum_variant_discriminant_mapping(xtypes_enum);
-            let mut create_sample_quote_variants = Vec::new();
-            for (variant_ident, variant_discriminant) in enum_variant_mapping {
-                let d = Index::from(variant_discriminant);
-                create_sample_quote_variants.push(quote! {#d => Self::#variant_ident,});
-            }
             let create_sample_quote = quote! {
-                    let discriminator = #discriminator_sample;
+                    let discriminator = #discriminator_sample as i32;
                     Some(match discriminator {
                         #(#create_sample_quote_variants)*
                         _ => return None,
