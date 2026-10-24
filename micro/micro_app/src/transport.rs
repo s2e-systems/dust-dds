@@ -20,7 +20,7 @@ use dust_dds::{
     security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{RtpsParticipant, Transport, Write},
-        types::{Locator, TransportHandle},
+        types::{ENTITYID_PARTICIPANT, Guid, Locator},
     },
 };
 use embassy_executor::Spawner;
@@ -242,6 +242,10 @@ impl EmbeddedTransport {
 impl RtpsParticipant for EmbeddedParticipant {
     type Writer<'a> = MessageWriter<'a>;
 
+    fn guid(&self) -> Guid {
+        Guid::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], ENTITYID_PARTICIPANT)
+    }
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &self.default_unicast_locator_list
     }
@@ -327,7 +331,7 @@ impl Transport for EmbeddedTransport {
         participant
     }
 
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
+    fn delete_participant(&mut self, _handle: Guid) {}
 }
 
 struct SendFuture<F>(F);
@@ -544,12 +548,7 @@ async fn main(spawner: Spawner) -> ! {
         spawner: spawner.make_send(),
     };
 
-    let mut app_id = [0; 4];
-    rng.fill_bytes(&mut app_id);
-
     let participant_factory = DomainParticipantFactoryAsync::new(
-        app_id,
-        [5, 6, 7, 8],
         DustDdsConfiguration::default(),
         runtime,
         EmbeddedTransport::new(stack, addr),

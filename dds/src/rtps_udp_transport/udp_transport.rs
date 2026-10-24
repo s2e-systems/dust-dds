@@ -2,7 +2,7 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
     transport::{
         interface::{RtpsParticipant, Transport, Write},
-        types::{LOCATOR_KIND_UDP_V6, TransportHandle},
+        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V6},
     },
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
@@ -12,6 +12,7 @@ use mio::{Events, Interest, Poll, Token, Waker};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
+    collections::HashMap,
     net::{ToSocketAddrs, UdpSocket},
     pin::Pin,
     sync::{
@@ -143,6 +144,7 @@ pub enum IpVersion {
 }
 
 pub struct ParticipantSockets {
+    guid: Guid,
     default_unicast_locator_list: Vec<Locator>,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
@@ -155,10 +157,7 @@ pub struct ParticipantSockets {
     write_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
     write_buffer_len: usize,
     sockets: Vec<mio::net::UdpSocket>,
-    waker: Arc<Waker>,
     read_waker: Arc<AtomicWaker>,
-    is_running: Arc<AtomicBool>,
-    reactor_thread: Option<std::thread::JoinHandle<()>>,
     last_read_socket_index: usize,
     receive_buffer: Box<[u8; MAX_DATAGRAM_SIZE]>,
 }
@@ -214,6 +213,10 @@ impl Future for WaitForReadable<'_> {
 impl RtpsParticipant for ParticipantSockets {
     type Writer<'a> = UdpWriter<'a>;
 
+    fn guid(&self) -> Guid {
+        self.guid
+    }
+
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &self.default_unicast_locator_list
     }
@@ -260,14 +263,10 @@ impl RtpsParticipant for ParticipantSockets {
     }
 }
 
-impl Drop for ParticipantSockets {
-    fn drop(&mut self) {
-        self.is_running.store(false, Ordering::Relaxed);
-        self.waker.wake().ok();
-        if let Some(reactor_thread) = self.reactor_thread.take() {
-            reactor_thread.join().ok();
-        }
-    }
+struct ReactorHandle {
+    is_running: Arc<AtomicBool>,
+    waker: Arc<Waker>,
+    reactor_thread: Option<std::thread::JoinHandle<()>>,
 }
 
 pub struct RtpsUdpTransport {
@@ -275,6 +274,8 @@ pub struct RtpsUdpTransport {
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
+    participant_counter: u32,
+    reactors: HashMap<Guid, ReactorHandle>,
 }
 
 impl RtpsUdpTransport {
@@ -340,6 +341,8 @@ impl Default for RtpsUdpTransport {
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
+            participant_counter: 0,
+            reactors: HashMap::new(),
         }
     }
 }
@@ -429,6 +432,48 @@ impl Transport for RtpsUdpTransport {
                     .is_none_or(|interface_name| interface_name == &interface.name)
             })
             .collect();
+
+        let host_id: [u8; 4] = interfaces
+            .iter()
+            .flat_map(|i| {
+                i.addr.iter().filter_map(|a| match a {
+                    Addr::V4(v4) if !v4.ip.is_loopback() => Some(v4.ip.octets()),
+                    Addr::V6(v6) if !v6.ip.is_loopback() => {
+                        let oct = v6.ip.octets();
+                        Some([
+                            oct[0] ^ oct[4] ^ oct[8] ^ oct[12],
+                            oct[1] ^ oct[5] ^ oct[9] ^ oct[13],
+                            oct[2] ^ oct[6] ^ oct[10] ^ oct[14],
+                            oct[3] ^ oct[7] ^ oct[11] ^ oct[15],
+                        ])
+                    }
+                    _ => None,
+                })
+            })
+            .next()
+            .unwrap_or_else(|| {
+                tracing::warn!("Failed to get Host ID from IP address, use 0 instead");
+                [0; 4]
+            });
+
+        let app_id = std::process::id().to_ne_bytes();
+        let counter_bytes = self.participant_counter.to_be_bytes();
+        self.participant_counter += 1;
+        let guid_prefix: GuidPrefix = [
+            host_id[0],
+            host_id[1],
+            host_id[2],
+            host_id[3],
+            app_id[0],
+            app_id[1],
+            app_id[2],
+            app_id[3],
+            counter_bytes[0],
+            counter_bytes[1],
+            counter_bytes[2],
+            counter_bytes[3],
+        ];
+        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
 
         let use_v4 = self.ip_version == IpVersion::V4 || self.ip_version == IpVersion::Both;
         let use_v6 = self.ip_version == IpVersion::V6 || self.ip_version == IpVersion::Both;
@@ -701,7 +746,17 @@ impl Transport for RtpsUdpTransport {
             })
             .expect("Failed to spawn reactor thread");
 
+        self.reactors.insert(
+            guid,
+            ReactorHandle {
+                is_running,
+                waker,
+                reactor_thread: Some(reactor_thread),
+            },
+        );
+
         ParticipantSockets {
+            guid,
             default_unicast_locator_list,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -714,10 +769,7 @@ impl Transport for RtpsUdpTransport {
             write_buffer: Box::new([0; MAX_DATAGRAM_SIZE]),
             write_buffer_len: 0,
             sockets,
-            waker,
             read_waker,
-            is_running,
-            reactor_thread: Some(reactor_thread),
             last_read_socket_index: 0,
             receive_buffer: vec![0u8; MAX_DATAGRAM_SIZE]
                 .into_boxed_slice()
@@ -726,7 +778,15 @@ impl Transport for RtpsUdpTransport {
         }
     }
 
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
+    fn delete_participant(&mut self, handle: Guid) {
+        if let Some(mut reactor) = self.reactors.remove(&handle) {
+            reactor.is_running.store(false, Ordering::Relaxed);
+            reactor.waker.wake().ok();
+            if let Some(reactor_thread) = reactor.reactor_thread.take() {
+                reactor_thread.join().ok();
+            }
+        }
+    }
 }
 
 impl Locator {

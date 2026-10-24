@@ -131,41 +131,6 @@ impl DomainParticipantFactoryAsync {
 }
 
 #[cfg(feature = "std")]
-fn get_host_id() -> [u8; 4] {
-    use core::net::IpAddr;
-    use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
-    use tracing::warn;
-
-    let interface_address = NetworkInterface::show()
-        .expect("Could not scan interfaces")
-        .into_iter()
-        .flat_map(|i| {
-            i.addr.into_iter().filter(|a| match a {
-                Addr::V4(v4) => !v4.ip.is_loopback(),
-                Addr::V6(v6) => !v6.ip.is_loopback(),
-            })
-        })
-        .next();
-    if let Some(interface) = interface_address {
-        match interface.ip() {
-            IpAddr::V4(a) => a.octets(),
-            IpAddr::V6(a) => {
-                let oct = a.octets();
-                [
-                    oct[0] ^ oct[4] ^ oct[8] ^ oct[12],
-                    oct[1] ^ oct[5] ^ oct[9] ^ oct[13],
-                    oct[2] ^ oct[6] ^ oct[10] ^ oct[14],
-                    oct[3] ^ oct[7] ^ oct[11] ^ oct[15],
-                ]
-            }
-        }
-    } else {
-        warn!("Failed to get Host ID from IP address, use 0 instead");
-        [0; 4]
-    }
-}
-
-#[cfg(feature = "std")]
 impl DomainParticipantFactoryAsync {
     /// This operation returns the [`DomainParticipantFactoryAsync`] singleton. The operation is idempotent, that is, it can be called multiple
     /// times without side-effects and it will return the same [`DomainParticipantFactoryAsync`] instance.
@@ -195,9 +160,7 @@ impl DomainParticipantFactoryAsync {
         static PARTICIPANT_FACTORY_ASYNC: OnceLock<DomainParticipantFactoryAsync> = OnceLock::new();
         PARTICIPANT_FACTORY_ASYNC.get_or_init(|| {
             let runtime = crate::std_runtime::StdRuntime::default();
-            let host_id = get_host_id();
-            let app_id = std::process::id().to_ne_bytes();
-            Self::new(app_id, host_id, configuration, runtime, transport, security)
+            Self::new(configuration, runtime, transport, security)
         })
     }
 }
@@ -211,8 +174,6 @@ impl DomainParticipantFactoryAsync {
         Access: AccessControl,
         Crypto: Cryptographic,
     >(
-        app_id: [u8; 4],
-        host_id: [u8; 4],
         configuration: DustDdsConfiguration,
         runtime: R,
         mut transport: T,
@@ -226,11 +187,7 @@ impl DomainParticipantFactoryAsync {
         let spawner_handle = spawner.clone();
 
         let mut domain_participant_factory =
-            crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(
-                app_id,
-                host_id,
-                configuration,
-            );
+            crate::dcps::dcps_participant_factory::DcpsParticipantFactory::new(configuration);
         let run_loop = Arc::new(core::sync::atomic::AtomicBool::new(true));
         let run_loop_clone = run_loop.clone();
         let clock_clone = clock.clone();

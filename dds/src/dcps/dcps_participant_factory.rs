@@ -64,8 +64,8 @@ use crate::{
         },
     },
     transport::{
-        interface::RtpsParticipant,
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
+        interface::{RtpsParticipant, Transport},
+        types::Guid,
     },
     xtypes::type_support::Type,
 };
@@ -85,21 +85,15 @@ pub struct DcpsParticipantFactory {
     pub qos: DomainParticipantFactoryQos,
     pub default_participant_qos: DomainParticipantQos,
     pub configuration: DustDdsConfiguration,
-    app_id: [u8; 4],
-    host_id: [u8; 4],
-    participant_counter: u32,
 }
 
 impl DcpsParticipantFactory {
-    pub fn new(app_id: [u8; 4], host_id: [u8; 4], configuration: DustDdsConfiguration) -> Self {
+    pub fn new(configuration: DustDdsConfiguration) -> Self {
         Self {
             participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration,
-            app_id,
-            host_id,
-            participant_counter: 0,
         }
     }
 
@@ -139,23 +133,8 @@ impl DcpsParticipantFactory {
 
         let mut transport_participant = transport.create_participant(domain_id);
 
-        let counter_bytes = self.participant_counter.to_be_bytes();
-        self.participant_counter += 1;
-        let guid_prefix: GuidPrefix = [
-            self.host_id[0],
-            self.host_id[1],
-            self.host_id[2],
-            self.host_id[3],
-            self.app_id[0],
-            self.app_id[1],
-            self.app_id[2],
-            self.app_id[3],
-            counter_bytes[0],
-            counter_bytes[1],
-            counter_bytes[2],
-            counter_bytes[3],
-        ];
-        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
+        let guid = transport_participant.guid();
+        let guid_prefix = guid.prefix();
         let security_data = None;
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
@@ -431,9 +410,10 @@ impl DcpsParticipantFactory {
         Ok((participant_handle, participant_sender))
     }
 
-    pub async fn delete_participant(
+    pub async fn delete_participant<T: Transport>(
         &mut self,
         participant_handle: &InstanceHandle,
+        transport: &mut T,
     ) -> DdsResult<()> {
         let index = self
             .participant_list
@@ -454,6 +434,8 @@ impl DcpsParticipantFactory {
         record
             .run_loop
             .store(false, core::sync::atomic::Ordering::Relaxed);
+        let guid = Guid::from(<[u8; 16]>::from(record.handle));
+        transport.delete_participant(guid);
         Ok(())
     }
 

@@ -785,6 +785,10 @@ mod tests {
     impl RtpsParticipant for MockTransport {
         type Writer<'a> = MockTransportWriter<'a>;
 
+        fn guid(&self) -> Guid {
+            Guid::new([1; 12], ENTITYID_UNKNOWN)
+        }
+
         fn default_unicast_locator_list(&self) -> &[Locator] {
             &[]
         }

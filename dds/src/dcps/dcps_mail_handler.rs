@@ -60,7 +60,10 @@ impl DcpsParticipantFactory {
                 ))
             }
             DomainParticipantFactoryMail::DeleteParticipant { participant_handle } => {
-                DcpsReply::Ok(self.delete_participant(&participant_handle).await)
+                DcpsReply::Ok(
+                    self.delete_participant(&participant_handle, transport)
+                        .await,
+                )
             }
             DomainParticipantFactoryMail::SetDefaultParticipantQos { qos } => {
                 DcpsReply::Ok(self.set_default_participant_qos(*qos))

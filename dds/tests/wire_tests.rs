@@ -15,7 +15,10 @@ use dust_dds::{
     security::plugins::types::DdsSecurityPlugins,
     transport::{
         interface::{RtpsParticipant, Transport, Write},
-        types::{BUILT_IN_WRITER_WITH_KEY, ENTITYID_UNKNOWN, EntityId, Locator, TransportHandle},
+        types::{
+            BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, EntityId, Guid,
+            Locator, TransportHandle,
+        },
     },
 };
 
@@ -46,6 +49,10 @@ impl MockTransport {
 
 impl RtpsParticipant for MockTransport {
     type Writer<'a> = MockWriter;
+
+    fn guid(&self) -> Guid {
+        Guid::new([1; 12], ENTITYID_PARTICIPANT)
+    }
 
     fn default_unicast_locator_list(&self) -> &[Locator] {
         &[]
@@ -84,7 +91,7 @@ impl Transport for MockTransport {
         }
     }
 
-    fn delete_participant(&mut self, _handle: TransportHandle) {}
+    fn delete_participant(&mut self, _handle: Guid) {}
 }
 
 #[test]
@@ -93,13 +100,9 @@ fn detect_stale_participant() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
-    let app_id = [1, 2, 3, 4];
-    let host_id = [5, 6, 7, 8];
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        app_id,
-        host_id,
         configuration,
         runtime,
         MockTransport::new(receive_channel.clone()),
@@ -186,13 +189,9 @@ fn xtypes_mismatch_does_not_abort_discovery() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let runtime = dust_dds::std_runtime::StdRuntime::default();
-    let app_id = [1, 2, 3, 4];
-    let host_id = [5, 6, 7, 8];
     let configuration = Default::default();
 
     let domain_participant_factory = DomainParticipantFactoryAsync::new(
-        app_id,
-        host_id,
         configuration,
         runtime,
         MockTransport::new(receive_channel.clone()),

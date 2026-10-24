@@ -1,4 +1,4 @@
-use crate::transport::types::{Locator, TransportHandle};
+use crate::transport::types::{Guid, Locator};
 
 pub trait Write {
     fn write(&mut self, buf: &[u8]);
@@ -9,6 +9,8 @@ pub trait RtpsParticipant: Send + 'static {
     type Writer<'a>: Write
     where
         Self: 'a;
+
+    fn guid(&self) -> Guid;
 
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn metatraffic_unicast_locator_list(&self) -> &[Locator];
@@ -24,5 +26,5 @@ pub trait Transport: Send + 'static {
     type Participant: RtpsParticipant;
     fn create_participant(&mut self, domain_id: i32) -> Self::Participant;
 
-    fn delete_participant(&mut self, handle: TransportHandle);
+    fn delete_participant(&mut self, handle: Guid);
 }
