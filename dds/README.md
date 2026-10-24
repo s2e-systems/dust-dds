@@ -126,6 +126,8 @@ Container attributes apply to the entire `struct` or `enum` definition and are d
   Specifies the type extensibility (defined in the DDS XTypes specification). Defaults to `"final"`.
 * **`nested`**:
   A boolean flag marking the type as nested. Nested types cannot be used as standalone top-level topics but can be members of other types.
+* **`base_type = <Type>`**:
+  Specifies the base struct for single inheritance. When specified, the struct must declare a `parent` field of type `<Type>`.
 
 ### Struct Field Attributes
 
@@ -145,6 +147,19 @@ Field attributes apply to individual fields of a struct or tuple, defined using 
   Marks the field as external, which indicates it uses a pointer/box/reference semantic representation in the DDS type system.
 * **`hashid`**:
   Instructs the macro to automatically assign a member ID computed from the MD5 hash of the field's name (first 4 bytes as a little-endian integer).
+
+### Struct Inheritance (Base Type)
+
+DDS XTypes supports single inheritance for structures (corresponding to `struct Child : Parent` in IDL). Because Rust does not support struct inheritance directly, Dust DDS follows the OMG DDS-XTypes specification mapping for languages without native inheritance:
+
+1. Annotate the derived struct with the `#[dust_dds(base_type = <BaseType>)]` container attribute.
+2. Declare a field named `parent` of type `<BaseType>` in the derived struct.
+
+When `base_type` is configured:
+* **Field access**: Fields of the base type are accessed on the Rust struct through the `parent` field (e.g., `car.parent.vin`).
+* **Serialization**: Base struct members are serialized and deserialized first, followed by the derived struct's own members.
+* **Member IDs**: Member IDs for the derived struct's fields automatically continue after the base type's member IDs (for `final` and `appendable` structs, or auto-assigned in `mutable` structs).
+* **Type Object**: The generated `TypeObject` links the derived type to the base type via `header.base_type`, preserving the inheritance hierarchy across DDS discovery and type consistency checks.
 
 ### Enum Attributes
 
@@ -218,6 +233,26 @@ struct Profile {
 }
 ```
 
+#### Struct Inheritance with Base Type
+
+```rust
+use dust_dds::infrastructure::type_support::DdsType;
+
+#[derive(DdsType)]
+struct Vehicle {
+    #[dust_dds(key)]
+    vin: String,
+    speed: f32,
+}
+
+#[derive(DdsType)]
+#[dust_dds(base_type = Vehicle)]
+struct Car {
+    parent: Vehicle,
+    number_of_doors: u8,
+}
+```
+
 #### Enumerated Type with Bit Bound
 
 ```rust
@@ -258,6 +293,18 @@ struct HelloWorldType {
   @key
   uint8 id;
   string msg;
+};
+```
+
+Inheritance in IDL is also supported and automatically translated to the `base_type` attribute with a `parent` field:
+
+```idl
+struct Parent {
+  uint8 a;
+};
+
+struct Child : Parent {
+  string name;
 };
 ```
 
