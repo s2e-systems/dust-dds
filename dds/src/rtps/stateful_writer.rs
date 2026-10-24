@@ -146,7 +146,6 @@ impl RtpsStatefulWriter {
                 self.guid.entity_id(),
                 &self.changes,
                 self.data_max_size_serialized,
-                self.heartbeat_period,
                 transport_participant,
                 now,
                 self.guid.prefix(),
@@ -225,6 +224,18 @@ impl RtpsStatefulWriter {
     pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
         &mut self.changes
     }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.heartbeat_period
+    }
+
+    pub fn matched_readers(&self) -> &[RtpsReaderProxy] {
+        &self.matched_readers
+    }
+
+    pub fn matched_readers_mut(&mut self) -> &mut [RtpsReaderProxy] {
+        &mut self.matched_readers
+    }
 }
 
 impl RtpsReaderProxy {
@@ -234,7 +245,6 @@ impl RtpsReaderProxy {
         writer_id: EntityId,
         changes: &[CacheChange],
         data_max_size_serialized: usize,
-        heartbeat_period: Duration,
         transport: &mut impl RtpsParticipant,
         now: Time,
         guid_prefix: GuidPrefix,
@@ -251,7 +261,6 @@ impl RtpsReaderProxy {
                 writer_id,
                 changes,
                 data_max_size_serialized,
-                heartbeat_period,
                 transport,
                 now,
                 guid_prefix,
@@ -345,13 +354,11 @@ impl RtpsReaderProxy {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn write_message_reliable(
         &mut self,
         writer_id: EntityId,
         changes: &[CacheChange],
         data_max_size_serialized: usize,
-        heartbeat_period: Duration,
         transport_participant: &mut impl RtpsParticipant,
         now: Time,
         guid_prefix: GuidPrefix,
@@ -505,29 +512,6 @@ impl RtpsReaderProxy {
 
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
             }
-        } else if !self.unacked_changes(seq_num_max) {
-            // Idle
-        } else if self
-            .heartbeat_machine()
-            .is_time_for_heartbeat(now, heartbeat_period.into())
-        {
-            let first_sn = seq_num_min
-                .unwrap_or(1)
-                .max(self.first_relevant_sample_seq_num());
-            let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
-            let heartbeat_submessage = self
-                .heartbeat_machine()
-                .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
-
-            let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-
-            let mut writer = transport_participant.writer(self.unicast_locator_list());
-            write_submessages_into_transport(
-                &[&info_dst, &heartbeat_submessage],
-                guid_prefix,
-                &mut writer,
-            );
-            writer.flush();
         }
 
         // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -968,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reliable_reader_receives_heartbeat_first_for_historical_data() {
+    fn test_reliable_reader_does_not_send_data_immediately_for_historical_data() {
         let data_max_size_serialized = 500;
         let writer_id = EntityId::new([1; 3], 1);
         let guid = Guid::new([1; 12], writer_id);
@@ -1000,7 +984,7 @@ mod tests {
 
         let mut transport = MockTransport::default();
 
-        // write_message should send HEARTBEAT, not DATA
+        // write_message should not send DATA or standalone HEARTBEAT
         writer.write_message(&mut transport, Time::new(1, 0));
 
         let submsgs = transport.submessages.lock().unwrap();
@@ -1013,7 +997,7 @@ mod tests {
             .filter(|s| matches!(s, RecordedSubmessage::Data))
             .count();
 
-        assert_eq!(heartbeat_count, 1);
+        assert_eq!(heartbeat_count, 0);
         assert_eq!(data_count, 0);
         drop(submsgs);
 

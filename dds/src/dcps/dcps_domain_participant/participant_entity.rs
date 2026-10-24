@@ -506,8 +506,7 @@ impl DcpsDomainParticipant {
                     .stateful_data_writer_list_mut()
                 {
                     if dw.instance_handle == writer_handle {
-                        dw.transport_writer
-                            .write_message(transport_participant, now);
+                        dw.send_heartbeat(transport_participant, now);
                         break;
                     }
                 }
@@ -527,8 +526,7 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|w| w.instance_handle == writer_handle)
                     {
-                        dw.transport_writer
-                            .write_message(transport_participant, now);
+                        dw.send_heartbeat(transport_participant, now);
                     }
                 }
             }

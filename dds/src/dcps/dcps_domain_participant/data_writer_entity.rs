@@ -13,7 +13,14 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
-    transport::types::{CacheChange, ChangeKind, TopicKind},
+    rtps::{
+        message_creator::write_submessages_into_transport, stateful_writer::RtpsStatefulWriter,
+    },
+    rtps_messages::submessages::info_destination::InfoDestinationSubmessage,
+    transport::{
+        interface::{RtpsParticipant, Write},
+        types::{CacheChange, ChangeKind, ReliabilityKind, TopicKind},
+    },
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -280,6 +287,52 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         };
         self.transport_writer.add_change(cache_change);
         Ok(())
+    }
+}
+
+impl DataWriterEntity<RtpsStatefulWriter> {
+    pub fn send_heartbeat(&mut self, transport_participant: &mut impl RtpsParticipant, now: Time) {
+        let seq_num_min = self
+            .transport_writer
+            .changes()
+            .first()
+            .map(|cc| cc.sequence_number);
+        let seq_num_max = self
+            .transport_writer
+            .changes()
+            .last()
+            .map(|cc| cc.sequence_number);
+        let writer_id = self.transport_writer.guid().entity_id();
+        let guid_prefix = self.transport_writer.guid().prefix();
+        let heartbeat_period = self.transport_writer.heartbeat_period();
+
+        for reader_proxy in self.transport_writer.matched_readers_mut() {
+            if reader_proxy.reliability() == ReliabilityKind::Reliable
+                && reader_proxy.unacked_changes(seq_num_max)
+                && reader_proxy
+                    .heartbeat_machine()
+                    .is_time_for_heartbeat(now, heartbeat_period.into())
+            {
+                let first_sn = seq_num_min
+                    .unwrap_or(1)
+                    .max(reader_proxy.first_relevant_sample_seq_num());
+                let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
+                let heartbeat_submessage = reader_proxy
+                    .heartbeat_machine()
+                    .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
+
+                let info_dst =
+                    InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
+
+                let mut writer = transport_participant.writer(reader_proxy.unicast_locator_list());
+                write_submessages_into_transport(
+                    &[&info_dst, &heartbeat_submessage],
+                    guid_prefix,
+                    &mut writer,
+                );
+                writer.flush();
+            }
+        }
     }
 }
 
