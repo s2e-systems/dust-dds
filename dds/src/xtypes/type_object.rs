@@ -4075,4 +4075,175 @@ mod tests {
             panic!("Expected TkUnion");
         }
     }
+
+    #[test]
+    fn test_enum_type_object_and_member_list() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        #[dust_dds(
+            name = "interoperability::test::VariantUnionDiscriminator",
+            bit_bound = "32"
+        )]
+        enum VariantUnionDiscriminator {
+            X = 1,
+            Y = 2,
+            Z = 3,
+        }
+
+        let dynamic_type = VariantUnionDiscriminator::TYPE;
+        assert_eq!(dynamic_type.get_member_count(), 3);
+
+        let m0 = dynamic_type.get_member_by_index(0).unwrap();
+        assert_eq!(m0.get_name(), "X");
+        assert_eq!(m0.descriptor.label, &[1]);
+        assert!(m0.descriptor.is_default_label);
+
+        let m1 = dynamic_type.get_member_by_index(1).unwrap();
+        assert_eq!(m1.get_name(), "Y");
+        assert_eq!(m1.descriptor.label, &[2]);
+        assert!(!m1.descriptor.is_default_label);
+
+        let m2 = dynamic_type.get_member_by_index(2).unwrap();
+        assert_eq!(m2.get_name(), "Z");
+        assert_eq!(m2.descriptor.label, &[3]);
+        assert!(!m2.descriptor.is_default_label);
+
+        let complete_obj = CompleteTypeObject::from(dynamic_type);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = complete_obj {
+            assert_eq!(enumerated_type.header.common.bit_bound, 32);
+            assert_eq!(
+                enumerated_type.header.detail.type_name,
+                "interoperability::test::VariantUnionDiscriminator"
+            );
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 1);
+            assert_eq!(
+                enumerated_type.literal_seq[0].common.flags,
+                MEMBER_FLAG_IS_DEFAULT
+            );
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "X");
+
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 2);
+            assert_eq!(
+                enumerated_type.literal_seq[1].common.flags,
+                MemberFlag::default()
+            );
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "Y");
+
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 3);
+            assert_eq!(
+                enumerated_type.literal_seq[2].common.flags,
+                MemberFlag::default()
+            );
+            assert_eq!(enumerated_type.literal_seq[2].detail.name, "Z");
+        } else {
+            panic!("Expected TkEnum");
+        }
+
+        let minimal_obj = MinimalTypeObject::from(dynamic_type);
+        if let MinimalTypeObject::TkEnum { enumerated_type } = minimal_obj {
+            assert_eq!(enumerated_type.header.common.bit_bound, 32);
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 1);
+            assert_eq!(
+                enumerated_type.literal_seq[0].common.flags,
+                MEMBER_FLAG_IS_DEFAULT
+            );
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 2);
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 3);
+        } else {
+            panic!("Expected TkEnum");
+        }
+    }
+
+    #[test]
+    fn test_enum_explicit_default_and_bit_bound() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        #[dust_dds(bit_bound = "16")]
+        enum MyStatus {
+            Ok,
+            #[dust_dds(name = "ERR", default)]
+            Error,
+        }
+
+        let dynamic_type = MyStatus::TYPE;
+        let complete_obj = CompleteTypeObject::from(dynamic_type);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = complete_obj {
+            assert_eq!(enumerated_type.header.common.bit_bound, 16);
+            assert_eq!(enumerated_type.literal_seq.len(), 2);
+
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 0);
+            assert_eq!(
+                enumerated_type.literal_seq[0].common.flags,
+                MemberFlag::default()
+            );
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "Ok");
+
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 1);
+            assert_eq!(
+                enumerated_type.literal_seq[1].common.flags,
+                MEMBER_FLAG_IS_DEFAULT
+            );
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "ERR");
+        } else {
+            panic!("Expected TkEnum");
+        }
+    }
+
+    #[test]
+    fn test_union_with_enum_discriminator_type_dependencies() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType, Clone, Copy, PartialEq, Debug)]
+        #[dust_dds(name = "interoperability::test::MyUnionDiscriminator")]
+        enum MyUnionDiscriminator {
+            X = 0,
+            Y,
+            Z,
+        }
+
+        #[derive(DdsType, PartialEq, Debug)]
+        #[dust_dds(name = "interoperability::test::MyUnion", switch(MyUnionDiscriminator))]
+        enum MyUnion {
+            #[dust_dds(case = MyUnionDiscriminator::X)]
+            VariantX { x: u8 },
+            #[dust_dds(case = MyUnionDiscriminator::Y)]
+            VariantY { y: u16 },
+            #[dust_dds(case = MyUnionDiscriminator::Z)]
+            VariantZ { z: u32 },
+        }
+
+        let union_type = MyUnion::TYPE;
+        let deps = union_type.get_dependencies();
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0], MyUnionDiscriminator::TYPE);
+
+        let dep_complete = CompleteTypeObject::from(deps[0]);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = dep_complete {
+            assert_eq!(
+                enumerated_type.header.detail.type_name,
+                "interoperability::test::MyUnionDiscriminator"
+            );
+            assert_eq!(enumerated_type.literal_seq.len(), 3);
+            assert_eq!(enumerated_type.literal_seq[0].detail.name, "X");
+            assert_eq!(enumerated_type.literal_seq[0].common.value, 0);
+            assert_eq!(
+                enumerated_type.literal_seq[0].common.flags,
+                MEMBER_FLAG_IS_DEFAULT
+            );
+            assert_eq!(enumerated_type.literal_seq[1].detail.name, "Y");
+            assert_eq!(enumerated_type.literal_seq[1].common.value, 1);
+            assert_eq!(enumerated_type.literal_seq[2].detail.name, "Z");
+            assert_eq!(enumerated_type.literal_seq[2].common.value, 2);
+        } else {
+            panic!("Expected TkEnum for discriminator dependency");
+        }
+    }
 }
