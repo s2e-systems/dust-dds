@@ -263,9 +263,7 @@ impl DcpsDomainParticipant {
 
         let res = data_writer.unregister_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
-            data_writer
-                .transport_writer
-                .write_message(transport_participant, now);
+            data_writer.write_message(transport_participant, now);
         }
         res
     }
@@ -405,9 +403,7 @@ impl DcpsDomainParticipant {
 
         data_writer.write_w_timestamp(instance_handle, serialized_data, timestamp, now)?;
 
-        data_writer
-            .transport_writer
-            .write_message(transport_participant, now);
+        data_writer.write_message(transport_participant, now);
 
         Ok(None)
     }
@@ -463,9 +459,7 @@ impl DcpsDomainParticipant {
 
         let res = data_writer.dispose_w_timestamp(instance_handle, serialized_key, timestamp);
         if res.is_ok() {
-            data_writer
-                .transport_writer
-                .write_message(transport_participant, now);
+            data_writer.write_message(transport_participant, now);
         }
         res
     }
@@ -542,9 +536,7 @@ impl DcpsDomainParticipant {
                     .iter_mut()
                     .find(|x| &x.instance_handle == data_writer_handle)
                 {
-                    data_writer
-                        .transport_writer
-                        .write_message(transport_participant, now);
+                    data_writer.write_message(transport_participant, now);
                 }
             }
         }
@@ -723,9 +715,7 @@ impl DcpsDomainParticipant {
                             pending.reply_sender.send(write_result);
                         } else {
                             pending.reply_sender.send(Ok(()));
-                            data_writer
-                                .transport_writer
-                                .write_message(transport_participant, now);
+                            data_writer.write_message(transport_participant, now);
                         }
                     }
                 }

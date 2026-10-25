@@ -1200,7 +1200,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
-            .transport_writer
             .write_message(transport_participant);
         for dr in self
             .domain_participant
@@ -1220,8 +1219,7 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list_mut()
         {
-            dw.transport_writer
-                .write_message(transport_participant, now);
+            dw.write_message(transport_participant, now);
         }
         for dw in self
             .domain_participant
@@ -1229,8 +1227,7 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
-            dw.transport_writer
-                .write_message(transport_participant, now);
+            dw.write_message(transport_participant, now);
         }
         self.process_pending_write_samples(now, transport_participant);
     }

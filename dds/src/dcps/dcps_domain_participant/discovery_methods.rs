@@ -168,7 +168,6 @@ impl DcpsDomainParticipant {
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
-                .transport_writer
                 .write_message(transport_participant);
         }
     }
@@ -199,7 +198,6 @@ impl DcpsDomainParticipant {
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
-                .transport_writer
                 .write_message(transport_participant);
         }
     }
@@ -562,7 +560,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -591,7 +588,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -709,7 +705,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -738,7 +733,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -800,7 +794,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_topics_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -2086,9 +2079,7 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
-                    type_lookup_reply_writer
-                        .transport_writer
-                        .write_message(transport_participant, now);
+                    type_lookup_reply_writer.write_message(transport_participant, now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2124,9 +2115,7 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
-                        type_lookup_reply_writer
-                            .transport_writer
-                            .write_message(transport_participant, now);
+                        type_lookup_reply_writer.write_message(transport_participant, now);
                     }
                 }
             }
@@ -2524,9 +2513,7 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
-                                type_request_writer
-                                    .transport_writer
-                                    .write_message(transport_participant, now);
+                                type_request_writer.write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2590,9 +2577,7 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
-                                type_request_writer
-                                    .transport_writer
-                                    .write_message(transport_participant, now);
+                                type_request_writer.write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_types_lookup(unresolved);
