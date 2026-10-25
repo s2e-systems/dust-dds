@@ -4743,6 +4743,105 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
 }
 
 #[test]
+fn raw_struct_and_field_names_are_unrawed_in_metadata_and_hash_ids() {
+    #[derive(DdsType)]
+    #[dust_dds(autoid = "hash")]
+    struct r#Type {
+        r#match: u32,
+        #[dust_dds(hashid)]
+        r#async: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(autoid = "hash")]
+    struct Reference {
+        #[dust_dds(name = "match")]
+        field_one: u32,
+        #[dust_dds(name = "async", hashid)]
+        field_two: u32,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "r#Type", autoid = "hash")]
+    struct Explicit {
+        #[dust_dds(name = "r#match")]
+        r#match: u32,
+    }
+
+    let raw = r#Type::get_type();
+    let reference = Reference::get_type();
+    let explicit = Explicit::get_type();
+
+    assert_eq!(raw.get_name(), "Type");
+    assert_eq!(explicit.get_name(), "r#Type");
+    for index in 0..2 {
+        let raw_member = raw.get_member_by_index(index).unwrap();
+        let reference_member = reference.get_member_by_index(index).unwrap();
+        assert_eq!(raw_member.get_name(), reference_member.get_name());
+        assert_eq!(raw_member.get_id(), reference_member.get_id());
+    }
+    assert_eq!(raw.get_member_by_index(0).unwrap().get_name(), "match");
+    assert_eq!(raw.get_member_by_index(0).unwrap().get_id(), 26_397_923);
+    assert_eq!(raw.get_member_by_index(1).unwrap().get_name(), "async");
+    assert_eq!(raw.get_member_by_index(1).unwrap().get_id(), 71_235_853);
+    assert_eq!(
+        explicit.get_member_by_index(0).unwrap().get_name(),
+        "r#match"
+    );
+    assert_eq!(
+        explicit.get_member_by_index(0).unwrap().get_id(),
+        72_379_351
+    );
+}
+
+#[test]
+fn raw_enum_and_union_names_are_unrawed_in_metadata() {
+    #[derive(DdsType)]
+    enum r#Enum {
+        Value,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(switch(u8))]
+    enum r#Union {
+        #[dust_dds(case = 0)]
+        r#Type(u32),
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "r#Enum")]
+    enum ExplicitEnum {
+        Value,
+    }
+
+    #[derive(DdsType)]
+    #[dust_dds(name = "r#Union", switch(u8))]
+    enum ExplicitUnion {
+        #[dust_dds(case = 0, name = "r#Type")]
+        r#Type(u32),
+    }
+
+    assert_eq!(r#Enum::get_type().get_name(), "Enum");
+    assert_eq!(r#Union::get_type().get_name(), "Union");
+    assert_eq!(
+        r#Union::get_type()
+            .get_member_by_index(1)
+            .unwrap()
+            .get_name(),
+        "Type"
+    );
+    assert_eq!(ExplicitEnum::get_type().get_name(), "r#Enum");
+    assert_eq!(ExplicitUnion::get_type().get_name(), "r#Union");
+    assert_eq!(
+        ExplicitUnion::get_type()
+            .get_member_by_index(1)
+            .unwrap()
+            .get_name(),
+        "r#Type"
+    );
+}
+
+#[test]
 fn custom_struct_member_name_should_be_used_for_hash_autoid() {
     #[derive(DdsType)]
     #[dust_dds(name = "HashNamedData", autoid = "hash")]
