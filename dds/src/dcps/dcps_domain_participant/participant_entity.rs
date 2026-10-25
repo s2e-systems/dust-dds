@@ -387,9 +387,7 @@ impl DcpsDomainParticipant {
                 if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
                     && !data_writer.changes.is_empty()
                 {
-                    if let Some(hb_time) =
-                        data_writer.time_until_next_heartbeat(now)
-                    {
+                    if let Some(hb_time) = data_writer.time_until_next_heartbeat(now) {
                         update(
                             hb_time,
                             TimedEvent::SendUserWriterHeartbeat {

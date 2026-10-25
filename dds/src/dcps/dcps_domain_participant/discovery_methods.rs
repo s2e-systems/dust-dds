@@ -1190,8 +1190,7 @@ impl DcpsDomainParticipant {
                                         multicast_locator_list,
                                         expects_inline_qos: false,
                                     };
-                                    data_writer
-                                        .add_matched_reader(reader_proxy);
+                                    data_writer.add_matched_reader(reader_proxy);
 
                                     let is_listener_enabled = data_writer
                                         .listener_mask

@@ -419,7 +419,8 @@ impl DataWriterEntity<RtpsStatefulWriter> {
     }
 
     pub fn is_change_acknowledged(&self, sequence_number: SequenceNumber) -> bool {
-        self.transport_writer.is_change_acknowledged(sequence_number)
+        self.transport_writer
+            .is_change_acknowledged(sequence_number)
     }
 
     pub fn time_until_next_heartbeat(&self, now: Time) -> Option<Duration> {
@@ -432,9 +433,11 @@ impl DataWriterEntity<RtpsStatefulWriter> {
             if rp.reliability() == ReliabilityKind::Reliable
                 && seq_num_max > rp.highest_acked_seq_num()
             {
-                if let Some(d) =
-                    rp.time_until_heartbeat(now, self.transport_writer.heartbeat_period().into(), Some(seq_num_max))
-                {
+                if let Some(d) = rp.time_until_heartbeat(
+                    now,
+                    self.transport_writer.heartbeat_period().into(),
+                    Some(seq_num_max),
+                ) {
                     min_time = Some(min_time.map_or(d, |min| min.min(d)));
                 }
             }
@@ -510,14 +513,8 @@ impl DataWriterEntity<RtpsStatefulWriter> {
     }
 
     pub fn send_heartbeat(&mut self, transport_participant: &mut impl RtpsParticipant, now: Time) {
-        let seq_num_min = self
-            .changes
-            .first()
-            .map(|cc| cc.sequence_number);
-        let seq_num_max = self
-            .changes
-            .last()
-            .map(|cc| cc.sequence_number);
+        let seq_num_min = self.changes.first().map(|cc| cc.sequence_number);
+        let seq_num_max = self.changes.last().map(|cc| cc.sequence_number);
         let writer_id = self.transport_writer.guid().entity_id();
         let guid_prefix = self.transport_writer.guid().prefix();
         let heartbeat_period = self.transport_writer.heartbeat_period();
@@ -556,14 +553,8 @@ impl DataWriterEntity<RtpsStatefulWriter> {
         transport_participant: &mut impl RtpsParticipant,
         now: Time,
     ) {
-        let seq_num_min = self
-            .changes
-            .first()
-            .map(|cc| cc.sequence_number);
-        let seq_num_max = self
-            .changes
-            .last()
-            .map(|cc| cc.sequence_number);
+        let seq_num_min = self.changes.first().map(|cc| cc.sequence_number);
+        let seq_num_max = self.changes.last().map(|cc| cc.sequence_number);
         let writer_id = self.transport_writer.guid().entity_id();
         let guid_prefix = self.transport_writer.guid().prefix();
         let data_max_size_serialized = self.transport_writer.data_max_size_serialized();
@@ -772,20 +763,12 @@ impl DataWriterEntity<RtpsStatefulWriter> {
     }
 
     pub fn write_message(&mut self, transport_participant: &mut impl RtpsParticipant, now: Time) {
-        if self.changes.is_empty()
-            || self.transport_writer.matched_readers().is_empty()
-        {
+        if self.changes.is_empty() || self.transport_writer.matched_readers().is_empty() {
             return;
         }
 
-        let seq_num_min = self
-            .changes
-            .first()
-            .map(|cc| cc.sequence_number);
-        let seq_num_max = self
-            .changes
-            .last()
-            .map(|cc| cc.sequence_number);
+        let seq_num_min = self.changes.first().map(|cc| cc.sequence_number);
+        let seq_num_max = self.changes.last().map(|cc| cc.sequence_number);
         let writer_id = self.transport_writer.guid().entity_id();
         let guid_prefix = self.transport_writer.guid().prefix();
         let data_max_size_serialized = self.transport_writer.data_max_size_serialized();
@@ -1264,7 +1247,7 @@ mod tests {
 
     #[test]
     fn test_stateful_writer_best_effort_reader_no_gap_submessage_on_non_contiguous_sequence_numbers()
-    {
+     {
         let data_max_size_serialized = 500;
         let writer_id = EntityId::new([1; 3], 1);
         let guid = Guid::new([1; 12], writer_id);
@@ -1447,7 +1430,9 @@ mod tests {
             Time::new(1, 0),
         );
         assert_eq!(
-            writer.transport_writer.time_until_next_repair(Time::new(1, 0)),
+            writer
+                .transport_writer
+                .time_until_next_repair(Time::new(1, 0)),
             Some(crate::infrastructure::time::Duration::new(0, 0))
         );
         assert_eq!(
