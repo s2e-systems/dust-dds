@@ -246,8 +246,8 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list()
         {
-            if !dw.transport_writer.changes().is_empty() {
-                if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+            if !dw.changes.is_empty() {
+                if let Some(hb_time) = dw.time_until_next_heartbeat(now) {
                     update(
                         hb_time,
                         TimedEvent::SendBuiltinWriterHeartbeat {
@@ -348,7 +348,7 @@ impl DcpsDomainParticipant {
                 }
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    if let Some(cc) = data_writer.transport_writer.changes().first() {
+                    if let Some(cc) = data_writer.changes.first() {
                         if let Some(source_timestamp) = cc.source_timestamp {
                             let expiry = Time::from(source_timestamp) + lifespan;
                             let remaining = if expiry > now {
@@ -385,10 +385,10 @@ impl DcpsDomainParticipant {
                 }
 
                 if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
-                    && !data_writer.transport_writer.changes().is_empty()
+                    && !data_writer.changes.is_empty()
                 {
                     if let Some(hb_time) =
-                        data_writer.transport_writer.time_until_next_heartbeat(now)
+                        data_writer.time_until_next_heartbeat(now)
                     {
                         update(
                             hb_time,
@@ -472,7 +472,7 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                            data_writer.transport_writer.changes_mut().retain(|cc| {
+                            data_writer.changes.retain(|cc| {
                                 if let Some(timestamp) = &cc.source_timestamp {
                                     Time::from(*timestamp) + lifespan > now
                                 } else {

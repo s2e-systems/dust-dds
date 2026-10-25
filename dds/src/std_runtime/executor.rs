@@ -236,10 +236,11 @@ impl Wake for Task {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        if !self.is_finished() && !self.is_queued.swap(true, atomic::Ordering::AcqRel) {
-            if self.task_sender.send(self.clone()).is_ok() {
-                self.thread_handle.unpark();
-            }
+        if !self.is_finished()
+            && !self.is_queued.swap(true, atomic::Ordering::AcqRel)
+            && self.task_sender.send(self.clone()).is_ok()
+        {
+            self.thread_handle.unpark();
         }
     }
 }

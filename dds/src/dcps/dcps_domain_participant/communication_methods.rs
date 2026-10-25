@@ -977,7 +977,6 @@ impl DcpsDomainParticipant {
                             .flat_map(|p| p.data_writer_list.iter_mut())
                         {
                             if dw
-                                .transport_writer
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
@@ -989,10 +988,7 @@ impl DcpsDomainParticipant {
                                     x.send(());
                                 }
 
-                                if dw
-                                    .transport_writer
-                                    .is_change_acknowledged(dw.last_change_sequence_number)
-                                {
+                                if dw.is_change_acknowledged(dw.last_change_sequence_number) {
                                     for n in dw.wait_for_acknowledgments_notification.drain(..) {
                                         n.send(Ok(()));
                                     }
@@ -1004,7 +1000,7 @@ impl DcpsDomainParticipant {
                             .builtin_publisher
                             .stateful_data_writer_list_mut()
                         {
-                            dw.transport_writer.on_acknack_submessage_received(
+                            dw.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
                                 now,
@@ -1018,7 +1014,7 @@ impl DcpsDomainParticipant {
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
                         {
-                            dw.transport_writer.on_nack_frag_submessage_received(
+                            dw.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
                                 now,
@@ -1029,7 +1025,7 @@ impl DcpsDomainParticipant {
                             .builtin_publisher
                             .stateful_data_writer_list_mut()
                         {
-                            dw.transport_writer.on_nack_frag_submessage_received(
+                            dw.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
                                 now,

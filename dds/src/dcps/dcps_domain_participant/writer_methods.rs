@@ -394,7 +394,6 @@ impl DcpsDomainParticipant {
                 {
                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                         data_writer
-                            .transport_writer
                             .remove_change(smallest_seq_num_instance);
                     }
                 }
@@ -698,7 +697,6 @@ impl DcpsDomainParticipant {
                                 if s.samples.len() == depth as usize {
                                     if let Some(smallest_seq_num_instance) = s.samples.pop_front() {
                                         data_writer
-                                            .transport_writer
                                             .remove_change(smallest_seq_num_instance);
                                     }
                                 }
