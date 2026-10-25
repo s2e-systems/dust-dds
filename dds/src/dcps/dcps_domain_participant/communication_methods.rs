@@ -1069,7 +1069,7 @@ impl DcpsDomainParticipant {
                     .stateful_data_reader_list_mut(),
             )
         {
-            dr.transport_reader.on_data_submessage(
+            dr.on_data_submessage(
                 data_submessage,
                 message_receiver.source_guid_prefix(),
                 message_receiver.source_timestamp(),
@@ -1186,7 +1186,7 @@ impl DcpsDomainParticipant {
                     .stateful_data_reader_list_mut(),
             )
         {
-            dr.transport_reader.on_data_frag_submessage(
+            dr.on_data_frag_submessage(
                 data_frag_submessage,
                 message_receiver.source_guid_prefix(),
                 message_receiver.source_timestamp(),

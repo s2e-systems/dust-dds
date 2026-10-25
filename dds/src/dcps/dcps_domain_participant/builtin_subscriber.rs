@@ -13,7 +13,7 @@ use crate::{
     },
     infrastructure::{instance::InstanceHandle, qos::SubscriberQos},
     rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
-    transport::types::{Guid, GuidPrefix, ReliabilityKind},
+    transport::types::{Guid, GuidPrefix},
 };
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut};
@@ -72,7 +72,6 @@ impl BuiltinSubscriber {
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            ReliabilityKind::Reliable,
         );
         let dcps_topic_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
@@ -83,7 +82,6 @@ impl BuiltinSubscriber {
 
         let dcps_publication_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-            ReliabilityKind::Reliable,
         );
         let dcps_publication_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
@@ -94,7 +92,6 @@ impl BuiltinSubscriber {
 
         let dcps_subscription_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            ReliabilityKind::Reliable,
         );
         let dcps_subscription_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
@@ -105,7 +102,6 @@ impl BuiltinSubscriber {
 
         let type_lookup_request_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
-            ReliabilityKind::Reliable,
         );
         let type_lookup_request_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
@@ -116,7 +112,6 @@ impl BuiltinSubscriber {
 
         let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
-            ReliabilityKind::Reliable,
         );
         let type_lookup_reply_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
