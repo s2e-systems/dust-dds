@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    changes: Vec<CacheChange>,
+    pub changes: Vec<CacheChange>,
 }
 
 impl RtpsStatelessReader {
@@ -40,9 +40,5 @@ impl RtpsStatelessReader {
                 self.changes.push(change);
             }
         }
-    }
-
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        &mut self.changes
     }
 }
