@@ -2798,7 +2798,7 @@ impl TypeIdentifier {
         type_resolver: &dyn Fn(&TypeIdentifier) -> Option<CompleteTypeObject>,
     ) -> bool {
         match self {
-            TypeIdentifier::TkNone => todo!(),
+            TypeIdentifier::TkNone => matches!(other, TypeIdentifier::TkNone),
             TypeIdentifier::TkBoolean => matches!(other, TypeIdentifier::TkBoolean),
             TypeIdentifier::TkByteType => matches!(other, TypeIdentifier::TkByteType),
             TypeIdentifier::TkUint8Type => match other {

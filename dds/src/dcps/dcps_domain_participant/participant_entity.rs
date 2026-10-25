@@ -118,6 +118,18 @@ pub enum TimedEvent {
         /// Handle of the data writer.
         writer_handle: InstanceHandle,
     },
+    /// Send repair data for a specific builtin stateful data writer.
+    SendBuiltinWriterRepairData {
+        /// Handle of the builtin writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Send repair data for a specific user-defined data writer.
+    SendUserWriterRepairData {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
     /// Notify senders waiting on topic discovery whose deadlines expired.
     NotifyFindTopicSenders,
 }
@@ -243,6 +255,14 @@ impl DcpsDomainParticipant {
                         },
                     );
                 }
+            }
+            if let Some(repair_time) = dw.transport_writer.time_until_next_repair(now) {
+                update(
+                    repair_time,
+                    TimedEvent::SendBuiltinWriterRepairData {
+                        writer_handle: dw.instance_handle,
+                    },
+                );
             }
         }
 
@@ -379,6 +399,17 @@ impl DcpsDomainParticipant {
                         );
                     }
                 }
+
+                if let Some(repair_time) = data_writer.transport_writer.time_until_next_repair(now)
+                {
+                    update(
+                        repair_time,
+                        TimedEvent::SendUserWriterRepairData {
+                            publisher_handle: publisher.instance_handle,
+                            writer_handle: data_writer.instance_handle,
+                        },
+                    );
+                }
             }
         }
 
@@ -511,6 +542,19 @@ impl DcpsDomainParticipant {
                     }
                 }
             }
+            TimedEvent::SendBuiltinWriterRepairData { writer_handle } => {
+                for dw in self
+                    .domain_participant
+                    .builtin_publisher
+                    .stateful_data_writer_list_mut()
+                {
+                    if dw.instance_handle == writer_handle {
+                        dw.send_requested_changes(transport_participant, now);
+                        dw.send_requested_fragments(transport_participant);
+                        break;
+                    }
+                }
+            }
             TimedEvent::SendUserWriterHeartbeat {
                 publisher_handle,
                 writer_handle,
@@ -527,6 +571,26 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         dw.send_heartbeat(transport_participant, now);
+                    }
+                }
+            }
+            TimedEvent::SendUserWriterRepairData {
+                publisher_handle,
+                writer_handle,
+            } => {
+                if let Some(publisher) = self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                    .find(|p| p.instance_handle == publisher_handle)
+                {
+                    if let Some(dw) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|w| w.instance_handle == writer_handle)
+                    {
+                        dw.send_requested_changes(transport_participant, now);
+                        dw.send_requested_fragments(transport_participant);
                     }
                 }
             }

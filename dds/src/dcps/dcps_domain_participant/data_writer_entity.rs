@@ -16,10 +16,17 @@ use crate::{
     rtps::{
         message_creator::write_submessages_into_transport, stateful_writer::RtpsStatefulWriter,
     },
-    rtps_messages::submessages::info_destination::InfoDestinationSubmessage,
+    rtps_messages::{
+        submessage_elements::SequenceNumberSet,
+        submessages::{
+            gap::GapSubmessage, info_destination::InfoDestinationSubmessage,
+            info_timestamp::InfoTimestampSubmessage,
+        },
+        types::TIME_INVALID,
+    },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{CacheChange, ChangeKind, ReliabilityKind, TopicKind},
+        types::{CacheChange, ChangeKind, ENTITYID_UNKNOWN, ReliabilityKind, TopicKind},
     },
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
@@ -331,6 +338,226 @@ impl DataWriterEntity<RtpsStatefulWriter> {
                     &mut writer,
                 );
                 writer.flush();
+            }
+        }
+    }
+
+    pub fn send_requested_changes(
+        &mut self,
+        transport_participant: &mut impl RtpsParticipant,
+        now: Time,
+    ) {
+        let seq_num_min = self
+            .transport_writer
+            .changes()
+            .first()
+            .map(|cc| cc.sequence_number);
+        let seq_num_max = self
+            .transport_writer
+            .changes()
+            .last()
+            .map(|cc| cc.sequence_number);
+        let writer_id = self.transport_writer.guid().entity_id();
+        let guid_prefix = self.transport_writer.guid().prefix();
+        let data_max_size_serialized = self.transport_writer.data_max_size_serialized();
+
+        let (changes, matched_readers) = self.transport_writer.changes_and_matched_readers_mut();
+
+        for reader_proxy in matched_readers {
+            while let Some(next_requested_change_seq_num) = reader_proxy.next_requested_change() {
+                if let Some(cache_change) = changes.iter().find(|cc| {
+                    cc.sequence_number == next_requested_change_seq_num
+                        && next_requested_change_seq_num
+                            >= reader_proxy.first_relevant_sample_seq_num()
+                }) {
+                    let number_of_fragments = cache_change
+                        .data_value
+                        .len()
+                        .div_ceil(data_max_size_serialized);
+
+                    if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
+                        for fragment_number in 0..number_of_fragments {
+                            let data_frag = cache_change.as_data_frag_submessage(
+                                reader_proxy.remote_reader_guid().entity_id(),
+                                writer_id,
+                                data_max_size_serialized,
+                                fragment_number,
+                            );
+
+                            let info_dst = InfoDestinationSubmessage::new(
+                                reader_proxy.remote_reader_guid().prefix(),
+                            );
+                            let info_timestamp =
+                                if let Some(timestamp) = cache_change.source_timestamp {
+                                    InfoTimestampSubmessage::new(false, timestamp.into())
+                                } else {
+                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
+                                };
+                            let heartbeat = if fragment_number == number_of_fragments - 1 {
+                                let first_sn = seq_num_min
+                                    .unwrap_or(1)
+                                    .max(reader_proxy.first_relevant_sample_seq_num());
+                                let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
+                                Some(reader_proxy.heartbeat_machine().generate_new_heartbeat(
+                                    writer_id, first_sn, last_sn, now, false,
+                                ))
+                            } else {
+                                None
+                            };
+                            let mut writer =
+                                transport_participant.writer(reader_proxy.unicast_locator_list());
+                            if let Some(heartbeat) = &heartbeat {
+                                write_submessages_into_transport(
+                                    &[&info_dst, &info_timestamp, &data_frag, heartbeat],
+                                    guid_prefix,
+                                    &mut writer,
+                                );
+                            } else {
+                                write_submessages_into_transport(
+                                    &[&info_dst, &info_timestamp, &data_frag],
+                                    guid_prefix,
+                                    &mut writer,
+                                );
+                            }
+                            writer.flush();
+                        }
+                    } else {
+                        let info_dst = InfoDestinationSubmessage::new(
+                            reader_proxy.remote_reader_guid().prefix(),
+                        );
+
+                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
+                        {
+                            InfoTimestampSubmessage::new(false, timestamp.into())
+                        } else {
+                            InfoTimestampSubmessage::new(true, TIME_INVALID)
+                        };
+
+                        let inline_qos = match (
+                            cache_change.status_info_parameter(),
+                            cache_change.key_hash_parameter(),
+                        ) {
+                            (Some(s), Some(k)) => &[s, k][..],
+                            (Some(s), None) => &[s][..],
+                            (None, Some(k)) => &[k][..],
+                            (None, None) => &[],
+                        };
+                        let data_submessage = cache_change.as_data_submessage(
+                            reader_proxy.remote_reader_guid().entity_id(),
+                            writer_id,
+                            inline_qos,
+                        );
+
+                        let first_sn = seq_num_min
+                            .unwrap_or(1)
+                            .max(reader_proxy.first_relevant_sample_seq_num());
+                        let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
+                        let heartbeat = reader_proxy
+                            .heartbeat_machine()
+                            .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
+
+                        let mut writer =
+                            transport_participant.writer(reader_proxy.unicast_locator_list());
+                        write_submessages_into_transport(
+                            &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
+                            guid_prefix,
+                            &mut writer,
+                        );
+                        writer.flush();
+                    }
+                } else {
+                    let info_dst =
+                        InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
+
+                    let gap_submessage = GapSubmessage::new(
+                        ENTITYID_UNKNOWN,
+                        writer_id,
+                        next_requested_change_seq_num,
+                        SequenceNumberSet::new(next_requested_change_seq_num + 1, []),
+                    );
+
+                    let mut writer =
+                        transport_participant.writer(reader_proxy.unicast_locator_list());
+                    write_submessages_into_transport(
+                        &[&info_dst, &gap_submessage],
+                        guid_prefix,
+                        &mut writer,
+                    );
+                    writer.flush();
+                }
+            }
+        }
+    }
+
+    pub fn send_requested_fragments(&mut self, transport_participant: &mut impl RtpsParticipant) {
+        let writer_id = self.transport_writer.guid().entity_id();
+        let guid_prefix = self.transport_writer.guid().prefix();
+        let data_max_size_serialized = self.transport_writer.data_max_size_serialized();
+
+        let (changes, matched_readers) = self.transport_writer.changes_and_matched_readers_mut();
+
+        for reader_proxy in matched_readers {
+            while let Some((change_seq_num, request_fragment_number)) =
+                reader_proxy.next_requested_fragment()
+            {
+                if let Some(cache_change) = changes.iter().find(|cc| {
+                    cc.sequence_number == change_seq_num
+                        && change_seq_num >= reader_proxy.first_relevant_sample_seq_num()
+                }) {
+                    let number_of_fragments = cache_change
+                        .data_value
+                        .len()
+                        .div_ceil(data_max_size_serialized);
+                    let request_fragment_number = request_fragment_number as usize;
+                    if (1..=number_of_fragments).contains(&request_fragment_number)
+                        && cache_change.kind == ChangeKind::Alive
+                    {
+                        let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                        let data_frag = cache_change.as_data_frag_submessage(
+                            reader_id,
+                            writer_id,
+                            data_max_size_serialized,
+                            request_fragment_number - 1,
+                        );
+
+                        let info_dst = InfoDestinationSubmessage::new(
+                            reader_proxy.remote_reader_guid().prefix(),
+                        );
+                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
+                        {
+                            InfoTimestampSubmessage::new(false, timestamp.into())
+                        } else {
+                            InfoTimestampSubmessage::new(true, TIME_INVALID)
+                        };
+
+                        let mut writer =
+                            transport_participant.writer(reader_proxy.unicast_locator_list());
+                        write_submessages_into_transport(
+                            &[&info_dst, &info_timestamp, &data_frag],
+                            guid_prefix,
+                            &mut writer,
+                        );
+                        writer.flush();
+                    }
+                } else {
+                    let info_dst =
+                        InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
+                    let gap_submessage = GapSubmessage::new(
+                        ENTITYID_UNKNOWN,
+                        writer_id,
+                        change_seq_num,
+                        SequenceNumberSet::new(change_seq_num + 1, []),
+                    );
+
+                    let mut writer =
+                        transport_participant.writer(reader_proxy.unicast_locator_list());
+                    write_submessages_into_transport(
+                        &[&info_dst, &gap_submessage],
+                        guid_prefix,
+                        &mut writer,
+                    );
+                    writer.flush();
+                }
             }
         }
     }

@@ -981,6 +981,7 @@ impl DcpsDomainParticipant {
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
+                                    now,
                                 )
                                 .is_some()
                             {
@@ -1006,6 +1007,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                     }
@@ -1019,6 +1021,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                         for dw in self
@@ -1029,6 +1032,7 @@ impl DcpsDomainParticipant {
                             dw.transport_writer.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                     }

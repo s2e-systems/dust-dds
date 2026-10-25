@@ -28,6 +28,7 @@ pub struct RtpsStatefulWriter {
     changes: Vec<CacheChange>,
     matched_readers: Vec<RtpsReaderProxy>,
     heartbeat_period: Duration,
+    nack_response_delay: Duration,
     data_max_size_serialized: usize,
 }
 
@@ -38,6 +39,7 @@ impl RtpsStatefulWriter {
             changes: Vec::new(),
             matched_readers: Vec::new(),
             heartbeat_period: Duration::from_millis(200),
+            nack_response_delay: Duration::from_millis(0),
             data_max_size_serialized,
         }
     }
@@ -85,6 +87,19 @@ impl RtpsStatefulWriter {
                 {
                     min_time = Some(min_time.map_or(d, |min| min.min(d)));
                 }
+            }
+        }
+        min_time
+    }
+
+    pub fn time_until_next_repair(
+        &self,
+        now: crate::infrastructure::time::Time,
+    ) -> Option<crate::infrastructure::time::Duration> {
+        let mut min_time: Option<crate::infrastructure::time::Duration> = None;
+        for rp in &self.matched_readers {
+            if let Some(d) = rp.time_until_repair(now, self.nack_response_delay.into()) {
+                min_time = Some(min_time.map_or(d, |min| min.min(d)));
             }
         }
         min_time
@@ -159,6 +174,7 @@ impl RtpsStatefulWriter {
         &mut self,
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
+        now: Time,
     ) -> Option<SequenceNumber> {
         if &self.guid.entity_id() == acknack_submessage.writer_id() {
             let reader_guid = Guid::new(source_guid_prefix, *acknack_submessage.reader_id());
@@ -173,7 +189,8 @@ impl RtpsStatefulWriter {
                 {
                     let acked_changes = acknack_submessage.reader_sn_state().base() - 1;
                     reader_proxy.acked_changes_set(acked_changes);
-                    reader_proxy.requested_changes_set(acknack_submessage.reader_sn_state().set());
+                    reader_proxy
+                        .requested_changes_set(acknack_submessage.reader_sn_state().set(), now);
 
                     reader_proxy.set_last_received_acknack_count(acknack_submessage.count());
 
@@ -196,6 +213,7 @@ impl RtpsStatefulWriter {
         &mut self,
         nackfrag_submessage: &NackFragSubmessage,
         source_guid_prefix: GuidPrefix,
+        now: Time,
     ) {
         let reader_guid = Guid::new(source_guid_prefix, nackfrag_submessage.reader_id());
 
@@ -212,7 +230,7 @@ impl RtpsStatefulWriter {
                 let frag_iter =
                     core::iter::once(nackfrag_submessage.fragment_number_state().base())
                         .chain(nackfrag_submessage.fragment_number_state().set());
-                reader_proxy.requested_fragments_set(change_seq_num, frag_iter);
+                reader_proxy.requested_fragments_set(change_seq_num, frag_iter, now);
             }
         }
     }
@@ -235,6 +253,10 @@ impl RtpsStatefulWriter {
 
     pub fn matched_readers_mut(&mut self) -> &mut [RtpsReaderProxy] {
         &mut self.matched_readers
+    }
+
+    pub fn changes_and_matched_readers_mut(&mut self) -> (&[CacheChange], &mut [RtpsReaderProxy]) {
+        (&self.changes, &mut self.matched_readers)
     }
 }
 
@@ -513,196 +535,6 @@ impl RtpsReaderProxy {
                 self.set_highest_sent_seq_num(next_unsent_change_seq_num);
             }
         }
-
-        // Middle-part of the state-machine - Figure 8.19 RTPS standard
-        if !self.requested_changes().is_empty() {
-            while let Some(next_requested_change_seq_num) = self.next_requested_change() {
-                // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-                // it's not done here to avoid the change being a mutable reference
-                // Also the post-condition:
-                // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
-                // should be full-filled by next_requested_change()
-                if let Some(cache_change) = changes.iter().find(|cc| {
-                    cc.sequence_number == next_requested_change_seq_num
-                        && next_requested_change_seq_num >= self.first_relevant_sample_seq_num()
-                }) {
-                    let number_of_fragments = cache_change
-                        .data_value
-                        .len()
-                        .div_ceil(data_max_size_serialized);
-
-                    // Either send a DATAFRAG submessages or send a single DATA submessage
-                    if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
-                        for fragment_number in 0..number_of_fragments {
-                            let reader_id = self.remote_reader_guid().entity_id();
-                            let data_frag = cache_change.as_data_frag_submessage(
-                                reader_id,
-                                writer_id,
-                                data_max_size_serialized,
-                                fragment_number,
-                            );
-
-                            let info_dst =
-                                InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                            let info_timestamp =
-                                if let Some(timestamp) = cache_change.source_timestamp {
-                                    InfoTimestampSubmessage::new(false, timestamp.into())
-                                } else {
-                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
-                                };
-                            let heartbeat = if fragment_number == number_of_fragments - 1 {
-                                let first_sn = seq_num_min
-                                    .unwrap_or(1)
-                                    .max(self.first_relevant_sample_seq_num());
-                                let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
-                                Some(self.heartbeat_machine().generate_new_heartbeat(
-                                    writer_id, first_sn, last_sn, now, false,
-                                ))
-                            } else {
-                                None
-                            };
-                            let mut writer =
-                                transport_participant.writer(self.unicast_locator_list());
-                            if let Some(heartbeat) = &heartbeat {
-                                write_submessages_into_transport(
-                                    &[&info_dst, &info_timestamp, &data_frag, heartbeat],
-                                    guid_prefix,
-                                    &mut writer,
-                                );
-                            } else {
-                                write_submessages_into_transport(
-                                    &[&info_dst, &info_timestamp, &data_frag],
-                                    guid_prefix,
-                                    &mut writer,
-                                );
-                            }
-                            writer.flush();
-                        }
-                    } else {
-                        let info_dst =
-                            InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
-
-                        let inline_qos = match (
-                            cache_change.status_info_parameter(),
-                            cache_change.key_hash_parameter(),
-                        ) {
-                            (Some(s), Some(k)) => &[s, k][..],
-                            (Some(s), None) => &[s][..],
-                            (None, Some(k)) => &[k][..],
-                            (None, None) => &[],
-                        };
-                        let data_submessage = cache_change.as_data_submessage(
-                            self.remote_reader_guid().entity_id(),
-                            writer_id,
-                            inline_qos,
-                        );
-
-                        let first_sn = seq_num_min
-                            .unwrap_or(1)
-                            .max(self.first_relevant_sample_seq_num());
-                        let last_sn = seq_num_max.unwrap_or(0).max(first_sn - 1);
-                        let heartbeat = self
-                            .heartbeat_machine()
-                            .generate_new_heartbeat(writer_id, first_sn, last_sn, now, false);
-
-                        let mut writer = transport_participant.writer(self.unicast_locator_list());
-                        write_submessages_into_transport(
-                            &[&info_dst, &info_timestamp, &data_submessage, &heartbeat],
-                            guid_prefix,
-                            &mut writer,
-                        );
-                        writer.flush();
-                    }
-                } else {
-                    let info_dst =
-                        InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-
-                    let gap_submessage = GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        next_requested_change_seq_num,
-                        SequenceNumberSet::new(next_requested_change_seq_num + 1, []),
-                    );
-
-                    let mut writer = transport_participant.writer(self.unicast_locator_list());
-                    write_submessages_into_transport(
-                        &[&info_dst, &gap_submessage],
-                        guid_prefix,
-                        &mut writer,
-                    );
-                    writer.flush();
-                }
-            }
-        }
-
-        if !self.requested_fragments().is_empty() {
-            while let Some((change_seq_num, request_fragment_number)) =
-                self.next_requested_fragment()
-            {
-                if let Some(cache_change) = changes.iter().find(|cc| {
-                    cc.sequence_number == change_seq_num
-                        && change_seq_num >= self.first_relevant_sample_seq_num()
-                }) {
-                    let number_of_fragments = cache_change
-                        .data_value
-                        .len()
-                        .div_ceil(data_max_size_serialized);
-                    let request_fragment_number = request_fragment_number as usize;
-                    if (1..=number_of_fragments).contains(&request_fragment_number)
-                        && cache_change.kind == ChangeKind::Alive
-                    {
-                        let reader_id = self.remote_reader_guid().entity_id();
-                        let data_frag = cache_change.as_data_frag_submessage(
-                            reader_id,
-                            writer_id,
-                            data_max_size_serialized,
-                            request_fragment_number - 1,
-                        );
-
-                        let info_dst =
-                            InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
-
-                        let mut writer = transport_participant.writer(self.unicast_locator_list());
-                        write_submessages_into_transport(
-                            &[&info_dst, &info_timestamp, &data_frag],
-                            guid_prefix,
-                            &mut writer,
-                        );
-                        writer.flush();
-                    }
-                } else {
-                    let info_dst =
-                        InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                    let gap_submessage = GapSubmessage::new(
-                        ENTITYID_UNKNOWN,
-                        writer_id,
-                        change_seq_num,
-                        SequenceNumberSet::new(change_seq_num + 1, []),
-                    );
-
-                    let mut writer = transport_participant.writer(self.unicast_locator_list());
-                    write_submessages_into_transport(
-                        &[&info_dst, &gap_submessage],
-                        guid_prefix,
-                        &mut writer,
-                    );
-                    writer.flush();
-                }
-            }
-        }
     }
 }
 
@@ -879,18 +711,19 @@ mod tests {
             FragmentNumberSet::new(1, []),
             1,
         );
-        let mut nack_response_transport = MockTransport::default();
-        writer.on_nack_frag_submessage_received(&nackfrag_submessage, remote_reader_guid_prefix);
-        writer.write_message(&mut nack_response_transport, Time::new(1, 0));
-
-        let total_fragments_sent = nack_response_transport
-            .submessages
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|s| matches!(s, RecordedSubmessage::DataFrag))
-            .count();
-        assert_eq!(total_fragments_sent, 1);
+        writer.on_nack_frag_submessage_received(
+            &nackfrag_submessage,
+            remote_reader_guid_prefix,
+            Time::new(1, 0),
+        );
+        assert_eq!(
+            writer.time_until_next_repair(Time::new(1, 0)),
+            Some(crate::infrastructure::time::Duration::new(0, 0))
+        );
+        assert_eq!(
+            writer.matched_readers_mut()[0].next_requested_fragment(),
+            Some((1, 1))
+        );
     }
 
     #[test]
@@ -1009,17 +842,19 @@ mod tests {
             SequenceNumberSet::new(1, [1]),
             1,
         );
-        let mut ack_response_transport = MockTransport::default();
-        writer.on_acknack_submessage_received(&acknack_submessage, remote_reader_guid_prefix);
-        writer.write_message(&mut ack_response_transport, Time::new(1, 0));
-
-        // Now DATA should have been sent in response to the AckNack
-        let ack_submsgs = ack_response_transport.submessages.lock().unwrap();
-        let ack_data_count = ack_submsgs
-            .iter()
-            .filter(|s| matches!(s, RecordedSubmessage::Data))
-            .count();
-        assert_eq!(ack_data_count, 1);
+        writer.on_acknack_submessage_received(
+            &acknack_submessage,
+            remote_reader_guid_prefix,
+            Time::new(1, 0),
+        );
+        assert_eq!(
+            writer.time_until_next_repair(Time::new(1, 0)),
+            Some(crate::infrastructure::time::Duration::new(0, 0))
+        );
+        assert_eq!(
+            writer.matched_readers_mut()[0].next_requested_change(),
+            Some(1)
+        );
     }
 
     #[test]
