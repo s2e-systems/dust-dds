@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
+use syn::{DeriveInput, Expr, Field, Result, Variant, ext::IdentExt, spanned::Spanned};
 
 const DUST_DDS_ATTR: &str = "dust_dds";
 
@@ -159,7 +159,7 @@ pub fn get_structure_member_attributes(
         id,
         key: key.unwrap_or_default(),
         name: name
-            .or_else(|| field.ident.as_ref().map(ToString::to_string))
+            .or_else(|| field.ident.as_ref().map(|ident| ident.unraw().to_string()))
             .unwrap_or_else(|| index.to_string()),
         optional: optional.unwrap_or_default(),
         non_serialized: non_serialized.unwrap_or_default(),
@@ -259,7 +259,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     }
 
     Ok(StructAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
         extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         is_autoid_hash: is_autoid_hash.unwrap_or_default(),
@@ -352,7 +352,7 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     }
 
     Ok(EnumeratedTypeAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
         extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         bit_bound: bit_bound.unwrap_or_default(),
@@ -427,7 +427,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     ))?;
 
     Ok(UnionAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
         extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         discriminator_type,
@@ -469,7 +469,7 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     }
 
     Ok(UnionVariantAttributes {
-        name: name.unwrap_or_else(|| variant.ident.to_string()),
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
         case,
         is_default: is_default.unwrap_or_default(),
     })
@@ -504,7 +504,7 @@ pub fn get_enum_variant_attributes(variant: &Variant) -> Result<EnumVariantAttri
     }
 
     Ok(EnumVariantAttributes {
-        name: name.unwrap_or_else(|| variant.ident.to_string()),
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
         is_default: is_default.unwrap_or_default(),
     })
 }
