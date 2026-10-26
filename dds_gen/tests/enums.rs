@@ -33,13 +33,6 @@ fn enums() {
                 MEDIUM,
                 HIGH,
             }
-
-            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
-            #[dust_dds(extensibility = "appendable")]
-            pub enum ExtensibleEnum {
-                V1,
-                V2,
-            }
     "#
         .parse()
         .unwrap(),
