@@ -459,3 +459,37 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
         is_default: is_default.unwrap_or_default(),
     })
 }
+
+pub struct EnumVariantAttributes {
+    pub name: String,
+    pub is_default: bool,
+}
+
+pub fn get_enum_variant_attributes(variant: &Variant) -> Result<EnumVariantAttributes> {
+    let mut name = None;
+    let mut is_default = None;
+
+    for attr in variant
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
+    {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("name") {
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("default") {
+                is_default
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else {
+                Err(meta.error(UnknownAttributeError))
+            }
+        })?;
+    }
+
+    Ok(EnumVariantAttributes {
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
+        is_default: is_default.unwrap_or_default(),
+    })
+}
