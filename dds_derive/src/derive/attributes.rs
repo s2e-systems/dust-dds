@@ -489,7 +489,7 @@ pub fn get_enum_variant_attributes(variant: &Variant) -> Result<EnumVariantAttri
     }
 
     Ok(EnumVariantAttributes {
-        name: name.unwrap_or_else(|| variant.ident.to_string()),
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
         is_default: is_default.unwrap_or_default(),
     })
 }
