@@ -147,6 +147,8 @@ Field attributes apply to individual fields of a struct or tuple, defined using 
   Marks the field as external, which indicates it uses a pointer/box/reference semantic representation in the DDS type system.
 * **`hashid`**:
   Instructs the macro to automatically assign a member ID computed from the MD5 hash of the field's name (first 4 bytes as a little-endian integer).
+* **`try_construct = "discard" | "use_default" | "trim"`**:
+  Specifies the try construct behavior for deserialization (defined in the DDS XTypes specification). Defaults to `"discard"`.
 
 ### Struct Inheritance (Base Type)
 
