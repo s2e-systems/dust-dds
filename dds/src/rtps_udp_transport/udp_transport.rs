@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
-    std_runtime::executor::IoReactorHandle,
+    std_runtime::executor::{IoPoller, register_io_poller},
     transport::{
         interface::{RtpsParticipant, Transport, Write},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V6},
@@ -16,10 +16,11 @@ use std::{
     net::{ToSocketAddrs, UdpSocket},
     pin::Pin,
     sync::{
-        Arc,
-        atomic::{AtomicU8, Ordering},
+        Arc, Mutex,
+        atomic::{AtomicU8, AtomicUsize, Ordering},
     },
     task::{Context, Poll as TaskPoll},
+    time::Duration,
 };
 use tracing::info;
 
@@ -276,9 +277,100 @@ impl RtpsParticipant for ParticipantSockets {
     }
 }
 
-struct ParticipantReactorRegistration {
-    reactor: IoReactorHandle,
-    participant_id: usize,
+const SOCKETS_PER_PARTICIPANT: usize = 8;
+
+struct ParticipantIoEntry {
+    ready_sockets: Arc<AtomicU8>,
+    read_waker: Arc<AtomicWaker>,
+}
+
+struct UdpReactor {
+    poll_and_events: Mutex<(mio::Poll, mio::Events)>,
+    registry: mio::Registry,
+    waker: mio::Waker,
+    entries: Mutex<HashMap<usize, ParticipantIoEntry>>,
+    next_id: AtomicUsize,
+}
+
+impl UdpReactor {
+    fn new() -> Self {
+        let poll = mio::Poll::new().expect("Failed to create mio::Poll");
+        let registry = poll
+            .registry()
+            .try_clone()
+            .expect("Failed to clone mio::Registry");
+        let waker = mio::Waker::new(&registry, mio::Token(0)).expect("Failed to create mio::Waker");
+        let events = mio::Events::with_capacity(64);
+        Self {
+            poll_and_events: Mutex::new((poll, events)),
+            registry,
+            waker,
+            entries: Mutex::new(HashMap::new()),
+            next_id: AtomicUsize::new(1),
+        }
+    }
+
+    fn allocate_participant_id(
+        &self,
+        ready_sockets: Arc<AtomicU8>,
+        read_waker: Arc<AtomicWaker>,
+    ) -> usize {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        self.entries.lock().unwrap().insert(
+            id,
+            ParticipantIoEntry {
+                ready_sockets,
+                read_waker,
+            },
+        );
+        id
+    }
+
+    fn register_socket(
+        &self,
+        participant_id: usize,
+        socket_index: usize,
+        socket: &mut mio::net::UdpSocket,
+    ) {
+        let token = mio::Token(participant_id * SOCKETS_PER_PARTICIPANT + socket_index);
+        self.registry
+            .register(socket, token, mio::Interest::READABLE)
+            .expect("Failed to register socket with mio::Registry");
+    }
+
+    fn deregister_participant(&self, participant_id: usize) {
+        self.entries.lock().unwrap().remove(&participant_id);
+    }
+}
+
+impl IoPoller for UdpReactor {
+    fn poll(&self, timeout: Option<Duration>) {
+        let mut guard = self.poll_and_events.lock().unwrap();
+        let (poll, events) = &mut *guard;
+        match poll.poll(events, timeout) {
+            Ok(()) => (),
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => return,
+            Err(e) => panic!("mio::Poll::poll failed: {e}"),
+        }
+        let entries = self.entries.lock().unwrap();
+        for event in events.iter() {
+            let token = event.token().0;
+            if token >= SOCKETS_PER_PARTICIPANT {
+                let participant_id = token / SOCKETS_PER_PARTICIPANT;
+                let socket_idx = token % SOCKETS_PER_PARTICIPANT;
+                if let Some(entry) = entries.get(&participant_id) {
+                    entry
+                        .ready_sockets
+                        .fetch_or(1 << socket_idx, Ordering::AcqRel);
+                    entry.read_waker.wake();
+                }
+            }
+        }
+    }
+
+    fn wake(&self) {
+        self.waker.wake().ok();
+    }
 }
 
 pub struct RtpsUdpTransport {
@@ -287,7 +379,8 @@ pub struct RtpsUdpTransport {
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
     participant_counter: u32,
-    participants: HashMap<Guid, ParticipantReactorRegistration>,
+    reactor: Arc<UdpReactor>,
+    participants: HashMap<Guid, usize>,
 }
 
 impl RtpsUdpTransport {
@@ -354,6 +447,7 @@ impl Default for RtpsUdpTransport {
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
             participant_counter: 0,
+            reactor: Arc::new(UdpReactor::new()),
             participants: HashMap::new(),
         }
     }
@@ -428,7 +522,8 @@ impl Transport for RtpsUdpTransport {
     type Participant = ParticipantSockets;
 
     fn create_participant(&mut self, domain_id: i32) -> Self::Participant {
-        let reactor = IoReactorHandle::current().expect("No active executor reactor");
+        register_io_poller(self.reactor.clone());
+        let reactor = &self.reactor;
         let read_waker = Arc::new(AtomicWaker::new());
         let ready_sockets = Arc::new(AtomicU8::new(0));
         let participant_id =
@@ -737,13 +832,7 @@ impl Transport for RtpsUdpTransport {
             );
         }
 
-        self.participants.insert(
-            guid,
-            ParticipantReactorRegistration {
-                reactor,
-                participant_id,
-            },
-        );
+        self.participants.insert(guid, participant_id);
 
         ParticipantSockets {
             guid,
@@ -771,10 +860,8 @@ impl Transport for RtpsUdpTransport {
     }
 
     fn delete_participant(&mut self, handle: Guid) {
-        if let Some(registration) = self.participants.remove(&handle) {
-            registration
-                .reactor
-                .deregister_participant(registration.participant_id);
+        if let Some(participant_id) = self.participants.remove(&handle) {
+            self.reactor.deregister_participant(participant_id);
         }
     }
 }

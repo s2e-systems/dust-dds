@@ -1,11 +1,11 @@
 use std::{
     cell::RefCell,
-    collections::{BinaryHeap, HashMap},
+    collections::BinaryHeap,
     future::Future,
     pin::{Pin, pin},
     sync::{
-        Arc, Mutex,
-        atomic::{self, AtomicBool, AtomicU8, AtomicUsize},
+        Arc, Mutex, OnceLock,
+        atomic::{self, AtomicBool, AtomicUsize},
         mpsc::{Sender, TryRecvError, channel},
     },
     task::{Context, Poll, Wake, Waker},
@@ -13,101 +13,28 @@ use std::{
     time::{Duration, Instant},
 };
 
-use embassy_sync::waitqueue::AtomicWaker;
-use mio::{Events, Interest, Poll as MioPoll, Registry, Token, Waker as MioWaker};
-
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
     runtime::{Spawner, TaskHandle, Timer},
 };
 
-const WAKER_TOKEN: Token = Token(0);
-const SOCKETS_PER_PARTICIPANT: usize = 8;
-
-struct ParticipantIoEntry {
-    ready_sockets: Arc<AtomicU8>,
-    read_waker: Arc<AtomicWaker>,
+pub trait IoPoller: Send + Sync + 'static {
+    fn poll(&self, timeout: Option<Duration>);
+    fn wake(&self);
 }
 
-#[derive(Clone)]
-pub struct IoReactorHandle {
-    registry: Arc<Registry>,
-    entries: Arc<Mutex<HashMap<usize, ParticipantIoEntry>>>,
-    next_id: Arc<AtomicUsize>,
-    waker: Arc<MioWaker>,
-}
+type SharedIoPoller = Arc<OnceLock<Arc<dyn IoPoller>>>;
 
 thread_local! {
-    static CURRENT_REACTOR: RefCell<Option<IoReactorHandle>> = const { RefCell::new(None) };
+    static CURRENT_IO_POLLER: RefCell<Option<SharedIoPoller>> = const { RefCell::new(None) };
 }
 
-static DEFAULT_REACTOR: Mutex<Option<IoReactorHandle>> = Mutex::new(None);
-
-impl IoReactorHandle {
-    fn new(registry: Registry, waker: Arc<MioWaker>) -> Self {
-        Self {
-            registry: Arc::new(registry),
-            entries: Arc::new(Mutex::new(HashMap::new())),
-            next_id: Arc::new(AtomicUsize::new(1)),
-            waker,
+pub fn register_io_poller(poller: Arc<dyn IoPoller>) {
+    CURRENT_IO_POLLER.with(|cell| {
+        if let Some(slot) = cell.borrow().as_ref() {
+            let _ = slot.set(poller);
         }
-    }
-
-    pub fn current() -> Option<Self> {
-        CURRENT_REACTOR
-            .with(|r| r.borrow().clone())
-            .or_else(|| DEFAULT_REACTOR.lock().unwrap().clone())
-    }
-
-    pub fn allocate_participant_id(
-        &self,
-        ready_sockets: Arc<AtomicU8>,
-        read_waker: Arc<AtomicWaker>,
-    ) -> usize {
-        let id = self.next_id.fetch_add(1, atomic::Ordering::Relaxed);
-        self.entries.lock().unwrap().insert(
-            id,
-            ParticipantIoEntry {
-                ready_sockets,
-                read_waker,
-            },
-        );
-        id
-    }
-
-    pub fn register_socket(
-        &self,
-        participant_id: usize,
-        socket_idx: usize,
-        socket: &mut mio::net::UdpSocket,
-    ) {
-        let token = Token(participant_id * SOCKETS_PER_PARTICIPANT + socket_idx);
-        self.registry
-            .register(socket, token, Interest::READABLE)
-            .expect("Failed to register socket");
-        self.waker.wake().ok();
-    }
-
-    pub fn deregister_participant(&self, participant_id: usize) {
-        self.entries.lock().unwrap().remove(&participant_id);
-    }
-
-    fn process_events(&self, events: &Events) {
-        let entries = self.entries.lock().unwrap();
-        for event in events.iter() {
-            let token = event.token().0;
-            if token >= SOCKETS_PER_PARTICIPANT {
-                let participant_id = token / SOCKETS_PER_PARTICIPANT;
-                let socket_idx = token % SOCKETS_PER_PARTICIPANT;
-                if let Some(entry) = entries.get(&participant_id) {
-                    entry
-                        .ready_sockets
-                        .fetch_or(1 << socket_idx, atomic::Ordering::Release);
-                    entry.read_waker.wake();
-                }
-            }
-        }
-    }
+    });
 }
 
 pub fn block_timeout<T>(
@@ -173,7 +100,8 @@ pub fn block_on<T>(f: impl Future<Output = T>) -> T {
 pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
-    waker: Arc<MioWaker>,
+    thread_handle: Thread,
+    io_poller: SharedIoPoller,
     finished: AtomicBool,
     is_queued: AtomicBool,
     join_waker: Mutex<Option<Waker>>,
@@ -224,7 +152,10 @@ impl Wake for Task {
     fn wake_by_ref(self: &Arc<Self>) {
         if !self.is_finished() && !self.is_queued.swap(true, atomic::Ordering::AcqRel) {
             self.task_sender.send(self.clone()).unwrap();
-            self.waker.wake().ok();
+            self.thread_handle.unpark();
+            if let Some(poller) = self.io_poller.get() {
+                poller.wake();
+            }
         }
     }
 }
@@ -232,7 +163,8 @@ impl Wake for Task {
 #[derive(Clone)]
 pub struct ExecutorHandle {
     task_sender: Sender<Arc<Task>>,
-    waker: Arc<MioWaker>,
+    thread_handle: Thread,
+    io_poller: SharedIoPoller,
 }
 
 impl ExecutorHandle {
@@ -241,7 +173,8 @@ impl ExecutorHandle {
         let task = Arc::new(Task {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
-            waker: self.waker.clone(),
+            thread_handle: self.thread_handle.clone(),
+            io_poller: self.io_poller.clone(),
             finished: AtomicBool::new(false),
             is_queued: AtomicBool::new(true),
             join_waker: Mutex::new(None),
@@ -249,7 +182,10 @@ impl ExecutorHandle {
         self.task_sender
             .send(task.clone())
             .expect("Should never fail to send");
-        self.waker.wake().ok();
+        self.thread_handle.unpark();
+        if let Some(poller) = self.io_poller.get() {
+            poller.wake();
+        }
         ExecutorTaskHandle { task }
     }
 }
@@ -289,20 +225,36 @@ impl Ord for TimerEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default)]
 pub struct TimerState {
     next_id: AtomicUsize,
     entries: Mutex<BinaryHeap<TimerEntry>>,
-    executor_waker: Arc<MioWaker>,
+    executor_thread: Mutex<Option<Thread>>,
+    io_poller: SharedIoPoller,
+}
+
+impl core::fmt::Debug for TimerState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TimerState")
+            .field("next_id", &self.next_id)
+            .field("entries", &self.entries)
+            .field("executor_thread", &self.executor_thread)
+            .finish()
+    }
 }
 
 impl TimerState {
-    pub fn new(executor_waker: Arc<MioWaker>) -> Self {
+    pub fn new(io_poller: SharedIoPoller) -> Self {
         Self {
             next_id: AtomicUsize::new(1),
             entries: Mutex::new(BinaryHeap::new()),
-            executor_waker,
+            executor_thread: Mutex::new(None),
+            io_poller,
         }
+    }
+
+    pub fn set_executor_thread(&self, thread: Thread) {
+        *self.executor_thread.lock().unwrap() = Some(thread);
     }
 
     pub fn allocate_id(&self) -> usize {
@@ -322,7 +274,12 @@ impl TimerState {
         drop(entries);
 
         if is_earliest {
-            self.executor_waker.wake().ok();
+            if let Some(thread) = self.executor_thread.lock().unwrap().as_ref() {
+                thread.unpark();
+            }
+            if let Some(poller) = self.io_poller.get() {
+                poller.wake();
+            }
         }
     }
 
@@ -448,9 +405,9 @@ impl Timer for TimerHandle {
 
 pub struct Executor {
     task_sender: Sender<Arc<Task>>,
-    _executor_thread_handle: JoinHandle<()>,
+    executor_thread_handle: JoinHandle<()>,
     timer_state: Arc<TimerState>,
-    waker: Arc<MioWaker>,
+    io_poller: SharedIoPoller,
 }
 
 impl Default for Executor {
@@ -462,28 +419,19 @@ impl Default for Executor {
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
-        let mut poll = MioPoll::new().expect("Failed to create mio Poll");
-        let waker = Arc::new(
-            MioWaker::new(poll.registry(), WAKER_TOKEN).expect("Failed to create mio Waker"),
-        );
-        let registry = poll
-            .registry()
-            .try_clone()
-            .expect("Failed to clone mio Registry");
-        let reactor_handle = IoReactorHandle::new(registry, waker.clone());
-        *DEFAULT_REACTOR.lock().unwrap() = Some(reactor_handle.clone());
-
-        let timer_state = Arc::new(TimerState::new(waker.clone()));
+        let io_poller: SharedIoPoller = Arc::new(OnceLock::new());
+        let io_poller_clone = io_poller.clone();
+        let timer_state = Arc::new(TimerState::new(io_poller.clone()));
         let timer_state_clone = timer_state.clone();
-        let reactor_handle_clone = reactor_handle.clone();
 
         let executor_thread_handle = std::thread::Builder::new()
             .name("Dust DDS Executor".to_string())
             .spawn(move || {
-                CURRENT_REACTOR.with(|r| {
-                    *r.borrow_mut() = Some(reactor_handle_clone.clone());
+                let current_thread = std::thread::current();
+                timer_state_clone.set_executor_thread(current_thread);
+                CURRENT_IO_POLLER.with(|cell| {
+                    *cell.borrow_mut() = Some(io_poller_clone.clone());
                 });
-                let mut events = Events::with_capacity(128);
 
                 loop {
                     match task_receiver.try_recv() {
@@ -514,13 +462,15 @@ impl Executor {
                                 timer_state_clone.duration_until_next_deadline()
                             };
 
-                            match poll.poll(&mut events, timeout) {
-                                Ok(_) => {}
-                                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                                Err(_) => break,
+                            if let Some(poller) = io_poller_clone.get() {
+                                poller.poll(timeout);
+                            } else if let Some(duration) = timeout {
+                                if duration > Duration::ZERO {
+                                    thread::park_timeout(duration);
+                                }
+                            } else {
+                                thread::park();
                             }
-
-                            reactor_handle_clone.process_events(&events);
                             timer_state_clone.wake_elapsed();
                         }
                         Err(TryRecvError::Disconnected) => break,
@@ -531,16 +481,17 @@ impl Executor {
 
         Self {
             task_sender,
-            _executor_thread_handle: executor_thread_handle,
+            executor_thread_handle,
             timer_state,
-            waker,
+            io_poller,
         }
     }
 
     pub fn handle(&self) -> ExecutorHandle {
         ExecutorHandle {
             task_sender: self.task_sender.clone(),
-            waker: self.waker.clone(),
+            thread_handle: self.executor_thread_handle.thread().clone(),
+            io_poller: self.io_poller.clone(),
         }
     }
 
