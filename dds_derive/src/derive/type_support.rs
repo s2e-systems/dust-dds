@@ -662,6 +662,21 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                 BitBound::I32 => 32u32,
             };
 
+            let extensibility_kind = match enum_type_attributes.extensibility {
+                Extensibility::Final => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final}
+                }
+                Extensibility::Appendable => {
+                    quote! {dust_dds::xtypes::dynamic_type::ExtensibilityKind::Appendable}
+                }
+                Extensibility::Mutable => {
+                    return Err(syn::Error::new(
+                        input.span(),
+                        "Enumerations can only have 'final' or 'appendable' extensibility",
+                    ));
+                }
+            };
+
             let enum_descriptor = quote! {
                 &dust_dds::xtypes::dynamic_type::TypeDescriptor {
                     kind: dust_dds::xtypes::dynamic_type::TypeKind::ENUM,
@@ -671,7 +686,7 @@ pub fn expand_type_support(input: &DeriveInput) -> Result<TokenStream> {
                     bound: &[#bound],
                     element_type: None,
                     key_element_type: None,
-                    extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
+                    extensibility_kind: #extensibility_kind,
                     is_nested: #is_nested,
                     is_autoid_hash: false,
                 }

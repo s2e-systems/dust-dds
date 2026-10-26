@@ -4276,4 +4276,40 @@ mod tests {
             panic!("Expected TkEnum");
         }
     }
+
+    #[test]
+    fn test_enum_extensibility_final_and_appendable() {
+        use super::*;
+        use crate::xtypes::type_support::Type;
+
+        #[derive(DdsType)]
+        #[dust_dds(extensibility = "final")]
+        enum FinalEnum {
+            A,
+            B,
+            C,
+        }
+
+        let complete_final = CompleteTypeObject::from(FinalEnum::TYPE);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = complete_final {
+            assert_eq!(enumerated_type.enum_flags, TYPE_FLAG_IS_FINAL);
+        } else {
+            panic!("Expected TkEnum");
+        }
+
+        #[derive(DdsType)]
+        #[dust_dds(extensibility = "appendable")]
+        enum AppendableEnum {
+            A,
+            B,
+            C,
+        }
+
+        let complete_appendable = CompleteTypeObject::from(AppendableEnum::TYPE);
+        if let CompleteTypeObject::TkEnum { enumerated_type } = complete_appendable {
+            assert_eq!(enumerated_type.enum_flags, TYPE_FLAG_IS_APPENDABLE);
+        } else {
+            panic!("Expected TkEnum");
+        }
+    }
 }
