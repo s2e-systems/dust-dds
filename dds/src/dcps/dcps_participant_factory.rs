@@ -5,6 +5,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
+        channels::rpc::{RpcClient, RpcMailbox},
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
         dcps_domain_participant::{
             builtin_constants::{
@@ -18,9 +19,10 @@ use crate::{
             builtin_publisher::BuiltinPublisher,
             builtin_subscriber::BuiltinSubscriber,
             data_writer_entity::DataWriterEntity,
-            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity, TimedEvent},
+            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
             type_register::TypeRegister,
         },
+        dcps_mail::{DcpsReply, DomainParticipantMail, ParticipantServiceMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::KeyHolderType,
@@ -42,7 +44,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
-    runtime::DdsRuntime,
+    runtime::{Either, Either3, TaskHandle, select_future, select3_future},
     security::{
         plugins::{
             access_control::AccessControl, authentication::Authentication,
@@ -62,58 +64,61 @@ use crate::{
         },
     },
     transport::{
-        interface::RtpsParticipant,
-        types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix},
+        interface::{RtpsParticipant, Transport},
+        types::Guid,
     },
     xtypes::type_support::Type,
 };
-use alloc::{
-    collections::BTreeSet,
-    string::{String, ToString},
-    sync::Arc,
-    vec::Vec,
-};
+use alloc::{boxed::Box, collections::BTreeSet, string::ToString, sync::Arc, vec::Vec};
+use core::sync::atomic::AtomicBool;
+
+pub struct ParticipantRecord {
+    pub handle: InstanceHandle,
+    pub domain_id: DomainId,
+    pub sender: DcpsSender,
+    pub run_loop: Arc<AtomicBool>,
+    pub _task_handle: Box<dyn TaskHandle>,
+}
 
 pub struct DcpsParticipantFactory {
-    pub domain_participant_list: Vec<DcpsDomainParticipant>,
+    pub participant_list: Vec<ParticipantRecord>,
     pub qos: DomainParticipantFactoryQos,
     pub default_participant_qos: DomainParticipantQos,
     pub configuration: DustDdsConfiguration,
-    pub dcps_sender: DcpsSender,
-    app_id: [u8; 4],
-    host_id: [u8; 4],
 }
 
 impl DcpsParticipantFactory {
-    pub fn new(
-        app_id: [u8; 4],
-        host_id: [u8; 4],
-        configuration: DustDdsConfiguration,
-        dcps_sender: DcpsSender,
-    ) -> Self {
+    pub fn new(configuration: DustDdsConfiguration) -> Self {
         Self {
-            domain_participant_list: Default::default(),
+            participant_list: Default::default(),
             qos: Default::default(),
             default_participant_qos: Default::default(),
             configuration,
-            dcps_sender,
-            app_id,
-            host_id,
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn create_participant<Auth, Access, Crypto>(
+    pub fn create_participant<
+        Auth,
+        Access,
+        Crypto,
+        T: crate::transport::interface::Transport,
+        Timer: crate::runtime::Timer + Clone + Send + 'static,
+        Clock: crate::runtime::Clock + Clone + Send + 'static,
+        Spawner: crate::runtime::Spawner + Clone + Send + 'static,
+    >(
         &mut self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        transport: &mut impl crate::transport::interface::Transport,
+        transport: &mut T,
         now: Time,
-        runtime: &impl DdsRuntime,
+        timer: &Timer,
+        clock: &Clock,
+        spawner: &Spawner,
         _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
-    ) -> DdsResult<InstanceHandle>
+    ) -> DdsResult<(InstanceHandle, DcpsSender)>
     where
         Auth: Authentication,
         Access: AccessControl,
@@ -124,27 +129,12 @@ impl DcpsParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
 
-        let transport_handle = transport.create_participant(domain_id);
-        let transport_participant = transport.get_participant_mut(&transport_handle).ok_or(
-            DdsError::PreconditionNotMet(String::from("Transport participant not found")),
-        )?;
-        let guid_prefix: GuidPrefix = [
-            self.host_id[0],
-            self.host_id[1],
-            self.host_id[2],
-            self.host_id[3],
-            self.app_id[0],
-            self.app_id[1],
-            self.app_id[2],
-            self.app_id[3],
-            transport_handle[0],
-            transport_handle[1],
-            transport_handle[2],
-            transport_handle[3],
-        ];
-        let guid = Guid::new(guid_prefix, ENTITYID_PARTICIPANT);
+        let mut transport_participant = transport.create_participant(domain_id);
+
+        let guid = transport_participant.guid();
+        let guid_prefix = guid.prefix();
         let security_data = None;
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
@@ -269,79 +259,191 @@ impl DcpsParticipantFactory {
             security_data,
         };
 
+        let participant_mailbox = Arc::new(RpcMailbox::new());
+        let participant_sender = RpcClient::new(participant_mailbox.clone());
+
         let mut dcps_participant = DcpsDomainParticipant {
-            transport_handle,
             reader_counter: 0,
             writer_counter: 0,
             publisher_counter: 0,
             subscriber_counter: 0,
             domain_participant,
-            dcps_sender: self.dcps_sender.clone(),
+            dcps_sender: participant_sender.clone(),
+            domain_tag: self.configuration.domain_tag().to_string(),
+            enable_type_information: self.configuration.enable_type_information(),
         };
-
-        let participant_handle = *dcps_participant.get_instance_handle();
 
         if self.qos.entity_factory.autoenable_created_entities {
             dcps_participant.enable_domain_participant(
                 now,
                 self.configuration.domain_tag().to_string(),
-                transport_participant,
+                &mut transport_participant,
             )?;
         }
 
-        self.domain_participant_list.push(dcps_participant);
+        let run_loop = Arc::new(AtomicBool::new(true));
+        let run_loop_clone = run_loop.clone();
+        let participant_announcement_interval =
+            self.configuration.participant_announcement_interval();
+        let domain_tag = self.configuration.domain_tag().to_string();
+        let mut timer_handle = timer.clone();
+        let clock_clone = clock.clone();
+        let spawner_clone = spawner.clone();
 
-        Ok(participant_handle)
+        let task_handle = spawner.spawn(async move {
+            let span = tracing::trace_span!("dds_participant_loop");
+            let _enter = span.enter();
+            while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
+                let now = clock_clone.now();
+                let next_event = dcps_participant
+                    .time_until_next_event(now, participant_announcement_interval.into());
+
+                if let Some((delay, event)) = next_event {
+                    match select3_future(
+                        participant_mailbox.receive_request(),
+                        timer_handle.delay(delay.into()),
+                        transport_participant.read(),
+                    )
+                    .await
+                    {
+                        Either3::A(user_mail) => {
+                            let now = clock_clone.now();
+                            let is_delete = matches!(
+                                user_mail,
+                                DomainParticipantMail::Participant(
+                                    ParticipantServiceMail::DeleteParticipant
+                                )
+                            );
+                            let reply = dcps_participant.handle(
+                                user_mail,
+                                now,
+                                &spawner_clone,
+                                &mut transport_participant,
+                            );
+                            let should_terminate =
+                                is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
+                            participant_mailbox.send_reply(reply).await;
+                            if should_terminate {
+                                break;
+                            }
+                        }
+                        Either3::B(_) => {
+                            let now = clock_clone.now();
+                            dcps_participant.handle_timed_event(
+                                event,
+                                now,
+                                participant_announcement_interval.into(),
+                                &domain_tag,
+                                &mut transport_participant,
+                            );
+                        }
+                        Either3::C(data) => {
+                            let now = clock_clone.now();
+                            dcps_participant.handle_data(data, now);
+                            dcps_participant.process_builtin_cache_changes(
+                                now,
+                                domain_tag.clone(),
+                                &mut transport_participant,
+                            );
+                            dcps_participant.notify_find_topic_senders(now);
+                            dcps_participant.process_user_defined_received_cache_changes(now);
+                            dcps_participant
+                                .request_topic_type_representation(now, &mut transport_participant);
+                            dcps_participant.write_messages(now, &mut transport_participant);
+                        }
+                    };
+                } else {
+                    match select_future(
+                        participant_mailbox.receive_request(),
+                        transport_participant.read(),
+                    )
+                    .await
+                    {
+                        Either::A(user_mail) => {
+                            let now = clock_clone.now();
+                            let is_delete = matches!(
+                                user_mail,
+                                DomainParticipantMail::Participant(
+                                    ParticipantServiceMail::DeleteParticipant
+                                )
+                            );
+                            let reply = dcps_participant.handle(
+                                user_mail,
+                                now,
+                                &spawner_clone,
+                                &mut transport_participant,
+                            );
+                            let should_terminate =
+                                is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
+                            participant_mailbox.send_reply(reply).await;
+                            if should_terminate {
+                                break;
+                            }
+                        }
+                        Either::B(data) => {
+                            let now = clock_clone.now();
+                            dcps_participant.handle_data(data, now);
+                            dcps_participant.process_builtin_cache_changes(
+                                now,
+                                domain_tag.clone(),
+                                &mut transport_participant,
+                            );
+                            dcps_participant.notify_find_topic_senders(now);
+                            dcps_participant.process_user_defined_received_cache_changes(now);
+                            dcps_participant
+                                .request_topic_type_representation(now, &mut transport_participant);
+                            dcps_participant.write_messages(now, &mut transport_participant);
+                        }
+                    };
+                }
+            }
+        });
+
+        self.participant_list.push(ParticipantRecord {
+            handle: participant_handle,
+            domain_id,
+            sender: participant_sender.clone(),
+            run_loop,
+            _task_handle: Box::new(task_handle),
+        });
+
+        Ok((participant_handle, participant_sender))
     }
 
-    pub fn delete_participant(
+    pub async fn delete_participant<T: Transport>(
         &mut self,
         participant_handle: &InstanceHandle,
-        now: Time,
-        transport: &mut impl crate::transport::interface::Transport,
+        transport: &mut T,
     ) -> DdsResult<()> {
         let index = self
-            .domain_participant_list
+            .participant_list
             .iter()
-            .position(|h| h.get_instance_handle() == participant_handle)
+            .position(|r| &r.handle == participant_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
-        if !self.domain_participant_list[index].is_participant_empty() {
-            return Err(DdsError::PreconditionNotMet(String::from(
-                "Domain participant still contains other entities",
-            )));
-        }
-        let mut participant = self.domain_participant_list.remove(index);
-        let transport_participant = transport
-            .get_participant_mut(&participant.transport_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        participant.announce_deleted_participant(now, transport_participant);
-        transport.delete_participant(participant.transport_handle);
+
+        let record = &self.participant_list[index];
+        let reply = record
+            .sender
+            .call(DomainParticipantMail::Participant(
+                ParticipantServiceMail::DeleteParticipant,
+            ))
+            .await?;
+        reply.expect_ok()?;
+
+        let record = self.participant_list.remove(index);
+        record
+            .run_loop
+            .store(false, core::sync::atomic::Ordering::Relaxed);
+        let guid = Guid::from(<[u8; 16]>::from(record.handle));
+        transport.delete_participant(guid);
         Ok(())
     }
 
-    pub fn find_participant(
-        &mut self,
-        participant_handle: &InstanceHandle,
-    ) -> DdsResult<&mut DcpsDomainParticipant> {
-        self.domain_participant_list
-            .iter_mut()
-            .find(|x| x.get_instance_handle() == participant_handle)
-            .ok_or(DdsError::AlreadyDeleted)
-    }
-
-    pub fn get_participant_and_transport<'a, 'b, T: crate::transport::interface::Transport>(
-        domain_participant_list: &'a mut [DcpsDomainParticipant],
-        participant_handle: &InstanceHandle,
-        transport: &'b mut T,
-    ) -> DdsResult<(&'a mut DcpsDomainParticipant, &'b mut T::Participant)> {
-        let p = domain_participant_list
-            .iter_mut()
-            .find(|x| x.get_instance_handle() == participant_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        let tp = transport
-            .get_participant_mut(&p.transport_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-        Ok((p, tp))
+    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<(InstanceHandle, DcpsSender)> {
+        self.participant_list
+            .iter()
+            .find(|r| r.domain_id == domain_id)
+            .map(|r| (r.handle, r.sender.clone()))
     }
 
     pub fn set_default_participant_qos(
@@ -375,48 +477,6 @@ impl DcpsParticipantFactory {
     pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
         self.qos.clone()
     }
-
-    pub fn next_timed_event(&self, now: Time) -> Option<ScheduledTimedEvent> {
-        let mut min_event: Option<ScheduledTimedEvent> = None;
-        for dp in &self.domain_participant_list {
-            if let Some((delay, event)) = dp.time_until_next_event(
-                now,
-                self.configuration
-                    .participant_announcement_interval()
-                    .into(),
-            ) {
-                match &min_event {
-                    Some(current) if delay < current.delay => {
-                        min_event = Some(ScheduledTimedEvent {
-                            delay,
-                            participant_handle: *dp.get_instance_handle(),
-                            event,
-                        });
-                    }
-                    None => {
-                        min_event = Some(ScheduledTimedEvent {
-                            delay,
-                            participant_handle: *dp.get_instance_handle(),
-                            event,
-                        });
-                    }
-                    _ => {}
-                }
-            }
-        }
-        min_event
-    }
-}
-
-/// Represents a scheduled timed event for a specific domain participant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ScheduledTimedEvent {
-    /// Duration until the event should fire.
-    pub delay: Duration,
-    /// Handle of the domain participant the event belongs to.
-    pub participant_handle: InstanceHandle,
-    /// The specific timed event.
-    pub event: TimedEvent,
 }
 
 impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {

@@ -184,19 +184,22 @@ where
     /// Async version of [`write`](crate::publication::data_writer::DataWriter::write).
     #[tracing::instrument(skip(self, data))]
     pub async fn write(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = data.create_dynamic_sample();
-        self.dcps_sender()
+        let reply = self
+            .dcps_sender()
             .call(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
                 dynamic_data,
                 timestamp: None,
-                reply_sender,
             }))
             .await?;
-        reply_receiver.await?
+        match reply {
+            crate::dcps::dcps_mail::DcpsReply::Ok(res) => res,
+            crate::dcps::dcps_mail::DcpsReply::PendingWrite(receiver) => receiver.await?,
+            other => panic!("expected Ok or PendingWrite reply, got {:?}", other),
+        }
     }
 
     /// Async version of [`write_w_timestamp`](crate::publication::data_writer::DataWriter::write_w_timestamp).
@@ -207,19 +210,22 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let (reply_sender, reply_receiver) = oneshot();
         let dynamic_data = data.create_dynamic_sample();
-        self.dcps_sender()
+        let reply = self
+            .dcps_sender()
             .call(DcpsMail::Writer(WriterServiceMail::WriteWTimestamp {
                 participant_handle: self.publisher.get_participant().get_instance_handle(),
                 publisher_handle: self.publisher.get_instance_handle(),
                 data_writer_handle: self.handle,
                 dynamic_data,
                 timestamp: Some(timestamp),
-                reply_sender,
             }))
             .await?;
-        reply_receiver.await?
+        match reply {
+            crate::dcps::dcps_mail::DcpsReply::Ok(res) => res,
+            crate::dcps::dcps_mail::DcpsReply::PendingWrite(receiver) => receiver.await?,
+            other => panic!("expected Ok or PendingWrite reply, got {:?}", other),
+        }
     }
 
     /// Async version of [`dispose`](crate::publication::data_writer::DataWriter::dispose).

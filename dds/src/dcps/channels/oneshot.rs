@@ -92,3 +92,9 @@ impl<T> Future for OneshotReceiver<T> {
         })
     }
 }
+
+impl<T> core::fmt::Debug for OneshotReceiver<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("OneshotReceiver").finish()
+    }
+}

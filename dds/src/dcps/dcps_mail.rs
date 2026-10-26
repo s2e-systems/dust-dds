@@ -6,7 +6,11 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::{notification::NotificationSender, oneshot::OneshotSender},
+        channels::{
+            notification::NotificationSender,
+            oneshot::{OneshotReceiver, OneshotSender},
+            rpc::RpcClient,
+        },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -35,26 +39,7 @@ use crate::{
     xtypes::dynamic_type::{DynamicData, DynamicType},
 };
 
-pub enum DcpsMail {
-    ParticipantFactory(ParticipantFactoryMail),
-    Participant(ParticipantServiceMail),
-    Topic(TopicServiceMail),
-    Publisher(PublisherServiceMail),
-    Writer(WriterServiceMail),
-    Subscriber(SubscriberServiceMail),
-    Reader(ReaderServiceMail),
-    StatusCondition(StatusConditionMail),
-    Message(MessageServiceMail),
-}
-
-pub struct CreateParticipantMail {
-    pub domain_id: DomainId,
-    pub qos: QosKind<DomainParticipantQos>,
-    pub dcps_listener: Option<DcpsDomainParticipantListener>,
-    pub listener_mask: StatusMask,
-}
-
-pub enum ParticipantFactoryMail {
+pub enum DomainParticipantFactoryMail {
     CreateParticipant(Box<CreateParticipantMail>),
     DeleteParticipant {
         participant_handle: InstanceHandle,
@@ -70,6 +55,26 @@ pub enum ParticipantFactoryMail {
     LookupParticipant {
         domain_id: DomainId,
     },
+}
+
+pub enum DomainParticipantMail {
+    Participant(ParticipantServiceMail),
+    Topic(TopicServiceMail),
+    Publisher(PublisherServiceMail),
+    Writer(WriterServiceMail),
+    Subscriber(SubscriberServiceMail),
+    Reader(ReaderServiceMail),
+    StatusCondition(StatusConditionMail),
+    Message(MessageServiceMail),
+}
+
+pub type DcpsMail = DomainParticipantMail;
+
+pub struct CreateParticipantMail {
+    pub domain_id: DomainId,
+    pub qos: QosKind<DomainParticipantQos>,
+    pub dcps_listener: Option<DcpsDomainParticipantListener>,
+    pub listener_mask: StatusMask,
 }
 
 pub struct CreateTopicMail {
@@ -203,6 +208,7 @@ pub enum ParticipantServiceMail {
     Enable {
         participant_handle: InstanceHandle,
     },
+    DeleteParticipant,
 }
 
 pub enum TopicServiceMail {
@@ -373,7 +379,6 @@ pub enum WriterServiceMail {
         data_writer_handle: InstanceHandle,
         dynamic_data: DynamicData<'static>,
         timestamp: Option<Time>,
-        reply_sender: OneshotSender<DdsResult<()>>,
     },
     DisposeWTimestamp {
         participant_handle: InstanceHandle,
@@ -503,8 +508,11 @@ pub enum MessageServiceMail {
 #[derive(Debug)]
 pub enum DcpsReply {
     Ok(DdsResult<()>),
+    PendingWrite(OneshotReceiver<DdsResult<()>>),
     InstanceHandle(DdsResult<InstanceHandle>),
     OptionInstanceHandle(DdsResult<Option<InstanceHandle>>),
+    CreatedParticipant(DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)>),
+    OptionCreatedParticipant(DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>>),
     ParticipantQos(DdsResult<DomainParticipantQos>),
     PublisherQos(DdsResult<PublisherQos>),
     SubscriberQos(DdsResult<SubscriberQos>),
@@ -548,6 +556,27 @@ impl DcpsReply {
         match self {
             DcpsReply::OptionInstanceHandle(res) => res,
             other => panic!("expected Option<InstanceHandle> reply, got {:?}", other),
+        }
+    }
+
+    pub fn expect_created_participant(
+        self,
+    ) -> DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)> {
+        match self {
+            DcpsReply::CreatedParticipant(res) => res,
+            other => panic!("expected CreatedParticipant reply, got {:?}", other),
+        }
+    }
+
+    pub fn expect_option_created_participant(
+        self,
+    ) -> DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>> {
+        match self {
+            DcpsReply::OptionCreatedParticipant(res) => res,
+            other => panic!(
+                "expected Option<(InstanceHandle, RpcClient)> reply, got {:?}",
+                other
+            ),
         }
     }
 
