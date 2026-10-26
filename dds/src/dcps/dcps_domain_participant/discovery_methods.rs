@@ -168,7 +168,6 @@ impl DcpsDomainParticipant {
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
-                .transport_writer
                 .write_message(transport_participant);
         }
     }
@@ -199,7 +198,6 @@ impl DcpsDomainParticipant {
             self.domain_participant
                 .builtin_publisher
                 .dcps_participant_writer
-                .transport_writer
                 .write_message(transport_participant);
         }
     }
@@ -562,7 +560,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -591,7 +588,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_publications_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -709,7 +705,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -738,7 +733,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_subscriptions_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -800,7 +794,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_topics_writer
-            .transport_writer
             .write_message(transport_participant, now);
     }
 
@@ -1197,9 +1190,7 @@ impl DcpsDomainParticipant {
                                         multicast_locator_list,
                                         expects_inline_qos: false,
                                     };
-                                    data_writer
-                                        .transport_writer
-                                        .add_matched_reader(reader_proxy);
+                                    data_writer.add_matched_reader(reader_proxy);
 
                                     let is_listener_enabled = data_writer
                                         .listener_mask
@@ -2086,9 +2077,7 @@ impl DcpsDomainParticipant {
                     type_lookup_reply_writer
                         .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                         .ok();
-                    type_lookup_reply_writer
-                        .transport_writer
-                        .write_message(transport_participant, now);
+                    type_lookup_reply_writer.write_message(transport_participant, now);
                 }
             }
             TypeLookupCall::TypeLookupGetDependenciesHash {
@@ -2124,9 +2113,7 @@ impl DcpsDomainParticipant {
                         type_lookup_reply_writer
                             .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
                             .ok();
-                        type_lookup_reply_writer
-                            .transport_writer
-                            .write_message(transport_participant, now);
+                        type_lookup_reply_writer.write_message(transport_participant, now);
                     }
                 }
             }
@@ -2524,9 +2511,7 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
-                                type_request_writer
-                                    .transport_writer
-                                    .write_message(transport_participant, now);
+                                type_request_writer.write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_dependencies_lookup(discovered_type_id.clone());
@@ -2590,9 +2575,7 @@ impl DcpsDomainParticipant {
                                         now,
                                     )
                                     .ok();
-                                type_request_writer
-                                    .transport_writer
-                                    .write_message(transport_participant, now);
+                                type_request_writer.write_message(transport_participant, now);
                                 self.domain_participant
                                     .type_register
                                     .add_pending_types_lookup(unresolved);
@@ -2749,7 +2732,6 @@ impl DcpsDomainParticipant {
                         // Remove readers
                         data_writer
                             .writer
-                            .transport_writer
                             .delete_matched_reader(matched_subscription.key.value.into());
                     }
                 }
@@ -2811,7 +2793,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_publisher
                     .dcps_publications_writer;
-                dw.transport_writer.add_matched_reader(reader_proxy);
+                dw.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -2824,7 +2806,7 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .dcps_publications_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            dw.transport_writer.delete_matched_reader(guid);
+            dw.delete_matched_reader(guid);
         }
     }
 
@@ -2912,7 +2894,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_publisher
                     .dcps_subscriptions_writer;
-                dw.transport_writer.add_matched_reader(reader_proxy);
+                dw.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -2925,7 +2907,7 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .dcps_subscriptions_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            dw.transport_writer.delete_matched_reader(guid);
+            dw.delete_matched_reader(guid);
         }
     }
 
@@ -3010,7 +2992,7 @@ impl DcpsDomainParticipant {
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
-                dw.transport_writer.add_matched_reader(reader_proxy);
+                dw.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -3020,7 +3002,7 @@ impl DcpsDomainParticipant {
         {
             let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
             let guid = Guid::new(prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-            dw.transport_writer.delete_matched_reader(guid);
+            dw.delete_matched_reader(guid);
         }
     }
 
@@ -3102,7 +3084,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_publisher
                     .type_lookup_request_writer;
-                dw.transport_writer.add_matched_reader(reader_proxy);
+                dw.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -3115,7 +3097,7 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .type_lookup_request_writer;
             let guid = Guid::new(prefix, ENTITYID_TL_SVC_REQ_READER);
-            dw.transport_writer.delete_matched_reader(guid);
+            dw.delete_matched_reader(guid);
         }
     }
 
@@ -3203,7 +3185,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .builtin_publisher
                     .type_lookup_reply_writer;
-                dw.transport_writer.add_matched_reader(reader_proxy);
+                dw.add_matched_reader(reader_proxy);
             }
         }
     }
@@ -3216,7 +3198,7 @@ impl DcpsDomainParticipant {
                 .builtin_publisher
                 .type_lookup_reply_writer;
             let guid = Guid::new(prefix, ENTITYID_TL_SVC_REPLY_READER);
-            dw.transport_writer.delete_matched_reader(guid);
+            dw.delete_matched_reader(guid);
         }
     }
 

@@ -118,6 +118,18 @@ pub enum TimedEvent {
         /// Handle of the data writer.
         writer_handle: InstanceHandle,
     },
+    /// Send repair data for a specific builtin stateful data writer.
+    SendBuiltinWriterRepairData {
+        /// Handle of the builtin writer.
+        writer_handle: InstanceHandle,
+    },
+    /// Send repair data for a specific user-defined data writer.
+    SendUserWriterRepairData {
+        /// Handle of the publisher containing the writer.
+        publisher_handle: InstanceHandle,
+        /// Handle of the data writer.
+        writer_handle: InstanceHandle,
+    },
     /// Notify senders waiting on topic discovery whose deadlines expired.
     NotifyFindTopicSenders,
 }
@@ -234,8 +246,8 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list()
         {
-            if !dw.transport_writer.changes().is_empty() {
-                if let Some(hb_time) = dw.transport_writer.time_until_next_heartbeat(now) {
+            if !dw.changes.is_empty() {
+                if let Some(hb_time) = dw.time_until_next_heartbeat(now) {
                     update(
                         hb_time,
                         TimedEvent::SendBuiltinWriterHeartbeat {
@@ -243,6 +255,14 @@ impl DcpsDomainParticipant {
                         },
                     );
                 }
+            }
+            if let Some(repair_time) = dw.transport_writer.time_until_next_repair(now) {
+                update(
+                    repair_time,
+                    TimedEvent::SendBuiltinWriterRepairData {
+                        writer_handle: dw.instance_handle,
+                    },
+                );
             }
         }
 
@@ -328,7 +348,7 @@ impl DcpsDomainParticipant {
                 }
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                    if let Some(cc) = data_writer.transport_writer.changes().first() {
+                    if let Some(cc) = data_writer.changes.first() {
                         if let Some(source_timestamp) = cc.source_timestamp {
                             let expiry = Time::from(source_timestamp) + lifespan;
                             let remaining = if expiry > now {
@@ -365,11 +385,9 @@ impl DcpsDomainParticipant {
                 }
 
                 if data_writer.qos.reliability.kind == ReliabilityQosPolicyKind::Reliable
-                    && !data_writer.transport_writer.changes().is_empty()
+                    && !data_writer.changes.is_empty()
                 {
-                    if let Some(hb_time) =
-                        data_writer.transport_writer.time_until_next_heartbeat(now)
-                    {
+                    if let Some(hb_time) = data_writer.time_until_next_heartbeat(now) {
                         update(
                             hb_time,
                             TimedEvent::SendUserWriterHeartbeat {
@@ -378,6 +396,17 @@ impl DcpsDomainParticipant {
                             },
                         );
                     }
+                }
+
+                if let Some(repair_time) = data_writer.transport_writer.time_until_next_repair(now)
+                {
+                    update(
+                        repair_time,
+                        TimedEvent::SendUserWriterRepairData {
+                            publisher_handle: publisher.instance_handle,
+                            writer_handle: data_writer.instance_handle,
+                        },
+                    );
                 }
             }
         }
@@ -441,7 +470,7 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                            data_writer.transport_writer.changes_mut().retain(|cc| {
+                            data_writer.changes.retain(|cc| {
                                 if let Some(timestamp) = &cc.source_timestamp {
                                     Time::from(*timestamp) + lifespan > now
                                 } else {
@@ -506,8 +535,20 @@ impl DcpsDomainParticipant {
                     .stateful_data_writer_list_mut()
                 {
                     if dw.instance_handle == writer_handle {
-                        dw.transport_writer
-                            .write_message(transport_participant, now);
+                        dw.send_heartbeat(transport_participant, now);
+                        break;
+                    }
+                }
+            }
+            TimedEvent::SendBuiltinWriterRepairData { writer_handle } => {
+                for dw in self
+                    .domain_participant
+                    .builtin_publisher
+                    .stateful_data_writer_list_mut()
+                {
+                    if dw.instance_handle == writer_handle {
+                        dw.send_requested_changes(transport_participant, now);
+                        dw.send_requested_fragments(transport_participant);
                         break;
                     }
                 }
@@ -527,8 +568,27 @@ impl DcpsDomainParticipant {
                         .iter_mut()
                         .find(|w| w.instance_handle == writer_handle)
                     {
-                        dw.transport_writer
-                            .write_message(transport_participant, now);
+                        dw.send_heartbeat(transport_participant, now);
+                    }
+                }
+            }
+            TimedEvent::SendUserWriterRepairData {
+                publisher_handle,
+                writer_handle,
+            } => {
+                if let Some(publisher) = self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                    .find(|p| p.instance_handle == publisher_handle)
+                {
+                    if let Some(dw) = publisher
+                        .data_writer_list
+                        .iter_mut()
+                        .find(|w| w.instance_handle == writer_handle)
+                    {
+                        dw.send_requested_changes(transport_participant, now);
+                        dw.send_requested_fragments(transport_participant);
                     }
                 }
             }

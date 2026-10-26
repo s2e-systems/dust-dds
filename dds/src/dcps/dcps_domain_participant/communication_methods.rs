@@ -70,7 +70,7 @@ impl DcpsDomainParticipant {
                 &mut subscriber.data_reader_list,
             );
             'data_readers: for data_reader in data_reader_list {
-                if data_reader.transport_reader.changes_mut().is_empty() {
+                if data_reader.transport_reader.changes.is_empty() {
                     continue;
                 }
 
@@ -109,7 +109,7 @@ impl DcpsDomainParticipant {
                     &reader_topic.type_name
                 };
 
-                let changes = core::mem::take(data_reader.transport_reader.changes_mut());
+                let changes = core::mem::take(&mut data_reader.transport_reader.changes);
                 let data_reader_handle = data_reader.instance_handle;
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes.len());
 
@@ -440,15 +440,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .dcps_participant_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .dcps_participant_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             for cache_change in changes {
                 if cache_change.kind == ChangeKind::Alive
@@ -507,15 +508,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .dcps_topic_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .dcps_topic_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             for cache_change in changes {
                 if let Some(matched_participant) = self
@@ -561,15 +563,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .dcps_publication_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .dcps_publication_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             for cache_change in changes {
                 if let Some(matched_participant) = self
@@ -691,15 +694,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .dcps_subscription_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .dcps_subscription_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             for cache_change in changes {
                 if let Some(matched_participant) = self
@@ -846,15 +850,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .type_lookup_request_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .type_lookup_request_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             for cache_change in changes {
                 if let Some(type_lookup_request) = deserialize_top_level_type(
@@ -879,15 +884,16 @@ impl DcpsDomainParticipant {
             .builtin_subscriber
             .type_lookup_reply_reader
             .transport_reader
-            .changes_mut()
+            .changes
             .is_empty()
         {
             let changes = core::mem::take(
-                self.domain_participant
+                &mut self
+                    .domain_participant
                     .builtin_subscriber
                     .type_lookup_reply_reader
                     .transport_reader
-                    .changes_mut(),
+                    .changes,
             );
             let mut type_lookup_reply_received = false;
             for cache_change in changes {
@@ -977,10 +983,10 @@ impl DcpsDomainParticipant {
                             .flat_map(|p| p.data_writer_list.iter_mut())
                         {
                             if dw
-                                .transport_writer
                                 .on_acknack_submessage_received(
                                     ack_nack_submessage,
                                     message_receiver.source_guid_prefix(),
+                                    now,
                                 )
                                 .is_some()
                             {
@@ -988,10 +994,7 @@ impl DcpsDomainParticipant {
                                     x.send(());
                                 }
 
-                                if dw
-                                    .transport_writer
-                                    .is_change_acknowledged(dw.last_change_sequence_number)
-                                {
+                                if dw.is_change_acknowledged(dw.last_change_sequence_number) {
                                     for n in dw.wait_for_acknowledgments_notification.drain(..) {
                                         n.send(Ok(()));
                                     }
@@ -1003,9 +1006,10 @@ impl DcpsDomainParticipant {
                             .builtin_publisher
                             .stateful_data_writer_list_mut()
                         {
-                            dw.transport_writer.on_acknack_submessage_received(
+                            dw.on_acknack_submessage_received(
                                 ack_nack_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                     }
@@ -1016,9 +1020,10 @@ impl DcpsDomainParticipant {
                             .iter_mut()
                             .flat_map(|p| p.data_writer_list.iter_mut())
                         {
-                            dw.transport_writer.on_nack_frag_submessage_received(
+                            dw.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                         for dw in self
@@ -1026,9 +1031,10 @@ impl DcpsDomainParticipant {
                             .builtin_publisher
                             .stateful_data_writer_list_mut()
                         {
-                            dw.transport_writer.on_nack_frag_submessage_received(
+                            dw.on_nack_frag_submessage_received(
                                 nack_frag_submessage,
                                 message_receiver.source_guid_prefix(),
+                                now,
                             );
                         }
                     }
@@ -1063,7 +1069,7 @@ impl DcpsDomainParticipant {
                     .stateful_data_reader_list_mut(),
             )
         {
-            dr.transport_reader.on_data_submessage(
+            dr.on_data_submessage(
                 data_submessage,
                 message_receiver.source_guid_prefix(),
                 message_receiver.source_timestamp(),
@@ -1180,7 +1186,7 @@ impl DcpsDomainParticipant {
                     .stateful_data_reader_list_mut(),
             )
         {
-            dr.transport_reader.on_data_frag_submessage(
+            dr.on_data_frag_submessage(
                 data_frag_submessage,
                 message_receiver.source_guid_prefix(),
                 message_receiver.source_timestamp(),
@@ -1196,7 +1202,6 @@ impl DcpsDomainParticipant {
         self.domain_participant
             .builtin_publisher
             .dcps_participant_writer
-            .transport_writer
             .write_message(transport_participant);
         for dr in self
             .domain_participant
@@ -1216,8 +1221,7 @@ impl DcpsDomainParticipant {
             .builtin_publisher
             .stateful_data_writer_list_mut()
         {
-            dw.transport_writer
-                .write_message(transport_participant, now);
+            dw.write_message(transport_participant, now);
         }
         for dw in self
             .domain_participant
@@ -1225,8 +1229,7 @@ impl DcpsDomainParticipant {
             .iter_mut()
             .flat_map(|p| p.data_writer_list.iter_mut())
         {
-            dw.transport_writer
-                .write_message(transport_participant, now);
+            dw.write_message(transport_participant, now);
         }
         self.process_pending_write_samples(now, transport_participant);
     }

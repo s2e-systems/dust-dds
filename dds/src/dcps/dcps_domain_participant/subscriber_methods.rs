@@ -18,14 +18,12 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
-        qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
     rtps::stateful_reader::RtpsStatefulReader,
     runtime::Spawner,
     transport::types::{
-        EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
-        USER_DEFINED_READER_WITH_KEY,
+        EntityId, Guid, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
     },
 };
 
@@ -129,14 +127,10 @@ impl DcpsDomainParticipant {
             entity_id.entity_kind(),
         ]);
         self.reader_counter += 1;
-        let reliablity_kind = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
-        };
         let guid_prefix = Guid::from(*self.domain_participant.instance_handle.as_ref()).prefix();
         let guid = Guid::new(guid_prefix, entity_id);
 
-        let transport_reader = RtpsStatefulReader::new(guid, reliablity_kind);
+        let transport_reader = RtpsStatefulReader::new(guid);
 
         let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let data_reader = UserDefinedDataReader::new(

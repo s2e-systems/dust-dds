@@ -4,12 +4,20 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataReaderQos,
-        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
+        qos_policy::{
+            DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind,
+            ReliabilityQosPolicyKind,
+        },
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
         status::SampleRejectedStatusKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
-    transport::types::{ChangeKind, Guid},
+    rtps::stateful_reader::RtpsStatefulReader,
+    rtps_messages::{
+        submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
+        types::Time as RtpsTime,
+    },
+    transport::types::{CacheChange, ChangeKind, Guid, GuidPrefix},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
 
@@ -753,5 +761,96 @@ impl<T> DataReaderEntity<T> {
             specific_instance_handle,
             true,
         )
+    }
+}
+
+impl DataReaderEntity<RtpsStatefulReader> {
+    pub fn on_data_submessage(
+        &mut self,
+        data_submessage: &DataSubmessage,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<RtpsTime>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
+        let sequence_number = data_submessage.writer_sn();
+        let change =
+            if let Some(writer_proxy) = self.transport_reader.matched_writer_lookup(writer_guid) {
+                match self.qos.reliability.kind {
+                    ReliabilityQosPolicyKind::BestEffort => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number >= expected_seq_num {
+                            writer_proxy.received_change_set(sequence_number);
+                            if sequence_number > expected_seq_num {
+                                writer_proxy.lost_changes_update(sequence_number);
+                            }
+
+                            CacheChange::try_from_data_submessage(
+                                data_submessage,
+                                source_guid_prefix,
+                                source_timestamp,
+                            )
+                            .ok()
+                        } else {
+                            None
+                        }
+                    }
+                    ReliabilityQosPolicyKind::Reliable => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number == expected_seq_num {
+                            writer_proxy.received_change_set(sequence_number);
+
+                            CacheChange::try_from_data_submessage(
+                                data_submessage,
+                                source_guid_prefix,
+                                source_timestamp,
+                            )
+                            .ok()
+                        } else {
+                            None
+                        }
+                    }
+                }
+            } else {
+                None
+            };
+
+        if let Some(change) = change {
+            self.transport_reader.changes.push(change);
+        }
+    }
+
+    pub fn on_data_frag_submessage(
+        &mut self,
+        data_frag_submessage: &DataFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<RtpsTime>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
+        let sequence_number = data_frag_submessage.writer_sn();
+        let reconstructed_data_submessage =
+            if let Some(writer_proxy) = self.transport_reader.matched_writer_lookup(writer_guid) {
+                match self.qos.reliability.kind {
+                    ReliabilityQosPolicyKind::BestEffort => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number >= expected_seq_num {
+                            writer_proxy.push_data_frag(data_frag_submessage.clone());
+                        }
+                    }
+                    ReliabilityQosPolicyKind::Reliable => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number == expected_seq_num {
+                            writer_proxy.push_data_frag(data_frag_submessage.clone());
+                        }
+                    }
+                }
+
+                writer_proxy.reconstruct_data_from_frag(sequence_number)
+            } else {
+                None
+            };
+
+        if let Some(data_submessage) = reconstructed_data_submessage {
+            self.on_data_submessage(&data_submessage, source_guid_prefix, source_timestamp);
+        }
     }
 }

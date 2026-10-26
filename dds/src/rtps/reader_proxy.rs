@@ -103,6 +103,7 @@ pub struct RtpsReaderProxy {
     highest_acked_seq_num: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
     requested_fragments: Vec<(SequenceNumber, FragmentNumber)>,
+    acknack_reception_time: Option<Time>,
     expects_inline_qos: bool,
     is_active: bool,
     last_received_acknack_count: Count,
@@ -139,6 +140,7 @@ impl RtpsReaderProxy {
             highest_acked_seq_num: 0,
             requested_changes: Vec::new(),
             requested_fragments: Vec::new(),
+            acknack_reception_time: None,
             expects_inline_qos,
             is_active,
             last_received_acknack_count: 0,
@@ -222,16 +224,25 @@ impl RtpsReaderProxy {
         &self.requested_changes
     }
 
-    pub fn requested_changes_set(&mut self, req_seq_num_set: impl Iterator<Item = SequenceNumber>) {
+    pub fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: impl Iterator<Item = SequenceNumber>,
+        reception_time: Time,
+    ) {
         // "FOR_EACH seq_num IN req_seq_num_set DO
         //     FIND change_for_reader IN this.changes_for_reader
         //          SUCH-THAT (change_for_reader.sequenceNumber==seq_num)
         //     change_for_reader.status := REQUESTED;
         // END"
+        let mut added = false;
         for seq_num in req_seq_num_set {
             if !self.requested_changes.contains(&seq_num) {
                 self.requested_changes.push(seq_num);
+                added = true;
             }
+        }
+        if added {
+            self.acknack_reception_time = Some(reception_time);
         }
     }
 
@@ -253,11 +264,36 @@ impl RtpsReaderProxy {
         &mut self,
         seq_num: SequenceNumber,
         req_frag_num_set: impl Iterator<Item = FragmentNumber>,
+        reception_time: Time,
     ) {
+        let mut added = false;
         for frag_num in req_frag_num_set {
             if !self.requested_fragments.contains(&(seq_num, frag_num)) {
                 self.requested_fragments.push((seq_num, frag_num));
+                added = true;
             }
+        }
+        if added {
+            self.acknack_reception_time = Some(reception_time);
+        }
+    }
+
+    pub fn time_until_repair(&self, now: Time, nack_response_delay: Duration) -> Option<Duration> {
+        if (!self.requested_changes.is_empty() || !self.requested_fragments.is_empty())
+            && self.reliability == ReliabilityKind::Reliable
+        {
+            if let Some(reception_time) = self.acknack_reception_time {
+                let repair_time = reception_time + nack_response_delay;
+                if repair_time > now {
+                    Some(repair_time - now)
+                } else {
+                    Some(Duration::new(0, 0))
+                }
+            } else {
+                Some(Duration::new(0, 0))
+            }
+        } else {
+            None
         }
     }
 
