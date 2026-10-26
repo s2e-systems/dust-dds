@@ -773,48 +773,46 @@ impl DataReaderEntity<RtpsStatefulReader> {
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id());
         let sequence_number = data_submessage.writer_sn();
-        let change = if let Some(writer_proxy) = self
-            .transport_reader
-            .matched_writer_lookup(writer_guid)
-        {
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number >= expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        if sequence_number > expected_seq_num {
-                            writer_proxy.lost_changes_update(sequence_number);
+        let change =
+            if let Some(writer_proxy) = self.transport_reader.matched_writer_lookup(writer_guid) {
+                match self.qos.reliability.kind {
+                    ReliabilityQosPolicyKind::BestEffort => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number >= expected_seq_num {
+                            writer_proxy.received_change_set(sequence_number);
+                            if sequence_number > expected_seq_num {
+                                writer_proxy.lost_changes_update(sequence_number);
+                            }
+
+                            CacheChange::try_from_data_submessage(
+                                data_submessage,
+                                source_guid_prefix,
+                                source_timestamp,
+                            )
+                            .ok()
+                        } else {
+                            None
                         }
+                    }
+                    ReliabilityQosPolicyKind::Reliable => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number == expected_seq_num {
+                            writer_proxy.received_change_set(sequence_number);
 
-                        CacheChange::try_from_data_submessage(
-                            data_submessage,
-                            source_guid_prefix,
-                            source_timestamp,
-                        )
-                        .ok()
-                    } else {
-                        None
+                            CacheChange::try_from_data_submessage(
+                                data_submessage,
+                                source_guid_prefix,
+                                source_timestamp,
+                            )
+                            .ok()
+                        } else {
+                            None
+                        }
                     }
                 }
-                ReliabilityQosPolicyKind::Reliable => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number == expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-
-                        CacheChange::try_from_data_submessage(
-                            data_submessage,
-                            source_guid_prefix,
-                            source_timestamp,
-                        )
-                        .ok()
-                    } else {
-                        None
-                    }
-                }
-            }
-        } else {
-            None
-        };
+            } else {
+                None
+            };
 
         if let Some(change) = change {
             self.transport_reader.changes.push(change);
@@ -829,33 +827,30 @@ impl DataReaderEntity<RtpsStatefulReader> {
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id());
         let sequence_number = data_frag_submessage.writer_sn();
-        let reconstructed_data_submessage = if let Some(writer_proxy) = self
-            .transport_reader
-            .matched_writer_lookup(writer_guid)
-        {
-            match self.qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number >= expected_seq_num {
-                        writer_proxy.push_data_frag(data_frag_submessage.clone());
+        let reconstructed_data_submessage =
+            if let Some(writer_proxy) = self.transport_reader.matched_writer_lookup(writer_guid) {
+                match self.qos.reliability.kind {
+                    ReliabilityQosPolicyKind::BestEffort => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number >= expected_seq_num {
+                            writer_proxy.push_data_frag(data_frag_submessage.clone());
+                        }
+                    }
+                    ReliabilityQosPolicyKind::Reliable => {
+                        let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                        if sequence_number == expected_seq_num {
+                            writer_proxy.push_data_frag(data_frag_submessage.clone());
+                        }
                     }
                 }
-                ReliabilityQosPolicyKind::Reliable => {
-                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                    if sequence_number == expected_seq_num {
-                        writer_proxy.push_data_frag(data_frag_submessage.clone());
-                    }
-                }
-            }
 
-            writer_proxy.reconstruct_data_from_frag(sequence_number)
-        } else {
-            None
-        };
+                writer_proxy.reconstruct_data_from_frag(sequence_number)
+            } else {
+                None
+            };
 
         if let Some(data_submessage) = reconstructed_data_submessage {
             self.on_data_submessage(&data_submessage, source_guid_prefix, source_timestamp);
         }
     }
 }
-

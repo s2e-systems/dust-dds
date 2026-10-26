@@ -70,9 +70,10 @@ impl BuiltinSubscriber {
             rtps_stateless_reader,
         );
 
-        let dcps_topic_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-        );
+        let dcps_topic_transport_reader = RtpsStatefulReader::new(Guid::new(
+            guid_prefix,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        ));
         let dcps_topic_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_topic_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
@@ -80,9 +81,10 @@ impl BuiltinSubscriber {
             dcps_topic_transport_reader,
         );
 
-        let dcps_publication_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-        );
+        let dcps_publication_transport_reader = RtpsStatefulReader::new(Guid::new(
+            guid_prefix,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ));
         let dcps_publication_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_publication_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
@@ -90,9 +92,10 @@ impl BuiltinSubscriber {
             dcps_publication_transport_reader,
         );
 
-        let dcps_subscription_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-        );
+        let dcps_subscription_transport_reader = RtpsStatefulReader::new(Guid::new(
+            guid_prefix,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ));
         let dcps_subscription_reader = BuiltinDataReader::new(
             InstanceHandle::new(dcps_subscription_transport_reader.guid().into()),
             SEDP_DATA_READER_QOS,
@@ -100,9 +103,8 @@ impl BuiltinSubscriber {
             dcps_subscription_transport_reader,
         );
 
-        let type_lookup_request_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
-        );
+        let type_lookup_request_transport_reader =
+            RtpsStatefulReader::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER));
         let type_lookup_request_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_request_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
@@ -110,9 +112,8 @@ impl BuiltinSubscriber {
             type_lookup_request_transport_reader,
         );
 
-        let type_lookup_reply_transport_reader = RtpsStatefulReader::new(
-            Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER),
-        );
+        let type_lookup_reply_transport_reader =
+            RtpsStatefulReader::new(Guid::new(guid_prefix, ENTITYID_TL_SVC_REPLY_READER));
         let type_lookup_reply_reader = BuiltinDataReader::new(
             InstanceHandle::new(type_lookup_reply_transport_reader.guid().into()),
             TYPE_LOOKUP_READER_QOS,
