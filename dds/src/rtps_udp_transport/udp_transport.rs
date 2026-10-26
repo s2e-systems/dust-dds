@@ -1,5 +1,6 @@
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
+    std_runtime::executor::IoReactorHandle,
     transport::{
         interface::{RtpsParticipant, Transport, Write},
         types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, LOCATOR_KIND_UDP_V6},
@@ -8,7 +9,6 @@ use crate::{
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, Locator};
 use embassy_sync::waitqueue::AtomicWaker;
-use mio::{Events, Interest, Poll, Token, Waker};
 use network_interface::{Addr, NetworkInterface, NetworkInterfaceConfig};
 use socket2::Socket;
 use std::{
@@ -17,7 +17,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU8, Ordering},
+        atomic::{AtomicU8, Ordering},
     },
     task::{Context, Poll as TaskPoll},
 };
@@ -41,8 +41,6 @@ fn port_builtin_multicast(domain_id: i32) -> u16 {
     (PB + DG * domain_id + d0) as u16
 }
 
-const WAKER: Token = Token(0);
-
 const NUM_SOCKETS: usize = 6;
 const METATRAFFIC_MULTICAST_V4_INDEX: usize = 0;
 const METATRAFFIC_UNICAST_V4_INDEX: usize = 1;
@@ -50,13 +48,6 @@ const DEFAULT_UNICAST_V4_INDEX: usize = 2;
 const METATRAFFIC_MULTICAST_V6_INDEX: usize = 3;
 const METATRAFFIC_UNICAST_V6_INDEX: usize = 4;
 const DEFAULT_UNICAST_V6_INDEX: usize = 5;
-
-const METATRAFFIC_MULTICAST_V4_TOKEN: Token = Token(1);
-const METATRAFFIC_UNICAST_V4_TOKEN: Token = Token(2);
-const DEFAULT_UNICAST_V4_TOKEN: Token = Token(3);
-const METATRAFFIC_MULTICAST_V6_TOKEN: Token = Token(4);
-const METATRAFFIC_UNICAST_V6_TOKEN: Token = Token(5);
-const DEFAULT_UNICAST_V6_TOKEN: Token = Token(6);
 
 fn get_multicast_socket_v4(
     multicast_address: LocatorAddress,
@@ -226,28 +217,6 @@ impl Future for WaitForReadable<'_> {
 
         read_waker.register(cx.waker());
 
-        **cached_ready_sockets |= ready_sockets.swap(0, Ordering::AcqRel);
-        if **cached_ready_sockets != 0 {
-            for i in 0..NUM_SOCKETS {
-                let idx = (**last_read_socket_index + 1 + i) % NUM_SOCKETS;
-                if (**cached_ready_sockets & (1 << idx)) != 0 {
-                    if let Some(s) = &mut sockets[idx] {
-                        match s.recv(receive_buffer) {
-                            Ok(size) if size > 0 => {
-                                **last_read_socket_index = idx;
-                                return TaskPoll::Ready(size);
-                            }
-                            _ => {
-                                **cached_ready_sockets &= !(1 << idx);
-                            }
-                        }
-                    } else {
-                        **cached_ready_sockets &= !(1 << idx);
-                    }
-                }
-            }
-        }
-
         TaskPoll::Pending
     }
 }
@@ -307,10 +276,9 @@ impl RtpsParticipant for ParticipantSockets {
     }
 }
 
-struct ReactorHandle {
-    is_running: Arc<AtomicBool>,
-    waker: Arc<Waker>,
-    reactor_thread: Option<std::thread::JoinHandle<()>>,
+struct ParticipantReactorRegistration {
+    reactor: IoReactorHandle,
+    participant_id: usize,
 }
 
 pub struct RtpsUdpTransport {
@@ -319,7 +287,7 @@ pub struct RtpsUdpTransport {
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
     participant_counter: u32,
-    reactors: HashMap<Guid, ReactorHandle>,
+    participants: HashMap<Guid, ParticipantReactorRegistration>,
 }
 
 impl RtpsUdpTransport {
@@ -386,7 +354,7 @@ impl Default for RtpsUdpTransport {
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
             participant_counter: 0,
-            reactors: HashMap::new(),
+            participants: HashMap::new(),
         }
     }
 }
@@ -460,12 +428,11 @@ impl Transport for RtpsUdpTransport {
     type Participant = ParticipantSockets;
 
     fn create_participant(&mut self, domain_id: i32) -> Self::Participant {
-        let mut poll = Poll::new().expect("Failed to create mio Poll");
-        let waker =
-            Arc::new(Waker::new(poll.registry(), WAKER).expect("Failed to create mio Waker"));
+        let reactor = IoReactorHandle::current().expect("No active executor reactor");
         let read_waker = Arc::new(AtomicWaker::new());
         let ready_sockets = Arc::new(AtomicU8::new(0));
-        let is_running = Arc::new(AtomicBool::new(true));
+        let participant_id =
+            reactor.allocate_participant_id(ready_sockets.clone(), read_waker.clone());
         let mut sockets: [Option<mio::net::UdpSocket>; NUM_SOCKETS] = Default::default();
         let mut enabled_socket_mask = 0u8;
 
@@ -646,27 +613,22 @@ impl Transport for RtpsUdpTransport {
 
             socket_v4 = Some(default_unicast_socket.try_clone().expect("Socket cloning"));
 
-            let mut add_sock = |mut socket: mio::net::UdpSocket, token: Token, idx: usize| {
-                poll.registry()
-                    .register(&mut socket, token, Interest::READABLE)
-                    .expect("Failed to register socket");
+            let mut add_sock = |mut socket: mio::net::UdpSocket, idx: usize| {
+                reactor.register_socket(participant_id, idx, &mut socket);
                 sockets[idx] = Some(socket);
                 enabled_socket_mask |= 1 << idx;
             };
 
             add_sock(
                 mio::net::UdpSocket::from_std(metatraffic_multicast_socket),
-                METATRAFFIC_MULTICAST_V4_TOKEN,
                 METATRAFFIC_MULTICAST_V4_INDEX,
             );
             add_sock(
                 mio::net::UdpSocket::from_std(metatraffic_unicast_socket),
-                METATRAFFIC_UNICAST_V4_TOKEN,
                 METATRAFFIC_UNICAST_V4_INDEX,
             );
             add_sock(
                 mio::net::UdpSocket::from_std(default_unicast_socket),
-                DEFAULT_UNICAST_V4_TOKEN,
                 DEFAULT_UNICAST_V4_INDEX,
             );
         }
@@ -755,71 +717,31 @@ impl Transport for RtpsUdpTransport {
                     .expect("Socket cloning"),
             );
 
-            let mut add_sock = |mut socket: mio::net::UdpSocket, token: Token, idx: usize| {
-                poll.registry()
-                    .register(&mut socket, token, Interest::READABLE)
-                    .expect("Failed to register socket");
+            let mut add_sock = |mut socket: mio::net::UdpSocket, idx: usize| {
+                reactor.register_socket(participant_id, idx, &mut socket);
                 sockets[idx] = Some(socket);
                 enabled_socket_mask |= 1 << idx;
             };
 
             add_sock(
                 mio::net::UdpSocket::from_std(std_metatraffic_multicast_socket_v6),
-                METATRAFFIC_MULTICAST_V6_TOKEN,
                 METATRAFFIC_MULTICAST_V6_INDEX,
             );
             add_sock(
                 mio::net::UdpSocket::from_std(std_metatraffic_unicast_socket_v6),
-                METATRAFFIC_UNICAST_V6_TOKEN,
                 METATRAFFIC_UNICAST_V6_INDEX,
             );
             add_sock(
                 mio::net::UdpSocket::from_std(std_default_unicast_socket_v6),
-                DEFAULT_UNICAST_V6_TOKEN,
                 DEFAULT_UNICAST_V6_INDEX,
             );
         }
 
-        let is_running_clone = is_running.clone();
-        let read_waker_clone = read_waker.clone();
-        let ready_sockets_clone = ready_sockets.clone();
-        let reactor_thread = std::thread::Builder::new()
-            .name("DustDdsParticipantReactor".to_string())
-            .spawn(move || {
-                let mut events = Events::with_capacity(128);
-                while is_running_clone.load(Ordering::Relaxed) {
-                    match poll.poll(&mut events, None) {
-                        Ok(_) => {}
-                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-
-                    if !is_running_clone.load(Ordering::Relaxed) {
-                        break;
-                    }
-
-                    let mut ready_mask = 0u8;
-                    for event in events.iter() {
-                        let token = event.token().0;
-                        if (1..=NUM_SOCKETS).contains(&token) {
-                            ready_mask |= 1 << (token - 1);
-                        }
-                    }
-
-                    if ready_mask != 0 {
-                        ready_sockets_clone.fetch_or(ready_mask, Ordering::Release);
-                        read_waker_clone.wake();
-                    }
-                }
-            })
-            .expect("Failed to spawn reactor thread");
-
-        self.reactors.insert(
+        self.participants.insert(
             guid,
-            ReactorHandle {
-                is_running,
-                waker,
-                reactor_thread: Some(reactor_thread),
+            ParticipantReactorRegistration {
+                reactor,
+                participant_id,
             },
         );
 
@@ -849,12 +771,10 @@ impl Transport for RtpsUdpTransport {
     }
 
     fn delete_participant(&mut self, handle: Guid) {
-        if let Some(mut reactor) = self.reactors.remove(&handle) {
-            reactor.is_running.store(false, Ordering::Relaxed);
-            reactor.waker.wake().ok();
-            if let Some(reactor_thread) = reactor.reactor_thread.take() {
-                reactor_thread.join().ok();
-            }
+        if let Some(registration) = self.participants.remove(&handle) {
+            registration
+                .reactor
+                .deregister_participant(registration.participant_id);
         }
     }
 }
@@ -941,6 +861,7 @@ mod tests {
     use super::*;
     use core::net::Ipv6Addr;
     use dust_dds::transport::types::{LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6};
+    use mio::{Events, Interest, Poll, Token};
 
     #[test]
     fn test_mio_multicast_udp() {

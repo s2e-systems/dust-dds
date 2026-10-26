@@ -1,10 +1,11 @@
 use std::{
-    collections::BinaryHeap,
+    cell::RefCell,
+    collections::{BinaryHeap, HashMap},
     future::Future,
     pin::{Pin, pin},
     sync::{
         Arc, Mutex,
-        atomic::{self, AtomicBool, AtomicUsize},
+        atomic::{self, AtomicBool, AtomicU8, AtomicUsize},
         mpsc::{Sender, TryRecvError, channel},
     },
     task::{Context, Poll, Wake, Waker},
@@ -12,10 +13,102 @@ use std::{
     time::{Duration, Instant},
 };
 
+use embassy_sync::waitqueue::AtomicWaker;
+use mio::{Events, Interest, Poll as MioPoll, Registry, Token, Waker as MioWaker};
+
 use crate::{
     infrastructure::error::{DdsError, DdsResult},
     runtime::{Spawner, TaskHandle, Timer},
 };
+
+const WAKER_TOKEN: Token = Token(0);
+const SOCKETS_PER_PARTICIPANT: usize = 8;
+
+struct ParticipantIoEntry {
+    ready_sockets: Arc<AtomicU8>,
+    read_waker: Arc<AtomicWaker>,
+}
+
+#[derive(Clone)]
+pub struct IoReactorHandle {
+    registry: Arc<Registry>,
+    entries: Arc<Mutex<HashMap<usize, ParticipantIoEntry>>>,
+    next_id: Arc<AtomicUsize>,
+    waker: Arc<MioWaker>,
+}
+
+thread_local! {
+    static CURRENT_REACTOR: RefCell<Option<IoReactorHandle>> = const { RefCell::new(None) };
+}
+
+static DEFAULT_REACTOR: Mutex<Option<IoReactorHandle>> = Mutex::new(None);
+
+impl IoReactorHandle {
+    fn new(registry: Registry, waker: Arc<MioWaker>) -> Self {
+        Self {
+            registry: Arc::new(registry),
+            entries: Arc::new(Mutex::new(HashMap::new())),
+            next_id: Arc::new(AtomicUsize::new(1)),
+            waker,
+        }
+    }
+
+    pub fn current() -> Option<Self> {
+        CURRENT_REACTOR
+            .with(|r| r.borrow().clone())
+            .or_else(|| DEFAULT_REACTOR.lock().unwrap().clone())
+    }
+
+    pub fn allocate_participant_id(
+        &self,
+        ready_sockets: Arc<AtomicU8>,
+        read_waker: Arc<AtomicWaker>,
+    ) -> usize {
+        let id = self.next_id.fetch_add(1, atomic::Ordering::Relaxed);
+        self.entries.lock().unwrap().insert(
+            id,
+            ParticipantIoEntry {
+                ready_sockets,
+                read_waker,
+            },
+        );
+        id
+    }
+
+    pub fn register_socket(
+        &self,
+        participant_id: usize,
+        socket_idx: usize,
+        socket: &mut mio::net::UdpSocket,
+    ) {
+        let token = Token(participant_id * SOCKETS_PER_PARTICIPANT + socket_idx);
+        self.registry
+            .register(socket, token, Interest::READABLE)
+            .expect("Failed to register socket");
+        self.waker.wake().ok();
+    }
+
+    pub fn deregister_participant(&self, participant_id: usize) {
+        self.entries.lock().unwrap().remove(&participant_id);
+    }
+
+    fn process_events(&self, events: &Events) {
+        let entries = self.entries.lock().unwrap();
+        for event in events.iter() {
+            let token = event.token().0;
+            if token >= SOCKETS_PER_PARTICIPANT {
+                let participant_id = token / SOCKETS_PER_PARTICIPANT;
+                let socket_idx = token % SOCKETS_PER_PARTICIPANT;
+                if let Some(entry) = entries.get(&participant_id) {
+                    entry
+                        .ready_sockets
+                        .fetch_or(1 << socket_idx, atomic::Ordering::Release);
+                    entry.read_waker.wake();
+                }
+            }
+        }
+    }
+}
 
 pub fn block_timeout<T>(
     duration: core::time::Duration,
@@ -80,7 +173,7 @@ pub fn block_on<T>(f: impl Future<Output = T>) -> T {
 pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
-    thread_handle: Thread,
+    waker: Arc<MioWaker>,
     finished: AtomicBool,
     is_queued: AtomicBool,
     join_waker: Mutex<Option<Waker>>,
@@ -131,7 +224,7 @@ impl Wake for Task {
     fn wake_by_ref(self: &Arc<Self>) {
         if !self.is_finished() && !self.is_queued.swap(true, atomic::Ordering::AcqRel) {
             self.task_sender.send(self.clone()).unwrap();
-            self.thread_handle.unpark();
+            self.waker.wake().ok();
         }
     }
 }
@@ -139,7 +232,7 @@ impl Wake for Task {
 #[derive(Clone)]
 pub struct ExecutorHandle {
     task_sender: Sender<Arc<Task>>,
-    thread_handle: Thread,
+    waker: Arc<MioWaker>,
 }
 
 impl ExecutorHandle {
@@ -148,7 +241,7 @@ impl ExecutorHandle {
         let task = Arc::new(Task {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
-            thread_handle: self.thread_handle.clone(),
+            waker: self.waker.clone(),
             finished: AtomicBool::new(false),
             is_queued: AtomicBool::new(true),
             join_waker: Mutex::new(None),
@@ -156,7 +249,7 @@ impl ExecutorHandle {
         self.task_sender
             .send(task.clone())
             .expect("Should never fail to send");
-        self.thread_handle.unpark();
+        self.waker.wake().ok();
         ExecutorTaskHandle { task }
     }
 }
@@ -196,24 +289,20 @@ impl Ord for TimerEntry {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct TimerState {
     next_id: AtomicUsize,
     entries: Mutex<BinaryHeap<TimerEntry>>,
-    executor_thread: Mutex<Option<Thread>>,
+    executor_waker: Arc<MioWaker>,
 }
 
 impl TimerState {
-    pub fn new() -> Self {
+    pub fn new(executor_waker: Arc<MioWaker>) -> Self {
         Self {
             next_id: AtomicUsize::new(1),
             entries: Mutex::new(BinaryHeap::new()),
-            executor_thread: Mutex::new(None),
+            executor_waker,
         }
-    }
-
-    pub fn set_executor_thread(&self, thread: Thread) {
-        *self.executor_thread.lock().unwrap() = Some(thread);
     }
 
     pub fn allocate_id(&self) -> usize {
@@ -233,9 +322,7 @@ impl TimerState {
         drop(entries);
 
         if is_earliest {
-            if let Some(thread) = self.executor_thread.lock().unwrap().as_ref() {
-                thread.unpark();
-            }
+            self.executor_waker.wake().ok();
         }
     }
 
@@ -256,7 +343,7 @@ impl TimerState {
         })
     }
 
-    pub fn wake_elapsed(&self) {
+    pub fn wake_elapsed(&self) -> bool {
         let now = Instant::now();
         let mut to_wake = Vec::new();
         {
@@ -271,9 +358,11 @@ impl TimerState {
                 }
             }
         }
+        let woke_any = !to_wake.is_empty();
         for waker in to_wake {
             waker.wake();
         }
+        woke_any
     }
 }
 
@@ -359,8 +448,9 @@ impl Timer for TimerHandle {
 
 pub struct Executor {
     task_sender: Sender<Arc<Task>>,
-    executor_thread_handle: JoinHandle<()>,
+    _executor_thread_handle: JoinHandle<()>,
     timer_state: Arc<TimerState>,
+    waker: Arc<MioWaker>,
 }
 
 impl Default for Executor {
@@ -372,14 +462,28 @@ impl Default for Executor {
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
-        let timer_state = Arc::new(TimerState::new());
+        let mut poll = MioPoll::new().expect("Failed to create mio Poll");
+        let waker = Arc::new(
+            MioWaker::new(poll.registry(), WAKER_TOKEN).expect("Failed to create mio Waker"),
+        );
+        let registry = poll
+            .registry()
+            .try_clone()
+            .expect("Failed to clone mio Registry");
+        let reactor_handle = IoReactorHandle::new(registry, waker.clone());
+        *DEFAULT_REACTOR.lock().unwrap() = Some(reactor_handle.clone());
+
+        let timer_state = Arc::new(TimerState::new(waker.clone()));
         let timer_state_clone = timer_state.clone();
+        let reactor_handle_clone = reactor_handle.clone();
 
         let executor_thread_handle = std::thread::Builder::new()
             .name("Dust DDS Executor".to_string())
             .spawn(move || {
-                let current_thread = std::thread::current();
-                timer_state_clone.set_executor_thread(current_thread);
+                CURRENT_REACTOR.with(|r| {
+                    *r.borrow_mut() = Some(reactor_handle_clone.clone());
+                });
+                let mut events = Events::with_capacity(128);
 
                 loop {
                     match task_receiver.try_recv() {
@@ -403,19 +507,21 @@ impl Executor {
                             }
                         }
                         Err(TryRecvError::Empty) => {
-                            timer_state_clone.wake_elapsed();
-
-                            if let Some(duration) = timer_state_clone.duration_until_next_deadline()
-                            {
-                                if duration == std::time::Duration::ZERO {
-                                    timer_state_clone.wake_elapsed();
-                                } else {
-                                    thread::park_timeout(duration);
-                                    timer_state_clone.wake_elapsed();
-                                }
+                            let woke_timer = timer_state_clone.wake_elapsed();
+                            let timeout = if woke_timer {
+                                Some(Duration::ZERO)
                             } else {
-                                thread::park();
+                                timer_state_clone.duration_until_next_deadline()
+                            };
+
+                            match poll.poll(&mut events, timeout) {
+                                Ok(_) => {}
+                                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                                Err(_) => break,
                             }
+
+                            reactor_handle_clone.process_events(&events);
+                            timer_state_clone.wake_elapsed();
                         }
                         Err(TryRecvError::Disconnected) => break,
                     }
@@ -425,15 +531,16 @@ impl Executor {
 
         Self {
             task_sender,
-            executor_thread_handle,
+            _executor_thread_handle: executor_thread_handle,
             timer_state,
+            waker,
         }
     }
 
     pub fn handle(&self) -> ExecutorHandle {
         ExecutorHandle {
             task_sender: self.task_sender.clone(),
-            thread_handle: self.executor_thread_handle.thread().clone(),
+            waker: self.waker.clone(),
         }
     }
 
