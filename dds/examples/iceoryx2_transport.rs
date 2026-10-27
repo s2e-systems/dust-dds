@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    future::Future,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -38,7 +37,7 @@ use iceoryx2::{
 };
 
 const LOCATOR_KIND_ICEORYX2: i32 = 0x40;
-const MAX_DATAGRAM_SIZE: usize = 65536;
+const MAX_DATAGRAM_SIZE: usize = 65000;
 
 pub struct Iceoryx2Writer<'a> {
     publisher: &'a Publisher<ipc_threadsafe::Service, [u8], ()>,
@@ -113,11 +112,9 @@ impl RtpsParticipant for Iceoryx2Participant {
         }
     }
 
-    fn read(&mut self) -> impl Future<Output = &[u8]> + Send {
-        async {
-            self.receive_buffer = self.receive_channel.receive().await;
-            &self.receive_buffer[..]
-        }
+    async fn read(&mut self) -> &[u8] {
+        self.receive_buffer = self.receive_channel.receive().await;
+        &self.receive_buffer[..]
     }
 }
 
@@ -127,16 +124,9 @@ struct ReactorHandle {
     thread_handle: Option<std::thread::JoinHandle<()>>,
 }
 
+#[derive(Default)]
 pub struct Iceoryx2Transport {
     reactors: HashMap<Guid, ReactorHandle>,
-}
-
-impl Default for Iceoryx2Transport {
-    fn default() -> Self {
-        Self {
-            reactors: HashMap::new(),
-        }
-    }
 }
 
 impl Transport for Iceoryx2Transport {
