@@ -43,7 +43,6 @@ const MAX_DATAGRAM_SIZE: usize = 65536;
 pub struct Iceoryx2Writer<'a> {
     publisher: &'a Publisher<ipc_threadsafe::Service, [u8], ()>,
     notifier: &'a Notifier<ipc_threadsafe::Service>,
-    guid_prefix: GuidPrefix,
     buffer: &'a mut Vec<u8>,
 }
 
@@ -57,11 +56,8 @@ impl<'a> Write for Iceoryx2Writer<'a> {
             return;
         }
 
-        let total_len = 12 + self.buffer.len();
-        if let Ok(mut sample) = self.publisher.loan_slice(total_len) {
-            let payload = sample.payload_mut();
-            payload[..12].copy_from_slice(&self.guid_prefix);
-            payload[12..total_len].copy_from_slice(self.buffer);
+        if let Ok(mut sample) = self.publisher.loan_slice(self.buffer.len()) {
+            sample.payload_mut().copy_from_slice(self.buffer);
             if sample.send().is_ok() {
                 let _ = self.notifier.notify();
             }
@@ -77,7 +73,7 @@ pub struct Iceoryx2Participant {
     publisher: Publisher<ipc_threadsafe::Service, [u8], ()>,
     notifier: Notifier<ipc_threadsafe::Service>,
     write_buffer: Vec<u8>,
-    receive_channel: Arc<Channel<CriticalSectionRawMutex, Vec<u8>, 256>>,
+    receive_channel: Arc<Channel<CriticalSectionRawMutex, Vec<u8>, 1024>>,
     receive_buffer: Vec<u8>,
 }
 
@@ -105,7 +101,7 @@ impl RtpsParticipant for Iceoryx2Participant {
     }
 
     fn fragment_size(&self) -> usize {
-        MAX_DATAGRAM_SIZE - 12
+        MAX_DATAGRAM_SIZE
     }
 
     fn writer<'a>(&'a mut self, _locator: &'a [Locator]) -> Self::Writer<'a> {
@@ -113,7 +109,6 @@ impl RtpsParticipant for Iceoryx2Participant {
         Iceoryx2Writer {
             publisher: &self.publisher,
             notifier: &self.notifier,
-            guid_prefix: self.guid.prefix(),
             buffer: &mut self.write_buffer,
         }
     }
@@ -156,17 +151,21 @@ impl Transport for Iceoryx2Transport {
         let data_service = node
             .service_builder(&data_service_name.as_str().try_into().unwrap())
             .publish_subscribe::<[u8]>()
+            .subscriber_max_buffer_size(1024)
+            .enable_safe_overflow(true)
             .open_or_create()
             .expect("Failed to open or create data service");
 
         let publisher = data_service
             .publisher_builder()
             .initial_max_slice_len(MAX_DATAGRAM_SIZE)
+            .max_loaned_samples(256)
             .create()
             .expect("Failed to create publisher");
 
         let subscriber = data_service
             .subscriber_builder()
+            .buffer_size(1024)
             .create()
             .expect("Failed to create subscriber");
 
@@ -223,7 +222,6 @@ impl Transport for Iceoryx2Transport {
 
         let is_running_clone = is_running.clone();
         let channel_sender = receive_channel.clone();
-        let participant_guid_prefix = guid.prefix();
 
         let thread_handle = std::thread::spawn(move || {
             while is_running_clone.load(Ordering::Relaxed) {
@@ -234,14 +232,8 @@ impl Transport for Iceoryx2Transport {
 
                 let _ = subscriber.update_connections();
                 while let Ok(Some(sample)) = subscriber.receive() {
-                    let slice = sample.payload();
-                    if slice.len() > 12 {
-                        let sender_prefix: [u8; 12] = slice[..12].try_into().unwrap();
-                        if sender_prefix != participant_guid_prefix {
-                            let data = slice[12..].to_vec();
-                            let _ = channel_sender.try_send(data);
-                        }
-                    }
+                    let data = sample.payload().to_vec();
+                    let _ = channel_sender.try_send(data);
                 }
             }
         });
