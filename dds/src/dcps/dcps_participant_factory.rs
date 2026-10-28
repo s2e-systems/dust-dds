@@ -1,8 +1,8 @@
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::rpc::rpc_channel,
@@ -47,11 +47,14 @@ use crate::{
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
     runtime::{Either, Either3, TaskHandle, select_future, select3_future},
-    security::plugins::{
-        access_control::AccessControl,
-        authentication::{Authentication, ValidateLocalIdentityOut},
-        cryptographic::{Cryptographic, RegisterLocalParticipantOut},
-        types::DdsSecurityPlugins,
+    security::{
+        builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+        plugins::{
+            access_control::AccessControl,
+            authentication::{Authentication, ValidateLocalIdentityOut},
+            cryptographic::{Cryptographic, RegisterLocalParticipantOut},
+            types::DdsSecurityPlugins,
+        },
     },
     transport::{
         interface::{RtpsParticipant, Transport},
@@ -303,8 +306,28 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&TypeLookupReply::TYPE),
         );
 
+        let dcps_participant_secure_writer = if security_info.is_some() {
+            let dcps_participant_secure_transport_writer = RtpsStatefulWriter::new(
+                Guid::new(
+                    guid_prefix,
+                    ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+                ),
+                fragment_size,
+            );
+            Some(DataWriterEntity::new(
+                InstanceHandle::new(dcps_participant_secure_transport_writer.guid().into()),
+                dcps_participant_secure_transport_writer,
+                Arc::from(DCPS_PARTICIPANTS_SECURE),
+                sedp_data_writer_qos(),
+                KeyHolderType::new(&ParticipantBuiltinTopicDataSecure::TYPE),
+            ))
+        } else {
+            None
+        };
+
         let builtin_publisher = BuiltinPublisher {
             dcps_participant_writer,
+            dcps_participant_secure_writer,
             dcps_topics_writer,
             dcps_publications_writer,
             dcps_subscriptions_writer,
@@ -315,7 +338,7 @@ impl DcpsParticipantFactory {
 
         let participant_handle = InstanceHandle::new(guid.into());
 
-        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix());
+        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix(), security_info.is_some());
 
         let domain_participant = DomainParticipantEntity {
             domain_id,

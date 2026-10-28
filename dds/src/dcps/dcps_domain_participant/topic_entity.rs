@@ -1,9 +1,9 @@
 use super::builtin_constants::{TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME};
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::mpsc::MpscSender,
@@ -98,6 +98,7 @@ pub fn get_topic_type_support<'a>(
 
     match resolved_topic_name {
         DCPS_PARTICIPANT => Some(ParticipantBuiltinTopicData::TYPE),
+        DCPS_PARTICIPANTS_SECURE => Some(ParticipantBuiltinTopicDataSecure::TYPE),
         DCPS_TOPIC => Some(TopicBuiltinTopicData::TYPE),
         DCPS_PUBLICATION => Some(PublicationBuiltinTopicData::TYPE),
         DCPS_SUBSCRIPTION => Some(SubscriptionBuiltinTopicData::TYPE),

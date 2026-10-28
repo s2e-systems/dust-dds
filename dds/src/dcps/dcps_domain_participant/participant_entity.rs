@@ -9,8 +9,8 @@ use super::{
 };
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, TopicBuiltinTopicData,
+        BuiltInTopicKey, DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC, ParticipantBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::{mpsc::MpscSender, oneshot::OneshotSender},
@@ -610,11 +610,12 @@ impl DcpsDomainParticipant {
     }
 }
 
-pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 6] = [
+pub const BUILT_IN_TOPIC_NAME_LIST: [&str; 7] = [
     DCPS_PARTICIPANT,
     DCPS_TOPIC,
     DCPS_PUBLICATION,
     DCPS_SUBSCRIPTION,
+    DCPS_PARTICIPANTS_SECURE,
     TYPE_LOOKUP_REQUEST_TOPIC_NAME,
     TYPE_LOOKUP_REPLY_TOPIC_NAME,
 ];

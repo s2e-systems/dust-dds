@@ -4,9 +4,14 @@ mod security_stubs;
 use std::time::Instant;
 
 use dust_dds::{
+    builtin_topics::{DCPS_PARTICIPANTS_SECURE, ParticipantBuiltinTopicDataSecure},
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{error::DdsError, listener::NO_LISTENER, qos::QosKind, status::NO_STATUS},
+    infrastructure::{
+        error::DdsError, listener::NO_LISTENER, qos::QosKind, qos_policy::ReliabilityQosPolicyKind,
+        status::NO_STATUS,
+    },
     security::{
+        builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
         plugins::{
             authentication::ValidationResult,
             types::{DdsSecurityPlugins, SecurityException},
@@ -19,6 +24,7 @@ use dust_dds::{
             ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
         },
     },
+    topic_definition::topic_description::TopicDescription,
 };
 
 use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
@@ -725,4 +731,68 @@ fn when_allow_unauthenticated_true_incompatible_plugins_participant_is_accepted(
 
     assert_eq!(participant1.get_discovered_participants().unwrap().len(), 2);
     assert_eq!(participant2.get_discovered_participants().unwrap().len(), 2);
+}
+
+#[test]
+fn when_security_enabled_dcps_participants_secure_topic_and_endpoints_are_created() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let security_plugins = DdsSecurityPlugins {
+        access_control_plugin: StubAccessControl::default(),
+        authentication_plugin: StubAuthentication::default(),
+        cryptographic_plugin: (),
+    };
+    let factory = create_custom_factory(Some(security_plugins));
+
+    let participant = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Verify topic description lookup
+    let topic_desc = participant
+        .lookup_topicdescription(DCPS_PARTICIPANTS_SECURE)
+        .unwrap()
+        .expect("Topic description should exist");
+    assert_eq!(
+        topic_desc.get_type_name(),
+        "ParticipantBuiltinTopicDataSecure"
+    );
+    assert_eq!(topic_desc.get_name(), DCPS_PARTICIPANTS_SECURE);
+
+    // Verify built-in reader lookup on built-in subscriber
+    let builtin_subscriber = participant.get_builtin_subscriber();
+    let secure_reader = builtin_subscriber
+        .lookup_datareader::<ParticipantBuiltinTopicDataSecure>(DCPS_PARTICIPANTS_SECURE)
+        .unwrap();
+    assert!(secure_reader.is_some());
+    let secure_reader = secure_reader.unwrap();
+
+    // Verify reader entity ID and QoS
+    let reader_guid =
+        dust_dds::transport::types::Guid::from(*secure_reader.get_instance_handle().as_ref());
+    assert_eq!(
+        reader_guid.entity_id(),
+        ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER
+    );
+    assert_eq!(
+        secure_reader.get_qos().unwrap().reliability.kind,
+        ReliabilityQosPolicyKind::Reliable
+    );
+}
+
+#[test]
+fn when_security_disabled_dcps_participants_secure_reader_is_not_created() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let factory = create_custom_factory(None::<DdsSecurityPlugins<(), (), ()>>);
+
+    let participant = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let builtin_subscriber = participant.get_builtin_subscriber();
+    let secure_reader = builtin_subscriber
+        .lookup_datareader::<ParticipantBuiltinTopicDataSecure>(DCPS_PARTICIPANTS_SECURE)
+        .unwrap();
+    assert!(secure_reader.is_none());
 }

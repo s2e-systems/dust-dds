@@ -1,7 +1,9 @@
 use alloc::{string::String, sync::Arc};
 
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+    },
     dcps::{
         dcps_domain_participant::{
             builtin_constants::{TYPE_LOOKUP_REPLY_TOPIC_NAME, TYPE_LOOKUP_REQUEST_TOPIC_NAME},
@@ -218,6 +220,16 @@ impl DcpsDomainParticipant {
                         .builtin_subscriber
                         .dcps_participant_reader
                         .instance_handle
+                }
+                DCPS_PARTICIPANTS_SECURE => {
+                    match &self
+                        .domain_participant
+                        .builtin_subscriber
+                        .dcps_participant_secure_reader
+                    {
+                        Some(r) => r.instance_handle,
+                        None => return Ok(None),
+                    }
                 }
                 DCPS_TOPIC => {
                     self.domain_participant
