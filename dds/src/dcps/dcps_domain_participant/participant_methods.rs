@@ -31,19 +31,19 @@ use crate::{
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         time::{Duration, Time},
     },
-    runtime::DdsRuntime,
+    runtime::Spawner,
     transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP},
     xtypes::dynamic_type::DynamicType,
 };
 
 impl DcpsDomainParticipant {
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn create_user_defined_publisher(
         &mut self,
         qos: QosKind<PublisherQos>,
         dcps_listener: Option<DcpsPublisherListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<InstanceHandle> {
         let publisher_qos = match qos {
             QosKind::Default => self.domain_participant.default_publisher_qos.clone(),
@@ -70,7 +70,7 @@ impl DcpsDomainParticipant {
         ]);
         self.publisher_counter += 1;
         let data_writer_list = Default::default();
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let mut publisher = PublisherEntity::new(
             publisher_qos,
             publisher_handle,
@@ -128,13 +128,13 @@ impl DcpsDomainParticipant {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn create_user_defined_subscriber(
         &mut self,
         qos: QosKind<SubscriberQos>,
         dcps_listener: Option<DcpsSubscriberListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<InstanceHandle> {
         let subscriber_qos = match qos {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
@@ -160,7 +160,7 @@ impl DcpsDomainParticipant {
         ]);
         self.subscriber_counter += 1;
 
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let mut subscriber = UserDefinedSubscriber::new(
             subscriber_handle,
             subscriber_qos,
@@ -219,7 +219,7 @@ impl DcpsDomainParticipant {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, dcps_listener, type_support, runtime, transport_participant))]
+    #[tracing::instrument(skip(self, dcps_listener, type_support, spawner, transport_participant))]
     pub fn create_topic(
         &mut self,
         topic_name: String,
@@ -228,7 +228,7 @@ impl DcpsDomainParticipant {
         dcps_listener: Option<DcpsTopicListener>,
         listener_mask: StatusMask,
         type_support: DynamicType<'static>,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
         now: Time,
         enable_type_information: bool,
         transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
@@ -274,7 +274,7 @@ impl DcpsDomainParticipant {
             USER_DEFINED_TOPIC,
         ]);
         self.domain_participant.topic_counter += 1;
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let type_information = self
             .domain_participant
             .type_register
@@ -681,14 +681,14 @@ impl DcpsDomainParticipant {
         Ok(self.domain_participant.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn set_domain_participant_listener(
         &mut self,
         dcps_listener: Option<DcpsDomainParticipantListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<()> {
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         self.domain_participant.listener_sender = listener_sender;
         self.domain_participant.listener_mask = listener_mask;
 

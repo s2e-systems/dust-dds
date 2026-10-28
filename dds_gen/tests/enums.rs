@@ -25,6 +25,14 @@ fn enums() {
                 NOT_FOUND = 404,
                 INTERNAL_SERVER_ERROR = 500,
             }
+
+            #[derive(::core::fmt::Debug, ::core::clone::Clone, ::dust_dds::infrastructure::type_support::DdsType)]
+            pub enum Priority {
+                LOW,
+                #[dust_dds(default)]
+                MEDIUM,
+                HIGH,
+            }
     "#
         .parse()
         .unwrap(),

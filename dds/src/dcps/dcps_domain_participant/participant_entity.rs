@@ -35,7 +35,7 @@ use crate::{
         IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
         PermissionsToken,
     },
-    transport::types::{GuidPrefix, Locator, TransportHandle, USER_DEFINED_TOPIC},
+    transport::types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     xtypes::dynamic_type::DynamicType,
 };
 use alloc::{
@@ -123,13 +123,14 @@ pub enum TimedEvent {
 }
 
 pub struct DcpsDomainParticipant {
-    pub transport_handle: TransportHandle,
     pub reader_counter: u16,
     pub writer_counter: u16,
     pub publisher_counter: u8,
     pub subscriber_counter: u8,
     pub domain_participant: DomainParticipantEntity,
     pub dcps_sender: DcpsSender,
+    pub domain_tag: String,
+    pub enable_type_information: bool,
 }
 
 impl DcpsDomainParticipant {
@@ -167,10 +168,6 @@ impl DcpsDomainParticipant {
             symmetric_cipher,
             property: Some(self.domain_participant.qos.property.clone()),
         }
-    }
-
-    pub fn domain_id(&self) -> DomainId {
-        self.domain_participant.domain_id
     }
 
     pub fn time_until_participant_announcement(
@@ -539,14 +536,6 @@ impl DcpsDomainParticipant {
                 self.notify_find_topic_senders(now);
             }
         }
-    }
-
-    pub fn get_instance_handle(&self) -> &InstanceHandle {
-        &self.domain_participant.instance_handle
-    }
-
-    pub fn get_transport_handle(&self) -> &TransportHandle {
-        &self.transport_handle
     }
 }
 

@@ -1,24 +1,22 @@
 use crate::{
     dcps::{
         channels::notification::NotificationSender,
-        dcps_participant_factory::DcpsParticipantFactory, status_condition::StatusConditionEntity,
-        status_mask::StatusMask,
+        dcps_domain_participant::participant_entity::DcpsDomainParticipant,
+        status_condition::StatusConditionEntity, status_mask::StatusMask,
     },
     infrastructure::error::{DdsError, DdsResult},
 };
 
-impl DcpsParticipantFactory {
+impl DcpsDomainParticipant {
     pub fn get_status_condition_enabled_statuses(
         &mut self,
         entity: StatusConditionEntity,
     ) -> DdsResult<StatusMask> {
         match entity {
             StatusConditionEntity::Subscriber {
-                participant_handle,
-                subscriber_handle,
+                subscriber_handle, ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let s = dp
+                let s = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -26,12 +24,12 @@ impl DcpsParticipantFactory {
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_enabled_statuses());
             }
-            StatusConditionEntity::Topic {
-                participant_handle,
-                topic_handle,
-            } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+            StatusConditionEntity::Topic { topic_handle, .. } => {
+                for t in self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter_mut()
+                {
                     if t.instance_handle == topic_handle {
                         return Ok(t.status_condition.get_enabled_statuses());
                     }
@@ -39,12 +37,15 @@ impl DcpsParticipantFactory {
                 return Err(DdsError::AlreadyDeleted);
             }
             StatusConditionEntity::DataWriter {
-                participant_handle,
                 publisher_handle,
                 writer_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for p in dp.domain_participant.user_defined_publisher_list.iter_mut() {
+                for p in self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                {
                     if p.instance_handle == publisher_handle {
                         for dw in p.data_writer_list.iter_mut() {
                             if dw.instance_handle == writer_handle {
@@ -55,12 +56,11 @@ impl DcpsParticipantFactory {
                 }
             }
             StatusConditionEntity::DataReader {
-                participant_handle,
                 subscriber_handle,
                 reader_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let status_condition = if let Some(s) = dp
+                let status_condition = if let Some(s) = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -89,11 +89,9 @@ impl DcpsParticipantFactory {
     ) -> DdsResult<()> {
         match entity {
             StatusConditionEntity::Subscriber {
-                participant_handle,
-                subscriber_handle,
+                subscriber_handle, ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let s = dp
+                let s = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -102,12 +100,12 @@ impl DcpsParticipantFactory {
                 s.status_condition.set_enabled_statuses(status_mask);
                 return Ok(());
             }
-            StatusConditionEntity::Topic {
-                participant_handle,
-                topic_handle,
-            } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+            StatusConditionEntity::Topic { topic_handle, .. } => {
+                for t in self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter_mut()
+                {
                     if t.instance_handle == topic_handle {
                         t.status_condition.set_enabled_statuses(status_mask);
                         return Ok(());
@@ -116,12 +114,15 @@ impl DcpsParticipantFactory {
                 return Err(DdsError::AlreadyDeleted);
             }
             StatusConditionEntity::DataWriter {
-                participant_handle,
                 publisher_handle,
                 writer_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for p in dp.domain_participant.user_defined_publisher_list.iter_mut() {
+                for p in self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                {
                     if p.instance_handle == publisher_handle {
                         for dw in p.data_writer_list.iter_mut() {
                             if dw.instance_handle == writer_handle {
@@ -133,12 +134,11 @@ impl DcpsParticipantFactory {
                 }
             }
             StatusConditionEntity::DataReader {
-                participant_handle,
                 subscriber_handle,
                 reader_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let status_condition = if let Some(s) = dp
+                let status_condition = if let Some(s) = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -167,11 +167,9 @@ impl DcpsParticipantFactory {
     ) -> DdsResult<bool> {
         match entity {
             StatusConditionEntity::Subscriber {
-                participant_handle,
-                subscriber_handle,
+                subscriber_handle, ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let s = dp
+                let s = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -179,12 +177,12 @@ impl DcpsParticipantFactory {
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_trigger_value());
             }
-            StatusConditionEntity::Topic {
-                participant_handle,
-                topic_handle,
-            } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+            StatusConditionEntity::Topic { topic_handle, .. } => {
+                for t in self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter_mut()
+                {
                     if t.instance_handle == topic_handle {
                         return Ok(t.status_condition.get_trigger_value());
                     }
@@ -192,12 +190,15 @@ impl DcpsParticipantFactory {
                 return Err(DdsError::AlreadyDeleted);
             }
             StatusConditionEntity::DataWriter {
-                participant_handle,
                 publisher_handle,
                 writer_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for p in dp.domain_participant.user_defined_publisher_list.iter_mut() {
+                for p in self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                {
                     if p.instance_handle == publisher_handle {
                         for dw in p.data_writer_list.iter_mut() {
                             if dw.instance_handle == writer_handle {
@@ -208,12 +209,11 @@ impl DcpsParticipantFactory {
                 }
             }
             StatusConditionEntity::DataReader {
-                participant_handle,
                 subscriber_handle,
                 reader_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let status_condition = if let Some(s) = dp
+                let status_condition = if let Some(s) = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -242,11 +242,9 @@ impl DcpsParticipantFactory {
     ) -> DdsResult<()> {
         match entity {
             StatusConditionEntity::Subscriber {
-                participant_handle,
-                subscriber_handle,
+                subscriber_handle, ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let s = dp
+                let s = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
@@ -256,12 +254,12 @@ impl DcpsParticipantFactory {
                     .register_notification(notification_sender);
                 return Ok(());
             }
-            StatusConditionEntity::Topic {
-                participant_handle,
-                topic_handle,
-            } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for t in dp.domain_participant.locally_created_topic_list.iter_mut() {
+            StatusConditionEntity::Topic { topic_handle, .. } => {
+                for t in self
+                    .domain_participant
+                    .locally_created_topic_list
+                    .iter_mut()
+                {
                     if t.instance_handle == topic_handle {
                         t.status_condition
                             .register_notification(notification_sender);
@@ -271,12 +269,15 @@ impl DcpsParticipantFactory {
                 return Err(DdsError::AlreadyDeleted);
             }
             StatusConditionEntity::DataWriter {
-                participant_handle,
                 publisher_handle,
                 writer_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                for p in dp.domain_participant.user_defined_publisher_list.iter_mut() {
+                for p in self
+                    .domain_participant
+                    .user_defined_publisher_list
+                    .iter_mut()
+                {
                     if p.instance_handle == publisher_handle {
                         for dw in p.data_writer_list.iter_mut() {
                             if dw.instance_handle == writer_handle {
@@ -289,12 +290,11 @@ impl DcpsParticipantFactory {
                 }
             }
             StatusConditionEntity::DataReader {
-                participant_handle,
                 subscriber_handle,
                 reader_handle,
+                ..
             } => {
-                let dp = self.find_participant(&participant_handle)?;
-                let status_condition = if let Some(s) = dp
+                let status_condition = if let Some(s) = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()

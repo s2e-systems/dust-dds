@@ -28,7 +28,7 @@ use crate::{
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
     },
-    runtime::DdsRuntime,
+    runtime::Spawner,
     xtypes::{
         deserializer::deserialize_top_level_type,
         dynamic_type::{DynamicData, DynamicType},
@@ -483,14 +483,14 @@ impl DcpsDomainParticipant {
         Ok(data_reader.qos.clone())
     }
 
-    #[tracing::instrument(skip(self, dcps_listener, runtime))]
+    #[tracing::instrument(skip(self, dcps_listener, spawner))]
     pub fn set_data_reader_listener(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         dcps_listener: Option<DcpsDataReaderListener>,
         listener_mask: StatusMask,
-        runtime: &impl DdsRuntime,
+        spawner: &impl Spawner,
     ) -> DdsResult<()> {
         let Some(subscriber) = self
             .domain_participant
@@ -507,7 +507,7 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let listener_sender = dcps_listener.map(|l| l.spawn(&runtime.spawner()));
+        let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         data_reader.listener_sender = listener_sender;
         data_reader.listener_mask = listener_mask;
         Ok(())

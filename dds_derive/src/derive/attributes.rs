@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use syn::{DeriveInput, Expr, Field, Result, Variant, spanned::Spanned};
+use syn::{DeriveInput, Expr, Field, Result, Variant, ext::IdentExt, spanned::Spanned};
 
 const DUST_DDS_ATTR: &str = "dust_dds";
 
@@ -40,7 +40,7 @@ impl std::fmt::Display for DuplicateAttributeMetaError {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub enum TryConstructKind {
     #[default]
     Discard,
@@ -48,12 +48,13 @@ pub enum TryConstructKind {
     Trim,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct TryConstructKindParseError;
 
 impl std::fmt::Display for TryConstructKindParseError {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        r#"Invalid try_construct specified. Valid options are "DISCARD", "USE_DEFAULT", "TRIM". "#
+        r#"Invalid try_construct specified. Valid options are "discard", "use_default", "trim". "#
             .fmt(f)
     }
 }
@@ -63,9 +64,9 @@ impl FromStr for TryConstructKind {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "DISCARD" => Ok(Self::Discard),
-            "USE_DEFAULT" => Ok(Self::UseDefault),
-            "TRIM" => Ok(Self::Trim),
+            "discard" => Ok(Self::Discard),
+            "use_default" => Ok(Self::UseDefault),
+            "trim" => Ok(Self::Trim),
             _ => Err(TryConstructKindParseError),
         }
     }
@@ -158,7 +159,7 @@ pub fn get_structure_member_attributes(
         id,
         key: key.unwrap_or_default(),
         name: name
-            .or_else(|| field.ident.as_ref().map(ToString::to_string))
+            .or_else(|| field.ident.as_ref().map(|ident| ident.unraw().to_string()))
             .unwrap_or_else(|| index.to_string()),
         optional: optional.unwrap_or_default(),
         non_serialized: non_serialized.unwrap_or_default(),
@@ -258,7 +259,7 @@ pub fn get_struct_attributes(input: &DeriveInput) -> Result<StructAttributes> {
     }
 
     Ok(StructAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
         extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         is_autoid_hash: is_autoid_hash.unwrap_or_default(),
@@ -298,12 +299,14 @@ impl FromStr for BitBound {
 
 pub struct EnumeratedTypeAttributes {
     pub name: String,
+    pub extensibility: Extensibility,
     pub is_nested: bool,
     pub bit_bound: BitBound,
 }
 
 pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedTypeAttributes> {
     let mut name = None;
+    let mut extensibility = None;
     let mut is_nested = None;
     let mut bit_bound = None;
 
@@ -315,6 +318,17 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("name") {
                 name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("extensibility") {
+                let value = meta
+                    .value()?
+                    .parse::<syn::LitStr>()?
+                    .value()
+                    .parse()
+                    .map_err(|err| meta.error(err))?;
+
+                extensibility
+                    .replace(value)
                     .err_if_some(|| meta.error(DuplicateAttributeMetaError))
             } else if meta.path.is_ident("nested") {
                 is_nested
@@ -338,7 +352,8 @@ pub fn get_enumerated_type_attributes(input: &DeriveInput) -> Result<EnumeratedT
     }
 
     Ok(EnumeratedTypeAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
+        extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         bit_bound: bit_bound.unwrap_or_default(),
     })
@@ -412,7 +427,7 @@ pub fn get_union_type_attributes(input: &DeriveInput) -> Result<UnionAttributes>
     ))?;
 
     Ok(UnionAttributes {
-        name: name.unwrap_or_else(|| input.ident.to_string()),
+        name: name.unwrap_or_else(|| input.ident.unraw().to_string()),
         extensibility: extensibility.unwrap_or_default(),
         is_nested: is_nested.unwrap_or_default(),
         discriminator_type,
@@ -454,8 +469,42 @@ pub fn get_union_variant_attributes(variant: &Variant) -> Result<UnionVariantAtt
     }
 
     Ok(UnionVariantAttributes {
-        name: name.unwrap_or_else(|| variant.ident.to_string()),
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
         case,
+        is_default: is_default.unwrap_or_default(),
+    })
+}
+
+pub struct EnumVariantAttributes {
+    pub name: String,
+    pub is_default: bool,
+}
+
+pub fn get_enum_variant_attributes(variant: &Variant) -> Result<EnumVariantAttributes> {
+    let mut name = None;
+    let mut is_default = None;
+
+    for attr in variant
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident(DUST_DDS_ATTR))
+    {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("name") {
+                name.replace(meta.value()?.parse::<syn::LitStr>()?.value())
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else if meta.path.is_ident("default") {
+                is_default
+                    .replace(true)
+                    .err_if_some(|| meta.error(DuplicateAttributeMetaError))
+            } else {
+                Err(meta.error(UnknownAttributeError))
+            }
+        })?;
+    }
+
+    Ok(EnumVariantAttributes {
+        name: name.unwrap_or_else(|| variant.ident.unraw().to_string()),
         is_default: is_default.unwrap_or_default(),
     })
 }

@@ -424,8 +424,10 @@ impl<'a> RustGenerator<'a> {
                 .expect("Must have an identifier according to the grammar");
             let identifier_str = identifier.as_str();
 
-            #[allow(clippy::single_match)]
             match identifier_str {
+                "final" | "appendable" => {
+                    attr_meta.push(format!("extensibility = \"{identifier_str}\""));
+                }
                 "bit_bound" => {
                     if let Some(annotation_appl_params) = inner_pairs
                         .clone()
@@ -548,6 +550,26 @@ impl<'a> RustGenerator<'a> {
             .clone()
             .find(|x| x.as_rule() == Rule::identifier)
             .expect("Must have an identifier according to the grammar");
+
+        for annotation_appl in inner_pairs
+            .clone()
+            .filter(|p| p.as_rule() == Rule::annotation_appl)
+        {
+            let annot_inner_pairs = annotation_appl.into_inner();
+            let scoped_name = annot_inner_pairs
+                .clone()
+                .find(|p| p.as_rule() == Rule::scoped_name)
+                .expect("Must have a scoped name according to the grammar");
+
+            let annot_id = scoped_name
+                .into_inner()
+                .next()
+                .expect("Must have an identifier according to the grammar");
+
+            if matches!(annot_id.as_str(), "default_literal" | "default") {
+                self.writer.push_str("#[dust_dds(default)]\n");
+            }
+        }
 
         self.writer.push_str(identifier.as_str());
 

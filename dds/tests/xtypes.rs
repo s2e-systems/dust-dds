@@ -1067,27 +1067,27 @@ fn xtypes_v2_extensibility_test_suite_ext_appendable_struct_2() {
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A1 {
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x1: i32,
 }
 
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A2 {
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x1: i32,
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x2: i32,
 }
 
 #[derive(DdsType, Debug, PartialEq, Clone)]
 #[dust_dds(extensibility = "appendable")]
 struct A3 {
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x1: i32,
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x3: i32,
-    #[dust_dds(try_construct = "USE_DEFAULT")]
+    #[dust_dds(try_construct = "use_default")]
     x2: i32,
 }
 
