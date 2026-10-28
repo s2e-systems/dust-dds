@@ -3,7 +3,7 @@ mod security_stubs;
 
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS},
+    infrastructure::{error::DdsError, listener::NO_LISTENER, qos::QosKind, status::NO_STATUS},
     security::plugins::{
         authentication::ValidationResult,
         types::{DdsSecurityPlugins, SecurityException},
@@ -14,7 +14,6 @@ use domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
 use security_stubs::{StubAccessControl, StubAuthentication};
 
 #[test]
-#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_validate_local_identity_returns_error_should_fail() {
     let auth = StubAuthentication {
         validate_local_identity_fn: Some(Box::new(|_, _, _| {
@@ -37,15 +36,13 @@ fn create_participant_when_validate_local_identity_returns_error_should_fail() {
         Default::default(),
         Some(security_plugins),
     );
-    assert!(
-        participant_factory
-            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-            .is_err()
-    );
+    assert!(matches!(
+        participant_factory.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS),
+        Err(DdsError::NotAllowedBySecurity)
+    ));
 }
 
 #[test]
-#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_validate_local_permissions_returns_error_should_fail() {
     let access = StubAccessControl {
         validate_local_permissions_fn: Some(Box::new(|_, _| Err(SecurityException::default()))),
@@ -64,15 +61,13 @@ fn create_participant_when_validate_local_permissions_returns_error_should_fail(
         Default::default(),
         Some(security_plugins),
     );
-    assert!(
-        participant_factory
-            .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
-            .is_err()
-    );
+    assert!(matches!(
+        participant_factory.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS),
+        Err(DdsError::NotAllowedBySecurity)
+    ));
 }
 
 #[test]
-#[ignore = "Functionality still has to be implemented"]
 fn create_participant_when_check_create_participant_returns_error_should_fail() {
     let access = StubAccessControl {
         check_create_participant_fn: Some(Box::new(|_, _, _| Err(SecurityException::default()))),

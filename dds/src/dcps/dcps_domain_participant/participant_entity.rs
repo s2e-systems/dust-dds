@@ -32,8 +32,8 @@ use crate::{
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
-        IdentityToken, ParticipantSecurityAlgorithmInfo, ParticipantSecurityProtectionInfo,
-        PermissionsToken,
+        IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
+        ParticipantSecurityProtectionInfo, PermissionsToken,
     },
     transport::types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     xtypes::dynamic_type::DynamicType,
@@ -122,6 +122,14 @@ pub enum TimedEvent {
     NotifyFindTopicSenders,
 }
 
+pub struct DcpsParticipantSecurityInfo {
+    pub identity_token: IdentityToken,
+    pub identity_status_token: Option<IdentityStatusToken>,
+    pub permissions_token: PermissionsToken,
+    pub participant_security_algorithm_info: ParticipantSecurityAlgorithmInfo,
+    pub adjusted_algorithm_info: ParticipantSecurityAlgorithmInfo,
+}
+
 pub struct DcpsDomainParticipant {
     pub reader_counter: u16,
     pub writer_counter: u16,
@@ -131,6 +139,7 @@ pub struct DcpsDomainParticipant {
     pub dcps_sender: DcpsSender,
     pub domain_tag: String,
     pub enable_type_information: bool,
+    pub security_info: Option<DcpsParticipantSecurityInfo>,
 }
 
 impl DcpsDomainParticipant {

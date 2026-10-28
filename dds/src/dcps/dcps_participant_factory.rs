@@ -19,7 +19,9 @@ use crate::{
             builtin_publisher::BuiltinPublisher,
             builtin_subscriber::BuiltinSubscriber,
             data_writer_entity::DataWriterEntity,
-            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
+            participant_entity::{
+                DcpsDomainParticipant, DcpsParticipantSecurityInfo, DomainParticipantEntity,
+            },
             type_register::TypeRegister,
         },
         dcps_mail::{DcpsReply, DomainParticipantMail, ParticipantServiceMail},
@@ -47,8 +49,10 @@ use crate::{
     runtime::{Either, Either3, TaskHandle, select_future, select3_future},
     security::{
         plugins::{
-            access_control::AccessControl, authentication::Authentication,
-            cryptographic::Cryptographic, types::DdsSecurityPlugins,
+            access_control::AccessControl,
+            authentication::{Authentication, ValidateLocalIdentityOut},
+            cryptographic::{Cryptographic, RegisterLocalParticipantOut},
+            types::DdsSecurityPlugins,
         },
         types::{
             PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED,
@@ -117,7 +121,7 @@ impl DcpsParticipantFactory {
         timer: &Timer,
         clock: &Clock,
         spawner: &Spawner,
-        _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DdsResult<(InstanceHandle, DcpsSender)>
     where
         Auth: Authentication,
@@ -133,9 +137,109 @@ impl DcpsParticipantFactory {
 
         let mut transport_participant = transport.create_participant(domain_id);
 
-        let guid = transport_participant.guid();
-        let guid_prefix = guid.prefix();
+        let candidate_participant_guid = transport_participant.guid();
+
         let security_data = None;
+
+        let (guid, security_info) = if let Some(security) = security_plugins {
+            let ValidateLocalIdentityOut {
+                local_identity_handle,
+                adjusted_participant_guid,
+            } = security
+                .authentication_plugin
+                .validate_local_identity(
+                    domain_id,
+                    &domain_participant_qos,
+                    candidate_participant_guid,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_handle = security
+                .access_control_plugin
+                .validate_local_permissions(
+                    &mut security.authentication_plugin,
+                    &local_identity_handle,
+                    domain_id,
+                    &domain_participant_qos,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            security
+                .access_control_plugin
+                .check_create_participant(&permissions_handle, domain_id, &domain_participant_qos)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let identity_token = security
+                .authentication_plugin
+                .get_identity_token(&local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let identity_status_token = security
+                .authentication_plugin
+                .get_identity_status_token(&local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_token = security
+                .access_control_plugin
+                .get_permissions_token(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_credential_token = security
+                .access_control_plugin
+                .get_permissions_credential_token(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            security
+                .authentication_plugin
+                .set_permissions_credential_and_token(
+                    &local_identity_handle,
+                    permissions_credential_token,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let participant_security_config = security
+                .access_control_plugin
+                .get_participant_security_config(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let participant_security_algorithm_info = security
+                .authentication_plugin
+                .set_participant_security_config(
+                    &local_identity_handle,
+                    &participant_security_config,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let RegisterLocalParticipantOut {
+                participant_crypto_handle: _,
+                adjusted_algorithm_info,
+            } = security
+                .cryptographic_plugin
+                .register_local_participant(
+                    &mut security.authentication_plugin,
+                    &mut security.access_control_plugin,
+                    &local_identity_handle,
+                    &permissions_handle,
+                    domain_participant_qos.property.value.iter(),
+                    &participant_security_config,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            (
+                adjusted_participant_guid,
+                Some(DcpsParticipantSecurityInfo {
+                    identity_token,
+                    identity_status_token,
+                    permissions_token,
+                    participant_security_algorithm_info,
+                    adjusted_algorithm_info,
+                }),
+            )
+        } else {
+            (candidate_participant_guid, None)
+        };
+
+        let guid_prefix = guid.prefix();
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
             guid_prefix,
@@ -270,6 +374,7 @@ impl DcpsParticipantFactory {
             dcps_sender: participant_sender.clone(),
             domain_tag: self.configuration.domain_tag().to_string(),
             enable_type_information: self.configuration.enable_type_information(),
+            security_info,
         };
 
         if self.qos.entity_factory.autoenable_created_entities {
