@@ -84,7 +84,9 @@ impl<T> Future for OneshotReceiver<T> {
             if let Some(value) = inner_lock.data.take() {
                 Poll::Ready(Ok(value))
             } else if !inner_lock.has_sender {
-                Poll::Ready(Err(DdsError::AlreadyDeleted))
+                Poll::Ready(Err(DdsError::Error(String::from(
+                    "Internal DDS error: Sender channel was dropped.",
+                ))))
             } else {
                 inner_lock.waker.replace(cx.waker().clone());
                 Poll::Pending
