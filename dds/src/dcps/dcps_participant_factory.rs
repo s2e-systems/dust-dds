@@ -47,25 +47,11 @@ use crate::{
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
     runtime::{Either, Either3, TaskHandle, select_future, select3_future},
-    security::{
-        plugins::{
-            access_control::AccessControl,
-            authentication::{Authentication, ValidateLocalIdentityOut},
-            cryptographic::{Cryptographic, RegisterLocalParticipantOut},
-            types::DdsSecurityPlugins,
-        },
-        types::{
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID,
-            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS,
-            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED,
-            ParticipantSecurityAttributesMaskExt, ParticipantSecurityConfig,
-            ParticipantSecurityProtectionInfo,
-        },
+    security::plugins::{
+        access_control::AccessControl,
+        authentication::{Authentication, ValidateLocalIdentityOut},
+        cryptographic::{Cryptographic, RegisterLocalParticipantOut},
+        types::DdsSecurityPlugins,
     },
     transport::{
         interface::{RtpsParticipant, Transport},
@@ -138,8 +124,6 @@ impl DcpsParticipantFactory {
         let mut transport_participant = transport.create_participant(domain_id);
 
         let candidate_participant_guid = transport_participant.guid();
-
-        let security_data = None;
 
         let (guid, security_info) = if let Some(security) = security_plugins {
             let ValidateLocalIdentityOut {
@@ -231,6 +215,7 @@ impl DcpsParticipantFactory {
                     identity_token,
                     identity_status_token,
                     permissions_token,
+                    participant_security_config,
                     participant_security_algorithm_info,
                     adjusted_algorithm_info,
                 }),
@@ -360,7 +345,6 @@ impl DcpsParticipantFactory {
             listener_mask,
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
-            security_data,
         };
 
         let (participant_sender, participant_receiver) = rpc_channel();
@@ -581,49 +565,6 @@ impl DcpsParticipantFactory {
 
     pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
         self.qos.clone()
-    }
-}
-
-impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {
-    fn from(config: &ParticipantSecurityConfig) -> Self {
-        let mut mask = PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
-        if config.is_rtps_axk_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED;
-        }
-        if config.is_discovery_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
-        }
-        if config.is_liveliness_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
-        }
-        if config.is_key_revision_enabled {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED;
-        }
-        if config.is_rtps_psk_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED;
-        }
-
-        let mut opt_mask: u16 = 0;
-        let mut opt_is_set: u16 = 0;
-
-        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
-        if config.allow_unauthenticated_participants {
-            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
-        }
-
-        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
-        if config.is_access_protected {
-            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
-        }
-
-        Self {
-            participant_security_attributes: mask,
-            plugin_participant_security_attributes: config.plugin_participant_attributes,
-            participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt {
-                is_set: opt_is_set,
-                value: opt_mask,
-            },
-        }
     }
 }
 

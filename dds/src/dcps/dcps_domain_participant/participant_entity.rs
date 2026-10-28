@@ -32,8 +32,17 @@ use crate::{
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
-        IdentityStatusToken, IdentityToken, ParticipantSecurityAlgorithmInfo,
-        ParticipantSecurityProtectionInfo, PermissionsToken,
+        IdentityStatusToken, IdentityToken,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED,
+        PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID,
+        PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS,
+        PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED,
+        ParticipantSecurityAlgorithmInfo, ParticipantSecurityAttributesMaskExt,
+        ParticipantSecurityConfig, ParticipantSecurityProtectionInfo, PermissionsToken,
     },
     transport::types::{GuidPrefix, Locator, USER_DEFINED_TOPIC},
     xtypes::dynamic_type::DynamicType,
@@ -44,13 +53,6 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-
-pub struct ParticipantSecurityData {
-    pub identity_token: IdentityToken,
-    pub permissions_token: PermissionsToken,
-    pub protection_info: ParticipantSecurityProtectionInfo,
-    pub algorithm_info: ParticipantSecurityAlgorithmInfo,
-}
 
 pub struct DiscoveredParticipantInfo {
     pub dds_participant_data: ParticipantBuiltinTopicData,
@@ -126,6 +128,7 @@ pub struct DcpsParticipantSecurityInfo {
     pub identity_token: IdentityToken,
     pub identity_status_token: Option<IdentityStatusToken>,
     pub permissions_token: PermissionsToken,
+    pub participant_security_config: ParticipantSecurityConfig,
     pub participant_security_algorithm_info: ParticipantSecurityAlgorithmInfo,
     pub adjusted_algorithm_info: ParticipantSecurityAlgorithmInfo,
 }
@@ -141,6 +144,48 @@ pub struct DcpsDomainParticipant {
     pub enable_type_information: bool,
     pub security_info: Option<DcpsParticipantSecurityInfo>,
 }
+impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {
+    fn from(config: &ParticipantSecurityConfig) -> Self {
+        let mut mask = PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+        if config.is_rtps_axk_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED;
+        }
+        if config.is_discovery_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
+        }
+        if config.is_liveliness_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
+        }
+        if config.is_key_revision_enabled {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED;
+        }
+        if config.is_rtps_psk_protected {
+            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED;
+        }
+
+        let mut opt_mask: u16 = 0;
+        let mut opt_is_set: u16 = 0;
+
+        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
+        if config.allow_unauthenticated_participants {
+            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
+        }
+
+        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
+        if config.is_access_protected {
+            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
+        }
+
+        Self {
+            participant_security_attributes: mask,
+            plugin_participant_security_attributes: config.plugin_participant_attributes,
+            participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt {
+                is_set: opt_is_set,
+                value: opt_mask,
+            },
+        }
+    }
+}
 
 impl DcpsDomainParticipant {
     pub fn participant_builtin_topic_data(&self) -> ParticipantBuiltinTopicData {
@@ -152,14 +197,29 @@ impl DcpsDomainParticipant {
             digital_signature,
             key_establishment,
             symmetric_cipher,
-        ) = match &self.domain_participant.security_data {
+        ) = match &self.security_info {
             Some(security_data) => (
                 Some(security_data.identity_token.clone()),
                 Some(security_data.permissions_token.clone()),
-                Some(security_data.protection_info),
-                Some(security_data.algorithm_info.digital_signature),
-                Some(security_data.algorithm_info.key_establishment),
-                Some(security_data.algorithm_info.symmetric_cipher),
+                Some((&security_data.participant_security_config).into()),
+                Some(
+                    security_data
+                        .participant_security_config
+                        .algorithm_info
+                        .digital_signature,
+                ),
+                Some(
+                    security_data
+                        .participant_security_config
+                        .algorithm_info
+                        .key_establishment,
+                ),
+                Some(
+                    security_data
+                        .participant_security_config
+                        .algorithm_info
+                        .symmetric_cipher,
+                ),
             ),
             None => (None, None, None, None, None, None),
         };
@@ -592,7 +652,6 @@ pub struct DomainParticipantEntity {
     pub listener_mask: StatusMask,
     pub find_topic_sender_list: Vec<FindTopicNotification>,
     pub last_announcement_timestamp: Option<Time>,
-    pub security_data: Option<ParticipantSecurityData>,
 }
 
 impl DomainParticipantEntity {
