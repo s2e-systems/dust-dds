@@ -475,7 +475,7 @@ impl WriteIntoBytes for SerializedDataFragment {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Data(Arc<[u8]>);
 
 impl Data {
@@ -489,12 +489,6 @@ impl Data {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl Default for Data {
-    fn default() -> Self {
-        Self(Arc::default())
     }
 }
 

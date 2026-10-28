@@ -605,18 +605,18 @@ impl DcpsDomainParticipant {
                     &p.subscriber_handle,
                     &p.data_reader_handle,
                     p.max_samples,
-                    &p.sample_states,
-                    &p.view_states,
-                    &p.instance_states,
+                    p.sample_state_mask,
+                    p.view_state_mask,
+                    p.instance_state_mask,
                     &p.specific_instance_handle,
                 )),
                 ReaderServiceMail::Take(p) => DcpsReply::Samples(self.take(
                     &p.subscriber_handle,
                     &p.data_reader_handle,
                     p.max_samples,
-                    &p.sample_states,
-                    &p.view_states,
-                    &p.instance_states,
+                    p.sample_state_mask,
+                    p.view_state_mask,
+                    p.instance_state_mask,
                     &p.specific_instance_handle,
                 )),
                 ReaderServiceMail::ReadNextInstance(p) => {
@@ -625,9 +625,9 @@ impl DcpsDomainParticipant {
                         &p.data_reader_handle,
                         p.max_samples,
                         &p.previous_handle,
-                        &p.sample_states,
-                        &p.view_states,
-                        &p.instance_states,
+                        p.sample_state_mask,
+                        p.view_state_mask,
+                        p.instance_state_mask,
                     ))
                 }
                 ReaderServiceMail::TakeNextInstance(p) => {
@@ -636,9 +636,9 @@ impl DcpsDomainParticipant {
                         &p.data_reader_handle,
                         p.max_samples,
                         &p.previous_handle,
-                        &p.sample_states,
-                        &p.view_states,
-                        &p.instance_states,
+                        p.sample_state_mask,
+                        p.view_state_mask,
+                        p.instance_state_mask,
                     ))
                 }
                 ReaderServiceMail::GetSubscriptionMatchedStatus {
