@@ -276,8 +276,8 @@ impl Parameter {
         if parameter_id != PID_SENTINEL && length % 4 != 0 {
             return Err(RtpsMessageError::InvalidData);
         }
-        let value = if parameter_id == PID_SENTINEL {
-            Arc::new([])
+        let value = if parameter_id == PID_SENTINEL || length == 0 {
+            Arc::default()
         } else {
             if data.len() < length as usize {
                 return Err(RtpsMessageError::NotEnoughData);
@@ -494,7 +494,7 @@ impl Data {
 
 impl Default for Data {
     fn default() -> Self {
-        Self(Arc::new([]))
+        Self(Arc::default())
     }
 }
 
