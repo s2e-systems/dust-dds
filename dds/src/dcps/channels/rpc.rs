@@ -9,26 +9,25 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
 };
 
-type RequestMessage<Req> = (Req, OneshotSender<DcpsReply>);
-type InnerChannel<Req> = Channel<CriticalSectionRawMutex, RequestMessage<Req>, 1>;
+type InnerChannel<Req> = Channel<CriticalSectionRawMutex, (Req, OneshotSender<DcpsReply>), 1>;
 
 /// Creates a new RPC channel pair.
-pub fn rpc_channel<Req>() -> (RpcClient<Req>, RpcReceiver<Req>) {
+pub fn rpc_channel<Req>() -> (RpcClient<Req>, RpcMailbox<Req>) {
     let inner = Arc::new(InnerChannel::new());
     (
         RpcClient {
             channel: Arc::downgrade(&inner),
         },
-        RpcReceiver { channel: inner },
+        RpcMailbox { channel: inner },
     )
 }
 
 /// Receiving endpoint owned directly by the actor task.
-pub struct RpcReceiver<Req> {
+pub struct RpcMailbox<Req> {
     channel: Arc<InnerChannel<Req>>,
 }
 
-impl<Req> RpcReceiver<Req> {
+impl<Req> RpcMailbox<Req> {
     /// Receives a request from a caller.
     pub async fn receive(&self) -> (Req, OneshotSender<DcpsReply>) {
         self.channel.receive().await
