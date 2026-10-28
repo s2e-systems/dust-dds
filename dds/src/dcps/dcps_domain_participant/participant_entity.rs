@@ -61,6 +61,7 @@ pub struct DiscoveredParticipantInfo {
     pub default_multicast_locator_list: Vec<Locator>,
     pub lease_duration: Duration,
     pub last_communication_timestamp: Time,
+    pub is_authenticated: bool,
 }
 
 /// Represents a specific timed event that has expired or is scheduled to run.
@@ -124,6 +125,7 @@ pub enum TimedEvent {
     NotifyFindTopicSenders,
 }
 
+#[allow(dead_code)]
 pub struct DcpsParticipantSecurityInfo {
     pub identity_token: IdentityToken,
     pub identity_status_token: Option<IdentityStatusToken>,

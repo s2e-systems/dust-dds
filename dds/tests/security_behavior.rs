@@ -242,3 +242,487 @@ fn participant_propagates_security_data_on_discovery() {
         &Some(expected_security_config.algorithm_info.symmetric_cipher)
     );
 }
+
+fn create_custom_factory<Auth, Access, Crypto>(
+    security: Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+) -> DomainParticipantFactory
+where
+    Auth: dust_dds::security::plugins::authentication::Authentication,
+    Access: dust_dds::security::plugins::access_control::AccessControl,
+    Crypto: dust_dds::security::plugins::cryptographic::Cryptographic,
+{
+    let participant_factory_async = Box::leak(Box::new(
+        dust_dds::dds_async::domain_participant_factory::DomainParticipantFactoryAsync::new(
+            Default::default(),
+            dust_dds::std_runtime::StdRuntime::default(),
+            dust_dds::rtps_udp_transport::udp_transport::RtpsUdpTransport::default(),
+            security,
+        ),
+    ));
+    DomainParticipantFactory::new(participant_factory_async)
+}
+
+#[test]
+fn when_allow_unauthenticated_false_non_secure_participant_is_rejected() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let sec_config = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: false,
+        ..Default::default()
+    };
+    let access = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config.clone()))),
+        ..Default::default()
+    };
+    let auth = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 1;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 1,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        ..Default::default()
+    };
+    let security_plugins = DdsSecurityPlugins {
+        access_control_plugin: access,
+        authentication_plugin: auth,
+        cryptographic_plugin: (),
+    };
+    let secure_factory = create_custom_factory(Some(security_plugins));
+    let non_secure_factory = create_custom_factory(None::<DdsSecurityPlugins<(), (), ()>>);
+
+    let secure_participant = secure_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let non_secure_participant = non_secure_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Wait until non-secure participant has received the secure participant's announcement
+    let start = Instant::now();
+    loop {
+        if non_secure_participant
+            .get_discovered_participants()
+            .unwrap()
+            .len()
+            == 2
+        {
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Non-secure participant did not discover secure participant within timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    // Give a short grace period for secure participant to also have processed non-secure participant's announcement
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    // Secure participant with allow_unauthenticated_participants=false must reject non-secure participant
+    let secure_discovered = secure_participant.get_discovered_participants().unwrap();
+    assert_eq!(
+        secure_discovered.len(),
+        1,
+        "Secure participant should only see itself"
+    );
+    assert_eq!(
+        secure_discovered[0].as_ref(),
+        secure_participant.get_instance_handle().as_ref()
+    );
+
+    // Non-secure participant has no security enabled so it accepts the secure participant
+    let non_secure_discovered = non_secure_participant
+        .get_discovered_participants()
+        .unwrap();
+    assert_eq!(
+        non_secure_discovered.len(),
+        2,
+        "Non-secure participant should see both"
+    );
+}
+
+#[test]
+fn when_allow_unauthenticated_false_incompatible_plugins_participant_is_rejected() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    // Participant 1: Plugin A
+    let sec_config1 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: false,
+        ..Default::default()
+    };
+    let access1 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config1.clone()))),
+        ..Default::default()
+    };
+    let auth1 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 1;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 1,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginA:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory1 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access1,
+        authentication_plugin: auth1,
+        cryptographic_plugin: (),
+    }));
+
+    // Participant 2: Plugin B (incompatible class_id)
+    let sec_config2 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: false,
+        ..Default::default()
+    };
+    let access2 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config2.clone()))),
+        ..Default::default()
+    };
+    let auth2 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 2;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 2,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginB:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory2 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access2,
+        authentication_plugin: auth2,
+        cryptographic_plugin: (),
+    }));
+
+    let participant1 = factory1
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let participant2 = factory2
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    // Both should reject each other because plugins are incompatible and allow_unauthenticated is false
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 1);
+    assert_eq!(participant2.get_discovered_participants().unwrap().len(), 1);
+}
+
+#[test]
+fn when_allow_unauthenticated_false_compatible_participant_is_accepted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    // Participant 1
+    let sec_config1 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: false,
+        ..Default::default()
+    };
+    let access1 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config1.clone()))),
+        ..Default::default()
+    };
+    let auth1 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 1;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 1,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginA:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory1 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access1,
+        authentication_plugin: auth1,
+        cryptographic_plugin: (),
+    }));
+
+    // Participant 2 (compatible plugin class_id)
+    let sec_config2 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: false,
+        ..Default::default()
+    };
+    let access2 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config2.clone()))),
+        ..Default::default()
+    };
+    let auth2 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 2;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 2,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginA:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory2 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access2,
+        authentication_plugin: auth2,
+        cryptographic_plugin: (),
+    }));
+
+    let participant1 = factory1
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let participant2 = factory2
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let start = Instant::now();
+    loop {
+        if participant1.get_discovered_participants().unwrap().len() == 2
+            && participant2.get_discovered_participants().unwrap().len() == 2
+        {
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Participants not discovered within timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 2);
+    assert_eq!(participant2.get_discovered_participants().unwrap().len(), 2);
+}
+
+#[test]
+fn when_allow_unauthenticated_true_non_secure_participant_is_accepted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let sec_config = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: true,
+        ..Default::default()
+    };
+    let access = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config.clone()))),
+        ..Default::default()
+    };
+    let auth = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 1;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 1,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        ..Default::default()
+    };
+    let security_plugins = DdsSecurityPlugins {
+        access_control_plugin: access,
+        authentication_plugin: auth,
+        cryptographic_plugin: (),
+    };
+    let secure_factory = create_custom_factory(Some(security_plugins));
+    let non_secure_factory = create_custom_factory(None::<DdsSecurityPlugins<(), (), ()>>);
+
+    let secure_participant = secure_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let non_secure_participant = non_secure_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let start = Instant::now();
+    loop {
+        if secure_participant
+            .get_discovered_participants()
+            .unwrap()
+            .len()
+            == 2
+            && non_secure_participant
+                .get_discovered_participants()
+                .unwrap()
+                .len()
+                == 2
+        {
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Participants not discovered within timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    assert_eq!(
+        secure_participant
+            .get_discovered_participants()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        non_secure_participant
+            .get_discovered_participants()
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn when_allow_unauthenticated_true_incompatible_plugins_participant_is_accepted() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let sec_config1 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: true,
+        ..Default::default()
+    };
+    let access1 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config1.clone()))),
+        ..Default::default()
+    };
+    let auth1 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 1;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 1,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginA:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory1 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access1,
+        authentication_plugin: auth1,
+        cryptographic_plugin: (),
+    }));
+
+    let sec_config2 = ParticipantSecurityConfig {
+        allow_unauthenticated_participants: true,
+        ..Default::default()
+    };
+    let access2 = StubAccessControl {
+        get_participant_security_config_fn: Some(Box::new(move |_| Ok(sec_config2.clone()))),
+        ..Default::default()
+    };
+    let auth2 = StubAuthentication {
+        validate_local_identity_fn: Some(Box::new(|_, _, candidate_guid| {
+            let mut prefix = candidate_guid.prefix();
+            prefix[11] = 2;
+            Ok(
+                dust_dds::security::plugins::authentication::ValidateLocalIdentityOut {
+                    local_identity_handle: 2,
+                    adjusted_participant_guid: dust_dds::transport::types::Guid::new(
+                        prefix,
+                        candidate_guid.entity_id(),
+                    ),
+                },
+            )
+        })),
+        get_identity_token_fn: Some(Box::new(|_| {
+            Ok(IdentityToken(DataHolder {
+                class_id: "PluginB:1.0".to_string(),
+                ..Default::default()
+            }))
+        })),
+        ..Default::default()
+    };
+    let factory2 = create_custom_factory(Some(DdsSecurityPlugins {
+        access_control_plugin: access2,
+        authentication_plugin: auth2,
+        cryptographic_plugin: (),
+    }));
+
+    let participant1 = factory1
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let participant2 = factory2
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let start = Instant::now();
+    loop {
+        if participant1.get_discovered_participants().unwrap().len() == 2
+            && participant2.get_discovered_participants().unwrap().len() == 2
+        {
+            break;
+        }
+        if start.elapsed() > std::time::Duration::from_secs(10) {
+            panic!("Participants not discovered within timeout");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 2);
+    assert_eq!(participant2.get_discovered_participants().unwrap().len(), 2);
+}

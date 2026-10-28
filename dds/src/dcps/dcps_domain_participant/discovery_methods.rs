@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
+        SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::{
@@ -34,7 +34,8 @@ use crate::{
             data_reader_entity::DataReaderEntity,
             data_writer_entity::IncompatibleSubscriptions,
             participant_entity::{
-                DcpsDomainParticipant, DiscoveredParticipantInfo, DomainParticipantEntity,
+                DcpsDomainParticipant, DcpsParticipantSecurityInfo, DiscoveredParticipantInfo,
+                DomainParticipantEntity,
             },
             user_defined_data_reader::UserDefinedDataReader,
             user_defined_data_writer::UserDefinedDataWriter,
@@ -65,6 +66,9 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    security::types::{
+        PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT, ParticipantSecurityProtectionInfo,
+    },
     transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
@@ -2604,6 +2608,69 @@ impl DcpsDomainParticipant {
         }
     }
 
+    fn is_security_plugin_compatible(
+        local_security: &DcpsParticipantSecurityInfo,
+        remote: &ParticipantBuiltinTopicData,
+    ) -> bool {
+        let (Some(remote_identity_token), Some(remote_permissions_token)) =
+            (&remote.identity_token, &remote.permissions_token)
+        else {
+            return false;
+        };
+
+        if !local_security
+            .identity_token
+            .is_compatible_with(remote_identity_token)
+        {
+            return false;
+        }
+
+        if !local_security
+            .permissions_token
+            .is_compatible_with(remote_permissions_token)
+        {
+            return false;
+        }
+
+        let local_protection_info =
+            ParticipantSecurityProtectionInfo::from(&local_security.participant_security_config);
+        let remote_protection_info = remote
+            .protection_info
+            .unwrap_or(PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT);
+        if !local_protection_info.is_compatible_with(&remote_protection_info) {
+            return false;
+        }
+
+        let remote_digital_signature = remote.digital_signature.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .digital_signature
+            .is_compatible_with(&remote_digital_signature)
+        {
+            return false;
+        }
+
+        let remote_key_establishment = remote.key_establishment.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .key_establishment
+            .is_compatible_with(&remote_key_establishment)
+        {
+            return false;
+        }
+
+        let remote_symmetric_cipher = remote.symmetric_cipher.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .symmetric_cipher
+            .is_compatible_with(&remote_symmetric_cipher)
+        {
+            return false;
+        }
+
+        true
+    }
+
     #[tracing::instrument(skip(self, transport_participant))]
     pub(crate) fn add_discovered_participant(
         &mut self,
@@ -2642,6 +2709,45 @@ impl DcpsDomainParticipant {
             .any(|handle| handle == &discovered_participant_data.dds_participant_data.key.value);
 
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+            let is_remote_authenticated = if let Some(local_security) = &self.security_info {
+                let is_compatible = Self::is_security_plugin_compatible(
+                    local_security,
+                    &discovered_participant_data.dds_participant_data,
+                );
+                if !local_security
+                    .participant_security_config
+                    .allow_unauthenticated_participants
+                {
+                    if !is_compatible {
+                        // Discovered DomainParticipant entities that do not implement the DDS Security specification
+                        // or do not contain compatible Security Plugins shall be rejected without attempting to authenticate them.
+                        return false;
+                    }
+                    true
+                } else if is_compatible {
+                    true
+                } else {
+                    // allow_unauthenticated_participants is TRUE:
+                    // allow matching other DomainParticipants—even if the remote DomainParticipant cannot authenticate—
+                    // as long as there is not already a valid authentication with the same DomainParticipant's GUID.
+                    let already_authenticated = self
+                        .domain_participant
+                        .discovered_participant_list
+                        .iter()
+                        .any(|p| {
+                            p.dds_participant_data.key().value
+                                == discovered_participant_data.dds_participant_data.key.value
+                                && p.is_authenticated
+                        });
+                    if already_authenticated {
+                        return false;
+                    }
+                    false
+                }
+            } else {
+                false
+            };
+
             if !is_participant_discovered {
                 let discovered_participant_info = DiscoveredParticipantInfo {
                     dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
@@ -2656,6 +2762,7 @@ impl DcpsDomainParticipant {
                         .clone(),
                     lease_duration: discovered_participant_data.lease_duration,
                     last_communication_timestamp: now,
+                    is_authenticated: is_remote_authenticated,
                 };
                 self.domain_participant
                     .discovered_participant_list
@@ -2694,6 +2801,7 @@ impl DcpsDomainParticipant {
                     .clone();
                 p.lease_duration = discovered_participant_data.lease_duration;
                 p.last_communication_timestamp = now;
+                p.is_authenticated = is_remote_authenticated;
             }
             true
         } else {
