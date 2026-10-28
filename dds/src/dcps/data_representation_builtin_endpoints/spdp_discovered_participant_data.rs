@@ -228,6 +228,42 @@ impl SpdpDiscoveredParticipantData {
 
         pl.write_xcdr1_parameter(PID_PARTICIPANT_GUID, self.dds_participant_data.key);
 
+        if let Some(identity_token) = self.dds_participant_data.identity_token {
+            pl.write_xcdr1_parameter(PID_IDENTITY_TOKEN, identity_token);
+        }
+        if let Some(permissions_token) = self.dds_participant_data.permissions_token {
+            pl.write_xcdr1_parameter(PID_PERMISSIONS_TOKEN, permissions_token);
+        }
+        if let Some(protection_info) = self.dds_participant_data.protection_info {
+            pl.write_xcdr1_parameter(PID_PARTICIPANT_SECURITY_PROTECTION_INFO, protection_info);
+        }
+        if let Some(available_builtin_endpoints_ext) =
+            self.dds_participant_data.available_builtin_endpoints_ext
+        {
+            pl.write_xcdr1_parameter(
+                PID_AVAILABLE_BUILTIN_ENDPOINTS_EXT,
+                available_builtin_endpoints_ext,
+            );
+        }
+        if let Some(digital_signature) = self.dds_participant_data.digital_signature {
+            pl.write_xcdr1_parameter(
+                PID_PARTICIPANT_SECURITY_DIGITAL_SIGNATURE_ALGORITHM_INFO,
+                digital_signature,
+            );
+        }
+        if let Some(key_establishment) = self.dds_participant_data.key_establishment {
+            pl.write_xcdr1_parameter(
+                PID_PARTICIPANT_SECURITY_KEY_ESTABLISHMENT_ALGORITHM_INFO,
+                key_establishment,
+            );
+        }
+        if let Some(symmetric_cipher) = self.dds_participant_data.symmetric_cipher {
+            pl.write_xcdr1_parameter(
+                PID_PARTICIPANT_SECURITY_BUILTIN_EP_SYMMETRIC_CIPHER_ALGORITHM_INFO,
+                symmetric_cipher,
+            );
+        }
+
         if let Some(domain_id) = self.participant_proxy.domain_id {
             pl.write_cdr_parameter(PID_DOMAIN_ID, domain_id);
         }

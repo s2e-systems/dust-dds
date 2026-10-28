@@ -297,13 +297,16 @@ impl CryptoKeyFactory for () {
         _participant_identity: &A::IdentityHandle,
         _participant_permissions: &C::PermissionsHandle,
         _participant_properties: impl Iterator<Item = &'a Property>,
-        _participant_security_config: &ParticipantSecurityConfig,
+        participant_security_config: &ParticipantSecurityConfig,
     ) -> Result<RegisterLocalParticipantOut<Self::ParticipantCryptoHandle>, SecurityException>
     where
         A: Authentication,
         C: AccessControl,
     {
-        unreachable!("Placeholder should never be called")
+        Ok(RegisterLocalParticipantOut {
+            participant_crypto_handle: (),
+            adjusted_algorithm_info: participant_security_config.algorithm_info,
+        })
     }
 
     fn register_matched_remote_participant<A, C>(
