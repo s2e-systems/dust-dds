@@ -73,7 +73,7 @@ jobs:
       - run: cargo fmt --check --all
   performance_benchmark:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     resource_class: large
     steps:
       - checkout
@@ -86,7 +86,7 @@ jobs:
           path: ./target/criterion
   memory_benchmark:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     resource_class: large
     steps:
       - checkout
@@ -171,7 +171,7 @@ jobs:
           path: /tmp/coverage
   build_metrics:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     resource_class: large
     steps:
       - checkout
