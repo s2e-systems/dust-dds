@@ -5,7 +5,7 @@ use crate::{
         TopicBuiltinTopicData,
     },
     dcps::{
-        channels::rpc::{RpcClient, RpcMailbox},
+        channels::rpc::rpc_channel,
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
         dcps_domain_participant::{
             builtin_constants::{
@@ -259,8 +259,7 @@ impl DcpsParticipantFactory {
             security_data,
         };
 
-        let participant_mailbox = Arc::new(RpcMailbox::new());
-        let participant_sender = RpcClient::new(participant_mailbox.clone());
+        let (participant_sender, participant_receiver) = rpc_channel();
 
         let mut dcps_participant = DcpsDomainParticipant {
             reader_counter: 0,
@@ -300,7 +299,7 @@ impl DcpsParticipantFactory {
 
                 if let Some((delay, event)) = next_event {
                     match select3_future(
-                        participant_mailbox.receive(),
+                        participant_receiver.receive(),
                         timer_handle.delay(delay.into()),
                         transport_participant.read(),
                     )
@@ -353,8 +352,11 @@ impl DcpsParticipantFactory {
                         }
                     };
                 } else {
-                    match select_future(participant_mailbox.receive(), transport_participant.read())
-                        .await
+                    match select_future(
+                        participant_receiver.receive(),
+                        transport_participant.read(),
+                    )
+                    .await
                     {
                         Either::A((user_mail, reply_sender)) => {
                             let now = clock_clone.now();
