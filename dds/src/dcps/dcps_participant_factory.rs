@@ -72,19 +72,19 @@ use crate::{
 use alloc::{boxed::Box, collections::BTreeSet, string::ToString, sync::Arc, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
-pub struct ParticipantRecord {
-    pub handle: InstanceHandle,
-    pub domain_id: DomainId,
-    pub sender: DcpsSender,
-    pub run_loop: Arc<AtomicBool>,
-    pub _task_handle: Box<dyn TaskHandle>,
+struct ParticipantRecord {
+    handle: InstanceHandle,
+    domain_id: DomainId,
+    sender: DcpsSender,
+    run_loop: Arc<AtomicBool>,
+    task_handle: Box<dyn TaskHandle>,
 }
 
 pub struct DcpsParticipantFactory {
-    pub participant_list: Vec<ParticipantRecord>,
-    pub qos: DomainParticipantFactoryQos,
-    pub default_participant_qos: DomainParticipantQos,
-    pub configuration: DustDdsConfiguration,
+    participant_list: Vec<ParticipantRecord>,
+    qos: DomainParticipantFactoryQos,
+    default_participant_qos: DomainParticipantQos,
+    configuration: DustDdsConfiguration,
 }
 
 impl DcpsParticipantFactory {
@@ -300,13 +300,13 @@ impl DcpsParticipantFactory {
 
                 if let Some((delay, event)) = next_event {
                     match select3_future(
-                        participant_mailbox.receive_request(),
+                        participant_mailbox.receive(),
                         timer_handle.delay(delay.into()),
                         transport_participant.read(),
                     )
                     .await
                     {
-                        Either3::A(user_mail) => {
+                        Either3::A((user_mail, reply_sender)) => {
                             let now = clock_clone.now();
                             let is_delete = matches!(
                                 user_mail,
@@ -322,7 +322,7 @@ impl DcpsParticipantFactory {
                             );
                             let should_terminate =
                                 is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
-                            participant_mailbox.send_reply(reply).await;
+                            reply_sender.send(reply);
                             if should_terminate {
                                 break;
                             }
@@ -353,13 +353,10 @@ impl DcpsParticipantFactory {
                         }
                     };
                 } else {
-                    match select_future(
-                        participant_mailbox.receive_request(),
-                        transport_participant.read(),
-                    )
-                    .await
+                    match select_future(participant_mailbox.receive(), transport_participant.read())
+                        .await
                     {
-                        Either::A(user_mail) => {
+                        Either::A((user_mail, reply_sender)) => {
                             let now = clock_clone.now();
                             let is_delete = matches!(
                                 user_mail,
@@ -375,7 +372,7 @@ impl DcpsParticipantFactory {
                             );
                             let should_terminate =
                                 is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
-                            participant_mailbox.send_reply(reply).await;
+                            reply_sender.send(reply);
                             if should_terminate {
                                 break;
                             }
@@ -404,7 +401,7 @@ impl DcpsParticipantFactory {
             domain_id,
             sender: participant_sender.clone(),
             run_loop,
-            _task_handle: Box::new(task_handle),
+            task_handle: Box::new(task_handle),
         });
 
         Ok((participant_handle, participant_sender))
@@ -434,6 +431,7 @@ impl DcpsParticipantFactory {
         record
             .run_loop
             .store(false, core::sync::atomic::Ordering::Relaxed);
+        record.task_handle.join();
         let guid = Guid::from(<[u8; 16]>::from(record.handle));
         transport.delete_participant(guid);
         Ok(())

@@ -1,33 +1,30 @@
 use alloc::sync::Arc;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
 
-use crate::{dcps::dcps_mail::DcpsReply, infrastructure::error::DdsResult};
+use crate::{
+    dcps::{
+        channels::oneshot::{OneshotSender, oneshot},
+        dcps_mail::DcpsReply,
+    },
+    infrastructure::error::DdsResult,
+};
 
 /// Mailbox owned by an actor loop to receive requests and send responses.
 pub struct RpcMailbox<Req> {
-    rpc_lock: Mutex<CriticalSectionRawMutex, ()>,
-    request_channel: Channel<CriticalSectionRawMutex, Req, 1>,
-    response_channel: Channel<CriticalSectionRawMutex, DcpsReply, 1>,
+    channel: Channel<CriticalSectionRawMutex, (Req, OneshotSender<DcpsReply>), 1>,
 }
 
 impl<Req> RpcMailbox<Req> {
     /// Creates a new RPC mailbox.
     pub fn new() -> Self {
         Self {
-            rpc_lock: Mutex::new(()),
-            request_channel: Channel::new(),
-            response_channel: Channel::new(),
+            channel: Channel::new(),
         }
     }
 
     /// Receives a request from a caller.
-    pub async fn receive_request(&self) -> Req {
-        self.request_channel.receive().await
-    }
-
-    /// Sends a response back to the waiting caller.
-    pub async fn send_reply(&self, reply: DcpsReply) {
-        self.response_channel.send(reply).await;
+    pub async fn receive(self: &Arc<Self>) -> (Req, OneshotSender<DcpsReply>) {
+        self.channel.receive().await
     }
 }
 
@@ -58,11 +55,13 @@ impl<Req> RpcClient<Req> {
 
     /// Sends an RPC request to the backend actor and awaits its response.
     pub async fn call(&self, mail: Req) -> DdsResult<DcpsReply> {
-        let _guard = self.mailbox.rpc_lock.lock().await;
-        // Drain any unconsumed response left over from a previous cancelled caller
-        let _ = self.mailbox.response_channel.try_receive();
-        self.mailbox.request_channel.send(mail).await;
-        Ok(self.mailbox.response_channel.receive().await)
+        let (reply_sender, reply_receiver) = oneshot::<DcpsReply>();
+
+        self.mailbox.channel.send((mail, reply_sender)).await;
+        match reply_receiver.await {
+            Ok(reply) => Ok(reply),
+            Err(e) => Err(e),
+        }
     }
 }
 

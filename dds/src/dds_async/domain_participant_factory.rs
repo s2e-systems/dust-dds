@@ -197,7 +197,7 @@ impl DomainParticipantFactoryAsync {
             let span = tracing::trace_span!("dds_factory_loop");
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
-                let user_mail = rpc_mailbox.receive_request().await;
+                let (user_mail, reply_sender) = rpc_mailbox.receive().await;
                 let now = clock_clone.now();
                 let reply = domain_participant_factory
                     .handle_factory_mail(
@@ -210,7 +210,7 @@ impl DomainParticipantFactoryAsync {
                         &mut transport,
                     )
                     .await;
-                rpc_mailbox.send_reply(reply).await;
+                reply_sender.send(reply);
             }
         });
         Self {
