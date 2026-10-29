@@ -133,10 +133,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
     }
     impl DataReaderListener<KeyedData> for Listener {
         async fn on_data_available(&mut self, the_reader: DataReaderAsync<KeyedData>) {
-            the_reader
-                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .await
-                .ok();
+            the_reader.read_next_sample().await.ok();
             self.sender.send(()).unwrap();
         }
     }
@@ -220,10 +217,7 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
     }
     impl DataReaderListener<LargeKeyedData> for Listener {
         async fn on_data_available(&mut self, the_reader: DataReaderAsync<LargeKeyedData>) {
-            the_reader
-                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .await
-                .ok();
+            the_reader.read_next_sample().await.ok();
             self.sender.send(()).unwrap();
         }
     }
