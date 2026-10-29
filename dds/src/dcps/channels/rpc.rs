@@ -2,7 +2,9 @@ use alloc::sync::{Arc, Weak};
 use core::cell::RefCell;
 use critical_section::Mutex as CriticalSectionMutex;
 use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex as AsyncMutex,
+    blocking_mutex::raw::CriticalSectionRawMutex,
+    channel::Channel,
+    semaphore::{GreedySemaphore, Semaphore},
 };
 
 use crate::{
@@ -20,7 +22,7 @@ struct RpcState<Req, Reply> {
     slot: CriticalSectionMutex<RefCell<RpcSlot<Req, Reply>>>,
     request_signal: Channel<CriticalSectionRawMutex, (), 1>,
     reply_signal: Channel<CriticalSectionRawMutex, (), 1>,
-    call_lock: AsyncMutex<CriticalSectionRawMutex, ()>,
+    call_permit: GreedySemaphore<CriticalSectionRawMutex>,
 }
 
 /// Creates a new RPC channel pair with pre-allocated in-place memory.
@@ -38,7 +40,7 @@ pub fn rpc_channel_typed<Req, Reply>() -> (RpcClient<Req, Reply>, RpcMailbox<Req
         })),
         request_signal: Channel::new(),
         reply_signal: Channel::new(),
-        call_lock: AsyncMutex::new(()),
+        call_permit: GreedySemaphore::new(1),
     });
     (
         RpcClient {
@@ -128,7 +130,10 @@ impl<Req, Reply> RpcClient<Req, Reply> {
     /// Sends an RPC request to the backend actor and awaits its response.
     pub async fn call(&self, mail: Req) -> DdsResult<Reply> {
         let state = self.state.upgrade().ok_or(DdsError::AlreadyDeleted)?;
-        let _guard = state.call_lock.lock().await;
+        let _permit = match state.call_permit.acquire(1).await {
+            Ok(permit) => permit,
+            Err(infallible) => match infallible {},
+        };
 
         // Drain any stale reply notification (e.g., if a previous caller was cancelled)
         let _ = state.reply_signal.try_receive();
