@@ -1,7 +1,10 @@
 use crate::{
     dcps::{
         channels::notification::NotificationSender,
-        dcps_mail::{DcpsMail, StatusConditionMail},
+        dcps_mail::{
+            GetStatusConditionEnabledStatusesMail, GetStatusConditionTriggerValueMail,
+            RegisterStatusConditionNotificationMail, SetStatusConditionEnabledStatusesMail,
+        },
         status_condition::StatusConditionEntity,
     },
     dds_async::domain_participant_factory::DcpsSender,
@@ -28,14 +31,11 @@ impl StatusConditionAsync {
         notification_sender: NotificationSender,
     ) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::StatusCondition(
-                StatusConditionMail::RegisterNotification {
-                    entity: self.entity.clone(),
-                    notification_sender,
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(RegisterStatusConditionNotificationMail {
+                entity: self.entity.clone(),
+                notification_sender,
+            })
+            .await
     }
 }
 
@@ -44,27 +44,21 @@ impl StatusConditionAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_enabled_statuses(&self) -> DdsResult<impl IntoIterator<Item = StatusKind>> {
         self.dcps_sender
-            .call(DcpsMail::StatusCondition(
-                StatusConditionMail::GetStatusConditionEnabledStatuses {
-                    entity: self.entity.clone(),
-                },
-            ))
-            .await?
-            .expect_status_mask()
+            .execute(GetStatusConditionEnabledStatusesMail {
+                entity: self.entity.clone(),
+            })
+            .await
     }
 
     /// Async version of [`set_enabled_statuses`](crate::infrastructure::condition::StatusCondition::set_enabled_statuses).
     #[tracing::instrument(skip(self))]
     pub async fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::StatusCondition(
-                StatusConditionMail::SetStatusConditionEnabledStatuses {
-                    entity: self.entity.clone(),
-                    status_mask: mask.iter().collect(),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(SetStatusConditionEnabledStatusesMail {
+                entity: self.entity.clone(),
+                status_mask: mask.iter().collect(),
+            })
+            .await
     }
 
     /// Async version of [`get_entity`](crate::infrastructure::condition::StatusCondition::get_entity).
@@ -79,12 +73,9 @@ impl StatusConditionAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_trigger_value(&self) -> DdsResult<bool> {
         self.dcps_sender
-            .call(DcpsMail::StatusCondition(
-                StatusConditionMail::GetStatusConditionTriggerValue {
-                    entity: self.entity.clone(),
-                },
-            ))
-            .await?
-            .expect_trigger_value()
+            .execute(GetStatusConditionTriggerValueMail {
+                entity: self.entity.clone(),
+            })
+            .await
     }
 }

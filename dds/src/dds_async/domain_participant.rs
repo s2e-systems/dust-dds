@@ -7,7 +7,17 @@ use crate::{
     dcps::{
         channels::oneshot::oneshot,
         dcps_mail::{
-            CreateContentFilteredTopicMail, CreateTopicMail, DcpsMail, ParticipantServiceMail,
+            CreateContentFilteredTopicMail, CreateTopicMail, CreateUserDefinedPublisherMail,
+            CreateUserDefinedSubscriberMail, DeleteContainedEntitiesMail,
+            DeleteContentFilteredTopicMail, DeleteUserDefinedPublisherMail,
+            DeleteUserDefinedSubscriberMail, DeleteUserDefinedTopicMail, EnableParticipantMail,
+            FindTopicMail, GetCurrentTimeMail, GetDefaultPublisherQosMail,
+            GetDefaultSubscriberQosMail, GetDefaultTopicQosMail, GetDiscoveredParticipantDataMail,
+            GetDiscoveredParticipantsMail, GetDiscoveredTopicDataMail, GetDiscoveredTopicsMail,
+            GetParticipantQosMail, IgnoreParticipantMail, IgnorePublicationMail,
+            IgnoreSubscriptionMail, LookupTopicdescriptionMail, SetDefaultPublisherQosMail,
+            SetDefaultSubscriberQosMail, SetDefaultTopicQosMail, SetParticipantListenerMail,
+            SetParticipantQosMail,
         },
         listeners::{
             domain_participant_listener::DcpsDomainParticipantListener,
@@ -74,18 +84,15 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<PublisherAsync> {
         let dcps_listener = a_listener.map(DcpsPublisherListener::new);
-        let reply = self
+        let guid = self
             .dcps_sender
-            .call(DcpsMail::Participant(
-                crate::dcps::dcps_mail::ParticipantServiceMail::CreateUserDefinedPublisher {
-                    participant_handle: self.handle,
-                    qos,
-                    dcps_listener,
-                    listener_mask: mask.iter().collect(),
-                },
-            ))
+            .execute(CreateUserDefinedPublisherMail {
+                participant_handle: self.handle,
+                qos,
+                dcps_listener,
+                listener_mask: mask.iter().collect(),
+            })
             .await?;
-        let guid = reply.expect_instance_handle()?;
         let publisher = PublisherAsync::new(guid, self.clone());
 
         Ok(publisher)
@@ -95,15 +102,12 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_publisher))]
     pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::DeleteUserDefinedPublisher {
-                    participant_handle: self.handle,
-                    parent_participant_handle: a_publisher.get_participant().handle,
-                    publisher_handle: a_publisher.get_instance_handle(),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(DeleteUserDefinedPublisherMail {
+                participant_handle: self.handle,
+                parent_participant_handle: a_publisher.get_participant().handle,
+                publisher_handle: a_publisher.get_instance_handle(),
+            })
+            .await
     }
 
     /// Async version of [`create_subscriber`](crate::domain::domain_participant::DomainParticipant::create_subscriber).
@@ -115,18 +119,15 @@ impl DomainParticipantAsync {
         mask: &[StatusKind],
     ) -> DdsResult<SubscriberAsync> {
         let dcps_listener = a_listener.map(DcpsSubscriberListener::new);
-        let reply = self
+        let guid = self
             .dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::CreateUserDefinedSubscriber {
-                    participant_handle: self.handle,
-                    qos,
-                    dcps_listener,
-                    listener_mask: mask.iter().collect(),
-                },
-            ))
+            .execute(CreateUserDefinedSubscriberMail {
+                participant_handle: self.handle,
+                qos,
+                dcps_listener,
+                listener_mask: mask.iter().collect(),
+            })
             .await?;
-        let guid = reply.expect_instance_handle()?;
         let subscriber = SubscriberAsync::new(guid, self.clone());
 
         Ok(subscriber)
@@ -136,15 +137,12 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_subscriber))]
     pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::DeleteUserDefinedSubscriber {
-                    participant_handle: self.handle,
-                    parent_participant_handle: a_subscriber.get_participant().handle,
-                    subscriber_handle: a_subscriber.get_instance_handle(),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(DeleteUserDefinedSubscriberMail {
+                participant_handle: self.handle,
+                parent_participant_handle: a_subscriber.get_participant().handle,
+                subscriber_handle: a_subscriber.get_instance_handle(),
+            })
+            .await
     }
 
     /// Async version of [`create_topic`](crate::domain::domain_participant::DomainParticipant::create_topic).
@@ -176,21 +174,18 @@ impl DomainParticipantAsync {
         dynamic_type_representation: DynamicType<'static>,
     ) -> DdsResult<TopicAsync> {
         let dcps_listener = a_listener.map(DcpsTopicListener::new);
-        let reply = self
+        let guid = self
             .dcps_sender
-            .call(DcpsMail::Participant(ParticipantServiceMail::CreateTopic(
-                Box::new(CreateTopicMail {
-                    participant_handle: self.handle,
-                    topic_name: String::from(topic_name),
-                    type_name: String::from(type_name),
-                    qos,
-                    dcps_listener,
-                    listener_mask: mask.iter().collect(),
-                    type_support: dynamic_type_representation,
-                }),
-            )))
+            .execute(CreateTopicMail {
+                participant_handle: self.handle,
+                topic_name: String::from(topic_name),
+                type_name: String::from(type_name),
+                qos,
+                dcps_listener,
+                listener_mask: mask.iter().collect(),
+                type_support: dynamic_type_representation,
+            })
             .await?;
-        let guid = reply.expect_instance_handle()?;
 
         Ok(TopicAsync::new(
             guid,
@@ -204,15 +199,12 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self, a_topic))]
     pub async fn delete_topic(&self, a_topic: &TopicAsync) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::DeleteUserDefinedTopic {
-                    participant_handle: a_topic.get_participant().handle,
-                    parent_participant_handle: self.handle,
-                    topic_name: a_topic.get_name(),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(DeleteUserDefinedTopicMail {
+                participant_handle: a_topic.get_participant().handle,
+                parent_participant_handle: self.handle,
+                topic_name: a_topic.get_name(),
+            })
+            .await
     }
 
     /// Async version of [`create_contentfilteredtopic`](crate::domain::domain_participant::DomainParticipant::create_contentfilteredtopic).
@@ -228,19 +220,14 @@ impl DomainParticipantAsync {
         let name = name.to_string();
         let related_topic_name = related_topic.get_name();
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::CreateContentFilteredTopic(Box::new(
-                    CreateContentFilteredTopicMail {
-                        participant_handle: topic.get_participant().handle,
-                        name: name.clone(),
-                        related_topic_name,
-                        filter_expression,
-                        expression_parameters,
-                    },
-                )),
-            ))
-            .await?
-            .expect_instance_handle()?;
+            .execute(CreateContentFilteredTopicMail {
+                participant_handle: topic.get_participant().handle,
+                name: name.clone(),
+                related_topic_name,
+                filter_expression,
+                expression_parameters,
+            })
+            .await?;
         Ok(ContentFilteredTopicAsync::new(name.clone(), topic))
     }
 
@@ -251,14 +238,11 @@ impl DomainParticipantAsync {
         a_contentfilteredtopic: &ContentFilteredTopicAsync,
     ) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::DeleteContentFilteredTopic {
-                    participant_handle: a_contentfilteredtopic.get_participant().handle,
-                    name: a_contentfilteredtopic.get_name(),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(DeleteContentFilteredTopicMail {
+                participant_handle: a_contentfilteredtopic.get_participant().handle,
+                name: a_contentfilteredtopic.get_name(),
+            })
+            .await
     }
 
     /// Async version of [`find_topic`](crate::domain::domain_participant::DomainParticipant::find_topic).
@@ -277,13 +261,13 @@ impl DomainParticipantAsync {
         let (reply_sender, reply_receiver) = oneshot();
 
         participant_address
-            .call(DcpsMail::Participant(ParticipantServiceMail::FindTopic {
+            .execute(FindTopicMail {
                 participant_handle: self.handle,
                 topic_name: topic_name.clone(),
                 type_support: Foo::TYPE,
                 timeout,
                 reply_sender,
-            }))
+            })
             .await?;
         let (guid, type_name) = reply_receiver.await??;
         Ok(TopicAsync::new(
@@ -319,16 +303,14 @@ impl DomainParticipantAsync {
             }
         }
 
-        let reply = self
+        let type_name = self
             .dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::LookupTopicdescription {
-                    participant_handle: self.handle,
-                    topic_name: String::from(topic_name),
-                },
-            ))
+            .execute(LookupTopicdescriptionMail {
+                participant_handle: self.handle,
+                topic_name: String::from(topic_name),
+            })
             .await?;
-        if let Some(type_name) = reply.expect_topic_description()? {
+        if let Some(type_name) = type_name {
             Ok(Some(LocalTopicDescription {
                 participant: self.clone(),
                 type_name,
@@ -349,14 +331,11 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::IgnoreParticipant {
-                    participant_handle: self.handle,
-                    handle,
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(IgnoreParticipantMail {
+                participant_handle: self.handle,
+                handle,
+            })
+            .await
     }
 
     /// Async version of [`ignore_topic`](crate::domain::domain_participant::DomainParticipant::ignore_topic).
@@ -369,28 +348,22 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::IgnorePublication {
-                    participant_handle: self.handle,
-                    handle,
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(IgnorePublicationMail {
+                participant_handle: self.handle,
+                handle,
+            })
+            .await
     }
 
     /// Async version of [`ignore_subscription`](crate::domain::domain_participant::DomainParticipant::ignore_subscription).
     #[tracing::instrument(skip(self))]
     pub async fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::IgnoreSubscription {
-                    participant_handle: self.handle,
-                    handle,
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(IgnoreSubscriptionMail {
+                participant_handle: self.handle,
+                handle,
+            })
+            .await
     }
 
     /// Async version of [`get_domain_id`](crate::domain::domain_participant::DomainParticipant::get_domain_id).
@@ -403,13 +376,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn delete_contained_entities(&self) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::DeleteContainedEntities {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(DeleteContainedEntitiesMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`assert_liveliness`](crate::domain::domain_participant::DomainParticipant::assert_liveliness).
@@ -422,94 +392,73 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::SetDefaultPublisherQos {
-                    participant_handle: self.handle,
-                    qos: Box::new(qos),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(SetDefaultPublisherQosMail {
+                participant_handle: self.handle,
+                qos: Box::new(qos),
+            })
+            .await
     }
 
     /// Async version of [`get_default_publisher_qos`](crate::domain::domain_participant::DomainParticipant::get_default_publisher_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDefaultPublisherQos {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_publisher_qos()
+            .execute(GetDefaultPublisherQosMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`set_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::set_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::SetDefaultSubscriberQos {
-                    participant_handle: self.handle,
-                    qos: Box::new(qos),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(SetDefaultSubscriberQosMail {
+                participant_handle: self.handle,
+                qos: Box::new(qos),
+            })
+            .await
     }
 
     /// Async version of [`get_default_subscriber_qos`](crate::domain::domain_participant::DomainParticipant::get_default_subscriber_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDefaultSubscriberQos {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_subscriber_qos()
+            .execute(GetDefaultSubscriberQosMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`set_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::set_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::SetDefaultTopicQos {
-                    participant_handle: self.handle,
-                    qos: Box::new(qos),
-                },
-            ))
-            .await?
-            .expect_ok()
+            .execute(SetDefaultTopicQosMail {
+                participant_handle: self.handle,
+                qos: Box::new(qos),
+            })
+            .await
     }
 
     /// Async version of [`get_default_topic_qos`](crate::domain::domain_participant::DomainParticipant::get_default_topic_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDefaultTopicQos {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_topic_qos()
+            .execute(GetDefaultTopicQosMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`get_discovered_participants`](crate::domain::domain_participant::DomainParticipant::get_discovered_participants).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDiscoveredParticipants {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_instance_handle_list()
+            .execute(GetDiscoveredParticipantsMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`get_discovered_participant_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_participant_data).
@@ -519,27 +468,21 @@ impl DomainParticipantAsync {
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDiscoveredParticipantData {
-                    participant_handle: self.handle,
-                    discovered_participant_handle: participant_handle,
-                },
-            ))
-            .await?
-            .expect_participant_builtin_topic_data()
+            .execute(GetDiscoveredParticipantDataMail {
+                participant_handle: self.handle,
+                discovered_participant_handle: participant_handle,
+            })
+            .await
     }
 
     /// Async version of [`get_discovered_topics`](crate::domain::domain_participant::DomainParticipant::get_discovered_topics).
     #[tracing::instrument(skip(self))]
     pub async fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDiscoveredTopics {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_instance_handle_list()
+            .execute(GetDiscoveredTopicsMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`get_discovered_topic_data`](crate::domain::domain_participant::DomainParticipant::get_discovered_topic_data).
@@ -549,14 +492,11 @@ impl DomainParticipantAsync {
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetDiscoveredTopicData {
-                    participant_handle: self.handle,
-                    topic_handle,
-                },
-            ))
-            .await?
-            .expect_topic_builtin_topic_data()
+            .execute(GetDiscoveredTopicDataMail {
+                participant_handle: self.handle,
+                topic_handle,
+            })
+            .await
     }
 
     /// Async version of [`contains_entity`](crate::domain::domain_participant::DomainParticipant::contains_entity).
@@ -569,13 +509,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn get_current_time(&self) -> DdsResult<Time> {
         self.dcps_sender
-            .call(DcpsMail::Participant(
-                ParticipantServiceMail::GetCurrentTime {
-                    participant_handle: self.handle,
-                },
-            ))
-            .await?
-            .expect_time()
+            .execute(GetCurrentTimeMail {
+                participant_handle: self.handle,
+            })
+            .await
     }
 }
 
@@ -584,23 +521,21 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(ParticipantServiceMail::SetQos {
+            .execute(SetParticipantQosMail {
                 participant_handle: self.handle,
                 qos: Box::new(qos),
-            }))
-            .await?
-            .expect_ok()
+            })
+            .await
     }
 
     /// Async version of [`get_qos`](crate::domain::domain_participant::DomainParticipant::get_qos).
     #[tracing::instrument(skip(self))]
     pub async fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         self.dcps_sender
-            .call(DcpsMail::Participant(ParticipantServiceMail::GetQos {
+            .execute(GetParticipantQosMail {
                 participant_handle: self.handle,
-            }))
-            .await?
-            .expect_participant_qos()
+            })
+            .await
     }
 
     /// Async version of [`set_listener`](crate::domain::domain_participant::DomainParticipant::set_listener).
@@ -612,13 +547,12 @@ impl DomainParticipantAsync {
     ) -> DdsResult<()> {
         let dcps_listener = a_listener.map(DcpsDomainParticipantListener::new);
         self.dcps_sender
-            .call(DcpsMail::Participant(ParticipantServiceMail::SetListener {
+            .execute(SetParticipantListenerMail {
                 participant_handle: self.handle,
                 dcps_listener,
                 listener_mask: mask.iter().collect(),
-            }))
-            .await?
-            .expect_ok()
+            })
+            .await
     }
 
     /// Async version of [`get_status_changes`](crate::domain::domain_participant::DomainParticipant::get_status_changes).
@@ -631,11 +565,10 @@ impl DomainParticipantAsync {
     #[tracing::instrument(skip(self))]
     pub async fn enable(&self) -> DdsResult<()> {
         self.dcps_sender
-            .call(DcpsMail::Participant(ParticipantServiceMail::Enable {
+            .execute(EnableParticipantMail {
                 participant_handle: self.handle,
-            }))
-            .await?
-            .expect_ok()
+            })
+            .await
     }
 
     /// Async version of [`get_instance_handle`](crate::domain::domain_participant::DomainParticipant::get_instance_handle).
