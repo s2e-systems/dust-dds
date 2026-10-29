@@ -57,26 +57,33 @@ pub fn block_timeout<T>(
     }
 }
 
-pub fn block_on<T>(f: impl Future<Output = T>) -> T {
-    struct ThreadWake(Thread);
-    impl Wake for ThreadWake {
-        fn wake(self: std::sync::Arc<Self>) {
-            self.wake_by_ref()
-        }
+struct ThreadWake(Thread);
 
-        fn wake_by_ref(self: &Arc<Self>) {
-            self.0.unpark()
-        }
+impl Wake for ThreadWake {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
     }
-    let waker = Waker::from(Arc::new(ThreadWake(thread::current())));
-    let mut cx = Context::from_waker(&waker);
-    let mut pinned_fut = pin!(f);
-    loop {
-        match pinned_fut.as_mut().poll(&mut cx) {
-            Poll::Ready(t) => return t,
-            Poll::Pending => thread::park(),
-        }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
     }
+}
+
+thread_local! {
+    static CURRENT_THREAD_WAKER: Waker = Waker::from(Arc::new(ThreadWake(thread::current())));
+}
+
+pub fn block_on<T>(f: impl Future<Output = T>) -> T {
+    CURRENT_THREAD_WAKER.with(|waker| {
+        let mut cx = Context::from_waker(waker);
+        let mut pinned_fut = pin!(f);
+        loop {
+            match pinned_fut.as_mut().poll(&mut cx) {
+                Poll::Ready(t) => return t,
+                Poll::Pending => thread::park(),
+            }
+        }
+    })
 }
 
 pub struct Task {
