@@ -925,7 +925,7 @@ impl DcpsDomainParticipant {
             let mut message_receiver = MessageReceiver::new(&rtps_message);
 
             while let Some(submessage) = message_receiver.next() {
-                match submessage {
+                match &submessage {
                     RtpsSubmessageReadKind::Data(data_submessage) => {
                         self.handle_data_submessage(&message_receiver, data_submessage);
                     }
