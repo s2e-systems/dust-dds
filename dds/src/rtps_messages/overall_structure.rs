@@ -715,7 +715,7 @@ mod tests {
     use super::*;
     use crate::{
         rtps_messages::{
-            submessage_elements::{Data, ParameterList},
+            submessage_elements::ParameterList,
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,
         },
@@ -797,7 +797,7 @@ mod tests {
             ],
             Endianness::LittleEndian,
         );
-        let serialized_payload = Data::new(vec![].into());
+        let serialized_payload = &[][..];
 
         let submessage = DataSubmessage::new(
             inline_qos_flag,
@@ -859,7 +859,7 @@ mod tests {
             ],
             Endianness::LittleEndian,
         );
-        let serialized_payload = Data::new(vec![].into());
+        let serialized_payload = &[][..];
 
         let data_submessage = DataSubmessage::new(
             inline_qos_flag,
@@ -1006,7 +1006,7 @@ mod tests {
                 ],
                 Endianness::LittleEndian,
             ),
-            Data::default(),
+            &[][..],
         ));
 
         let expected_submessages = vec![expected_data_submessage];
