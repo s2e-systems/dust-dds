@@ -4,7 +4,7 @@ use super::super::{
         Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
         WriteIntoBytes,
     },
-    submessage_elements::{Data, ParameterList, ParameterListWrite},
+    submessage_elements::{ParameterList, ParameterListWrite},
     types::{SubmessageFlag, SubmessageKind},
 };
 use crate::transport::types::{EntityId, SequenceNumber};
@@ -99,7 +99,7 @@ pub struct DataSubmessage<'a> {
     writer_id: EntityId,
     writer_sn: SequenceNumber,
     inline_qos: ParameterList<'a>,
-    serialized_payload: Data,
+    serialized_payload: &'a [u8],
 }
 
 impl<'a> DataSubmessage<'a> {
@@ -144,9 +144,9 @@ impl<'a> DataSubmessage<'a> {
         };
 
         let serialized_payload = if data_flag || key_flag {
-            Data::new(data_starting_at_inline_qos.into())
+            data_starting_at_inline_qos
         } else {
-            Data::default()
+            &[]
         };
 
         Ok(Self {
@@ -172,7 +172,7 @@ impl<'a> DataSubmessage<'a> {
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         inline_qos: ParameterList<'a>,
-        serialized_payload: Data,
+        serialized_payload: &'a [u8],
     ) -> Self {
         Self {
             inline_qos_flag,
@@ -219,8 +219,8 @@ impl<'a> DataSubmessage<'a> {
         &self.inline_qos
     }
 
-    pub fn serialized_payload(&self) -> &Data {
-        &self.serialized_payload
+    pub fn serialized_payload(&self) -> &'a [u8] {
+        self.serialized_payload
     }
 }
 
@@ -353,7 +353,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![].into());
+        let serialized_payload = &[][..];
         let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
@@ -395,7 +395,7 @@ mod tests {
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ];
         let inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
-        let serialized_payload = Data::default();
+        let serialized_payload = &[][..];
 
         let submessage = DataSubmessage::new(
             inline_qos_flag,
@@ -435,7 +435,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![1, 2, 3].into());
+        let serialized_payload = &[1, 2, 3][..];
         let submessage = DataSubmessage::new(
             inline_qos_flag,
             data_flag,
@@ -469,7 +469,7 @@ mod tests {
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
         let inline_qos = ParameterList::empty();
-        let serialized_payload = Data::new(vec![].into());
+        let serialized_payload: &[u8] = &[];
 
         #[rustfmt::skip]
         let mut data = &[
@@ -490,13 +490,13 @@ mod tests {
         assert_eq!(writer_id, data_submessage.writer_id());
         assert_eq!(writer_sn, data_submessage.writer_sn());
         assert_eq!(&inline_qos, data_submessage.inline_qos());
-        assert_eq!(&serialized_payload, data_submessage.serialized_payload());
+        assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
 
     #[test]
     fn deserialize_no_inline_qos_with_serialized_payload() {
         let expected_inline_qos = ParameterList::empty();
-        let expected_serialized_payload = Data::new(vec![1, 2, 3, 4].into());
+        let expected_serialized_payload = &[1, 2, 3, 4][..];
 
         #[rustfmt::skip]
         let mut data = &[
@@ -513,7 +513,7 @@ mod tests {
         let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
-            &expected_serialized_payload,
+            expected_serialized_payload,
             data_submessage.serialized_payload()
         );
     }
@@ -529,7 +529,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ];
         let inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
-        let serialized_payload = Data::new(vec![].into());
+        let serialized_payload: &[u8] = &[];
 
         #[rustfmt::skip]
         let mut data = &[
@@ -548,7 +548,7 @@ mod tests {
         let submessage_header = SubmessageHeaderRead::try_read_from_bytes(&mut data).unwrap();
         let data_submessage = DataSubmessage::try_from_bytes(&submessage_header, data).unwrap();
         assert_eq!(&inline_qos, data_submessage.inline_qos());
-        assert_eq!(&serialized_payload, data_submessage.serialized_payload());
+        assert_eq!(serialized_payload, data_submessage.serialized_payload());
     }
 
     #[test]
@@ -562,7 +562,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ];
         let expected_inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
-        let expected_serialized_payload = Data::new(vec![1, 2, 3, 4].into());
+        let expected_serialized_payload = &[1, 2, 3, 4][..];
 
         #[rustfmt::skip]
         let mut data = &[
@@ -584,7 +584,7 @@ mod tests {
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
-            &expected_serialized_payload,
+            expected_serialized_payload,
             data_submessage.serialized_payload()
         );
     }
@@ -600,7 +600,7 @@ mod tests {
             1, 0, 1, 0, // inlineQos: Sentinel
         ];
         let expected_inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
-        let expected_serialized_payload = Data::new(vec![1, 2, 3, 4].into());
+        let expected_serialized_payload = &[1, 2, 3, 4][..];
 
         #[rustfmt::skip]
         let mut data = &[
@@ -622,7 +622,7 @@ mod tests {
 
         assert_eq!(&expected_inline_qos, data_submessage.inline_qos());
         assert_eq!(
-            &expected_serialized_payload,
+            expected_serialized_payload,
             data_submessage.serialized_payload()
         );
     }
