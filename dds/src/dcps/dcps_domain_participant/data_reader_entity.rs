@@ -1,8 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    dcps::infrastructure::sample_info::Sample,
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
+        instance::{HANDLE_NIL, InstanceHandle},
         qos::DataReaderQos,
         qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
         sample_info::{
@@ -13,10 +14,106 @@ use crate::{
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     transport::types::{ChangeKind, Guid},
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
 
-pub type SampleList = Vec<(Arc<[u8]>, SampleInfo)>;
+/// A collection of raw samples which can be either a single sample or multiple samples.
+#[derive(Debug, PartialEq)]
+pub enum RawSampleCollection {
+    /// A single sample.
+    Single((Arc<[u8]>, SampleInfo)),
+    /// Multiple samples.
+    Multiple(Vec<(Arc<[u8]>, SampleInfo)>),
+}
+
+impl RawSampleCollection {
+    /// Returns the number of samples in the collection.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Single(_) => 1,
+            Self::Multiple(v) => v.len(),
+        }
+    }
+
+    /// Returns true if the collection contains no samples.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Single(_) => false,
+            Self::Multiple(v) => v.is_empty(),
+        }
+    }
+
+    /// Extracts a single sample from the collection.
+    pub fn into_single(self) -> Option<(Arc<[u8]>, SampleInfo)> {
+        match self {
+            Self::Single(sample) => Some(sample),
+            Self::Multiple(mut vec) => vec.pop(),
+        }
+    }
+
+    /// Maps the raw samples in this collection to typed samples.
+    pub fn map_to_samples<Foo: TypeSupport>(
+        self,
+        topic_name: &str,
+        type_support: DynamicType<'static>,
+    ) -> Vec<Sample<Foo>> {
+        match self {
+            Self::Single((data, sample_info)) => {
+                let sample = Sample::from_bytes(topic_name, type_support, data, sample_info);
+                alloc::vec![sample]
+            }
+            Self::Multiple(list) => list
+                .into_iter()
+                .map(|(data, sample_info)| {
+                    Sample::from_bytes(topic_name, type_support, data, sample_info)
+                })
+                .collect(),
+        }
+    }
+}
+
+/// An iterator over the samples in a [`RawSampleCollection`].
+pub enum RawSampleCollectionIntoIter {
+    /// Iterator over a single sample.
+    Single(core::option::IntoIter<(Arc<[u8]>, SampleInfo)>),
+    /// Iterator over multiple samples.
+    Multiple(alloc::vec::IntoIter<(Arc<[u8]>, SampleInfo)>),
+}
+
+impl Iterator for RawSampleCollectionIntoIter {
+    type Item = (Arc<[u8]>, SampleInfo);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Single(iter) => iter.next(),
+            Self::Multiple(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Single(iter) => iter.size_hint(),
+            Self::Multiple(iter) => iter.size_hint(),
+        }
+    }
+}
+
+impl ExactSizeIterator for RawSampleCollectionIntoIter {}
+
+impl IntoIterator for RawSampleCollection {
+    type Item = (Arc<[u8]>, SampleInfo);
+    type IntoIter = RawSampleCollectionIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Single(item) => RawSampleCollectionIntoIter::Single(Some(item).into_iter()),
+            Self::Multiple(vec) => RawSampleCollectionIntoIter::Multiple(vec.into_iter()),
+        }
+    }
+}
+
+pub type SampleList = RawSampleCollection;
 
 pub enum AddChangeResult {
     Added,
@@ -244,101 +341,147 @@ impl<T> DataReaderEntity<T> {
             }
         };
 
+        #[derive(Clone, Copy)]
         struct InstanceInCollection {
             handle: InstanceHandle,
             instance_index: usize,
-            instance_state: InstanceState,
             most_recent_sample_absolute_generation_rank: i32,
             sample_rank_counter: i32,
         }
 
-        let match_all_sample_states = sample_state_mask == SampleStateMask::ANY;
-        let match_all_view_states = view_state_mask == ViewStateMask::ANY;
-        let match_all_instance_states = instance_state_mask == InstanceStateMask::ANY;
+        const DEFAULT_INSTANCE_IN_COLLECTION: InstanceInCollection = InstanceInCollection {
+            handle: HANDLE_NIL,
+            instance_index: 0,
+            most_recent_sample_absolute_generation_rank: 0,
+            sample_rank_counter: 0,
+        };
 
-        let estimated_capacity = (max_samples as usize).min(self.sample_list.len());
-        let mut samples = Vec::with_capacity(estimated_capacity);
-        let mut instances_in_collection: Vec<InstanceInCollection> =
-            Vec::with_capacity(self.instances.len().min(4));
+        struct InstancesTracker {
+            stack: [InstanceInCollection; 4],
+            heap: Vec<InstanceInCollection>,
+            len: usize,
+        }
 
-        self.sample_list.retain_mut(|cache_change| {
-            if samples.len() as i32 == max_samples {
-                return true;
+        impl InstancesTracker {
+            fn new() -> Self {
+                Self {
+                    stack: [DEFAULT_INSTANCE_IN_COLLECTION; 4],
+                    heap: Vec::new(),
+                    len: 0,
+                }
             }
 
+            fn as_slice(&self) -> &[InstanceInCollection] {
+                if self.len <= 4 {
+                    &self.stack[..self.len]
+                } else {
+                    &self.heap
+                }
+            }
+
+            fn as_slice_mut(&mut self) -> &mut [InstanceInCollection] {
+                if self.len <= 4 {
+                    &mut self.stack[..self.len]
+                } else {
+                    &mut self.heap
+                }
+            }
+
+            fn get_or_insert_mut(
+                &mut self,
+                handle: InstanceHandle,
+                instance_index: usize,
+            ) -> &mut InstanceInCollection {
+                if self.len <= 4 {
+                    if let Some(pos) = self.stack[..self.len]
+                        .iter()
+                        .position(|x| x.handle == handle)
+                    {
+                        return &mut self.stack[pos];
+                    }
+                    if self.len < 4 {
+                        let idx = self.len;
+                        self.stack[idx] = InstanceInCollection {
+                            handle,
+                            instance_index,
+                            most_recent_sample_absolute_generation_rank: 0,
+                            sample_rank_counter: 0,
+                        };
+                        self.len += 1;
+                        return &mut self.stack[idx];
+                    }
+                    self.heap.extend_from_slice(&self.stack);
+                    self.heap.push(InstanceInCollection {
+                        handle,
+                        instance_index,
+                        most_recent_sample_absolute_generation_rank: 0,
+                        sample_rank_counter: 0,
+                    });
+                    self.len = self.heap.len();
+                    self.heap.last_mut().unwrap()
+                } else {
+                    if let Some(pos) = self.heap.iter().position(|x| x.handle == handle) {
+                        return &mut self.heap[pos];
+                    }
+                    self.heap.push(InstanceInCollection {
+                        handle,
+                        instance_index,
+                        most_recent_sample_absolute_generation_rank: 0,
+                        sample_rank_counter: 0,
+                    });
+                    self.len = self.heap.len();
+                    self.heap.last_mut().unwrap()
+                }
+            }
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn match_sample<'a>(
+            cache_change: &ReaderSample,
+            specific_instance_handle: &Option<InstanceHandle>,
+            instances: &'a [InstanceState],
+            match_all_sample_states: bool,
+            sample_state_mask: SampleStateMask,
+            match_all_view_states: bool,
+            view_state_mask: ViewStateMask,
+            match_all_instance_states: bool,
+            instance_state_mask: InstanceStateMask,
+        ) -> Option<(usize, &'a InstanceState)> {
             if let Some(h) = specific_instance_handle {
                 if &cache_change.instance_handle != h {
-                    return true;
+                    return None;
                 }
-            };
+            }
 
-            let (instance_idx, instance) = if self.instances.len() == 1
-                && self.instances[0].handle == cache_change.instance_handle
-            {
-                (0, &self.instances[0])
-            } else {
-                match self
-                    .instances
-                    .iter()
-                    .enumerate()
-                    .find(|(_, x)| x.handle == cache_change.instance_handle)
-                {
-                    Some(entry) => entry,
-                    None => return true,
-                }
-            };
+            let (instance_idx, instance) =
+                if instances.len() == 1 && instances[0].handle == cache_change.instance_handle {
+                    (0, &instances[0])
+                } else {
+                    instances
+                        .iter()
+                        .enumerate()
+                        .find(|(_, x)| x.handle == cache_change.instance_handle)?
+                };
 
             if (!match_all_sample_states && !sample_state_mask.contains(cache_change.sample_state))
                 || (!match_all_view_states && !view_state_mask.contains(instance.view_state))
                 || (!match_all_instance_states
                     && !instance_state_mask.contains(instance.instance_state))
             {
-                return true;
+                return None;
             }
 
-            let instance_in_coll = if instances_in_collection.len() == 1
-                && instances_in_collection[0].handle == cache_change.instance_handle
-            {
-                &mut instances_in_collection[0]
-            } else {
-                match instances_in_collection
-                    .iter_mut()
-                    .find(|x| x.handle == cache_change.instance_handle)
-                {
-                    Some(entry) => entry,
-                    None => {
-                        instances_in_collection.push(InstanceInCollection {
-                            handle: cache_change.instance_handle,
-                            instance_index: instance_idx,
-                            instance_state: InstanceState::new(cache_change.instance_handle),
-                            most_recent_sample_absolute_generation_rank: 0,
-                            sample_rank_counter: 0,
-                        });
-                        instances_in_collection.last_mut().unwrap()
-                    }
-                }
-            };
+            Some((instance_idx, instance))
+        }
 
-            instance_in_coll.instance_state.update_state(
-                cache_change.kind,
-                cache_change.writer_guid,
-                None,
-                None,
-            );
-            let sample_state = cache_change.sample_state;
-            let view_state = instance.view_state;
-            let instance_state = instance.instance_state;
-
+        fn create_sample_info(
+            cache_change: &ReaderSample,
+            instance: &InstanceState,
+        ) -> (Arc<[u8]>, SampleInfo, i32) {
             let absolute_generation_rank = (instance.most_recent_disposed_generation_count
                 + instance.most_recent_no_writers_generation_count)
-                - (instance_in_coll
-                    .instance_state
-                    .most_recent_disposed_generation_count
-                    + instance_in_coll
-                        .instance_state
-                        .most_recent_no_writers_generation_count);
-
-            instance_in_coll.most_recent_sample_absolute_generation_rank = absolute_generation_rank;
+                - (cache_change.disposed_generation_count
+                    + cache_change.no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => {
@@ -352,9 +495,9 @@ impl<T> DataReaderEntity<T> {
             };
 
             let sample_info = SampleInfo {
-                sample_state,
-                view_state,
-                instance_state,
+                sample_state: cache_change.sample_state,
+                view_state: instance.view_state,
+                instance_state: instance.instance_state,
                 disposed_generation_count: cache_change.disposed_generation_count,
                 no_writers_generation_count: cache_change.no_writers_generation_count,
                 sample_rank: 0,     // To be filled up after collection is created
@@ -366,49 +509,185 @@ impl<T> DataReaderEntity<T> {
                 valid_data,
             };
 
-            samples.push((data, sample_info));
+            (data, sample_info, absolute_generation_rank)
+        }
 
-            if take {
-                false
+        let match_all_sample_states = sample_state_mask == SampleStateMask::ANY;
+        let match_all_view_states = view_state_mask == ViewStateMask::ANY;
+        let match_all_instance_states = instance_state_mask == InstanceStateMask::ANY;
+
+        if max_samples == 1 || self.sample_list.len() == 1 {
+            if !take {
+                for cache_change in &mut self.sample_list {
+                    if let Some((instance_idx, _)) = match_sample(
+                        cache_change,
+                        specific_instance_handle,
+                        &self.instances,
+                        match_all_sample_states,
+                        sample_state_mask,
+                        match_all_view_states,
+                        view_state_mask,
+                        match_all_instance_states,
+                        instance_state_mask,
+                    ) {
+                        let (data, mut sample_info, _) =
+                            create_sample_info(cache_change, &self.instances[instance_idx]);
+                        sample_info.sample_rank = 0;
+                        sample_info.generation_rank = 0;
+                        self.instances[instance_idx].mark_viewed();
+                        cache_change.sample_state = SampleStateKind::Read;
+                        return Ok(RawSampleCollection::Single((data, sample_info)));
+                    }
+                }
+                return Err(DdsError::NoData);
             } else {
-                cache_change.sample_state = SampleStateKind::Read;
-                true
+                let mut found_idx = None;
+                for (idx, cache_change) in self.sample_list.iter().enumerate() {
+                    if let Some((instance_idx, _)) = match_sample(
+                        cache_change,
+                        specific_instance_handle,
+                        &self.instances,
+                        match_all_sample_states,
+                        sample_state_mask,
+                        match_all_view_states,
+                        view_state_mask,
+                        match_all_instance_states,
+                        instance_state_mask,
+                    ) {
+                        found_idx = Some((idx, instance_idx));
+                        break;
+                    }
+                }
+                if let Some((idx, instance_idx)) = found_idx {
+                    let cache_change = self.sample_list.remove(idx);
+                    let (data, mut sample_info, _) =
+                        create_sample_info(&cache_change, &self.instances[instance_idx]);
+                    sample_info.sample_rank = 0;
+                    sample_info.generation_rank = 0;
+                    self.instances[instance_idx].mark_viewed();
+                    return Ok(RawSampleCollection::Single((data, sample_info)));
+                } else {
+                    return Err(DdsError::NoData);
+                }
             }
-        });
+        }
 
-        // After the collection is created, update relative generation rank and sample rank in a single reverse pass
-        if instances_in_collection.len() == 1 {
-            let inst = &mut instances_in_collection[0];
-            let most_recent_rank = inst.most_recent_sample_absolute_generation_rank;
-            for (i, (_, sample_info)) in samples.iter_mut().rev().enumerate() {
-                sample_info.generation_rank =
-                    sample_info.absolute_generation_rank - most_recent_rank;
-                sample_info.sample_rank = i as i32;
+        let estimated_capacity = (max_samples as usize).min(self.sample_list.len());
+        let mut samples = Vec::with_capacity(estimated_capacity);
+        let mut instances_in_collection = InstancesTracker::new();
+
+        if !take {
+            for cache_change in &mut self.sample_list {
+                if samples.len() as i32 == max_samples {
+                    break;
+                }
+
+                if let Some((instance_idx, instance)) = match_sample(
+                    cache_change,
+                    specific_instance_handle,
+                    &self.instances,
+                    match_all_sample_states,
+                    sample_state_mask,
+                    match_all_view_states,
+                    view_state_mask,
+                    match_all_instance_states,
+                    instance_state_mask,
+                ) {
+                    let (data, sample_info, absolute_generation_rank) =
+                        create_sample_info(cache_change, instance);
+
+                    if self.instances.len() > 1 {
+                        let inst_in_coll = instances_in_collection
+                            .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                        inst_in_coll.most_recent_sample_absolute_generation_rank =
+                            absolute_generation_rank;
+                    }
+
+                    samples.push((data, sample_info));
+                    cache_change.sample_state = SampleStateKind::Read;
+                }
             }
-            self.instances[inst.instance_index].mark_viewed();
         } else {
-            for (_, sample_info) in samples.iter_mut().rev() {
-                let instance_in_coll = instances_in_collection
-                    .iter_mut()
-                    .find(|x| x.handle == sample_info.instance_handle)
-                    .expect("Instance handle must exist on collection");
+            self.sample_list.retain_mut(|cache_change| {
+                if samples.len() as i32 == max_samples {
+                    return true;
+                }
 
-                sample_info.generation_rank = sample_info.absolute_generation_rank
-                    - instance_in_coll.most_recent_sample_absolute_generation_rank;
+                if let Some((instance_idx, instance)) = match_sample(
+                    cache_change,
+                    specific_instance_handle,
+                    &self.instances,
+                    match_all_sample_states,
+                    sample_state_mask,
+                    match_all_view_states,
+                    view_state_mask,
+                    match_all_instance_states,
+                    instance_state_mask,
+                ) {
+                    let (data, sample_info, absolute_generation_rank) =
+                        create_sample_info(cache_change, instance);
 
-                sample_info.sample_rank = instance_in_coll.sample_rank_counter;
-                instance_in_coll.sample_rank_counter += 1;
-            }
+                    if self.instances.len() > 1 {
+                        let inst_in_coll = instances_in_collection
+                            .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                        inst_in_coll.most_recent_sample_absolute_generation_rank =
+                            absolute_generation_rank;
+                    }
 
-            for inst in &instances_in_collection {
-                self.instances[inst.instance_index].mark_viewed();
-            }
+                    samples.push((data, sample_info));
+                    false
+                } else {
+                    true
+                }
+            });
         }
 
         if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
-            Ok(samples)
+            // After the collection is created, update relative generation rank and sample rank in a single reverse pass
+            if self.instances.len() == 1 {
+                let most_recent_rank = samples.last().unwrap().1.absolute_generation_rank;
+                for (i, (_, sample_info)) in samples.iter_mut().rev().enumerate() {
+                    sample_info.generation_rank =
+                        sample_info.absolute_generation_rank - most_recent_rank;
+                    sample_info.sample_rank = i as i32;
+                }
+                self.instances[0].mark_viewed();
+            } else if instances_in_collection.len == 1 {
+                let inst = &instances_in_collection.as_slice()[0];
+                let most_recent_rank = inst.most_recent_sample_absolute_generation_rank;
+                for (i, (_, sample_info)) in samples.iter_mut().rev().enumerate() {
+                    sample_info.generation_rank =
+                        sample_info.absolute_generation_rank - most_recent_rank;
+                    sample_info.sample_rank = i as i32;
+                }
+                self.instances[inst.instance_index].mark_viewed();
+            } else {
+                for (_, sample_info) in samples.iter_mut().rev() {
+                    let instance_in_coll = instances_in_collection
+                        .as_slice_mut()
+                        .iter_mut()
+                        .find(|x| x.handle == sample_info.instance_handle)
+                        .expect("Instance handle must exist on collection");
+
+                    sample_info.generation_rank = sample_info.absolute_generation_rank
+                        - instance_in_coll.most_recent_sample_absolute_generation_rank;
+
+                    sample_info.sample_rank = instance_in_coll.sample_rank_counter;
+                    instance_in_coll.sample_rank_counter += 1;
+                }
+
+                for inst in instances_in_collection.as_slice() {
+                    self.instances[inst.instance_index].mark_viewed();
+                }
+            }
+
+            if samples.len() == 1 {
+                Ok(RawSampleCollection::Single(samples.pop().unwrap()))
+            } else {
+                Ok(RawSampleCollection::Multiple(samples))
+            }
         }
     }
 

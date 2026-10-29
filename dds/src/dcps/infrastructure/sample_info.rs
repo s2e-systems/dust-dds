@@ -1,6 +1,8 @@
+use alloc::sync::Arc;
+
 use crate::{
     infrastructure::{instance::InstanceHandle, time::Time},
-    xtypes::{dynamic_type::DynamicData, type_support::TypeSupport},
+    xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
@@ -16,11 +18,24 @@ impl<Foo> Sample<Foo>
 where
     Foo: TypeSupport,
 {
-    pub(crate) fn new(mut data: Option<DynamicData<'static>>, sample_info: SampleInfo) -> Self {
-        Self {
-            data: data.as_mut().and_then(Foo::create_sample),
-            sample_info,
-        }
+    pub(crate) fn from_bytes(
+        topic_name: &str,
+        type_support: DynamicType<'static>,
+        data: Arc<[u8]>,
+        sample_info: SampleInfo,
+    ) -> Self {
+        let data = if sample_info.valid_data {
+            crate::dcps::dcps_domain_participant::reader_methods::deserialize_topic_type(
+                topic_name,
+                type_support,
+                data.as_ref(),
+            )
+            .as_mut()
+            .and_then(Foo::create_sample)
+        } else {
+            None
+        };
+        Self { data, sample_info }
     }
 }
 
