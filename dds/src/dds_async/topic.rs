@@ -4,7 +4,10 @@ use super::{
 };
 use crate::{
     dcps::{
-        dcps_mail::{DcpsMail, TopicServiceMail},
+        dcps_mail::{
+            EnableTopicMail, GetInconsistentTopicStatusMail, GetTopicQosMail,
+            GetTopicTypeSupportMail, SetTopicQosMail,
+        },
         status_condition::StatusConditionEntity,
     },
     dds_async::topic_description::TopicDescriptionAsync,
@@ -54,14 +57,11 @@ impl TopicAsync {
     pub async fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.participant
             .dcps_sender()
-            .call(DcpsMail::Topic(
-                TopicServiceMail::GetInconsistentTopicStatus {
-                    participant_handle: self.participant.get_instance_handle(),
-                    topic_name: self.topic_name.to_string(),
-                },
-            ))
-            .await?
-            .expect_inconsistent_topic_status()
+            .execute(GetInconsistentTopicStatusMail {
+                participant_handle: self.participant.get_instance_handle(),
+                topic_name: self.topic_name.to_string(),
+            })
+            .await
     }
 }
 
@@ -85,13 +85,12 @@ impl TopicAsync {
     pub async fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.participant
             .dcps_sender()
-            .call(DcpsMail::Topic(TopicServiceMail::SetQos {
+            .execute(SetTopicQosMail {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
                 topic_qos: Box::new(qos),
-            }))
-            .await?
-            .expect_ok()
+            })
+            .await
     }
 
     /// Async version of [`get_qos`](crate::topic_definition::topic::Topic::get_qos).
@@ -99,12 +98,11 @@ impl TopicAsync {
     pub async fn get_qos(&self) -> DdsResult<TopicQos> {
         self.participant
             .dcps_sender()
-            .call(DcpsMail::Topic(TopicServiceMail::GetQos {
+            .execute(GetTopicQosMail {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-            }))
-            .await?
-            .expect_topic_qos()
+            })
+            .await
     }
 
     /// Async version of [`get_statuscondition`](crate::topic_definition::topic::Topic::get_statuscondition).
@@ -130,12 +128,11 @@ impl TopicAsync {
     pub async fn enable(&self) -> DdsResult<()> {
         self.participant
             .dcps_sender()
-            .call(DcpsMail::Topic(TopicServiceMail::Enable {
+            .execute(EnableTopicMail {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-            }))
-            .await?
-            .expect_ok()
+            })
+            .await
     }
 
     /// Async version of [`get_instance_handle`](crate::topic_definition::topic::Topic::get_instance_handle).
@@ -161,11 +158,10 @@ impl TopicAsync {
     pub async fn get_type_support(&self) -> DdsResult<DynamicType<'static>> {
         self.participant
             .dcps_sender()
-            .call(DcpsMail::Topic(TopicServiceMail::GetTypeSupport {
+            .execute(GetTopicTypeSupportMail {
                 participant_handle: self.participant.get_instance_handle(),
                 topic_name: self.topic_name.to_string(),
-            }))
-            .await?
-            .expect_dynamic_type()
+            })
+            .await
     }
 }
