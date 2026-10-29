@@ -461,9 +461,9 @@ impl<'a> Iterator for Submessages<'a> {
                     None
                 };
 
-                if submessage_length == 0 {
+                if res.is_none() && submessage_length == 0 {
                     self.data = &[];
-                    return res;
+                    return None;
                 }
 
                 self.data.consume(submessage_length);

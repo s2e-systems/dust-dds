@@ -773,12 +773,6 @@ mod tests {
                 };
                 self.submessages.lock().unwrap().push(rec);
             }
-            println!(
-                "MockTransportWriter flush buffer len: {}, submessages recorded count: {}, items: {:?}",
-                self.buffer.len(),
-                self.submessages.lock().unwrap().len(),
-                self.submessages.lock().unwrap()
-            );
             self.buffer.clear();
         }
     }
