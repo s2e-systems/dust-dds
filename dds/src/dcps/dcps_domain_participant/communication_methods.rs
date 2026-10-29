@@ -1047,7 +1047,7 @@ impl DcpsDomainParticipant {
     fn handle_data_submessage(
         &mut self,
         message_receiver: &MessageReceiver<'_>,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
     ) {
         self.domain_participant
             .builtin_subscriber

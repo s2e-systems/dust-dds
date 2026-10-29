@@ -25,7 +25,7 @@ impl RtpsStatelessReader {
     #[tracing::instrument(skip(self))]
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {

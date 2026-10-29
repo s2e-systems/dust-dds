@@ -22,7 +22,7 @@ pub struct MessageReceiver<'a> {
 }
 
 impl<'a> Iterator for MessageReceiver<'a> {
-    type Item = RtpsSubmessageReadKind;
+    type Item = RtpsSubmessageReadKind<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         for submessage in self.submessage_iter.by_ref() {

@@ -24,6 +24,7 @@ use super::{
 };
 use alloc::vec::Vec;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Endianness {
     BigEndian,
     LittleEndian,
@@ -372,7 +373,7 @@ impl<'a> Submessages<'a> {
 }
 
 impl<'a> Iterator for Submessages<'a> {
-    type Item = RtpsSubmessageReadKind;
+    type Item = RtpsSubmessageReadKind<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.data.len() >= 4 {
@@ -500,7 +501,7 @@ impl<'a> RtpsMessageRead<'a> {
 }
 
 impl<'a> IntoIterator for RtpsMessageRead<'a> {
-    type Item = RtpsSubmessageReadKind;
+    type Item = RtpsSubmessageReadKind<'a>;
     type IntoIter = Submessages<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -509,7 +510,7 @@ impl<'a> IntoIterator for RtpsMessageRead<'a> {
 }
 
 impl<'a> IntoIterator for &'a RtpsMessageRead<'a> {
-    type Item = RtpsSubmessageReadKind;
+    type Item = RtpsSubmessageReadKind<'a>;
     type IntoIter = Submessages<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -614,9 +615,9 @@ impl<'a> RtpsMessageWrite<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum RtpsSubmessageReadKind {
+pub enum RtpsSubmessageReadKind<'a> {
     AckNack(AckNackSubmessage),
-    Data(DataSubmessage),
+    Data(DataSubmessage<'a>),
     DataFrag(DataFragSubmessage),
     Gap(GapSubmessage),
     Heartbeat(HeartbeatSubmessage),
@@ -627,7 +628,7 @@ pub enum RtpsSubmessageReadKind {
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
-    HeaderExtension(HeaderExtensionSubmessage),
+    HeaderExtension(HeaderExtensionSubmessage<'a>),
     SecureBody(SecureBodySubmessage),
     SecurePostfix(SecurePostfixSubmessage),
     SecurePrefix(SecurePrefixSubmessage),
@@ -714,7 +715,7 @@ mod tests {
     use super::*;
     use crate::{
         rtps_messages::{
-            submessage_elements::{Data, Parameter, ParameterList},
+            submessage_elements::{Data, ParameterList},
             submessages::{data::DataSubmessage, info_timestamp::InfoTimestampSubmessage},
             types::Time,
         },
@@ -786,9 +787,16 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        let inline_qos = ParameterList::new(
+            &[
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ],
+            Endianness::LittleEndian,
+        );
         let serialized_payload = Data::new(vec![].into());
 
         let submessage = DataSubmessage::new(
@@ -841,9 +849,16 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        let inline_qos = ParameterList::new(
+            &[
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ],
+            Endianness::LittleEndian,
+        );
         let serialized_payload = Data::new(vec![].into());
 
         let data_submessage = DataSubmessage::new(
@@ -981,10 +996,16 @@ mod tests {
             EntityId::new([1, 2, 3], 4),
             EntityId::new([6, 7, 8], 9),
             5,
-            ParameterList::new(vec![
-                Parameter::new(6, vec![10, 11, 12, 13].into()),
-                Parameter::new(7, vec![20, 21, 22, 23].into()),
-            ]),
+            ParameterList::new(
+                &[
+                    6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                    10, 11, 12, 13, // inlineQos: value_1[length_1]
+                    7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                    20, 21, 22, 23, // inlineQos: value_2[length_2]
+                    1, 0, 0, 0, // inlineQos: Sentinel
+                ],
+                Endianness::LittleEndian,
+            ),
             Data::default(),
         ));
 
