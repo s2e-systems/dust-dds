@@ -22,7 +22,7 @@ use crate::{
             participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
             type_register::TypeRegister,
         },
-        dcps_mail::{DcpsReply, DomainParticipantMail, ParticipantServiceMail},
+        dcps_mail::{DcpsReply, DeleteParticipantMail, DomainParticipantMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
         status_mask::StatusMask,
         xtypes_glue::key_and_instance_handle::KeyHolderType,
@@ -307,12 +307,8 @@ impl DcpsParticipantFactory {
                     {
                         Either3::A((user_mail, reply_sender)) => {
                             let now = clock_clone.now();
-                            let is_delete = matches!(
-                                user_mail,
-                                DomainParticipantMail::Participant(
-                                    ParticipantServiceMail::DeleteParticipant
-                                )
-                            );
+                            let is_delete =
+                                matches!(user_mail, DomainParticipantMail::DeleteParticipant);
                             let reply = dcps_participant.handle(
                                 user_mail,
                                 now,
@@ -360,12 +356,8 @@ impl DcpsParticipantFactory {
                     {
                         Either::A((user_mail, reply_sender)) => {
                             let now = clock_clone.now();
-                            let is_delete = matches!(
-                                user_mail,
-                                DomainParticipantMail::Participant(
-                                    ParticipantServiceMail::DeleteParticipant
-                                )
-                            );
+                            let is_delete =
+                                matches!(user_mail, DomainParticipantMail::DeleteParticipant);
                             let reply = dcps_participant.handle(
                                 user_mail,
                                 now,
@@ -421,13 +413,7 @@ impl DcpsParticipantFactory {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let record = &self.participant_list[index];
-        let reply = record
-            .sender
-            .call(DomainParticipantMail::Participant(
-                ParticipantServiceMail::DeleteParticipant,
-            ))
-            .await?;
-        reply.expect_ok()?;
+        record.sender.execute(DeleteParticipantMail).await?;
 
         let record = self.participant_list.remove(index);
         record
