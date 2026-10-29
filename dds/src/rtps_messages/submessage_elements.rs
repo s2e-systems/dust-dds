@@ -236,110 +236,13 @@ impl WriteIntoBytes for LocatorList {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Parameter {
-    parameter_id: ParameterId,
-    value: Arc<[u8]>,
-}
-
-impl Parameter {
-    pub fn new(parameter_id: ParameterId, value: Arc<[u8]>) -> Self {
-        Self {
-            parameter_id,
-            value,
-        }
-    }
-
-    pub fn parameter_id(&self) -> ParameterId {
-        self.parameter_id
-    }
-
-    pub fn value(&self) -> &[u8] {
-        self.value.as_ref()
-    }
-
-    pub fn length(&self) -> i16 {
-        self.value.len() as i16
-    }
-
-    fn try_read_from_bytes(data: &mut &[u8], endianness: &Endianness) -> RtpsMessageResult<Self> {
-        let mut slice = *data;
-        let len = slice.len();
-        if len < 4 {
-            return Err(RtpsMessageError::NotEnoughData);
-        }
-        let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
-        // This value shouldn't be negative otherwise when converting to usize it overflows
-        let length = u16::try_read_from_bytes(&mut slice, endianness)?;
-        data.consume(4);
-
-        if parameter_id != PID_SENTINEL && length % 4 != 0 {
-            return Err(RtpsMessageError::InvalidData);
-        }
-        let value = if parameter_id == PID_SENTINEL {
-            Arc::new([])
-        } else {
-            if data.len() < length as usize {
-                return Err(RtpsMessageError::NotEnoughData);
-            }
-            let value: Arc<[u8]> = Arc::from(&data[0..length as usize]);
-            if length as usize > value.len() {
-                return Err(RtpsMessageError::InvalidData);
-            }
-            data.consume(length as usize);
-            value
-        };
-
-        Ok(Self::new(parameter_id, value))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ParameterList {
-    parameter: Vec<Parameter>,
-}
-
-impl ParameterList {
-    pub fn new(parameter: Vec<Parameter>) -> Self {
-        Self { parameter }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            parameter: Vec::new(),
-        }
-    }
-
-    pub fn parameter(&self) -> &[Parameter] {
-        self.parameter.as_ref()
-    }
-
-    pub fn try_read_from_bytes(
-        data: &mut &[u8],
-        endianness: &Endianness,
-    ) -> RtpsMessageResult<Self> {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-
-        let mut parameter = Vec::new();
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_i = Parameter::try_read_from_bytes(data, endianness)?;
-            if parameter_i.parameter_id() == PID_SENTINEL {
-                break;
-            } else {
-                parameter.push(parameter_i);
-            }
-        }
-        Ok(Self { parameter })
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct ParameterWrite<'a> {
+pub struct Parameter<'a> {
     parameter_id: ParameterId,
     value: &'a [u8],
 }
 
-impl<'a> ParameterWrite<'a> {
+impl<'a> Parameter<'a> {
     pub const fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
         Self {
             parameter_id,
@@ -358,9 +261,39 @@ impl<'a> ParameterWrite<'a> {
     pub fn length(&self) -> i16 {
         self.value.len() as i16
     }
+
+    pub fn try_read_from_bytes(
+        data: &mut &'a [u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
+        let mut slice = *data;
+        let len = slice.len();
+        if len < 4 {
+            return Err(RtpsMessageError::NotEnoughData);
+        }
+        let parameter_id = i16::try_read_from_bytes(&mut slice, endianness)?;
+        let length = u16::try_read_from_bytes(&mut slice, endianness)?;
+        data.consume(4);
+
+        if parameter_id != PID_SENTINEL && !length.is_multiple_of(4) {
+            return Err(RtpsMessageError::InvalidData);
+        }
+        let value = if parameter_id == PID_SENTINEL || length == 0 {
+            &[][..]
+        } else {
+            if data.len() < length as usize {
+                return Err(RtpsMessageError::NotEnoughData);
+            }
+            let value = &data[0..length as usize];
+            data.consume(length as usize);
+            value
+        };
+
+        Ok(Self::new(parameter_id, value))
+    }
 }
 
-impl WriteIntoBytes for ParameterWrite<'_> {
+impl WriteIntoBytes for Parameter<'_> {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         let padding = match self.value().len() % 4 {
             1 => &[0_u8; 3][..],
@@ -373,6 +306,118 @@ impl WriteIntoBytes for ParameterWrite<'_> {
         (length as i16).write_into_bytes(buf);
         self.value().write_into_bytes(buf);
         padding.write_into_bytes(buf);
+    }
+}
+
+pub type ParameterWrite<'a> = Parameter<'a>;
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParameterList<'a> {
+    data: &'a [u8],
+    endianness: Endianness,
+}
+
+impl<'a> ParameterList<'a> {
+    pub const fn empty() -> Self {
+        Self {
+            data: &[],
+            endianness: Endianness::LittleEndian,
+        }
+    }
+
+    pub fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
+    pub fn endianness(&self) -> Endianness {
+        self.endianness
+    }
+
+    pub const fn new(data: &'a [u8], endianness: Endianness) -> Self {
+        Self { data, endianness }
+    }
+
+    pub fn try_read_from_bytes(
+        data: &mut &'a [u8],
+        endianness: &Endianness,
+    ) -> RtpsMessageResult<Self> {
+        let original_data = *data;
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+
+        for _ in 0..MAX_PARAMETERS {
+            if data.len() < 4 {
+                return Err(RtpsMessageError::NotEnoughData);
+            }
+            let parameter_id = i16::try_read_from_bytes(data, endianness)?;
+            let length = u16::try_read_from_bytes(data, endianness)? as usize;
+            if parameter_id != PID_SENTINEL && !length.is_multiple_of(4) {
+                return Err(RtpsMessageError::InvalidData);
+            }
+            if parameter_id == PID_SENTINEL {
+                let bytes_consumed = original_data.len() - data.len();
+                let parameter_list_bytes = &original_data[..bytes_consumed];
+                return Ok(Self {
+                    data: parameter_list_bytes,
+                    endianness: *endianness,
+                });
+            }
+            if data.len() < length {
+                return Err(RtpsMessageError::NotEnoughData);
+            }
+            data.consume(length);
+        }
+        Err(RtpsMessageError::InvalidData)
+    }
+
+    pub fn parameters(&self) -> Parameters<'a> {
+        Parameters {
+            data: self.data,
+            endianness: self.endianness,
+        }
+    }
+}
+
+impl<'a, 'b> PartialEq<ParameterList<'b>> for ParameterList<'a> {
+    fn eq(&self, other: &ParameterList<'b>) -> bool {
+        self.parameters().eq(other.parameters())
+    }
+}
+
+impl<'a> Eq for ParameterList<'a> {}
+
+impl WriteIntoBytes for ParameterList<'_> {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        if !self.data.is_empty() {
+            buf.write_all(self.data).unwrap();
+        } else {
+            PID_SENTINEL.write_into_bytes(buf);
+            [0_u8; 2].write_into_bytes(buf);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Parameters<'a> {
+    data: &'a [u8],
+    endianness: Endianness,
+}
+
+impl<'a> Iterator for Parameters<'a> {
+    type Item = Parameter<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.data.is_empty() {
+            let parameter =
+                Parameter::try_read_from_bytes(&mut self.data, &self.endianness).ok()?;
+            if parameter.parameter_id() == PID_SENTINEL {
+                self.data = &[];
+                None
+            } else {
+                Some(parameter)
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -398,32 +443,6 @@ impl<'a> ParameterListWrite<'a> {
 impl WriteIntoBytes for ParameterListWrite<'_> {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
         for parameter in self.parameter() {
-            parameter.write_into_bytes(buf);
-        }
-        PID_SENTINEL.write_into_bytes(buf);
-        [0_u8; 2].write_into_bytes(buf);
-    }
-}
-
-impl WriteIntoBytes for Parameter {
-    fn write_into_bytes(&self, buf: &mut dyn Write) {
-        let padding = match self.value().len() % 4 {
-            1 => &[0_u8; 3][..],
-            2 => &[0_u8; 2][..],
-            3 => &[0_u8; 1][..],
-            _ => &[0_u8; 0][..],
-        };
-        let length = self.value().len() + padding.len();
-        self.parameter_id().write_into_bytes(buf);
-        (length as i16).write_into_bytes(buf);
-        self.value().write_into_bytes(buf);
-        padding.write_into_bytes(buf);
-    }
-}
-
-impl WriteIntoBytes for ParameterList {
-    fn write_into_bytes(&self, buf: &mut dyn Write) {
-        for parameter in self.parameter().iter() {
             parameter.write_into_bytes(buf);
         }
         PID_SENTINEL.write_into_bytes(buf);
@@ -475,7 +494,7 @@ impl WriteIntoBytes for SerializedDataFragment {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Data(Arc<[u8]>);
 
 impl Data {
@@ -489,12 +508,6 @@ impl Data {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl Default for Data {
-    fn default() -> Self {
-        Self(Arc::new([]))
     }
 }
 
@@ -1033,7 +1046,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(2, vec![5, 6, 7, 8].into());
+        let parameter = Parameter::new(2, &[5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -1043,7 +1056,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(2, vec![5, 6, 7].into());
+        let parameter = Parameter::new(2, &[5, 6, 7]);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -1053,7 +1066,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(2, vec![].into());
+        let parameter = Parameter::new(2, &[]);
         assert_eq!(
             write_into_bytes_vec(parameter),
             vec![
@@ -1064,9 +1077,15 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_1 = Parameter::new(2, vec![51, 61, 71, 81].into());
-        let parameter_2 = Parameter::new(3, vec![52, 62, 0, 0].into());
-        let parameter_list_submessage_element = ParameterList::new(vec![parameter_1, parameter_2]);
+        let parameter_list_bytes = &[
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81, // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            52, 62, 0, 0, // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ];
+        let parameter_list_submessage_element =
+            ParameterList::new(parameter_list_bytes, Endianness::LittleEndian);
         #[rustfmt::skip]
         assert_eq!(write_into_bytes_vec(parameter_list_submessage_element), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -1123,7 +1142,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 12].into());
+        let expected = Parameter::new(2, &[5, 6, 7, 8, 9, 10, 11, 12]);
         let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
@@ -1140,7 +1159,7 @@ mod tests {
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
         // Note: the padding 0 is part of the resulting parameter (this may seems wrong but is specified in RTPS 2.5).
-        let expected = Parameter::new(2, vec![5, 6, 7, 8, 9, 10, 11, 0].into());
+        let expected = Parameter::new(2, &[5, 6, 7, 8, 9, 10, 11, 0]);
         let result = Parameter::try_read_from_bytes(
             &mut [
                 0x02, 0x00, 8, 0, // Parameter ID | length
@@ -1184,7 +1203,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_sentinel_length_should_be_ignored() {
-        let expected = Parameter::new(1, vec![].into());
+        let expected = Parameter::new(1, &[]);
         let result = Parameter::try_read_from_bytes(
             &mut [
                 0x01, 0x00, 3, 0, // Parameter ID | length
@@ -1198,83 +1217,43 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterList::new(vec![
-            Parameter::new(2, vec![15, 16, 17, 18].into()),
-            Parameter::new(3, vec![25, 26, 27, 28].into()),
-        ]);
-        let result = ParameterList::try_read_from_bytes(
-            &mut [
-                0x02, 0x00, 4, 0, // Parameter ID | length
-                15, 16, 17, 18, // value
-                0x03, 0x00, 4, 0, // Parameter ID | length
-                25, 26, 27, 28, // value
-                0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
-            ]
-            .as_slice(),
-            &Endianness::LittleEndian,
-        )
-        .unwrap();
+        let bytes = &[
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            15, 16, 17, 18, // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            25, 26, 27, 28, // value
+            0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
+        ];
+        let expected = ParameterList::new(bytes, Endianness::LittleEndian);
+        let result =
+            ParameterList::try_read_from_bytes(&mut bytes.as_slice(), &Endianness::LittleEndian)
+                .unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
     fn deserialize_parameter_list_with_long_parameter_including_sentinel() {
-        let parameter_value_expected = vec![
+        let bytes = &[
+            0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x01, 0x01, 0x01, // Parameter value
             0x01, 0x01, 0x01, 0x01, // Parameter value
             0x01, 0x01, 0x01, 0x01, // Parameter value
             0x01, 0x01, 0x01, 0x01, // Parameter value
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ];
-
-        let expected =
-            ParameterList::new(vec![Parameter::new(0x32, parameter_value_expected.into())]);
-        let result = ParameterList::try_read_from_bytes(
-            &mut [
-                0x32, 0x00, 24, 0x00, // Parameter ID | length
-                0x01, 0x00, 0x00, 0x00, // Parameter value
-                0x01, 0x00, 0x00, 0x00, // Parameter value
-                0x01, 0x01, 0x01, 0x01, // Parameter value
-                0x01, 0x01, 0x01, 0x01, // Parameter value
-                0x01, 0x01, 0x01, 0x01, // Parameter value
-                0x01, 0x01, 0x01, 0x01, // Parameter value
-                0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-            ]
-            .as_slice(),
-            &Endianness::LittleEndian,
-        )
-        .unwrap();
+        let expected = ParameterList::new(bytes, Endianness::LittleEndian);
+        let result =
+            ParameterList::try_read_from_bytes(&mut bytes.as_slice(), &Endianness::LittleEndian)
+                .unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
     fn deserialize_parameter_list_with_multiple_parameters_with_same_id() {
         #[rustfmt::skip]
-        let parameter_value_expected1 = vec![
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01,
-        ];
-        #[rustfmt::skip]
-        let parameter_value_expected2 = vec![
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
-        ];
-
-        let expected = ParameterList::new(vec![
-            Parameter::new(0x32, parameter_value_expected1.into()),
-            Parameter::new(0x32, parameter_value_expected2.into()),
-        ]);
-        #[rustfmt::skip]
-        let result = ParameterList::try_read_from_bytes(&mut [
+        let bytes = &[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -1290,7 +1269,10 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x02, 0x02, 0x02, 0x02, // Parameter value
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ].as_slice(), &Endianness::LittleEndian).unwrap();
+        ];
+        let expected = ParameterList::new(bytes, Endianness::LittleEndian);
+        #[rustfmt::skip]
+        let result = ParameterList::try_read_from_bytes(&mut bytes.as_slice(), &Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 

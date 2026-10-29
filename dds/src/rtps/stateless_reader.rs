@@ -6,7 +6,8 @@ use alloc::vec::Vec;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    changes: Vec<CacheChange>,
+    /// History cache of changes received by this reader.
+    pub changes: Vec<CacheChange>,
 }
 
 impl RtpsStatelessReader {
@@ -24,7 +25,7 @@ impl RtpsStatelessReader {
     #[tracing::instrument(skip(self))]
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {
@@ -40,9 +41,5 @@ impl RtpsStatelessReader {
                 self.changes.push(change);
             }
         }
-    }
-
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        &mut self.changes
     }
 }

@@ -3,8 +3,8 @@ use crate::transport::types::{EntityId, SequenceNumber};
 use super::super::{
     error::{RtpsMessageError, RtpsMessageResult},
     overall_structure::{
-        Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes, Write,
-        WriteIntoBytes,
+        Endianness, Submessage, SubmessageHeaderRead, SubmessageHeaderWrite, TryReadFromBytes,
+        Write, WriteIntoBytes,
     },
     submessage_elements::{ParameterList, ParameterListWrite, SerializedDataFragment},
     types::{FragmentNumber, SubmessageFlag, SubmessageKind},
@@ -91,8 +91,11 @@ impl Submessage for DataFragSubmessageWrite<'_> {
         self.serialized_payload.write_into_bytes(buf);
     }
 }
+use alloc::sync::Arc;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataFragSubmessage {
+    endianness: Endianness,
     inline_qos_flag: bool,
     non_standard_payload_flag: SubmessageFlag,
     key_flag: bool,
@@ -103,7 +106,7 @@ pub struct DataFragSubmessage {
     fragments_in_submessage: u16,
     fragment_size: u16,
     data_size: u32,
-    inline_qos: ParameterList,
+    inline_qos: Arc<[u8]>,
     serialized_payload: SerializedDataFragment,
 }
 
@@ -148,13 +151,18 @@ impl DataFragSubmessage {
             let mut data_starting_at_inline_qos = &data[octets_to_inline_qos..end_position];
 
             let inline_qos = if inline_qos_flag {
-                ParameterList::try_read_from_bytes(&mut data_starting_at_inline_qos, endianness)?
+                let parameter_list = ParameterList::try_read_from_bytes(
+                    &mut data_starting_at_inline_qos,
+                    endianness,
+                )?;
+                Arc::from(parameter_list.data())
             } else {
-                ParameterList::empty()
+                Arc::from([])
             };
             let serialized_payload = SerializedDataFragment::from(data_starting_at_inline_qos);
 
             Ok(Self {
+                endianness: *endianness,
                 inline_qos_flag,
                 non_standard_payload_flag,
                 key_flag,
@@ -213,8 +221,8 @@ impl DataFragSubmessage {
         self.data_size
     }
 
-    pub fn inline_qos(&self) -> &ParameterList {
-        &self.inline_qos
+    pub fn inline_qos(&self) -> ParameterList<'_> {
+        ParameterList::new(&self.inline_qos, self.endianness)
     }
 
     pub fn serialized_payload(&self) -> &SerializedDataFragment {
@@ -225,6 +233,7 @@ impl DataFragSubmessage {
 impl DataFragSubmessage {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        endianness: Endianness,
         inline_qos_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
@@ -235,10 +244,11 @@ impl DataFragSubmessage {
         fragments_in_submessage: u16,
         fragment_size: u16,
         data_size: u32,
-        inline_qos: ParameterList,
+        inline_qos: Arc<[u8]>,
         serialized_payload: SerializedDataFragment,
     ) -> Self {
         Self {
+            endianness,
             inline_qos_flag,
             non_standard_payload_flag,
             key_flag,
@@ -282,7 +292,7 @@ impl Submessage for DataFragSubmessage {
         self.fragment_size.write_into_bytes(buf);
         self.data_size.write_into_bytes(buf);
         if self.inline_qos_flag {
-            self.inline_qos.write_into_bytes(buf);
+            self.inline_qos().write_into_bytes(buf);
         }
         self.serialized_payload.write_into_bytes(buf);
     }
@@ -292,9 +302,7 @@ impl Submessage for DataFragSubmessage {
 mod tests {
     use super::*;
     use crate::{
-        rtps_messages::{
-            overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
-        },
+        rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -334,9 +342,10 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let inline_qos = ParameterList::empty();
+        let inline_qos = Arc::from([]);
         let serialized_payload = SerializedDataFragment::default();
         let submessage = DataFragSubmessage::new(
+            Endianness::LittleEndian,
             false,
             false,
             false,
@@ -367,9 +376,17 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_with_serialized_payload() {
-        let inline_qos = ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
+        let inline_qos = Arc::from(
+            [
+                8, 0, 4, 0, // inlineQos: parameterId, length
+                71, 72, 73, 74, // inlineQos: value[length]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ]
+            .as_slice(),
+        );
         let serialized_payload = SerializedDataFragment::from([1, 2, 3].as_slice());
         let submessage = DataFragSubmessage::new(
+            Endianness::LittleEndian,
             true,
             false,
             false,
@@ -451,7 +468,7 @@ mod tests {
         );
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
-        assert_eq!(&expected_inline_qos, submessage.inline_qos());
+        assert_eq!(expected_inline_qos, submessage.inline_qos());
         assert_eq!(
             &expected_serialized_payload,
             submessage.serialized_payload()
@@ -489,8 +506,14 @@ mod tests {
         let expected_fragments_in_submessage = 3;
         let expected_data_size = 8;
         let expected_fragment_size = 5;
-        let expected_inline_qos =
-            ParameterList::new(vec![Parameter::new(8, vec![71, 72, 73, 74].into())]);
+        let expected_inline_qos = ParameterList::new(
+            &[
+                8, 0, 4, 0, // inlineQos: parameterId, length
+                71, 72, 73, 74, // inlineQos: value[length]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ],
+            Endianness::LittleEndian,
+        );
         let expected_serialized_payload = SerializedDataFragment::from(&[1, 2, 3, 0][..]);
 
         assert_eq!(expected_inline_qos_flag, submessage.inline_qos_flag());
@@ -512,7 +535,7 @@ mod tests {
         );
         assert_eq!(expected_data_size, submessage.data_size());
         assert_eq!(expected_fragment_size, submessage.fragment_size());
-        assert_eq!(&expected_inline_qos, submessage.inline_qos());
+        assert_eq!(expected_inline_qos, submessage.inline_qos());
         assert_eq!(
             &expected_serialized_payload,
             submessage.serialized_payload()

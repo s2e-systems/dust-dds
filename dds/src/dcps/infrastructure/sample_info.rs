@@ -114,3 +114,142 @@ pub struct SampleInfo {
     /// This field indicates whether the sample contains data or if it is only used to communicate of a change in the [`SampleInfo::instance_state`] of the instance.
     pub valid_data: bool,
 }
+
+/// A mask representation of [`SampleStateKind`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SampleStateMask(u8);
+
+impl SampleStateMask {
+    /// Read sample state.
+    pub const READ: Self = Self(1 << 0);
+    /// NotRead sample state.
+    pub const NOT_READ: Self = Self(1 << 1);
+    /// Any sample state (Read or NotRead).
+    pub const ANY: Self = Self((1 << 0) | (1 << 1));
+
+    /// Checks if the sample state kind is enabled in this mask.
+    pub const fn contains(&self, state: SampleStateKind) -> bool {
+        let bit = match state {
+            SampleStateKind::Read => 1 << 0,
+            SampleStateKind::NotRead => 1 << 1,
+        };
+        (self.0 & bit) != 0
+    }
+}
+
+impl From<&[SampleStateKind]> for SampleStateMask {
+    fn from(states: &[SampleStateKind]) -> Self {
+        let mut mask = 0;
+        for &state in states {
+            mask |= match state {
+                SampleStateKind::Read => 1 << 0,
+                SampleStateKind::NotRead => 1 << 1,
+            };
+        }
+        Self(mask)
+    }
+}
+
+impl From<SampleStateKind> for SampleStateMask {
+    fn from(state: SampleStateKind) -> Self {
+        Self(match state {
+            SampleStateKind::Read => 1 << 0,
+            SampleStateKind::NotRead => 1 << 1,
+        })
+    }
+}
+
+/// A mask representation of [`ViewStateKind`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ViewStateMask(u8);
+
+impl ViewStateMask {
+    /// New view state.
+    pub const NEW: Self = Self(1 << 0);
+    /// NotNew view state.
+    pub const NOT_NEW: Self = Self(1 << 1);
+    /// Any view state (New or NotNew).
+    pub const ANY: Self = Self((1 << 0) | (1 << 1));
+
+    /// Checks if the view state kind is enabled in this mask.
+    pub const fn contains(&self, state: ViewStateKind) -> bool {
+        let bit = match state {
+            ViewStateKind::New => 1 << 0,
+            ViewStateKind::NotNew => 1 << 1,
+        };
+        (self.0 & bit) != 0
+    }
+}
+
+impl From<&[ViewStateKind]> for ViewStateMask {
+    fn from(states: &[ViewStateKind]) -> Self {
+        let mut mask = 0;
+        for &state in states {
+            mask |= match state {
+                ViewStateKind::New => 1 << 0,
+                ViewStateKind::NotNew => 1 << 1,
+            };
+        }
+        Self(mask)
+    }
+}
+
+impl From<ViewStateKind> for ViewStateMask {
+    fn from(state: ViewStateKind) -> Self {
+        Self(match state {
+            ViewStateKind::New => 1 << 0,
+            ViewStateKind::NotNew => 1 << 1,
+        })
+    }
+}
+
+/// A mask representation of [`InstanceStateKind`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InstanceStateMask(u8);
+
+impl InstanceStateMask {
+    /// Alive instance state.
+    pub const ALIVE: Self = Self(1 << 0);
+    /// NotAliveDisposed instance state.
+    pub const NOT_ALIVE_DISPOSED: Self = Self(1 << 1);
+    /// NotAliveNoWriters instance state.
+    pub const NOT_ALIVE_NO_WRITERS: Self = Self(1 << 2);
+    /// Any instance state.
+    pub const ANY: Self = Self((1 << 0) | (1 << 1) | (1 << 2));
+    /// Any not alive instance state (NotAliveDisposed or NotAliveNoWriters).
+    pub const NOT_ALIVE: Self = Self((1 << 1) | (1 << 2));
+
+    /// Checks if the instance state kind is enabled in this mask.
+    pub const fn contains(&self, state: InstanceStateKind) -> bool {
+        let bit = match state {
+            InstanceStateKind::Alive => 1 << 0,
+            InstanceStateKind::NotAliveDisposed => 1 << 1,
+            InstanceStateKind::NotAliveNoWriters => 1 << 2,
+        };
+        (self.0 & bit) != 0
+    }
+}
+
+impl From<&[InstanceStateKind]> for InstanceStateMask {
+    fn from(states: &[InstanceStateKind]) -> Self {
+        let mut mask = 0;
+        for &state in states {
+            mask |= match state {
+                InstanceStateKind::Alive => 1 << 0,
+                InstanceStateKind::NotAliveDisposed => 1 << 1,
+                InstanceStateKind::NotAliveNoWriters => 1 << 2,
+            };
+        }
+        Self(mask)
+    }
+}
+
+impl From<InstanceStateKind> for InstanceStateMask {
+    fn from(state: InstanceStateKind) -> Self {
+        Self(match state {
+            InstanceStateKind::Alive => 1 << 0,
+            InstanceStateKind::NotAliveDisposed => 1 << 1,
+            InstanceStateKind::NotAliveNoWriters => 1 << 2,
+        })
+    }
+}

@@ -90,7 +90,7 @@ impl Submessage for DataSubmessageWrite<'_> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct DataSubmessage {
+pub struct DataSubmessage<'a> {
     inline_qos_flag: bool,
     data_flag: bool,
     key_flag: bool,
@@ -98,14 +98,14 @@ pub struct DataSubmessage {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: ParameterList,
+    inline_qos: ParameterList<'a>,
     serialized_payload: Data,
 }
 
-impl DataSubmessage {
+impl<'a> DataSubmessage<'a> {
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        data: &[u8],
+        data: &'a [u8],
     ) -> RtpsMessageResult<Self> {
         if submessage_header.submessage_length() as usize > data.len() {
             return Err(RtpsMessageError::InvalidData);
@@ -171,7 +171,7 @@ impl DataSubmessage {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: ParameterList,
+        inline_qos: ParameterList<'a>,
         serialized_payload: Data,
     ) -> Self {
         Self {
@@ -215,7 +215,7 @@ impl DataSubmessage {
         self.writer_sn
     }
 
-    pub fn inline_qos(&self) -> &ParameterList {
+    pub fn inline_qos(&self) -> &ParameterList<'a> {
         &self.inline_qos
     }
 
@@ -224,7 +224,7 @@ impl DataSubmessage {
     }
 }
 
-impl Submessage for DataSubmessage {
+impl Submessage for DataSubmessage<'_> {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::DATA,
@@ -261,8 +261,8 @@ mod tests {
     use super::*;
     use crate::{
         rtps_messages::{
-            overall_structure::write_submessage_into_bytes_vec,
-            submessage_elements::{Parameter, ParameterWrite},
+            overall_structure::{Endianness, write_submessage_into_bytes_vec},
+            submessage_elements::ParameterWrite,
         },
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -386,9 +386,15 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let parameter_1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let parameter_2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList::new(vec![parameter_1, parameter_2]);
+        #[rustfmt::skip]
+        let inline_qos_bytes = &[
+            0x06, 0x00, 4, 0, // Parameter ID | length
+            10, 11, 12, 13,   // value
+            0x07, 0x00, 4, 0, // Parameter ID | length
+            20, 21, 22, 23,   // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ];
+        let inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
         let serialized_payload = Data::default();
 
         let submessage = DataSubmessage::new(
@@ -514,10 +520,15 @@ mod tests {
 
     #[test]
     fn deserialize_with_inline_qos_no_serialized_payload() {
-        let inline_qos = ParameterList::new(vec![
-            Parameter::new(6, vec![10, 11, 12, 13].into()),
-            Parameter::new(7, vec![20, 21, 22, 23].into()),
-        ]);
+        #[rustfmt::skip]
+        let inline_qos_bytes = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 1, 0, // inlineQos: Sentinel
+        ];
+        let inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
         let serialized_payload = Data::new(vec![].into());
 
         #[rustfmt::skip]
@@ -542,10 +553,15 @@ mod tests {
 
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload() {
-        let expected_inline_qos = ParameterList::new(vec![
-            Parameter::new(6, vec![10, 11, 12, 13].into()),
-            Parameter::new(7, vec![20, 21, 22, 23].into()),
-        ]);
+        #[rustfmt::skip]
+        let inline_qos_bytes = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 1, 0, // inlineQos: Sentinel
+        ];
+        let expected_inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
@@ -575,10 +591,15 @@ mod tests {
 
     #[test]
     fn deserialize_with_inline_qos_with_serialized_payload_unspecified_message_length() {
-        let expected_inline_qos = ParameterList::new(vec![
-            Parameter::new(6, vec![10, 11, 12, 13].into()),
-            Parameter::new(7, vec![20, 21, 22, 23].into()),
-        ]);
+        #[rustfmt::skip]
+        let inline_qos_bytes = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 1, 0, // inlineQos: Sentinel
+        ];
+        let expected_inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
         let expected_serialized_payload = Data::new(vec![1, 2, 3, 4].into());
 
         #[rustfmt::skip]
@@ -608,10 +629,15 @@ mod tests {
 
     #[test]
     fn deserialize_octets_to_inline_qos_non_16() {
-        let expected_inline_qos = ParameterList::new(vec![
-            Parameter::new(6, vec![10, 11, 12, 13].into()),
-            Parameter::new(7, vec![20, 21, 22, 23].into()),
-        ]);
+        #[rustfmt::skip]
+        let inline_qos_bytes = &[
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 1, 0, // inlineQos: Sentinel
+        ];
+        let expected_inline_qos = ParameterList::new(inline_qos_bytes, Endianness::LittleEndian);
         #[rustfmt::skip]
         let mut data = &[
             0x15, 0b_0000_0011, 44, 0, // Submessage header

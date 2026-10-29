@@ -12,7 +12,7 @@ use super::super::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct HeaderExtensionSubmessage {
+pub struct HeaderExtensionSubmessage<'a> {
     length_flag: SubmessageFlag,
     timestamp_flag: SubmessageFlag,
     u_extension_flag: SubmessageFlag,
@@ -25,10 +25,10 @@ pub struct HeaderExtensionSubmessage {
     u_extension4: UExtension4,
     w_extension8: WExtension8,
     message_checksum: Checksum,
-    parameters: ParameterList,
+    parameters: ParameterList<'a>,
 }
 
-impl HeaderExtensionSubmessage {
+impl<'a> HeaderExtensionSubmessage<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         length_flag: SubmessageFlag,
@@ -43,7 +43,7 @@ impl HeaderExtensionSubmessage {
         u_extension4: UExtension4,
         w_extension8: WExtension8,
         message_checksum: Checksum,
-        parameters: ParameterList,
+        parameters: ParameterList<'a>,
     ) -> Self {
         Self {
             length_flag,
@@ -64,7 +64,7 @@ impl HeaderExtensionSubmessage {
 
     pub fn try_from_bytes(
         submessage_header: &SubmessageHeaderRead,
-        mut data: &[u8],
+        mut data: &'a [u8],
     ) -> RtpsMessageResult<Self> {
         let endianness = submessage_header.endianness();
         let flags = submessage_header.flags();
@@ -181,12 +181,12 @@ impl HeaderExtensionSubmessage {
         self.message_checksum
     }
 
-    pub fn parameters(&self) -> &ParameterList {
+    pub fn parameters(&self) -> &ParameterList<'a> {
         &self.parameters
     }
 }
 
-impl Submessage for HeaderExtensionSubmessage {
+impl Submessage for HeaderExtensionSubmessage<'_> {
     fn write_submessage_header_into_bytes(&self, octets_to_next_header: u16, buf: &mut dyn Write) {
         SubmessageHeaderWrite::new(
             SubmessageKind::RTPS_HE,
@@ -229,9 +229,7 @@ impl Submessage for HeaderExtensionSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps_messages::{
-        overall_structure::write_submessage_into_bytes_vec, submessage_elements::Parameter,
-    };
+    use crate::rtps_messages::overall_structure::{Endianness, write_submessage_into_bytes_vec};
     use alloc::vec;
 
     #[test]
@@ -263,8 +261,13 @@ mod tests {
 
     #[test]
     fn serialize_header_extension_all_flags_checksum32() {
-        let parameter = Parameter::new(0x0005, vec![1, 2, 3, 4].into());
-        let parameters = ParameterList::new(vec![parameter]);
+        #[rustfmt::skip]
+        let param_bytes = &[
+            0x05, 0x00, 4, 0, // Parameter ID | length
+            1, 2, 3, 4,       // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ];
+        let parameters = ParameterList::new(param_bytes, Endianness::LittleEndian);
         let submessage = HeaderExtensionSubmessage::new(
             true,
             true,
@@ -425,11 +428,15 @@ mod tests {
             submessage.message_checksum(),
             Checksum::Checksum32([0xaa, 0xbb, 0xcc, 0xdd])
         );
-        let expected_param = Parameter::new(0x0005, vec![1, 2, 3, 4].into());
-        assert_eq!(
-            submessage.parameters(),
-            &ParameterList::new(vec![expected_param])
-        );
+        #[rustfmt::skip]
+        let expected_param_bytes = &[
+            0x05, 0x00, 4, 0, // Parameter ID | length
+            1, 2, 3, 4,       // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ];
+        let expected_parameters =
+            ParameterList::new(expected_param_bytes, Endianness::LittleEndian);
+        assert_eq!(submessage.parameters(), &expected_parameters);
     }
 
     #[test]
