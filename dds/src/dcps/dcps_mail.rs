@@ -11,6 +11,7 @@ use crate::{
             oneshot::{OneshotReceiver, OneshotSender},
             rpc::RpcClient,
         },
+        dcps_domain_participant::data_reader_entity::SampleList,
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
             data_writer_listener::DcpsDataWriterListener,
@@ -29,7 +30,7 @@ use crate::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
             PublisherQos, QosKind, SubscriberQos, TopicQos,
         },
-        sample_info::{InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask},
+        sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             SubscriptionMatchedStatus,
@@ -534,7 +535,7 @@ pub enum DcpsReply {
     TopicDescription(DdsResult<Option<String>>),
     StatusMask(DdsResult<StatusMask>),
     TriggerValue(DdsResult<bool>),
-    Samples(DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>>),
+    Samples(DdsResult<(DynamicType<'static>, SampleList)>),
 }
 
 impl DcpsReply {
@@ -739,7 +740,7 @@ impl DcpsReply {
         }
     }
 
-    pub fn expect_samples(self) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    pub fn expect_samples(self) -> DdsResult<(DynamicType<'static>, SampleList)> {
         match self {
             DcpsReply::Samples(res) => res,
             other => panic!("expected Samples reply, got {:?}", other),

@@ -135,12 +135,9 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
             })))
             .await?;
-        let samples = reply.expect_samples()?;
+        let (type_support, samples) = reply.expect_samples()?;
 
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`take`](crate::subscription::data_reader::DataReader::take).
@@ -165,12 +162,9 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
             })))
             .await?;
-        let samples = reply.expect_samples()?;
+        let (type_support, samples) = reply.expect_samples()?;
 
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`read_next_sample`](crate::subscription::data_reader::DataReader::read_next_sample).
@@ -189,9 +183,14 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
             })))
             .await?;
-        let mut samples = reply.expect_samples()?;
-        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        let (type_support, samples) = reply.expect_samples()?;
+        let (data, sample_info) = samples.into_single().expect("Would return NoData if empty");
+        Ok(Sample::from_bytes(
+            &self.topic.topic_name,
+            type_support,
+            data,
+            sample_info,
+        ))
     }
 
     /// Async version of [`take_next_sample`](crate::subscription::data_reader::DataReader::take_next_sample).
@@ -210,9 +209,14 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: None,
             })))
             .await?;
-        let mut samples = reply.expect_samples()?;
-        let (data, sample_info) = samples.pop().expect("Would return NoData if empty");
-        Ok(Sample::new(data, sample_info))
+        let (type_support, samples) = reply.expect_samples()?;
+        let (data, sample_info) = samples.into_single().expect("Would return NoData if empty");
+        Ok(Sample::from_bytes(
+            &self.topic.topic_name,
+            type_support,
+            data,
+            sample_info,
+        ))
     }
 
     /// Async version of [`read_instance`](crate::subscription::data_reader::DataReader::read_instance).
@@ -238,11 +242,8 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: Some(a_handle),
             })))
             .await?;
-        let samples = reply.expect_samples()?;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        let (type_support, samples) = reply.expect_samples()?;
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`take_instance`](crate::subscription::data_reader::DataReader::take_instance).
@@ -268,12 +269,9 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 specific_instance_handle: Some(a_handle),
             })))
             .await?;
-        let samples = reply.expect_samples()?;
+        let (type_support, samples) = reply.expect_samples()?;
 
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`read_next_instance`](crate::subscription::data_reader::DataReader::read_next_instance).
@@ -301,11 +299,8 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 },
             )))
             .await?;
-        let samples = reply.expect_samples()?;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        let (type_support, samples) = reply.expect_samples()?;
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`take_next_instance`](crate::subscription::data_reader::DataReader::take_next_instance).
@@ -333,11 +328,8 @@ impl<Foo: TypeSupport> DataReaderAsync<Foo> {
                 },
             )))
             .await?;
-        let samples = reply.expect_samples()?;
-        Ok(samples
-            .into_iter()
-            .map(|(data, sample_info)| Sample::new(data, sample_info))
-            .collect())
+        let (type_support, samples) = reply.expect_samples()?;
+        Ok(samples.map_to_samples(&self.topic.topic_name, type_support))
     }
 
     /// Async version of [`get_key_value`](crate::subscription::data_reader::DataReader::get_key_value).
