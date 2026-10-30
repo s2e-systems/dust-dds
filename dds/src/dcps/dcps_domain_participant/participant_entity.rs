@@ -183,27 +183,18 @@ impl DcpsDomainParticipant {
         &self,
         now: Time,
         participant_announcement_interval: Duration,
-    ) -> Option<(Duration, TimedEvent)> {
-        let mut min_time: Option<Duration> = None;
-        let mut earliest_event: Option<TimedEvent> = None;
+    ) -> (Duration, TimedEvent) {
+        let mut min_time = self
+            .time_until_participant_announcement(now, participant_announcement_interval)
+            .unwrap_or(Duration::new(0, 0));
+        let mut earliest_event = TimedEvent::AnnounceParticipant;
 
-        let mut update = |duration: Duration, event: TimedEvent| match min_time {
-            Some(m) if duration < m => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
+        let mut update = |duration: Duration, event: TimedEvent| {
+            if duration < min_time {
+                min_time = duration;
+                earliest_event = event;
             }
-            None => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
-            }
-            _ => (),
         };
-
-        if let Some(announcement_time) =
-            self.time_until_participant_announcement(now, participant_announcement_interval)
-        {
-            update(announcement_time, TimedEvent::AnnounceParticipant);
-        }
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -390,7 +381,7 @@ impl DcpsDomainParticipant {
             }
         }
 
-        min_time.zip(earliest_event)
+        (min_time, earliest_event)
     }
 
     pub fn handle_timed_event(
