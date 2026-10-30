@@ -163,7 +163,7 @@ fn detect_stale_participant() {
         writer_id,
         writer_sn,
         inline_qos,
-        serialized_payload,
+        serialized_payload.as_ref(),
     );
     let mut buf = [0u8; 1024];
     let spdp_rtps_message =
@@ -273,7 +273,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         1,
         ParameterList::empty(),
-        spdp_payload,
+        spdp_payload.as_ref(),
     );
     let mut buf = [0u8; 1024];
     let spdp_msg =
@@ -330,7 +330,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
         1,
         ParameterList::empty(),
-        reader1_sedp_payload,
+        reader1_sedp_payload.as_ref(),
     );
 
     // 3. Announce Reader 2 on Topic2 (matching LocalType2)
@@ -358,7 +358,7 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
         2,
         ParameterList::empty(),
-        reader2_sedp_payload,
+        reader2_sedp_payload.as_ref(),
     );
 
     let mut buf = [0u8; 2048];

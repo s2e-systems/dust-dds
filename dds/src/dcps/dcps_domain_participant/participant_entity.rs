@@ -183,27 +183,18 @@ impl DcpsDomainParticipant {
         &self,
         now: Time,
         participant_announcement_interval: Duration,
-    ) -> Option<(Duration, TimedEvent)> {
-        let mut min_time: Option<Duration> = None;
-        let mut earliest_event: Option<TimedEvent> = None;
+    ) -> (Duration, TimedEvent) {
+        let mut min_time = self
+            .time_until_participant_announcement(now, participant_announcement_interval)
+            .unwrap_or(Duration::new(0, 0));
+        let mut earliest_event = TimedEvent::AnnounceParticipant;
 
-        let mut update = |duration: Duration, event: TimedEvent| match min_time {
-            Some(m) if duration < m => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
+        let mut update = |duration: Duration, event: TimedEvent| {
+            if duration < min_time {
+                min_time = duration;
+                earliest_event = event;
             }
-            None => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
-            }
-            _ => (),
         };
-
-        if let Some(announcement_time) =
-            self.time_until_participant_announcement(now, participant_announcement_interval)
-        {
-            update(announcement_time, TimedEvent::AnnounceParticipant);
-        }
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -269,35 +260,43 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                for sample in &data_reader.sample_list {
-                    let timestamp = match data_reader.qos.destination_order.kind {
-                        DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
-                        DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                            Some(sample.reception_timestamp)
-                        }
-                    };
-                    if let Some(timestamp) = timestamp {
-                        if let Some(matched_publication) = data_reader
-                            .matched_publication_list
-                            .iter()
-                            .find(|x| x.key().value == sample.writer_guid)
-                        {
-                            if let DurationKind::Finite(lifespan) =
-                                matched_publication.lifespan().duration
+                let has_finite_lifespan = data_reader
+                    .matched_publication_list
+                    .iter()
+                    .any(|p| matches!(p.lifespan().duration, DurationKind::Finite(_)));
+                if has_finite_lifespan {
+                    for sample in &data_reader.sample_list {
+                        let timestamp = match data_reader.qos.destination_order.kind {
+                            DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                                sample.source_timestamp
+                            }
+                            DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
+                                Some(sample.reception_timestamp)
+                            }
+                        };
+                        if let Some(timestamp) = timestamp {
+                            if let Some(matched_publication) = data_reader
+                                .matched_publication_list
+                                .iter()
+                                .find(|x| x.key().value == sample.writer_guid)
                             {
-                                let expiry = timestamp + lifespan;
-                                let remaining = if expiry > now {
-                                    expiry - now
-                                } else {
-                                    Duration::new(0, 0)
-                                };
-                                update(
-                                    remaining,
-                                    TimedEvent::RemoveStaleReaderSamples {
-                                        subscriber_handle: subscriber.instance_handle,
-                                        reader_handle: data_reader.instance_handle,
-                                    },
-                                );
+                                if let DurationKind::Finite(lifespan) =
+                                    matched_publication.lifespan().duration
+                                {
+                                    let expiry = timestamp + lifespan;
+                                    let remaining = if expiry > now {
+                                        expiry - now
+                                    } else {
+                                        Duration::new(0, 0)
+                                    };
+                                    update(
+                                        remaining,
+                                        TimedEvent::RemoveStaleReaderSamples {
+                                            subscriber_handle: subscriber.instance_handle,
+                                            reader_handle: data_reader.instance_handle,
+                                        },
+                                    );
+                                }
                             }
                         }
                     }
@@ -382,7 +381,7 @@ impl DcpsDomainParticipant {
             }
         }
 
-        min_time.zip(earliest_event)
+        (min_time, earliest_event)
     }
 
     pub fn handle_timed_event(
