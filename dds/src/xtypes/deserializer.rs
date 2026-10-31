@@ -105,6 +105,7 @@ impl EndiannessRead for LittleEndian {
     }
 }
 
+const PID_SENTINEL: u16 = 0x0001;
 const PID_LIST_END: u16 = 0x3F02;
 
 trait EncodingVersion: Sized {
@@ -217,8 +218,11 @@ impl EncodingVersion for EncodingVersion1 {
             let current_pid: u16 = deserializer.deserialize_primitive_type()?;
             let current_pid_without_flags = current_pid & 0b00111111_11111111;
             let length: u16 = deserializer.deserialize_primitive_type()?;
-            if current_pid_without_flags == PID_LIST_END && length == 0 {
-                if pid == PID_LIST_END as u32 {
+            let is_sentinel = (current_pid_without_flags == PID_LIST_END
+                || current_pid_without_flags == PID_SENTINEL)
+                && length == 0;
+            if is_sentinel {
+                if pid == PID_LIST_END as u32 || pid == PID_SENTINEL as u32 {
                     return Ok(0);
                 } else {
                     return Err(PidNotFound(pid as u16));
@@ -314,19 +318,20 @@ impl EncodingVersion for EncodingVersion1 {
     ) -> XTypesResult<()> {
         Self::align(deserializer, 4)?;
         let pid = member.get_id();
-        let orig_pos = deserializer.reader.pos;
         let orig_origin = deserializer.reader.origin;
         let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
             if length > 0 {
-                deserializer.reader.origin = deserializer.reader.pos;
-                deserializer.deserialize_value(member, dynamic_data)
+                let start_pos = deserializer.reader.pos;
+                deserializer.reader.origin = start_pos;
+                let res = deserializer.deserialize_value(member, dynamic_data);
+                deserializer.reader.pos = start_pos + length;
+                res
             } else {
                 Ok(())
             }
         } else {
             Ok(())
         };
-        deserializer.reader.pos = orig_pos;
         deserializer.reader.origin = orig_origin;
         result
 
@@ -348,6 +353,7 @@ impl EncodingVersion for EncodingVersion1 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
+        let start_pos = deserializer.reader.pos;
         let dynamic_type = dynamic_data.r#type();
         // Deserialize the discriminator
         let disc_member = dynamic_type.get_member_by_index(0)?;
@@ -361,14 +367,22 @@ impl EncodingVersion for EncodingVersion1 {
             let member = dynamic_type.get_member_by_index(member_index)?;
             // Deserialize the member based on its discriminator
             if member.descriptor.label.contains(&disc_id) {
-                return Self::deserialize_mmember(deserializer, member, dynamic_data);
+                deserializer.reader.pos = start_pos;
+                Self::deserialize_mmember(deserializer, member, dynamic_data)?;
+                deserializer.reader.pos = start_pos;
+                Self::seek_to_pid(deserializer, PID_LIST_END as u32)?;
+                return Ok(());
             }
             if member.descriptor.is_default_label {
                 default_member = Some(member);
             }
         }
         if let Some(member) = default_member {
-            return Self::deserialize_mmember(deserializer, member, dynamic_data);
+            deserializer.reader.pos = start_pos;
+            Self::deserialize_mmember(deserializer, member, dynamic_data)?;
+            deserializer.reader.pos = start_pos;
+            Self::seek_to_pid(deserializer, PID_LIST_END as u32)?;
+            return Ok(());
         }
 
         if disc_member.descriptor.try_construct_kind == TryConstructKind::UseDefault {
@@ -376,7 +390,11 @@ impl EncodingVersion for EncodingVersion1 {
             for member_index in 0..dynamic_type.get_member_count() {
                 let member = dynamic_type.get_member_by_index(member_index)?;
                 if member.descriptor.label.contains(&default_disc_val) {
-                    return Self::deserialize_mmember(deserializer, member, dynamic_data);
+                    deserializer.reader.pos = start_pos;
+                    Self::deserialize_mmember(deserializer, member, dynamic_data)?;
+                    deserializer.reader.pos = start_pos;
+                    Self::seek_to_pid(deserializer, PID_LIST_END as u32)?;
+                    return Ok(());
                 }
             }
         }
@@ -530,9 +548,9 @@ impl EncodingVersion for EncodingVersion2 {
         // TODO: If LC(C)>=4
         //let _next_int = deserializer.deserialize_primitive_type::<u32>();
         let pid = member.get_id();
-        let orig_pos = deserializer.reader.pos;
-        let result = if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
-            if member.descriptor.r#type.get_kind() == TypeKind::SEQUENCE
+        if let Ok(length) = Self::seek_to_pid(deserializer, pid) {
+            let start_pos = deserializer.reader.pos;
+            let res = if member.descriptor.r#type.get_kind() == TypeKind::SEQUENCE
                 && is_element_type_kind_primitive(member)?
             {
                 let elem_size = match member
@@ -552,12 +570,12 @@ impl EncodingVersion for EncodingVersion2 {
                 deserializer.deserialize_sequence_elements(member, dynamic_data, count)
             } else {
                 deserializer.deserialize_value(member, dynamic_data)
-            }
+            };
+            deserializer.reader.pos = start_pos + length;
+            res
         } else {
             Ok(())
-        };
-        deserializer.reader.pos = orig_pos;
-        result
+        }
     }
 
     /// Unions with extensibility MUTABLE, version 2 encoding
@@ -574,7 +592,8 @@ impl EncodingVersion for EncodingVersion2 {
         deserializer: &mut XTypesDeserializer<'a, E, Self>,
         dynamic_data: &mut DynamicData,
     ) -> XTypesResult<()> {
-        let _dheader = deserializer.deserialize_primitive_type::<u32>();
+        let dheader = deserializer.deserialize_primitive_type::<u32>()? as usize;
+        let start_pos = deserializer.reader.pos;
 
         let dynamic_type = dynamic_data.r#type();
         // Deserialize the discriminator
@@ -589,14 +608,20 @@ impl EncodingVersion for EncodingVersion2 {
             let member = dynamic_type.get_member_by_index(member_index)?;
             // Deserialize the member based on its discriminator
             if member.descriptor.label.contains(&disc_id) {
-                return Self::deserialize_mmember(deserializer, member, dynamic_data);
+                deserializer.reader.pos = start_pos;
+                let res = Self::deserialize_mmember(deserializer, member, dynamic_data);
+                deserializer.reader.pos = start_pos + dheader;
+                return res;
             }
             if member.descriptor.is_default_label {
                 default_member = Some(member);
             }
         }
         if let Some(member) = default_member {
-            return Self::deserialize_mmember(deserializer, member, dynamic_data);
+            deserializer.reader.pos = start_pos;
+            let res = Self::deserialize_mmember(deserializer, member, dynamic_data);
+            deserializer.reader.pos = start_pos + dheader;
+            return res;
         }
 
         if disc_member.descriptor.try_construct_kind == TryConstructKind::UseDefault {
@@ -604,7 +629,10 @@ impl EncodingVersion for EncodingVersion2 {
             for member_index in 0..dynamic_type.get_member_count() {
                 let member = dynamic_type.get_member_by_index(member_index)?;
                 if member.descriptor.label.contains(&default_disc_val) {
-                    return Self::deserialize_mmember(deserializer, member, dynamic_data);
+                    deserializer.reader.pos = start_pos;
+                    let res = Self::deserialize_mmember(deserializer, member, dynamic_data);
+                    deserializer.reader.pos = start_pos + dheader;
+                    return res;
                 }
             }
         }
@@ -730,11 +758,14 @@ impl<'a, E: EndiannessRead, V: EncodingVersion> XTypesDeserializer<'a, E, V> {
 
     /// Serialization rule: { O.member[i] : MMEMBER }*
     fn deserialize_members(&mut self, dynamic_data: &mut DynamicData) -> XTypesResult<()> {
+        let start_pos = self.reader.pos;
         let dynamic_type = dynamic_data.r#type();
         for member_index in 0..dynamic_type.get_member_count() {
             let member = dynamic_type.get_member_by_index(member_index)?;
+            self.reader.pos = start_pos;
             V::deserialize_mmember(self, member, dynamic_data)?;
         }
+        self.reader.pos = start_pos;
         Ok(())
     }
 
@@ -3043,5 +3074,60 @@ mod tests {
             .unwrap();
 
         assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    fn deserialize_union_sequence_with_optional() {
+        use crate::infrastructure::type_support::DdsType;
+        use crate::xtypes::serializer::{serialize_cdr1_le, serialize_cdr2_le};
+        use crate::xtypes::type_support::TypeSupport;
+
+        #[derive(Clone, Debug, PartialEq, DdsType)]
+        #[dust_dds(extensibility = "final")]
+        struct Element {
+            values: Vec<u32>,
+            #[dust_dds(optional)]
+            maybe: Option<u32>,
+        }
+
+        #[allow(non_camel_case_types)]
+        #[derive(Clone, Debug, PartialEq, DdsType)]
+        #[dust_dds(switch(u8), extensibility = "final")]
+        enum MyUnion {
+            #[dust_dds(case = 0)]
+            element(Element),
+        }
+
+        #[derive(Clone, Debug, PartialEq, DdsType)]
+        #[dust_dds(extensibility = "final")]
+        struct MyStruct {
+            #[dust_dds(key)]
+            id: u32,
+            unions: Vec<MyUnion>,
+        }
+
+        let data = MyStruct {
+            id: 1,
+            unions: vec![
+                MyUnion::element(Element {
+                    values: vec![1, 2, 3],
+                    maybe: Some(42),
+                }),
+                MyUnion::element(Element {
+                    values: vec![4, 5],
+                    maybe: None,
+                }),
+            ],
+        };
+
+        let dynamic = data.clone().create_dynamic_sample();
+
+        let bytes_cdr1 = serialize_cdr1_le(&dynamic).unwrap();
+        let mut deser_cdr1 = deserialize_top_level_type(MyStruct::TYPE, &bytes_cdr1).unwrap();
+        assert_eq!(MyStruct::create_sample(&mut deser_cdr1), Some(data.clone()));
+
+        let bytes_cdr2 = serialize_cdr2_le(&dynamic).unwrap();
+        let mut deser_cdr2 = deserialize_top_level_type(MyStruct::TYPE, &bytes_cdr2).unwrap();
+        assert_eq!(MyStruct::create_sample(&mut deser_cdr2), Some(data));
     }
 }
