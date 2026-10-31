@@ -1371,3 +1371,118 @@ fn multilevel_inheritance_should_write_and_read() {
         &data
     );
 }
+
+#[test]
+fn struct_with_sequence_of_unions_with_optional() {
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    #[dust_dds(extensibility = "final")]
+    struct Element {
+        values: Vec<u32>,
+        #[dust_dds(optional)]
+        maybe: Option<u32>,
+    }
+
+    #[allow(non_camel_case_types)]
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    #[dust_dds(switch(u8), extensibility = "final")]
+    enum MyUnion {
+        #[dust_dds(case = 0)]
+        element(Element),
+    }
+
+    #[derive(Clone, Debug, PartialEq, DdsType)]
+    #[dust_dds(extensibility = "final")]
+    struct MyStruct {
+        #[dust_dds(key)]
+        id: u32,
+        unions: Vec<MyUnion>,
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<MyStruct>(
+            "MyTopic",
+            "MyStruct",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<MyStruct>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let data = MyStruct {
+        id: 1,
+        unions: vec![
+            MyUnion::element(Element {
+                values: vec![1, 2, 3],
+                maybe: Some(42),
+            }),
+            MyUnion::element(Element {
+                values: vec![4, 5],
+                maybe: None,
+            }),
+        ],
+    };
+
+    writer.write(data.clone(), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    assert_eq!(
+        reader.read_next_sample().unwrap().data.as_ref().unwrap(),
+        &data
+    );
+}
