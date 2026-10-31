@@ -54,9 +54,9 @@ use crate::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
-            ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
-            XCDR_DATA_REPRESENTATION,
+            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId,
+            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
+            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -3315,11 +3315,13 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     if &writer_qos.durability < discovered_reader_data.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
+
+    if !(publisher_qos.presentation.access_scope
+        >= discovered_reader_data.presentation.access_scope
+        && (!discovered_reader_data.presentation.coherent_access
+            || publisher_qos.presentation.coherent_access)
+        && (!discovered_reader_data.presentation.ordered_access
+            || publisher_qos.presentation.ordered_access))
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3368,14 +3370,9 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
 ) -> Vec<QosPolicyId> {
     let mut incompatible_qos_policy_list = Vec::new();
 
-    if subscriber_qos.presentation.access_scope
-        > publication_builtin_topic_data.presentation().access_scope
-        || subscriber_qos.presentation.coherent_access
-            != publication_builtin_topic_data
-                .presentation()
-                .coherent_access
-        || subscriber_qos.presentation.ordered_access
-            != publication_builtin_topic_data.presentation().ordered_access
+    if !publication_builtin_topic_data
+        .presentation()
+        .is_compatible_with_requested(&subscriber_qos.presentation)
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3542,6 +3539,14 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     flush_literal(&mut out, &mut literal);
     out.push('$');
     out
+}
+
+impl PresentationQosPolicy {
+    fn is_compatible_with_requested(&self, requested: &Self) -> bool {
+        self.access_scope >= requested.access_scope
+            && (!requested.coherent_access || self.coherent_access)
+            && (!requested.ordered_access || self.ordered_access)
+    }
 }
 
 impl PublicationMatchedStatus {

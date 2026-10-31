@@ -7,7 +7,7 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
-            PartitionQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
+            PartitionQosPolicy, PresentationQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
             XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
@@ -1174,4 +1174,118 @@ fn participant_removed_after_lease_duration() {
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
     assert_eq!(discovered_participant.len(), 1);
+}
+
+#[test]
+fn presentation_qos_offered_coherent_and_ordered_matches_requested_default() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "presentation_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: true,
+            ordered_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: false,
+            ordered_access: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn presentation_qos_offered_non_coherent_does_not_match_requested_coherent() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "presentation_topic_incompatible",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
