@@ -29,7 +29,7 @@ use crate::{
             DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
             PublisherQos, QosKind, SubscriberQos, TopicQos,
         },
-        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+        sample_info::{InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask},
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, PublicationMatchedStatus,
             SubscriptionMatchedStatus,
@@ -410,9 +410,9 @@ pub struct ReadMail {
     pub subscriber_handle: InstanceHandle,
     pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
+    pub sample_state_mask: SampleStateMask,
+    pub view_state_mask: ViewStateMask,
+    pub instance_state_mask: InstanceStateMask,
     pub specific_instance_handle: Option<InstanceHandle>,
 }
 
@@ -422,9 +422,9 @@ pub struct ReadNextInstanceMail {
     pub data_reader_handle: InstanceHandle,
     pub max_samples: i32,
     pub previous_handle: Option<InstanceHandle>,
-    pub sample_states: Vec<SampleStateKind>,
-    pub view_states: Vec<ViewStateKind>,
-    pub instance_states: Vec<InstanceStateKind>,
+    pub sample_state_mask: SampleStateMask,
+    pub view_state_mask: ViewStateMask,
+    pub instance_state_mask: InstanceStateMask,
 }
 
 pub enum ReaderServiceMail {
@@ -433,10 +433,10 @@ pub enum ReaderServiceMail {
         subscriber_handle: InstanceHandle,
         data_reader_handle: InstanceHandle,
     },
-    Read(Box<ReadMail>),
-    Take(Box<ReadMail>),
-    ReadNextInstance(Box<ReadNextInstanceMail>),
-    TakeNextInstance(Box<ReadNextInstanceMail>),
+    Read(ReadMail),
+    Take(ReadMail),
+    ReadNextInstance(ReadNextInstanceMail),
+    TakeNextInstance(ReadNextInstanceMail),
     GetSubscriptionMatchedStatus {
         participant_handle: InstanceHandle,
         subscriber_handle: InstanceHandle,

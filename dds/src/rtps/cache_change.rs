@@ -83,48 +83,57 @@ impl CacheChange {
             self.data_value.as_ref(),
         )
     }
+}
 
+use crate::rtps_messages::submessage_elements::ParameterList;
+
+pub fn extract_kind_and_instance_handle(
+    inline_qos: &ParameterList<'_>,
+) -> Result<(ChangeKind, Option<[u8; 16]>), RtpsError> {
+    let kind = match inline_qos
+        .parameters()
+        .find(|x| x.parameter_id() == PID_STATUS_INFO)
+    {
+        Some(p) => {
+            if p.length() == 4 {
+                let status_info =
+                    StatusInfo([p.value()[0], p.value()[1], p.value()[2], p.value()[3]]);
+                match status_info {
+                    STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                    STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                    STATUS_INFO_DISPOSED_UNREGISTERED => {
+                        Ok(ChangeKind::NotAliveDisposedUnregistered)
+                    }
+                    STATUS_INFO_FILTERED => Ok(ChangeKind::AliveFiltered),
+                    _ => Err(RtpsError::InvalidData),
+                }
+            } else {
+                Err(RtpsError::InvalidData)
+            }
+        }
+        None => Ok(ChangeKind::Alive),
+    }?;
+
+    let instance_handle = match inline_qos
+        .parameters()
+        .find(|x| x.parameter_id() == PID_KEY_HASH)
+    {
+        Some(p) => <[u8; 16]>::try_from(p.value()).ok(),
+
+        None => None,
+    };
+
+    Ok((kind, instance_handle))
+}
+
+impl CacheChange {
     pub fn try_from_data_submessage(
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<rtps_messages::types::Time>,
     ) -> Result<Self, RtpsError> {
-        let kind = match data_submessage
-            .inline_qos()
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-        {
-            Some(p) => {
-                if p.length() == 4 {
-                    let status_info =
-                        StatusInfo([p.value()[0], p.value()[1], p.value()[2], p.value()[3]]);
-                    match status_info {
-                        STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
-                        STATUS_INFO_DISPOSED_UNREGISTERED => {
-                            Ok(ChangeKind::NotAliveDisposedUnregistered)
-                        }
-                        STATUS_INFO_FILTERED => Ok(ChangeKind::AliveFiltered),
-                        _ => Err(RtpsError::InvalidData),
-                    }
-                } else {
-                    Err(RtpsError::InvalidData)
-                }
-            }
-            None => Ok(ChangeKind::Alive),
-        }?;
-
-        let instance_handle = match data_submessage
-            .inline_qos()
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_KEY_HASH)
-        {
-            Some(p) => <[u8; 16]>::try_from(p.value()).ok(),
-
-            None => None,
-        };
+        let (kind, instance_handle) =
+            extract_kind_and_instance_handle(data_submessage.inline_qos())?;
 
         Ok(CacheChange {
             kind,

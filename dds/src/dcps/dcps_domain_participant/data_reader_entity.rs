@@ -5,7 +5,10 @@ use crate::{
         instance::InstanceHandle,
         qos::DataReaderQos,
         qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
-        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+        sample_info::{
+            InstanceStateKind, InstanceStateMask, SampleInfo, SampleStateKind, SampleStateMask,
+            ViewStateKind, ViewStateMask,
+        },
         status::SampleRejectedStatusKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
@@ -225,9 +228,9 @@ impl<T> DataReaderEntity<T> {
     pub fn create_sample_collection(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
         take: bool,
     ) -> DdsResult<SampleList> {
@@ -249,9 +252,9 @@ impl<T> DataReaderEntity<T> {
             sample_rank_counter: i32,
         }
 
-        let match_all_sample_states = sample_states.len() >= 2;
-        let match_all_view_states = view_states.len() >= 2;
-        let match_all_instance_states = instance_states.len() >= 3;
+        let match_all_sample_states = sample_state_mask == SampleStateMask::ANY;
+        let match_all_view_states = view_state_mask == ViewStateMask::ANY;
+        let match_all_instance_states = instance_state_mask == InstanceStateMask::ANY;
 
         let estimated_capacity = (max_samples as usize).min(self.sample_list.len());
         let mut samples = Vec::with_capacity(estimated_capacity);
@@ -285,10 +288,10 @@ impl<T> DataReaderEntity<T> {
                 }
             };
 
-            if (!match_all_sample_states && !sample_states.contains(&cache_change.sample_state))
-                || (!match_all_view_states && !view_states.contains(&instance.view_state))
+            if (!match_all_sample_states && !sample_state_mask.contains(cache_change.sample_state))
+                || (!match_all_view_states && !view_state_mask.contains(instance.view_state))
                 || (!match_all_instance_states
-                    && !instance_states.contains(&instance.instance_state))
+                    && !instance_state_mask.contains(instance.instance_state))
             {
                 return true;
             }
@@ -714,9 +717,9 @@ impl<T> DataReaderEntity<T> {
     pub fn read(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
@@ -725,9 +728,9 @@ impl<T> DataReaderEntity<T> {
 
         self.create_sample_collection(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
             false,
         )
@@ -736,9 +739,9 @@ impl<T> DataReaderEntity<T> {
     pub fn take(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
@@ -747,9 +750,9 @@ impl<T> DataReaderEntity<T> {
 
         self.create_sample_collection(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
             true,
         )
