@@ -251,9 +251,8 @@ pub type ParameterId = Short;
 pub type FragmentNumber = UnsignedLong;
 
 /// GroupDigest_t
-/// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant.
-#[allow(dead_code)]
-pub type GroupDigest = [Octet; 4];
+/// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant (128-bit).
+pub type GroupDigest = [Octet; 16];
 
 /// UExtension4_t
 /// Type used to hold an undefined 4-byte value. It is intended to be used in future revisions of the specification.
