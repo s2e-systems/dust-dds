@@ -7,9 +7,8 @@ use dust_dds::{
         listener::NO_LISTENER,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
-            DataRepresentationQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind,
-            ReliabilityQosPolicy, ReliabilityQosPolicyKind, XCDR_DATA_REPRESENTATION,
-            XCDR2_DATA_REPRESENTATION,
+            DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind,
         },
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         status::{NO_STATUS, StatusKind},
