@@ -56,7 +56,7 @@ use crate::{
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
             PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
             ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
-            XCDR_DATA_REPRESENTATION,
+            XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -3347,13 +3347,12 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
+    let reader_representation = if discovered_reader_data.representation().value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        discovered_reader_data.representation().value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
@@ -3406,18 +3405,13 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !data_reader
-        .qos
-        .representation
-        .value
-        .contains(writer_offered_representation)
-    {
-        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos.representation.value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
-        }
+    let reader_representation = if data_reader.qos.representation.value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        data_reader.qos.representation.value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list

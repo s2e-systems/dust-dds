@@ -985,6 +985,61 @@ fn reader_requesting_xcdr2_should_not_match_writer_offering_xcdr1() {
 }
 
 #[test]
+fn writer_offering_xcdr2_should_match_reader_with_default_representation() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "topic_name",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR2_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    };
+    let data_writer = publisher
+        .create_datawriter::<UserType>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
+    assert_eq!(matched_subscriptions.len(), 1);
+    let matched_publications = data_reader.get_matched_publications().unwrap();
+    assert_eq!(matched_publications.len(), 1);
+}
+
+#[test]
 fn writer_offering_exclusive_ownership_should_not_match_reader_requesting_shared_ownership() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
