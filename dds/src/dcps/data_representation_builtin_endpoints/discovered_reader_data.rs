@@ -18,6 +18,7 @@ use crate::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
 };
@@ -108,6 +109,13 @@ impl DiscoveredReaderData {
             pl.write_xcdr1_parameter(
                 PID_DATA_REPRESENTATION,
                 self.dds_subscription_data.representation,
+            );
+        } else {
+            pl.write_xcdr1_parameter(
+                PID_DATA_REPRESENTATION,
+                DataRepresentationQosPolicy {
+                    value: vec![XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION],
+                },
             );
         }
         if self.dds_subscription_data.protection_info != Default::default() {
