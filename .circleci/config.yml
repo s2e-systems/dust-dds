@@ -198,9 +198,12 @@ jobs:
       - run:
           name: Install dependencies
           command: sudo apt-get update && sudo apt-get install -y libasio-dev libtinyxml2-dev openjdk-17-jdk-headless
+      - run:
+          name: Compute hash for cache
+          command: sha256sum interoperability_tests/fast_dds/* interoperability_tests/HelloWorld.idl interoperability_tests/DisposeData.idl > /tmp/fast_dds_checksum
       - restore_cache:
           keys:
-            - fast-dds-build-v1-{{ arch }}-{{ checksum "interoperability_tests/fast_dds/CMakeLists.txt" }}
+            - fast-dds-build-v1-{{ arch }}-{{ checksum "/tmp/fast_dds_checksum" }}
       - run:
           name: Build FastDDS Interoperability tests
           command: |
@@ -209,7 +212,7 @@ jobs:
               cmake --build build/fast_dds --parallel 17
             fi
       - save_cache:
-          key: fast-dds-build-v1-{{ arch }}-{{ checksum "interoperability_tests/fast_dds/CMakeLists.txt" }}
+          key: fast-dds-build-v1-{{ arch }}-{{ checksum "/tmp/fast_dds_checksum" }}
           paths:
             - build/fast_dds
       - run:
