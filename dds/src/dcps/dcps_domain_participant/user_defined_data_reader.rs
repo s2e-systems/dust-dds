@@ -11,7 +11,7 @@ use crate::{
         instance::InstanceHandle,
         qos::DataReaderQos,
         qos_policy::QosPolicyId,
-        sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
+        sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{
             QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
@@ -214,18 +214,18 @@ impl UserDefinedDataReader {
     pub fn read(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
         self.reader.read(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
         )
     }
@@ -233,18 +233,18 @@ impl UserDefinedDataReader {
     pub fn take(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
         self.reader.take(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
         )
     }
@@ -253,9 +253,9 @@ impl UserDefinedDataReader {
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -264,9 +264,9 @@ impl UserDefinedDataReader {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.take(
                 max_samples,
-                sample_states,
-                view_states,
-                instance_states,
+                sample_state_mask,
+                view_state_mask,
+                instance_state_mask,
                 &Some(next_handle),
             ),
             None => Err(DdsError::NoData),
@@ -277,9 +277,9 @@ impl UserDefinedDataReader {
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -288,9 +288,9 @@ impl UserDefinedDataReader {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.read(
                 max_samples,
-                sample_states,
-                view_states,
-                instance_states,
+                sample_state_mask,
+                view_state_mask,
+                instance_state_mask,
                 &Some(next_handle),
             ),
             None => Err(DdsError::NoData),

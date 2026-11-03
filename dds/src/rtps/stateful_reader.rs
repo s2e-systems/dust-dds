@@ -13,7 +13,8 @@ use alloc::vec::Vec;
 
 pub struct RtpsStatefulReader {
     guid: Guid,
-    changes: Vec<CacheChange>,
+    /// History cache of changes received by this reader.
+    pub changes: Vec<CacheChange>,
     matched_writers: Vec<RtpsWriterProxy>,
     reliability: ReliabilityKind,
 }
@@ -68,7 +69,7 @@ impl RtpsStatefulReader {
 
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {
@@ -143,15 +144,13 @@ impl RtpsStatefulReader {
                 }
             }
 
-            if let Some(data_submessage) = writer_proxy.reconstruct_data_from_frag(sequence_number)
+            if let Some(change) =
+                writer_proxy.reconstruct_data_from_frag(sequence_number, source_timestamp)
             {
-                self.on_data_submessage(&data_submessage, source_guid_prefix, source_timestamp);
+                writer_proxy.received_change_set(sequence_number);
+                self.changes.push(change);
             }
         };
-    }
-
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        &mut self.changes
     }
 }
 

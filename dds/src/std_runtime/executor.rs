@@ -1,7 +1,9 @@
 use std::{
+    any::Any,
     cell::RefCell,
     collections::BinaryHeap,
     future::Future,
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     pin::{Pin, pin},
     sync::{
         Arc, Mutex, OnceLock,
@@ -75,26 +77,33 @@ pub fn block_timeout<T>(
     }
 }
 
-pub fn block_on<T>(f: impl Future<Output = T>) -> T {
-    struct ThreadWake(Thread);
-    impl Wake for ThreadWake {
-        fn wake(self: std::sync::Arc<Self>) {
-            self.wake_by_ref()
-        }
+struct ThreadWake(Thread);
 
-        fn wake_by_ref(self: &Arc<Self>) {
-            self.0.unpark()
-        }
+impl Wake for ThreadWake {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
     }
-    let waker = Waker::from(Arc::new(ThreadWake(thread::current())));
-    let mut cx = Context::from_waker(&waker);
-    let mut pinned_fut = pin!(f);
-    loop {
-        match pinned_fut.as_mut().poll(&mut cx) {
-            Poll::Ready(t) => return t,
-            Poll::Pending => thread::park(),
-        }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
     }
+}
+
+thread_local! {
+    static CURRENT_THREAD_WAKER: Waker = Waker::from(Arc::new(ThreadWake(thread::current())));
+}
+
+pub fn block_on<T>(f: impl Future<Output = T>) -> T {
+    CURRENT_THREAD_WAKER.with(|waker| {
+        let mut cx = Context::from_waker(waker);
+        let mut pinned_fut = pin!(f);
+        loop {
+            match pinned_fut.as_mut().poll(&mut cx) {
+                Poll::Ready(t) => return t,
+                Poll::Pending => thread::park(),
+            }
+        }
+    })
 }
 
 pub struct Task {
@@ -105,6 +114,7 @@ pub struct Task {
     finished: AtomicBool,
     is_queued: AtomicBool,
     join_waker: Mutex<Option<Waker>>,
+    panic_payload: Mutex<Option<Box<dyn Any + Send>>>,
 }
 
 pub struct ExecutorTaskHandle {
@@ -135,6 +145,10 @@ impl TaskHandle for ExecutorTaskHandle {
         }
 
         block_on(JoinFuture { task: &self.task });
+
+        if let Some(payload) = self.task.panic_payload.lock().unwrap().take() {
+            resume_unwind(payload);
+        }
     }
 }
 
@@ -178,6 +192,7 @@ impl ExecutorHandle {
             finished: AtomicBool::new(false),
             is_queued: AtomicBool::new(true),
             join_waker: Mutex::new(None),
+            panic_payload: Mutex::new(None),
         });
         self.task_sender
             .send(task.clone())
@@ -440,16 +455,29 @@ impl Executor {
                             if !task.is_finished() {
                                 let waker = Waker::from(task.clone());
                                 let mut cx = Context::from_waker(&waker);
-                                let poll_result = task
-                                    .future
-                                    .try_lock()
-                                    .expect("Only ever locked here")
-                                    .as_mut()
-                                    .poll(&mut cx);
-                                if matches!(poll_result, Poll::Ready(_)) {
-                                    task.finished.store(true, atomic::Ordering::Release);
-                                    if let Some(waker) = task.join_waker.lock().unwrap().take() {
-                                        waker.wake();
+                                let poll_result = catch_unwind(AssertUnwindSafe(|| {
+                                    task.future
+                                        .try_lock()
+                                        .expect("Only ever locked here")
+                                        .as_mut()
+                                        .poll(&mut cx)
+                                }));
+                                match poll_result {
+                                    Ok(Poll::Ready(_)) => {
+                                        task.finished.store(true, atomic::Ordering::Release);
+                                        if let Some(waker) = task.join_waker.lock().unwrap().take()
+                                        {
+                                            waker.wake();
+                                        }
+                                    }
+                                    Ok(Poll::Pending) => {}
+                                    Err(payload) => {
+                                        *task.panic_payload.lock().unwrap() = Some(payload);
+                                        task.finished.store(true, atomic::Ordering::Release);
+                                        if let Some(waker) = task.join_waker.lock().unwrap().take()
+                                        {
+                                            waker.wake();
+                                        }
                                     }
                                 }
                             }
@@ -499,5 +527,55 @@ impl Executor {
         TimerHandle {
             state: self.timer_state.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_executor_task_panic_propagates_to_join() {
+        let executor = Executor::new();
+        let spawner = executor.handle();
+
+        let handle = spawner.spawn(async {
+            panic!("intended test panic in background task");
+        });
+
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            handle.join();
+        }));
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let msg = if let Some(s) = err.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = err.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            String::new()
+        };
+        assert!(msg.contains("intended test panic"));
+    }
+
+    #[test]
+    fn test_executor_survives_task_panic() {
+        let executor = Executor::new();
+        let spawner = executor.handle();
+
+        // Task 1 panics
+        let handle1 = spawner.spawn(async {
+            panic!("task 1 panicked");
+        });
+        assert!(std::panic::catch_unwind(AssertUnwindSafe(|| handle1.join())).is_err());
+
+        // Executor is still healthy and runs Task 2 to completion
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let handle2 = spawner.spawn(async move {
+            sender.send(42).unwrap();
+        });
+        handle2.join();
+        assert_eq!(receiver.recv().unwrap(), 42);
     }
 }

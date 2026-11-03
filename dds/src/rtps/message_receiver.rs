@@ -1,7 +1,7 @@
 use crate::{
     rtps_messages::{
         self,
-        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
+        overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind, Submessages},
         types::TIME_INVALID,
     },
     transport::types::{GUIDPREFIX_UNKNOWN, GuidPrefix, Locator, ProtocolVersion, VendorId},
@@ -18,15 +18,15 @@ pub struct MessageReceiver<'a> {
     _multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: rtps_messages::types::Time,
-    submessage_iter: core::slice::Iter<'a, RtpsSubmessageReadKind>,
+    submessage_iter: Submessages<'a>,
 }
 
 impl<'a> Iterator for MessageReceiver<'a> {
-    type Item = &'a RtpsSubmessageReadKind;
+    type Item = RtpsSubmessageReadKind<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         for submessage in self.submessage_iter.by_ref() {
-            match &submessage {
+            match submessage {
                 RtpsSubmessageReadKind::AckNack(_)
                 | RtpsSubmessageReadKind::Data(_)
                 | RtpsSubmessageReadKind::DataFrag(_)
@@ -67,7 +67,7 @@ impl<'a> Iterator for MessageReceiver<'a> {
 }
 
 impl<'a> MessageReceiver<'a> {
-    pub fn new(message: &'a RtpsMessageRead) -> Self {
+    pub fn new(message: &RtpsMessageRead<'a>) -> Self {
         let header = message.header();
         Self {
             source_version: header.version(),
@@ -78,7 +78,7 @@ impl<'a> MessageReceiver<'a> {
             _multicast_reply_locator_list: Vec::new(),
             have_timestamp: false,
             timestamp: TIME_INVALID,
-            submessage_iter: message.submessages().iter(),
+            submessage_iter: message.submessages(),
         }
     }
 

@@ -3,7 +3,7 @@ use alloc::{boxed::Box, sync::Arc};
 use super::domain_participant::DomainParticipantAsync;
 use crate::{
     dcps::{
-        channels::rpc::{RpcClient, RpcMailbox},
+        channels::rpc::{RpcClient, rpc_channel},
         dcps_mail::{CreateParticipantMail, DomainParticipantFactoryMail, DomainParticipantMail},
         listeners::domain_participant_listener::DcpsDomainParticipantListener,
     },
@@ -182,8 +182,7 @@ impl DomainParticipantFactoryAsync {
         let clock = runtime.clock();
         let timer = runtime.timer();
         let spawner = runtime.spawner();
-        let rpc_mailbox = Arc::new(RpcMailbox::new());
-        let dcps_sender = RpcClient::new(rpc_mailbox.clone());
+        let (dcps_sender, rpc_receiver) = rpc_channel();
         let spawner_handle = spawner.clone();
 
         let mut domain_participant_factory =
@@ -197,7 +196,7 @@ impl DomainParticipantFactoryAsync {
             let span = tracing::trace_span!("dds_factory_loop");
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
-                let user_mail = rpc_mailbox.receive_request().await;
+                let (user_mail, reply_sender) = rpc_receiver.receive().await;
                 let now = clock_clone.now();
                 let reply = domain_participant_factory
                     .handle_factory_mail(
@@ -210,7 +209,7 @@ impl DomainParticipantFactoryAsync {
                         &mut transport,
                     )
                     .await;
-                rpc_mailbox.send_reply(reply).await;
+                reply_sender.send(reply);
             }
         });
         Self {
