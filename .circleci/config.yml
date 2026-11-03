@@ -192,7 +192,6 @@ jobs:
   fast_dds_interoperability_tests:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - run:
