@@ -9,7 +9,7 @@ use crate::{
         channels::{
             notification::NotificationSender,
             oneshot::{OneshotReceiver, OneshotSender},
-            rpc::RpcClient,
+            rpc::{Operation, RpcClient},
         },
         dcps_domain_participant::data_reader_entity::SampleList,
         listeners::{
@@ -58,24 +58,43 @@ pub enum DomainParticipantFactoryMail {
     },
 }
 
-pub enum DomainParticipantMail {
-    Participant(ParticipantServiceMail),
-    Topic(TopicServiceMail),
-    Publisher(PublisherServiceMail),
-    Writer(WriterServiceMail),
-    Subscriber(SubscriberServiceMail),
-    Reader(ReaderServiceMail),
-    StatusCondition(StatusConditionMail),
-    Message(MessageServiceMail),
-}
-
-pub type DcpsMail = DomainParticipantMail;
-
 pub struct CreateParticipantMail {
     pub domain_id: DomainId,
     pub qos: QosKind<DomainParticipantQos>,
     pub dcps_listener: Option<DcpsDomainParticipantListener>,
     pub listener_mask: StatusMask,
+}
+
+// =========================================================================
+// Standalone Operation Structs
+// =========================================================================
+
+// --- Participant Operations ---
+
+pub struct CreateUserDefinedPublisherMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: QosKind<PublisherQos>,
+    pub dcps_listener: Option<DcpsPublisherListener>,
+    pub listener_mask: StatusMask,
+}
+
+pub struct DeleteUserDefinedPublisherMail {
+    pub participant_handle: InstanceHandle,
+    pub parent_participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
+pub struct CreateUserDefinedSubscriberMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: QosKind<SubscriberQos>,
+    pub dcps_listener: Option<DcpsSubscriberListener>,
+    pub listener_mask: StatusMask,
+}
+
+pub struct DeleteUserDefinedSubscriberMail {
+    pub participant_handle: InstanceHandle,
+    pub parent_participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
 }
 
 pub struct CreateTopicMail {
@@ -88,6 +107,12 @@ pub struct CreateTopicMail {
     pub type_support: DynamicType<'static>,
 }
 
+pub struct DeleteUserDefinedTopicMail {
+    pub participant_handle: InstanceHandle,
+    pub parent_participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
 pub struct CreateContentFilteredTopicMail {
     pub participant_handle: InstanceHandle,
     pub name: String,
@@ -96,145 +121,142 @@ pub struct CreateContentFilteredTopicMail {
     pub expression_parameters: Vec<String>,
 }
 
-pub enum ParticipantServiceMail {
-    CreateUserDefinedPublisher {
-        participant_handle: InstanceHandle,
-        qos: QosKind<PublisherQos>,
-        dcps_listener: Option<DcpsPublisherListener>,
-        listener_mask: StatusMask,
-    },
-    DeleteUserDefinedPublisher {
-        participant_handle: InstanceHandle,
-        parent_participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-    },
-    CreateUserDefinedSubscriber {
-        participant_handle: InstanceHandle,
-        qos: QosKind<SubscriberQos>,
-        dcps_listener: Option<DcpsSubscriberListener>,
-        listener_mask: StatusMask,
-    },
-    DeleteUserDefinedSubscriber {
-        participant_handle: InstanceHandle,
-        parent_participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-    },
-    CreateTopic(Box<CreateTopicMail>),
-    DeleteUserDefinedTopic {
-        participant_handle: InstanceHandle,
-        parent_participant_handle: InstanceHandle,
-        topic_name: String,
-    },
-    CreateContentFilteredTopic(Box<CreateContentFilteredTopicMail>),
-    DeleteContentFilteredTopic {
-        participant_handle: InstanceHandle,
-        name: String,
-    },
-    FindTopic {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-        type_support: DynamicType<'static>,
-        timeout: Duration,
-        reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
-    },
-    LookupTopicdescription {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-    },
-    IgnoreParticipant {
-        participant_handle: InstanceHandle,
-        handle: InstanceHandle,
-    },
-    IgnoreSubscription {
-        participant_handle: InstanceHandle,
-        handle: InstanceHandle,
-    },
-    IgnorePublication {
-        participant_handle: InstanceHandle,
-        handle: InstanceHandle,
-    },
-    DeleteContainedEntities {
-        participant_handle: InstanceHandle,
-    },
-    SetDefaultPublisherQos {
-        participant_handle: InstanceHandle,
-        qos: Box<QosKind<PublisherQos>>,
-    },
-    GetDefaultPublisherQos {
-        participant_handle: InstanceHandle,
-    },
-    SetDefaultSubscriberQos {
-        participant_handle: InstanceHandle,
-        qos: Box<QosKind<SubscriberQos>>,
-    },
-    GetDefaultSubscriberQos {
-        participant_handle: InstanceHandle,
-    },
-    SetDefaultTopicQos {
-        participant_handle: InstanceHandle,
-        qos: Box<QosKind<TopicQos>>,
-    },
-    GetDefaultTopicQos {
-        participant_handle: InstanceHandle,
-    },
-    GetDiscoveredParticipants {
-        participant_handle: InstanceHandle,
-    },
-    GetDiscoveredParticipantData {
-        participant_handle: InstanceHandle,
-        discovered_participant_handle: InstanceHandle,
-    },
-    GetDiscoveredTopics {
-        participant_handle: InstanceHandle,
-    },
-    GetDiscoveredTopicData {
-        participant_handle: InstanceHandle,
-        topic_handle: InstanceHandle,
-    },
-    GetCurrentTime {
-        participant_handle: InstanceHandle,
-    },
-    SetQos {
-        participant_handle: InstanceHandle,
-        qos: Box<QosKind<DomainParticipantQos>>,
-    },
-    GetQos {
-        participant_handle: InstanceHandle,
-    },
-    SetListener {
-        participant_handle: InstanceHandle,
-        dcps_listener: Option<DcpsDomainParticipantListener>,
-        listener_mask: StatusMask,
-    },
-    Enable {
-        participant_handle: InstanceHandle,
-    },
-    DeleteParticipant,
+pub struct DeleteContentFilteredTopicMail {
+    pub participant_handle: InstanceHandle,
+    pub name: String,
 }
 
-pub enum TopicServiceMail {
-    GetInconsistentTopicStatus {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-    },
-    SetQos {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-        topic_qos: Box<QosKind<TopicQos>>,
-    },
-    GetQos {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-    },
-    Enable {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-    },
-    GetTypeSupport {
-        participant_handle: InstanceHandle,
-        topic_name: String,
-    },
+pub struct FindTopicMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+    pub type_support: DynamicType<'static>,
+    pub timeout: Duration,
+    pub reply_sender: OneshotSender<DdsResult<(InstanceHandle, String)>>,
 }
+
+pub struct LookupTopicdescriptionMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
+pub struct IgnoreParticipantMail {
+    pub participant_handle: InstanceHandle,
+    pub handle: InstanceHandle,
+}
+
+pub struct IgnoreSubscriptionMail {
+    pub participant_handle: InstanceHandle,
+    pub handle: InstanceHandle,
+}
+
+pub struct IgnorePublicationMail {
+    pub participant_handle: InstanceHandle,
+    pub handle: InstanceHandle,
+}
+
+pub struct DeleteContainedEntitiesMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct SetDefaultPublisherQosMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: Box<QosKind<PublisherQos>>,
+}
+
+pub struct GetDefaultPublisherQosMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct SetDefaultSubscriberQosMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: Box<QosKind<SubscriberQos>>,
+}
+
+pub struct GetDefaultSubscriberQosMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct SetDefaultTopicQosMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: Box<QosKind<TopicQos>>,
+}
+
+pub struct GetDefaultTopicQosMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct GetDiscoveredParticipantsMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct GetDiscoveredParticipantDataMail {
+    pub participant_handle: InstanceHandle,
+    pub discovered_participant_handle: InstanceHandle,
+}
+
+pub struct GetDiscoveredTopicsMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct GetDiscoveredTopicDataMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_handle: InstanceHandle,
+}
+
+pub struct GetCurrentTimeMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct SetParticipantQosMail {
+    pub participant_handle: InstanceHandle,
+    pub qos: Box<QosKind<DomainParticipantQos>>,
+}
+
+pub struct GetParticipantQosMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct SetParticipantListenerMail {
+    pub participant_handle: InstanceHandle,
+    pub dcps_listener: Option<DcpsDomainParticipantListener>,
+    pub listener_mask: StatusMask,
+}
+
+pub struct EnableParticipantMail {
+    pub participant_handle: InstanceHandle,
+}
+
+pub struct DeleteParticipantMail;
+
+// --- Topic Operations ---
+
+pub struct GetInconsistentTopicStatusMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
+pub struct SetTopicQosMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+    pub topic_qos: Box<QosKind<TopicQos>>,
+}
+
+pub struct GetTopicQosMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
+pub struct EnableTopicMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
+pub struct GetTopicTypeSupportMail {
+    pub participant_handle: InstanceHandle,
+    pub topic_name: String,
+}
+
+// --- Publisher Operations ---
 
 pub struct CreateDataWriterMail {
     pub participant_handle: InstanceHandle,
@@ -245,38 +267,42 @@ pub struct CreateDataWriterMail {
     pub listener_mask: StatusMask,
 }
 
-pub enum PublisherServiceMail {
-    CreateDataWriter(Box<CreateDataWriterMail>),
-    DeleteDataWriter {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        datawriter_handle: InstanceHandle,
-    },
-    GetDefaultDataWriterQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-    },
-    SetDefaultDataWriterQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        qos: Box<QosKind<DataWriterQos>>,
-    },
-    GetPublisherQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-    },
-    SetPublisherQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        qos: Box<QosKind<PublisherQos>>,
-    },
-    SetPublisherListener {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        dcps_listener: Option<DcpsPublisherListener>,
-        listener_mask: StatusMask,
-    },
+pub struct DeleteDataWriterMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub datawriter_handle: InstanceHandle,
 }
+
+pub struct GetDefaultDataWriterQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
+pub struct SetDefaultDataWriterQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub qos: Box<QosKind<DataWriterQos>>,
+}
+
+pub struct GetPublisherQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
+pub struct SetPublisherQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub qos: Box<QosKind<PublisherQos>>,
+}
+
+pub struct SetPublisherListenerMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub dcps_listener: Option<DcpsPublisherListener>,
+    pub listener_mask: StatusMask,
+}
+
+// --- Subscriber Operations ---
 
 pub struct CreateDataReaderMail {
     pub participant_handle: InstanceHandle,
@@ -287,124 +313,150 @@ pub struct CreateDataReaderMail {
     pub listener_mask: StatusMask,
 }
 
-pub enum SubscriberServiceMail {
-    CreateDataReader(Box<CreateDataReaderMail>),
-    DeleteDataReader {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        datareader_handle: InstanceHandle,
-    },
-    LookupDataReader {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        topic_name: String,
-    },
-    SetDefaultDataReaderQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        qos: Box<QosKind<DataReaderQos>>,
-    },
-    GetDefaultDataReaderQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-    },
-    SetQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        qos: Box<QosKind<SubscriberQos>>,
-    },
-    GetSubscriberQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-    },
-    SetListener {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        dcps_listener: Option<DcpsSubscriberListener>,
-        listener_mask: StatusMask,
-    },
+pub struct DeleteDataReaderMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub datareader_handle: InstanceHandle,
 }
 
-pub enum WriterServiceMail {
-    SetListener {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dcps_listener: Option<DcpsDataWriterListener>,
-        listener_mask: StatusMask,
-    },
-    GetDataWriterQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-    },
-    GetMatchedSubscriptions {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-    },
-    GetMatchedSubscriptionData {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        subscription_handle: InstanceHandle,
-    },
-    GetPublicationMatchedStatus {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-    },
-    RegisterInstance {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData<'static>,
-        timestamp: Option<Time>,
-    },
-    UnregisterInstance {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData<'static>,
-        timestamp: Option<Time>,
-    },
-    LookupInstance {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData<'static>,
-    },
-    WriteWTimestamp {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData<'static>,
-        timestamp: Option<Time>,
-    },
-    DisposeWTimestamp {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        dynamic_data: DynamicData<'static>,
-        timestamp: Option<Time>,
-    },
-    GetOfferedDeadlineMissedStatus {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-    },
-    EnableDataWriter {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-    },
-    SetDataWriterQos {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        qos: Box<QosKind<DataWriterQos>>,
-    },
+pub struct LookupDataReaderMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub topic_name: String,
 }
+
+pub struct SetDefaultDataReaderQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub qos: Box<QosKind<DataReaderQos>>,
+}
+
+pub struct GetDefaultDataReaderQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+}
+
+pub struct SetSubscriberQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub qos: Box<QosKind<SubscriberQos>>,
+}
+
+pub struct GetSubscriberQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+}
+
+pub struct SetSubscriberListenerMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub dcps_listener: Option<DcpsSubscriberListener>,
+    pub listener_mask: StatusMask,
+}
+
+// --- Writer Operations ---
+
+/// Result of a write operation, which may either complete immediately or return a pending write receiver.
+#[derive(Debug)]
+pub enum WriteReply {
+    /// The write completed immediately.
+    Ok,
+    /// The write is pending acknowledgment or queue availability and must be awaited.
+    Pending(OneshotReceiver<DdsResult<()>>),
+}
+
+pub struct WriteWTimestampMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dynamic_data: DynamicData<'static>,
+    pub timestamp: Option<Time>,
+}
+
+pub struct DisposeWTimestampMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dynamic_data: DynamicData<'static>,
+    pub timestamp: Option<Time>,
+}
+
+pub struct RegisterInstanceMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dynamic_data: DynamicData<'static>,
+    pub timestamp: Option<Time>,
+}
+
+pub struct UnregisterInstanceMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dynamic_data: DynamicData<'static>,
+    pub timestamp: Option<Time>,
+}
+
+pub struct LookupInstanceMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dynamic_data: DynamicData<'static>,
+}
+
+pub struct GetDataWriterQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+
+pub struct SetDataWriterQosMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub qos: Box<QosKind<DataWriterQos>>,
+}
+
+pub struct GetMatchedSubscriptionsMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+
+pub struct GetMatchedSubscriptionDataMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub subscription_handle: InstanceHandle,
+}
+
+pub struct GetPublicationMatchedStatusMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+
+pub struct GetOfferedDeadlineMissedStatusMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+
+pub struct EnableDataWriterMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+}
+
+pub struct SetDataWriterListenerMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub dcps_listener: Option<DcpsDataWriterListener>,
+    pub listener_mask: StatusMask,
+}
+
+// --- Reader Operations ---
 
 pub struct ReadMail {
     pub participant_handle: InstanceHandle,
@@ -417,6 +469,8 @@ pub struct ReadMail {
     pub specific_instance_handle: Option<InstanceHandle>,
 }
 
+pub struct TakeMail(pub ReadMail);
+
 pub struct ReadNextInstanceMail {
     pub participant_handle: InstanceHandle,
     pub subscriber_handle: InstanceHandle,
@@ -428,83 +482,195 @@ pub struct ReadNextInstanceMail {
     pub instance_state_mask: InstanceStateMask,
 }
 
-pub enum ReaderServiceMail {
-    Enable {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    },
+pub struct TakeNextInstanceMail(pub ReadNextInstanceMail);
+
+pub struct EnableDataReaderMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+
+pub struct GetSubscriptionMatchedStatusMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+
+pub struct GetMatchedPublicationDataMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+    pub publication_handle: InstanceHandle,
+}
+
+pub struct GetMatchedPublicationsMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+
+pub struct SetDataReaderQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+    pub qos: Box<QosKind<DataReaderQos>>,
+}
+
+pub struct GetDataReaderQosMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+}
+
+pub struct SetDataReaderListenerMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+    pub dcps_listener: Option<DcpsDataReaderListener>,
+    pub listener_mask: StatusMask,
+}
+
+// --- StatusCondition Operations ---
+
+pub struct GetStatusConditionEnabledStatusesMail {
+    pub entity: StatusConditionEntity,
+}
+
+pub struct SetStatusConditionEnabledStatusesMail {
+    pub entity: StatusConditionEntity,
+    pub status_mask: StatusMask,
+}
+
+pub struct GetStatusConditionTriggerValueMail {
+    pub entity: StatusConditionEntity,
+}
+
+pub struct RegisterStatusConditionNotificationMail {
+    pub entity: StatusConditionEntity,
+    pub notification_sender: NotificationSender,
+}
+
+// --- Message Operations ---
+
+pub struct NotifyAcknowledgmentsMail {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+    pub data_writer_handle: InstanceHandle,
+    pub reply_sender: OneshotSender<DdsResult<()>>,
+}
+
+pub struct NotifyHistoricalDataMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+    pub data_reader_handle: InstanceHandle,
+    pub reply_sender: OneshotSender<DdsResult<()>>,
+}
+
+// =========================================================================
+// Flat DomainParticipantMail (Single Envelope Enum)
+// =========================================================================
+
+pub enum DomainParticipantMail {
+    // Participant
+    CreateUserDefinedPublisher(CreateUserDefinedPublisherMail),
+    DeleteUserDefinedPublisher(DeleteUserDefinedPublisherMail),
+    CreateUserDefinedSubscriber(CreateUserDefinedSubscriberMail),
+    DeleteUserDefinedSubscriber(DeleteUserDefinedSubscriberMail),
+    CreateTopic(Box<CreateTopicMail>),
+    DeleteUserDefinedTopic(DeleteUserDefinedTopicMail),
+    CreateContentFilteredTopic(Box<CreateContentFilteredTopicMail>),
+    DeleteContentFilteredTopic(DeleteContentFilteredTopicMail),
+    FindTopic(FindTopicMail),
+    LookupTopicdescription(LookupTopicdescriptionMail),
+    IgnoreParticipant(IgnoreParticipantMail),
+    IgnoreSubscription(IgnoreSubscriptionMail),
+    IgnorePublication(IgnorePublicationMail),
+    DeleteContainedEntities(DeleteContainedEntitiesMail),
+    SetDefaultPublisherQos(SetDefaultPublisherQosMail),
+    GetDefaultPublisherQos(GetDefaultPublisherQosMail),
+    SetDefaultSubscriberQos(SetDefaultSubscriberQosMail),
+    GetDefaultSubscriberQos(GetDefaultSubscriberQosMail),
+    SetDefaultTopicQos(SetDefaultTopicQosMail),
+    GetDefaultTopicQos(GetDefaultTopicQosMail),
+    GetDiscoveredParticipants(GetDiscoveredParticipantsMail),
+    GetDiscoveredParticipantData(GetDiscoveredParticipantDataMail),
+    GetDiscoveredTopics(GetDiscoveredTopicsMail),
+    GetDiscoveredTopicData(GetDiscoveredTopicDataMail),
+    GetCurrentTime(GetCurrentTimeMail),
+    SetParticipantQos(SetParticipantQosMail),
+    GetParticipantQos(GetParticipantQosMail),
+    SetParticipantListener(SetParticipantListenerMail),
+    EnableParticipant(EnableParticipantMail),
+    DeleteParticipant,
+
+    // Topic
+    GetInconsistentTopicStatus(GetInconsistentTopicStatusMail),
+    SetTopicQos(SetTopicQosMail),
+    GetTopicQos(GetTopicQosMail),
+    EnableTopic(EnableTopicMail),
+    GetTopicTypeSupport(GetTopicTypeSupportMail),
+
+    // Publisher
+    CreateDataWriter(Box<CreateDataWriterMail>),
+    DeleteDataWriter(DeleteDataWriterMail),
+    GetDefaultDataWriterQos(GetDefaultDataWriterQosMail),
+    SetDefaultDataWriterQos(SetDefaultDataWriterQosMail),
+    GetPublisherQos(GetPublisherQosMail),
+    SetPublisherQos(SetPublisherQosMail),
+    SetPublisherListener(SetPublisherListenerMail),
+
+    // Subscriber
+    CreateDataReader(Box<CreateDataReaderMail>),
+    DeleteDataReader(DeleteDataReaderMail),
+    LookupDataReader(LookupDataReaderMail),
+    SetDefaultDataReaderQos(SetDefaultDataReaderQosMail),
+    GetDefaultDataReaderQos(GetDefaultDataReaderQosMail),
+    SetSubscriberQos(SetSubscriberQosMail),
+    GetSubscriberQos(GetSubscriberQosMail),
+    SetSubscriberListener(SetSubscriberListenerMail),
+
+    // Writer
+    WriteWTimestamp(WriteWTimestampMail),
+    DisposeWTimestamp(DisposeWTimestampMail),
+    RegisterInstance(RegisterInstanceMail),
+    UnregisterInstance(UnregisterInstanceMail),
+    LookupInstance(LookupInstanceMail),
+    GetDataWriterQos(GetDataWriterQosMail),
+    SetDataWriterQos(SetDataWriterQosMail),
+    GetMatchedSubscriptions(GetMatchedSubscriptionsMail),
+    GetMatchedSubscriptionData(GetMatchedSubscriptionDataMail),
+    GetPublicationMatchedStatus(GetPublicationMatchedStatusMail),
+    GetOfferedDeadlineMissedStatus(GetOfferedDeadlineMissedStatusMail),
+    EnableDataWriter(EnableDataWriterMail),
+    SetDataWriterListener(SetDataWriterListenerMail),
+
+    // Reader
     Read(ReadMail),
     Take(ReadMail),
     ReadNextInstance(ReadNextInstanceMail),
     TakeNextInstance(ReadNextInstanceMail),
-    GetSubscriptionMatchedStatus {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    },
-    GetMatchedPublicationData {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        publication_handle: InstanceHandle,
-    },
-    GetMatchedPublications {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    },
-    SetQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        qos: Box<QosKind<DataReaderQos>>,
-    },
-    GetQos {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-    },
-    SetListener {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        dcps_listener: Option<DcpsDataReaderListener>,
-        listener_mask: StatusMask,
-    },
+    EnableDataReader(EnableDataReaderMail),
+    GetSubscriptionMatchedStatus(GetSubscriptionMatchedStatusMail),
+    GetMatchedPublicationData(GetMatchedPublicationDataMail),
+    GetMatchedPublications(GetMatchedPublicationsMail),
+    SetDataReaderQos(SetDataReaderQosMail),
+    GetDataReaderQos(GetDataReaderQosMail),
+    SetDataReaderListener(SetDataReaderListenerMail),
+
+    // StatusCondition
+    GetStatusConditionEnabledStatuses(GetStatusConditionEnabledStatusesMail),
+    SetStatusConditionEnabledStatuses(SetStatusConditionEnabledStatusesMail),
+    GetStatusConditionTriggerValue(GetStatusConditionTriggerValueMail),
+    RegisterStatusConditionNotification(RegisterStatusConditionNotificationMail),
+
+    // Message
+    NotifyAcknowledgments(NotifyAcknowledgmentsMail),
+    NotifyHistoricalData(NotifyHistoricalDataMail),
 }
 
-pub enum StatusConditionMail {
-    GetStatusConditionEnabledStatuses {
-        entity: StatusConditionEntity,
-    },
-    SetStatusConditionEnabledStatuses {
-        entity: StatusConditionEntity,
-        status_mask: StatusMask,
-    },
-    GetStatusConditionTriggerValue {
-        entity: StatusConditionEntity,
-    },
-    RegisterNotification {
-        entity: StatusConditionEntity,
-        notification_sender: NotificationSender,
-    },
-}
-
-pub enum MessageServiceMail {
-    NotifyAcknowledgments {
-        participant_handle: InstanceHandle,
-        publisher_handle: InstanceHandle,
-        data_writer_handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<()>>,
-    },
-    NotifyHistoricalData {
-        participant_handle: InstanceHandle,
-        subscriber_handle: InstanceHandle,
-        data_reader_handle: InstanceHandle,
-        reply_sender: OneshotSender<DdsResult<()>>,
-    },
-}
+// =========================================================================
+// Internal DcpsReply (Pre-Allocated Storage for In-Place Mailbox)
+// =========================================================================
 
 #[derive(Debug)]
 pub enum DcpsReply {
@@ -512,15 +678,12 @@ pub enum DcpsReply {
     PendingWrite(OneshotReceiver<DdsResult<()>>),
     InstanceHandle(DdsResult<InstanceHandle>),
     OptionInstanceHandle(DdsResult<Option<InstanceHandle>>),
-    CreatedParticipant(DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)>),
-    OptionCreatedParticipant(DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>>),
     ParticipantQos(DdsResult<DomainParticipantQos>),
     PublisherQos(DdsResult<PublisherQos>),
     SubscriberQos(DdsResult<SubscriberQos>),
     TopicQos(DdsResult<Box<TopicQos>>),
     DataWriterQos(DdsResult<Box<DataWriterQos>>),
     DataReaderQos(DdsResult<Box<DataReaderQos>>),
-    FactoryQos(DdsResult<DomainParticipantFactoryQos>),
     InstanceHandleList(DdsResult<Vec<InstanceHandle>>),
     ParticipantBuiltinTopicData(DdsResult<Box<ParticipantBuiltinTopicData>>),
     TopicBuiltinTopicData(DdsResult<Box<TopicBuiltinTopicData>>),
@@ -536,109 +699,382 @@ pub enum DcpsReply {
     StatusMask(DdsResult<StatusMask>),
     TriggerValue(DdsResult<bool>),
     Samples(DdsResult<(DynamicType<'static>, SampleList)>),
+    CreatedParticipant(DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)>),
+    FactoryQos(DdsResult<DomainParticipantFactoryQos>),
+    OptionCreatedParticipant(DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>>),
 }
 
 impl DcpsReply {
-    pub fn expect_ok(self) -> DdsResult<()> {
+    pub(crate) fn expect_ok(self) -> DdsResult<()> {
         match self {
-            DcpsReply::Ok(res) => res,
-            other => panic!("expected Ok reply, got {:?}", other),
+            DcpsReply::Ok(r) => r,
+            _ => panic!("expected Ok reply"),
         }
     }
 
-    pub fn expect_instance_handle(self) -> DdsResult<InstanceHandle> {
+    pub(crate) fn expect_created_participant(
+        self,
+    ) -> DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)> {
         match self {
+            DcpsReply::CreatedParticipant(r) => r,
+            _ => panic!("expected CreatedParticipant reply"),
+        }
+    }
+
+    pub(crate) fn expect_option_created_participant(
+        self,
+    ) -> DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>> {
+        match self {
+            DcpsReply::OptionCreatedParticipant(r) => r,
+            _ => panic!("expected OptionCreatedParticipant reply"),
+        }
+    }
+
+    pub(crate) fn expect_participant_qos(self) -> DdsResult<DomainParticipantQos> {
+        match self {
+            DcpsReply::ParticipantQos(r) => r,
+            _ => panic!("expected ParticipantQos reply"),
+        }
+    }
+
+    pub(crate) fn expect_factory_qos(self) -> DdsResult<DomainParticipantFactoryQos> {
+        match self {
+            DcpsReply::FactoryQos(r) => r,
+            _ => panic!("expected FactoryQos reply"),
+        }
+    }
+}
+
+// =========================================================================
+// Operation Trait Implementations
+// =========================================================================
+
+// --- Participant Operations ---
+
+impl Operation for CreateUserDefinedPublisherMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateUserDefinedPublisher(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::InstanceHandle(res) => res,
             other => panic!("expected InstanceHandle reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_option_instance_handle(self) -> DdsResult<Option<InstanceHandle>> {
-        match self {
-            DcpsReply::OptionInstanceHandle(res) => res,
-            other => panic!("expected Option<InstanceHandle> reply, got {:?}", other),
-        }
+impl Operation for DeleteUserDefinedPublisherMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteUserDefinedPublisher(self)
     }
 
-    pub fn expect_created_participant(
-        self,
-    ) -> DdsResult<(InstanceHandle, RpcClient<DomainParticipantMail>)> {
-        match self {
-            DcpsReply::CreatedParticipant(res) => res,
-            other => panic!("expected CreatedParticipant reply, got {:?}", other),
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_option_created_participant(
-        self,
-    ) -> DdsResult<Option<(InstanceHandle, RpcClient<DomainParticipantMail>)>> {
-        match self {
-            DcpsReply::OptionCreatedParticipant(res) => res,
-            other => panic!(
-                "expected Option<(InstanceHandle, RpcClient)> reply, got {:?}",
-                other
-            ),
-        }
+impl Operation for CreateUserDefinedSubscriberMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateUserDefinedSubscriber(self)
     }
 
-    pub fn expect_participant_qos(self) -> DdsResult<DomainParticipantQos> {
-        match self {
-            DcpsReply::ParticipantQos(res) => res,
-            other => panic!("expected ParticipantQos reply, got {:?}", other),
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandle(res) => res,
+            other => panic!("expected InstanceHandle reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_publisher_qos(self) -> DdsResult<PublisherQos> {
-        match self {
+impl Operation for DeleteUserDefinedSubscriberMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteUserDefinedSubscriber(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for CreateTopicMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateTopic(Box::new(self))
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandle(res) => res,
+            other => panic!("expected InstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteUserDefinedTopicMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteUserDefinedTopic(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for CreateContentFilteredTopicMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateContentFilteredTopic(Box::new(self))
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandle(res) => res,
+            other => panic!("expected InstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteContentFilteredTopicMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteContentFilteredTopic(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for FindTopicMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::FindTopic(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for LookupTopicdescriptionMail {
+    type Output = Option<String>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::LookupTopicdescription(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::TopicDescription(res) => res,
+            other => panic!("expected TopicDescription reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for IgnoreParticipantMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::IgnoreParticipant(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for IgnoreSubscriptionMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::IgnoreSubscription(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for IgnorePublicationMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::IgnorePublication(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteContainedEntitiesMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteContainedEntities(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDefaultPublisherQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDefaultPublisherQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDefaultPublisherQosMail {
+    type Output = PublisherQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDefaultPublisherQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::PublisherQos(res) => res,
             other => panic!("expected PublisherQos reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_subscriber_qos(self) -> DdsResult<SubscriberQos> {
-        match self {
+impl Operation for SetDefaultSubscriberQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDefaultSubscriberQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDefaultSubscriberQosMail {
+    type Output = SubscriberQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDefaultSubscriberQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::SubscriberQos(res) => res,
             other => panic!("expected SubscriberQos reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_topic_qos(self) -> DdsResult<TopicQos> {
-        match self {
+impl Operation for SetDefaultTopicQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDefaultTopicQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDefaultTopicQosMail {
+    type Output = TopicQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDefaultTopicQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::TopicQos(res) => res.map(|b| *b),
             other => panic!("expected TopicQos reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_data_writer_qos(self) -> DdsResult<DataWriterQos> {
-        match self {
-            DcpsReply::DataWriterQos(res) => res.map(|b| *b),
-            other => panic!("expected DataWriterQos reply, got {:?}", other),
-        }
+impl Operation for GetDiscoveredParticipantsMail {
+    type Output = Vec<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDiscoveredParticipants(self)
     }
 
-    pub fn expect_data_reader_qos(self) -> DdsResult<DataReaderQos> {
-        match self {
-            DcpsReply::DataReaderQos(res) => res.map(|b| *b),
-            other => panic!("expected DataReaderQos reply, got {:?}", other),
-        }
-    }
-
-    pub fn expect_factory_qos(self) -> DdsResult<DomainParticipantFactoryQos> {
-        match self {
-            DcpsReply::FactoryQos(res) => res,
-            other => panic!("expected FactoryQos reply, got {:?}", other),
-        }
-    }
-
-    pub fn expect_instance_handle_list(self) -> DdsResult<Vec<InstanceHandle>> {
-        match self {
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::InstanceHandleList(res) => res,
             other => panic!("expected InstanceHandleList reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_participant_builtin_topic_data(self) -> DdsResult<ParticipantBuiltinTopicData> {
-        match self {
+impl Operation for GetDiscoveredParticipantDataMail {
+    type Output = ParticipantBuiltinTopicData;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDiscoveredParticipantData(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::ParticipantBuiltinTopicData(res) => res.map(|b| *b),
             other => panic!(
                 "expected ParticipantBuiltinTopicData reply, got {:?}",
@@ -646,26 +1082,566 @@ impl DcpsReply {
             ),
         }
     }
+}
 
-    pub fn expect_topic_builtin_topic_data(self) -> DdsResult<TopicBuiltinTopicData> {
-        match self {
+impl Operation for GetDiscoveredTopicsMail {
+    type Output = Vec<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDiscoveredTopics(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandleList(res) => res,
+            other => panic!("expected InstanceHandleList reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDiscoveredTopicDataMail {
+    type Output = TopicBuiltinTopicData;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDiscoveredTopicData(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::TopicBuiltinTopicData(res) => res.map(|b| *b),
             other => panic!("expected TopicBuiltinTopicData reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_publication_builtin_topic_data(self) -> DdsResult<PublicationBuiltinTopicData> {
-        match self {
-            DcpsReply::PublicationBuiltinTopicData(res) => res.map(|b| *b),
-            other => panic!(
-                "expected PublicationBuiltinTopicData reply, got {:?}",
-                other
-            ),
-        }
+impl Operation for GetCurrentTimeMail {
+    type Output = Time;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetCurrentTime(self)
     }
 
-    pub fn expect_subscription_builtin_topic_data(self) -> DdsResult<SubscriptionBuiltinTopicData> {
-        match self {
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Time(res) => res,
+            other => panic!("expected Time reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetParticipantQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetParticipantQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetParticipantQosMail {
+    type Output = DomainParticipantQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetParticipantQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::ParticipantQos(res) => res,
+            other => panic!("expected ParticipantQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetParticipantListenerMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetParticipantListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EnableParticipantMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EnableParticipant(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteParticipantMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteParticipant
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Topic Operations ---
+
+impl Operation for GetInconsistentTopicStatusMail {
+    type Output = InconsistentTopicStatus;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetInconsistentTopicStatus(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InconsistentTopicStatus(res) => res,
+            other => panic!("expected InconsistentTopicStatus reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetTopicQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetTopicQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetTopicQosMail {
+    type Output = TopicQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetTopicQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::TopicQos(res) => res.map(|b| *b),
+            other => panic!("expected TopicQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EnableTopicMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EnableTopic(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetTopicTypeSupportMail {
+    type Output = DynamicType<'static>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetTopicTypeSupport(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::DynamicType(res) => res,
+            other => panic!("expected DynamicType reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Publisher Operations ---
+
+impl Operation for CreateDataWriterMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateDataWriter(Box::new(self))
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandle(res) => res,
+            other => panic!("expected InstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteDataWriterMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteDataWriter(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDefaultDataWriterQosMail {
+    type Output = DataWriterQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDefaultDataWriterQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::DataWriterQos(res) => res.map(|b| *b),
+            other => panic!("expected DataWriterQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDefaultDataWriterQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDefaultDataWriterQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetPublisherQosMail {
+    type Output = PublisherQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetPublisherQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::PublisherQos(res) => res,
+            other => panic!("expected PublisherQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetPublisherQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetPublisherQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetPublisherListenerMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetPublisherListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Subscriber Operations ---
+
+impl Operation for CreateDataReaderMail {
+    type Output = InstanceHandle;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::CreateDataReader(Box::new(self))
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandle(res) => res,
+            other => panic!("expected InstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DeleteDataReaderMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DeleteDataReader(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for LookupDataReaderMail {
+    type Output = Option<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::LookupDataReader(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::OptionInstanceHandle(res) => res,
+            other => panic!("expected OptionInstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDefaultDataReaderQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDefaultDataReaderQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDefaultDataReaderQosMail {
+    type Output = DataReaderQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDefaultDataReaderQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::DataReaderQos(res) => res.map(|b| *b),
+            other => panic!("expected DataReaderQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetSubscriberQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetSubscriberQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetSubscriberQosMail {
+    type Output = SubscriberQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetSubscriberQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::SubscriberQos(res) => res,
+            other => panic!("expected SubscriberQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetSubscriberListenerMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetSubscriberListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Writer Operations ---
+
+impl Operation for WriteWTimestampMail {
+    type Output = WriteReply;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::WriteWTimestamp(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res.map(|_| WriteReply::Ok),
+            DcpsReply::PendingWrite(receiver) => Ok(WriteReply::Pending(receiver)),
+            other => panic!("expected Ok or PendingWrite reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for DisposeWTimestampMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::DisposeWTimestamp(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for RegisterInstanceMail {
+    type Output = Option<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::RegisterInstance(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::OptionInstanceHandle(res) => res,
+            other => panic!("expected OptionInstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for UnregisterInstanceMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::UnregisterInstance(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for LookupInstanceMail {
+    type Output = Option<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::LookupInstance(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::OptionInstanceHandle(res) => res,
+            other => panic!("expected OptionInstanceHandle reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDataWriterQosMail {
+    type Output = DataWriterQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDataWriterQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::DataWriterQos(res) => res.map(|b| *b),
+            other => panic!("expected DataWriterQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDataWriterQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDataWriterQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetMatchedSubscriptionsMail {
+    type Output = Vec<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetMatchedSubscriptions(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandleList(res) => res,
+            other => panic!("expected InstanceHandleList reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetMatchedSubscriptionDataMail {
+    type Output = SubscriptionBuiltinTopicData;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetMatchedSubscriptionData(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::SubscriptionBuiltinTopicData(res) => res.map(|b| *b),
             other => panic!(
                 "expected SubscriptionBuiltinTopicData reply, got {:?}",
@@ -673,30 +1649,32 @@ impl DcpsReply {
             ),
         }
     }
+}
 
-    pub fn expect_inconsistent_topic_status(self) -> DdsResult<InconsistentTopicStatus> {
-        match self {
-            DcpsReply::InconsistentTopicStatus(res) => res,
-            other => panic!("expected InconsistentTopicStatus reply, got {:?}", other),
-        }
+impl Operation for GetPublicationMatchedStatusMail {
+    type Output = PublicationMatchedStatus;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetPublicationMatchedStatus(self)
     }
 
-    pub fn expect_publication_matched_status(self) -> DdsResult<PublicationMatchedStatus> {
-        match self {
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::PublicationMatchedStatus(res) => res,
             other => panic!("expected PublicationMatchedStatus reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_subscription_matched_status(self) -> DdsResult<SubscriptionMatchedStatus> {
-        match self {
-            DcpsReply::SubscriptionMatchedStatus(res) => res,
-            other => panic!("expected SubscriptionMatchedStatus reply, got {:?}", other),
-        }
+impl Operation for GetOfferedDeadlineMissedStatusMail {
+    type Output = OfferedDeadlineMissedStatus;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetOfferedDeadlineMissedStatus(self)
     }
 
-    pub fn expect_offered_deadline_missed_status(self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        match self {
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::OfferedDeadlineMissedStatus(res) => res,
             other => panic!(
                 "expected OfferedDeadlineMissedStatus reply, got {:?}",
@@ -704,46 +1682,298 @@ impl DcpsReply {
             ),
         }
     }
+}
 
-    pub fn expect_time(self) -> DdsResult<Time> {
-        match self {
-            DcpsReply::Time(res) => res,
-            other => panic!("expected Time reply, got {:?}", other),
-        }
+impl Operation for EnableDataWriterMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EnableDataWriter(self)
     }
 
-    pub fn expect_dynamic_type(self) -> DdsResult<DynamicType<'static>> {
-        match self {
-            DcpsReply::DynamicType(res) => res,
-            other => panic!("expected DynamicType reply, got {:?}", other),
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_topic_description(self) -> DdsResult<Option<String>> {
-        match self {
-            DcpsReply::TopicDescription(res) => res,
-            other => panic!("expected TopicDescription reply, got {:?}", other),
-        }
+impl Operation for SetDataWriterListenerMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDataWriterListener(self)
     }
 
-    pub fn expect_status_mask(self) -> DdsResult<StatusMask> {
-        match self {
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Reader Operations ---
+
+impl Operation for ReadMail {
+    type Output = (DynamicType<'static>, SampleList);
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::Read(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Samples(res) => res,
+            other => panic!("expected Samples reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for TakeMail {
+    type Output = (DynamicType<'static>, SampleList);
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::Take(self.0)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Samples(res) => res,
+            other => panic!("expected Samples reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for ReadNextInstanceMail {
+    type Output = (DynamicType<'static>, SampleList);
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::ReadNextInstance(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Samples(res) => res,
+            other => panic!("expected Samples reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for TakeNextInstanceMail {
+    type Output = (DynamicType<'static>, SampleList);
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::TakeNextInstance(self.0)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Samples(res) => res,
+            other => panic!("expected Samples reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EnableDataReaderMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EnableDataReader(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetSubscriptionMatchedStatusMail {
+    type Output = SubscriptionMatchedStatus;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetSubscriptionMatchedStatus(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::SubscriptionMatchedStatus(res) => res,
+            other => panic!("expected SubscriptionMatchedStatus reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetMatchedPublicationDataMail {
+    type Output = PublicationBuiltinTopicData;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetMatchedPublicationData(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::PublicationBuiltinTopicData(res) => res.map(|b| *b),
+            other => panic!(
+                "expected PublicationBuiltinTopicData reply, got {:?}",
+                other
+            ),
+        }
+    }
+}
+
+impl Operation for GetMatchedPublicationsMail {
+    type Output = Vec<InstanceHandle>;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetMatchedPublications(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::InstanceHandleList(res) => res,
+            other => panic!("expected InstanceHandleList reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDataReaderQosMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDataReaderQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetDataReaderQosMail {
+    type Output = DataReaderQos;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetDataReaderQos(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::DataReaderQos(res) => res.map(|b| *b),
+            other => panic!("expected DataReaderQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for SetDataReaderListenerMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetDataReaderListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- StatusCondition Operations ---
+
+impl Operation for GetStatusConditionEnabledStatusesMail {
+    type Output = StatusMask;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetStatusConditionEnabledStatuses(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::StatusMask(res) => res,
             other => panic!("expected StatusMask reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_trigger_value(self) -> DdsResult<bool> {
-        match self {
+impl Operation for SetStatusConditionEnabledStatusesMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::SetStatusConditionEnabledStatuses(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for GetStatusConditionTriggerValueMail {
+    type Output = bool;
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::GetStatusConditionTriggerValue(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
             DcpsReply::TriggerValue(res) => res,
             other => panic!("expected TriggerValue reply, got {:?}", other),
         }
     }
+}
 
-    pub fn expect_samples(self) -> DdsResult<(DynamicType<'static>, SampleList)> {
-        match self {
-            DcpsReply::Samples(res) => res,
-            other => panic!("expected Samples reply, got {:?}", other),
+impl Operation for RegisterStatusConditionNotificationMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::RegisterStatusConditionNotification(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+// --- Message Operations ---
+
+impl Operation for NotifyAcknowledgmentsMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::NotifyAcknowledgments(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for NotifyHistoricalDataMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::NotifyHistoricalData(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
         }
     }
 }
