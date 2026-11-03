@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  dds_rtps_rep_ref: master
+  dds_rtps_rep_ref: update-dust-dds-to-0.17
 
 jobs:
   create_bin_release:
