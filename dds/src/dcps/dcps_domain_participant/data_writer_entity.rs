@@ -135,6 +135,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 Some(sample_instance_handle.into())
             },
             data_value: serialized_data.into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         };
 
         let instance_info = self
@@ -196,6 +199,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         };
         self.transport_writer.add_change(cache_change);
 
@@ -277,6 +283,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             source_timestamp: Some(timestamp.into()),
             instance_handle: Some(instance_handle.into()),
             data_value: serialized_key.into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         };
         self.transport_writer.add_change(cache_change);
         Ok(())

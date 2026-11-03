@@ -1,8 +1,6 @@
-use super::{
-    cache_change::extract_kind_and_instance_handle,
-    message_creator::write_submessages_into_transport,
-};
+use super::message_creator::write_submessages_into_transport;
 use crate::{
+    rtps::cache_change::CacheChangeParameters,
     rtps_messages::{
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
@@ -117,18 +115,26 @@ impl RtpsWriterProxy {
             }
 
             let first_frag = matching_frags.first().copied()?;
-            let (kind, instance_handle) =
-                extract_kind_and_instance_handle(&first_frag.inline_qos()).ok()?;
+            let CacheChangeParameters {
+                change_kind,
+                instance_handle,
+                coherent_set,
+                group_coherent_set,
+                group_seq_num,
+            } = (&first_frag.inline_qos()).try_into().ok()?;
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
 
             Some(CacheChange {
-                kind,
+                kind: change_kind,
                 writer_guid: self.remote_writer_guid,
                 source_timestamp: source_timestamp.map(Into::into),
                 instance_handle,
                 sequence_number: seq_num,
                 data_value: Arc::from(data),
+                coherent_set,
+                group_coherent_set,
+                group_seq_num,
             })
         } else {
             None

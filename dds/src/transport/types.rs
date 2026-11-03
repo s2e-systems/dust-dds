@@ -350,6 +350,9 @@ pub struct CacheChange {
     pub source_timestamp: Option<Time>,
     pub instance_handle: Option<[u8; 16]>,
     pub data_value: Arc<[u8]>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

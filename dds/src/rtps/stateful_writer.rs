@@ -846,6 +846,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
         writer.write_message(&mut transport, Time::new(1, 0));
         let total_fragments_sent = transport
@@ -885,6 +888,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![8; 1300].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
         writer.write_message(&mut transport, Time::new(1, 0));
 
@@ -936,6 +942,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![1, 2, 3].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
         writer.add_change(CacheChange {
             kind: ChangeKind::Alive,
@@ -944,6 +953,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![4, 5, 6].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
 
         let mut transport = MockTransport::default();
@@ -982,6 +994,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![1, 2, 3].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
 
         // Now match a Reliable reader
@@ -1053,6 +1068,9 @@ mod tests {
             source_timestamp: None,
             instance_handle: Some([10; 16]),
             data_value: vec![1, 2, 3].into(),
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
         });
 
         // Match a BestEffort reader
