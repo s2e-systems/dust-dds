@@ -1,44 +1,39 @@
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
-project(DustDDSCycloneDDSInteroperability LANGUAGES C)
+project(cyclone_dds_interoperability LANGUAGES C)
 
 # Settings
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Cyclone DDS
-find_package(CycloneDDS 11.0.1 EXACT QUIET)
-if(NOT CycloneDDS_FOUND)
-  set(ENABLE_SSL OFF CACHE BOOL "" FORCE)
-  set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
-  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-  set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
-  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ENABLE_SSL OFF CACHE BOOL "" FORCE)
+set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-  include(FetchContent)
-  FetchContent_Declare(
+include(FetchContent)
+FetchContent_Declare(
     CycloneDDS
     GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-    # FIXME: proper tag and not a commit hash
-    GIT_TAG fa9f12342c28c11b29231b57795f873ed58ce2f9
-    # FIXME: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
+    # TODO: proper tag and not a commit hash,
+    #       latest known commit with all CI checks passing
+    GIT_TAG 663cdbee019e06d97222463b72220b9061170ab7
+    # TODO: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
     # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
     # GIT_SHALLOW ON
     #
-    # FIXME: uncomment when `cmake_minimum_required` >= 3.25,
+    # TODO: uncomment when `cmake_minimum_required` >= 3.25,
     # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
     # SYSTEM
-    #
-    # FIXME: uncomment when `cmake_minimum_required` >= 3.24,
-    # FIND_PACKAGE_ARGS 11.0.1 EXACT
   )
-  FetchContent_MakeAvailable(CycloneDDS)
+FetchContent_MakeAvailable(CycloneDDS)
 
-  # FIXME: remove when using `SYSTEM` in `FetchContent_Declare`
-  get_target_property(_cyclone_dds_ddsc_aliased_target CycloneDDS::ddsc ALIASED_TARGET)
-  get_target_property(_cyclone_dds_ddsc_interface_include_dirs ${_cyclone_dds_ddsc_aliased_target} INTERFACE_INCLUDE_DIRECTORIES)
-  set_target_properties(${_cyclone_dds_ddsc_aliased_target} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_cyclone_dds_ddsc_interface_include_dirs}")
-endif()
+# TODO: remove when using `SYSTEM` in `FetchContent_Declare`
+get_target_property(_cyclone_dds_ddsc_aliased_target CycloneDDS::ddsc ALIASED_TARGET)
+get_target_property(_cyclone_dds_ddsc_interface_include_dirs ${_cyclone_dds_ddsc_aliased_target} INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(${_cyclone_dds_ddsc_aliased_target} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_cyclone_dds_ddsc_interface_include_dirs}")
 
 # Generate subscriber and publisher same idl
 function(interoperability_test)
