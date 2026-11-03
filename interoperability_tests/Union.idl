@@ -1,12 +1,13 @@
 module interoperability {
     module test {
+        @final
         union VariantUnion switch (uint16) {
             case 1:
-                @id(1) uint8 x;
+                uint8 x;
             case 2:
-                @id(2) uint16 y;
+                uint16 y;
             case 3:
-                @id(3) uint32 z;
+                uint32 z;
         };
     };
 };
