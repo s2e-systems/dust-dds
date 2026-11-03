@@ -1,9 +1,23 @@
-cmake_minimum_required(VERSION 3.14.0)
+cmake_minimum_required(VERSION 3.16.0)
 project(CycloneInteroperability LANGUAGES C)
 
-add_compile_options(-Werror -Wall)
+include(FetchContent)
+FetchContent_Declare(
+  CycloneDDS
+  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+  GIT_TAG 11.0.1
+  GIT_SHALLOW TRUE
+)
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
+set(ENABLE_SSL OFF CACHE STRING "" FORCE)
+set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+set(CMAKE_PROJECT_NAME CycloneDDS)
+FetchContent_MakeAvailable(CycloneDDS)
 
-find_package(CycloneDDS REQUIRED)
+add_compile_options(-Werror -Wall)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
 idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
