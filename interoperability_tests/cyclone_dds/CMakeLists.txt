@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
   CycloneDDS
   GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-  GIT_TAG 3a5526315e64ac1d2a52e6ac1ae7f3e861c593d3
+  GIT_TAG 11.0.1
   GIT_SHALLOW TRUE
 )
 set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
