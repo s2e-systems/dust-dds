@@ -3424,31 +3424,40 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
 }
 
 fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> bool {
-    if p1 == p2 {
+    let default_partition = [String::new()];
+    let p1_names = if p1.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p1.name.as_slice()
+    };
+    let p2_names = if p2.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p2.name.as_slice()
+    };
+    if p1_names == p2_names {
         return true;
     }
-    if p1.name.iter().any(|n| p2.name.contains(n)) {
+    if p1_names.iter().any(|n| p2_names.contains(n)) {
         return true;
     }
-    let p1_has_wildcard = p1.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
-    let p2_has_wildcard = p2.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p1_has_wildcard = p1_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p2_has_wildcard = p2_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
     if p1_has_wildcard
-        && p1
-            .name
+        && p1_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p2.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p2_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
     if p2_has_wildcard
-        && p2
-            .name
+        && p2_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p1.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p1_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
