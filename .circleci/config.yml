@@ -198,11 +198,20 @@ jobs:
       - run:
           name: Install dependencies
           command: sudo apt-get update && sudo apt-get install -y libasio-dev libtinyxml2-dev openjdk-17-jdk-headless
+      - restore_cache:
+          keys:
+            - fast-dds-build-v1-{{ arch }}-{{ checksum "interoperability_tests/fast_dds/CMakeLists.txt" }}
       - run:
           name: Build FastDDS Interoperability tests
           command: |
-            cmake -S interoperability_tests/fast_dds -B build/fast_dds
-            cmake --build build/fast_dds --parallel 17
+            if [ ! -d build/fast_dds ]; then
+              cmake -S interoperability_tests/fast_dds -B build/fast_dds
+              cmake --build build/fast_dds --parallel 17
+            fi
+      - save_cache:
+          key: fast-dds-build-v1-{{ arch }}-{{ checksum "interoperability_tests/fast_dds/CMakeLists.txt" }}
+          paths:
+            - build/fast_dds
       - run:
           name: Build dust binaries
           command: |
