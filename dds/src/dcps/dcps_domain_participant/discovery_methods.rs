@@ -2,8 +2,7 @@ use crate::{
     builtin_topics::{
         BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    },
-    dcps::{
+    }, dcps::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -40,36 +39,21 @@ use crate::{
             user_defined_data_writer::UserDefinedDataWriter,
         },
         listeners::domain_participant_listener::ListenerMail,
-    },
-    dds_async::{
+    }, dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
-    },
-    infrastructure::{
-        error::DdsError,
-        instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, SubscriberQos},
-        qos_policy::{
-            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
-            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId,
-            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
-            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
-        },
-        status::{
+    }, infrastructure::{
+        error::DdsError, instance::InstanceHandle, qos::{DataWriterQos, PublisherQos, SubscriberQos}, qos_policy::{
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
+        }, status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
-        },
-        time::{Duration, DurationKind, Time},
-    },
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    transport::{
+        }, time::{Duration, DurationKind, Time},
+    }, rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E}, transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
-    },
-    xtypes::{
+    }, xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
         type_support::{_String, TypeSupport},
@@ -3349,13 +3333,12 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
+    let reader_representation = if discovered_reader_data.representation().value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        discovered_reader_data.representation().value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
@@ -3403,49 +3386,53 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !data_reader
-        .qos
-        .representation
-        .value
-        .contains(writer_offered_representation)
-    {
-        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos.representation.value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
-        }
+    let reader_representation = if data_reader.qos.representation.value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        data_reader.qos.representation.value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list
 }
 
 fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> bool {
-    if p1 == p2 {
+    let default_partition = [String::new()];
+    let p1_names = if p1.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p1.name.as_slice()
+    };
+    let p2_names = if p2.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p2.name.as_slice()
+    };
+    if p1_names == p2_names {
         return true;
     }
-    if p1.name.iter().any(|n| p2.name.contains(n)) {
+    if p1_names.iter().any(|n| p2_names.contains(n)) {
         return true;
     }
-    let p1_has_wildcard = p1.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
-    let p2_has_wildcard = p2.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p1_has_wildcard = p1_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p2_has_wildcard = p2_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
     if p1_has_wildcard
-        && p1
-            .name
+        && p1_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p2.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p2_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
     if p2_has_wildcard
-        && p2
-            .name
+        && p2_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p1.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p1_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
