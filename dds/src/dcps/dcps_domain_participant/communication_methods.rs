@@ -162,17 +162,22 @@ impl DcpsDomainParticipant {
                                 }
                             }
 
-                            let mut operators = [Operator::LessThan, Operator::Equal].iter();
-                            let filter = loop {
-                                if let Some(operator) = operators.next() {
-                                    if let Some((variable_name, value_expr)) =
-                                        content_filtered_topic
-                                            .filter_expression
-                                            .split_once(operator.to_str())
-                                    {
-                                        let trimmed_val = value_expr.trim();
-                                        let value_str =
-                                            if let Some(stripped) = trimmed_val.strip_prefix('%') {
+                            for clause in content_filtered_topic.filter_expression.split("AND") {
+                                let clause = clause
+                                    .trim()
+                                    .trim_start_matches('(')
+                                    .trim_end_matches(')')
+                                    .trim();
+                                let mut operators = [Operator::LessThan, Operator::Equal].iter();
+                                let filter = loop {
+                                    if let Some(operator) = operators.next() {
+                                        if let Some((variable_name, value_expr)) =
+                                            clause.split_once(operator.to_str())
+                                        {
+                                            let trimmed_val = value_expr.trim();
+                                            let value_str = if let Some(stripped) =
+                                                trimmed_val.strip_prefix('%')
+                                            {
                                                 if let Ok(index) = stripped.parse::<usize>() {
                                                     content_filtered_topic
                                                         .expression_parameters
@@ -185,79 +190,86 @@ impl DcpsDomainParticipant {
                                             } else {
                                                 trimmed_val.trim_matches('\'').trim_matches('"')
                                             };
-                                        break Some((variable_name, operator, value_str));
+                                            break Some((variable_name, operator, value_str));
+                                        }
+                                    } else {
+                                        break None;
+                                    };
+                                };
+
+                                if let Some((variable_name, comparison_function, value_str)) =
+                                    filter
+                                {
+                                    let Some(member_id) =
+                                        data.get_member_id_by_name(variable_name.trim())
+                                    else {
+                                        data_reader.transport_reader.changes.clear();
+                                        continue 'data_readers;
+                                    };
+                                    let Ok(member_descriptor) = data.get_descriptor(member_id)
+                                    else {
+                                        data_reader.transport_reader.changes.clear();
+                                        continue 'data_readers;
+                                    };
+                                    match member_descriptor.r#type.get_kind() {
+                                        crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::INT32 => {
+                                            let member_value =
+                                                data.get_int32_value(member_id).unwrap();
+                                            let Ok(rhs) = value_str.parse::<i32>() else {
+                                                data_reader.transport_reader.changes.clear();
+                                                continue 'data_readers;
+                                            };
+                                            if !comparison_function
+                                                .compare_int32(member_value, &rhs)
+                                            {
+                                                data_reader.transport_reader.changes.clear();
+                                                continue 'data_readers;
+                                            }
+                                        }
+                                        crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::STRING8
+                                        | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
+                                            let member_value =
+                                                data.get_string_value(member_id).unwrap();
+                                            if !comparison_function
+                                                .compare_string(member_value.as_str(), value_str)
+                                            {
+                                                data_reader.transport_reader.changes.clear();
+                                                continue 'data_readers;
+                                            }
+                                        }
+                                        crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
+                                            todo!()
+                                        }
+                                        crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
+                                        crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
                                     }
                                 } else {
-                                    break None;
-                                };
-                            };
-
-                            if let Some((variable_name, comparison_function, value_str)) = filter {
-                                let Some(member_id) =
-                                    data.get_member_id_by_name(variable_name.trim())
-                                else {
                                     data_reader.transport_reader.changes.clear();
                                     continue 'data_readers;
                                 };
-                                let Ok(member_descriptor) = data.get_descriptor(member_id) else {
-                                    data_reader.transport_reader.changes.clear();
-                                    continue 'data_readers;
-                                };
-                                match member_descriptor.r#type.get_kind() {
-                                    crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT32 => {
-                                        let member_value = data.get_int32_value(member_id).unwrap();
-                                        let Ok(rhs) = value_str.parse::<i32>() else {
-                                            data_reader.transport_reader.changes.clear();
-                                            continue 'data_readers;
-                                        };
-                                        if !comparison_function.compare_int32(member_value, &rhs) {
-                                            data_reader.transport_reader.changes.clear();
-                                            continue 'data_readers;
-                                        }
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::STRING8
-                                    | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
-                                        let member_value =
-                                            data.get_string_value(member_id).unwrap();
-                                        if !comparison_function
-                                            .compare_string(member_value.as_str(), value_str)
-                                        {
-                                            data_reader.transport_reader.changes.clear();
-                                            continue 'data_readers;
-                                        }
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
-                                        todo!()
-                                    }
-                                    crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
-                                    crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
-                                }
-                            } else {
-                                data_reader.transport_reader.changes.clear();
-                                continue 'data_readers;
-                            };
+                            }
                         }
                     }
 
