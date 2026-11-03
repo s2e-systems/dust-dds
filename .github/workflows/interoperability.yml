@@ -39,7 +39,7 @@ jobs:
         path: artifacts
 
   run_tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: create_bin_release
     strategy:
       matrix:
@@ -109,7 +109,7 @@ jobs:
         path: ./junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
   report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: run_tests
     steps:
     - name: Download junit reports
