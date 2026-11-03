@@ -44,7 +44,7 @@ use crate::{
         time::{Duration, DurationKind, Time},
     },
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
-    runtime::{Either, Either3, TaskHandle, select_future, select3_future},
+    runtime::{Either3, TaskHandle, select3_future},
     security::{
         plugins::{
             access_control::AccessControl, authentication::Authentication,
@@ -294,98 +294,56 @@ impl DcpsParticipantFactory {
             let _enter = span.enter();
             while run_loop_clone.load(core::sync::atomic::Ordering::Relaxed) {
                 let now = clock_clone.now();
-                let next_event = dcps_participant
+                let (delay, event) = dcps_participant
                     .time_until_next_event(now, participant_announcement_interval.into());
 
-                if let Some((delay, event)) = next_event {
-                    match select3_future(
-                        participant_receiver.receive(),
-                        timer_handle.delay(delay.into()),
-                        transport_participant.read(),
-                    )
-                    .await
-                    {
-                        Either3::A((user_mail, reply_sender)) => {
-                            let now = clock_clone.now();
-                            let is_delete =
-                                matches!(user_mail, DomainParticipantMail::DeleteParticipant);
-                            let reply = dcps_participant.handle(
-                                user_mail,
-                                now,
-                                &spawner_clone,
-                                &mut transport_participant,
-                            );
-                            let should_terminate =
-                                is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
-                            reply_sender.send(reply);
-                            if should_terminate {
-                                break;
-                            }
+                match select3_future(
+                    participant_receiver.receive(),
+                    timer_handle.delay(delay.into()),
+                    transport_participant.read(),
+                )
+                .await
+                {
+                    Either3::A((user_mail, reply_sender)) => {
+                        let now = clock_clone.now();
+                        let is_delete =
+                            matches!(user_mail, DomainParticipantMail::DeleteParticipant);
+                        let reply = dcps_participant.handle(
+                            user_mail,
+                            now,
+                            &spawner_clone,
+                            &mut transport_participant,
+                        );
+                        let should_terminate = is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
+                        reply_sender.send(reply);
+                        if should_terminate {
+                            break;
                         }
-                        Either3::B(_) => {
-                            let now = clock_clone.now();
-                            dcps_participant.handle_timed_event(
-                                event,
-                                now,
-                                participant_announcement_interval.into(),
-                                &domain_tag,
-                                &mut transport_participant,
-                            );
-                        }
-                        Either3::C(data) => {
-                            let now = clock_clone.now();
-                            dcps_participant.handle_data(data, now);
-                            dcps_participant.process_builtin_cache_changes(
-                                now,
-                                domain_tag.clone(),
-                                &mut transport_participant,
-                            );
-                            dcps_participant.notify_find_topic_senders(now);
-                            dcps_participant.process_user_defined_received_cache_changes(now);
-                            dcps_participant
-                                .request_topic_type_representation(now, &mut transport_participant);
-                            dcps_participant.write_messages(now, &mut transport_participant);
-                        }
-                    };
-                } else {
-                    match select_future(
-                        participant_receiver.receive(),
-                        transport_participant.read(),
-                    )
-                    .await
-                    {
-                        Either::A((user_mail, reply_sender)) => {
-                            let now = clock_clone.now();
-                            let is_delete =
-                                matches!(user_mail, DomainParticipantMail::DeleteParticipant);
-                            let reply = dcps_participant.handle(
-                                user_mail,
-                                now,
-                                &spawner_clone,
-                                &mut transport_participant,
-                            );
-                            let should_terminate =
-                                is_delete && matches!(&reply, DcpsReply::Ok(Ok(())));
-                            reply_sender.send(reply);
-                            if should_terminate {
-                                break;
-                            }
-                        }
-                        Either::B(data) => {
-                            let now = clock_clone.now();
-                            dcps_participant.handle_data(data, now);
-                            dcps_participant.process_builtin_cache_changes(
-                                now,
-                                domain_tag.clone(),
-                                &mut transport_participant,
-                            );
-                            dcps_participant.notify_find_topic_senders(now);
-                            dcps_participant.process_user_defined_received_cache_changes(now);
-                            dcps_participant
-                                .request_topic_type_representation(now, &mut transport_participant);
-                            dcps_participant.write_messages(now, &mut transport_participant);
-                        }
-                    };
+                    }
+                    Either3::B(_) => {
+                        let now = clock_clone.now();
+                        dcps_participant.handle_timed_event(
+                            event,
+                            now,
+                            participant_announcement_interval.into(),
+                            &domain_tag,
+                            &mut transport_participant,
+                        );
+                    }
+                    Either3::C(data) => {
+                        let now = clock_clone.now();
+                        dcps_participant.handle_data(data, now);
+                        dcps_participant.process_builtin_cache_changes(
+                            now,
+                            domain_tag.clone(),
+                            &mut transport_participant,
+                        );
+                        dcps_participant.notify_find_topic_senders(now);
+                        dcps_participant.process_user_defined_received_cache_changes(now);
+                        dcps_participant
+                            .request_topic_type_representation(now, &mut transport_participant);
+                        dcps_participant.write_messages(now, &mut transport_participant);
+                    }
                 }
             }
         });
