@@ -141,7 +141,7 @@ impl CacheChange {
             source_timestamp: source_timestamp.map(Into::into),
             instance_handle,
             sequence_number: data_submessage.writer_sn(),
-            data_value: data_submessage.serialized_payload().clone().into(),
+            data_value: data_submessage.serialized_payload().into(),
         })
     }
 
