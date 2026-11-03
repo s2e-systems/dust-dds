@@ -89,7 +89,7 @@ int main()
 	if ((rc > 0) && (infos[0].valid_data))
 	{
 		const interoperability_test_VariantUnion *msg = (interoperability_test_VariantUnion *)samples[0];
-		printf("Received: %s { value: { x: \"%d\" } }\n", interoperability_test_VariantUnion_desc.m_typename, msg->_u.x);
+		printf("Received: %s { value: { x: %d } }\n", interoperability_test_VariantUnion_desc.m_typename, msg->_u.x);
 		assert(msg->_d == 1);
 		assert(msg->_u.x == 10);
 	}
