@@ -299,6 +299,9 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x73, 0x00, 8, 0, // PID_DATA_REPRESENTATION, length
+            2, 0, 0, 0, //
+            0, 0, 2, 0, //
             0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
             1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
@@ -382,6 +385,9 @@ mod tests {
             b'o', b'n', b'e', 0, // String
             4, 0, 0, 0, // String length
             b't', b'w', b'o', 0, // String
+            0x73, 0x00, 8, 0, // PID_DATA_REPRESENTATION, length
+            2, 0, 0, 0, //
+            0, 0, 2, 0, //
             0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
             1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
