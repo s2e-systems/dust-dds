@@ -22,7 +22,7 @@ use crate::{
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
 };
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
