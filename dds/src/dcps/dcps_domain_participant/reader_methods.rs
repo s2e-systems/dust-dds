@@ -14,7 +14,8 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dcps_domain_participant::{
-            participant_entity::DcpsDomainParticipant, topic_entity::get_topic_type_support,
+            data_reader_entity::SampleList, participant_entity::DcpsDomainParticipant,
+            topic_entity::get_topic_type_support,
         },
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
@@ -24,7 +25,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         qos_policy::DurabilityQosPolicyKind,
-        sample_info::{InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask},
+        sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
     },
@@ -59,7 +60,7 @@ pub fn deserialize_topic_type(
 }
 
 impl DcpsDomainParticipant {
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn read(
         &mut self,
@@ -70,7 +71,7 @@ impl DcpsDomainParticipant {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
         let (sample_list, topic_name) =
             if subscriber_handle == &self.domain_participant.instance_handle {
                 let bs = &mut self.domain_participant.builtin_subscriber;
@@ -130,22 +131,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn take(
         &mut self,
@@ -156,7 +145,7 @@ impl DcpsDomainParticipant {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -189,22 +178,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn read_next_instance(
         &mut self,
@@ -215,7 +192,7 @@ impl DcpsDomainParticipant {
         sample_state_mask: SampleStateMask,
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -248,22 +225,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &mut self,
@@ -274,7 +239,7 @@ impl DcpsDomainParticipant {
         sample_state_mask: SampleStateMask,
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
         let Some(subscriber) = self
             .domain_participant
             .user_defined_subscriber_list
@@ -307,19 +272,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
     #[tracing::instrument(skip(self))]
