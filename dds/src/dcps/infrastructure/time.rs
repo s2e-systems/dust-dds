@@ -280,13 +280,13 @@ impl Time {
     }
 }
 
-impl From<crate::transport::types::Time> for Time {
-    fn from(value: crate::transport::types::Time) -> Self {
+impl From<crate::rtps::types::Time> for Time {
+    fn from(value: crate::rtps::types::Time) -> Self {
         Self::new(value.sec(), value.nanosec())
     }
 }
 
-impl From<Time> for crate::transport::types::Time {
+impl From<Time> for crate::rtps::types::Time {
     fn from(value: Time) -> Self {
         Self::new(value.sec(), value.nanosec())
     }

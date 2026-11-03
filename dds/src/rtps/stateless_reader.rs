@@ -1,13 +1,14 @@
 use crate::{
+    rtps::cache_change::CacheChangeRead,
     rtps_messages::{submessages::data::DataSubmessage, types::Time},
-    transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
+    transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
 };
 use alloc::vec::Vec;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
     /// History cache of changes received by this reader.
-    pub changes: Vec<CacheChange>,
+    pub changes: Vec<CacheChangeRead>,
 }
 
 impl RtpsStatelessReader {
@@ -32,7 +33,7 @@ impl RtpsStatelessReader {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.guid.entity_id()
         {
-            if let Ok(change) = CacheChange::try_from_data_submessage(
+            if let Ok(change) = CacheChangeRead::try_from_data_submessage(
                 data_submessage,
                 source_guid_prefix,
                 source_timestamp,

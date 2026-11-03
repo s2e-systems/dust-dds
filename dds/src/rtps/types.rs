@@ -1,7 +1,9 @@
 use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
-use crate::transport::types::{ProtocolVersion, VendorId};
+use crate::transport::types::{
+    DurabilityKind, EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+};
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_5;
 #[allow(dead_code)]
@@ -24,6 +26,31 @@ pub const PROTOCOLVERSION_2_5: ProtocolVersion = ProtocolVersion::new(2, 5);
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 pub const VENDOR_ID_S2E: VendorId = [0x01, 0x14];
 
+#[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
+pub struct Time {
+    sec: i32,
+    nanosec: u32,
+}
+
+impl Time {
+    /// Create a new [`Time`] with a number of seconds and nanoseconds
+    pub const fn new(sec: i32, nanosec: u32) -> Self {
+        let sec = sec + (nanosec / 1_000_000_000) as i32;
+        let nanosec = nanosec % 1_000_000_000;
+        Self { sec, nanosec }
+    }
+
+    /// Get the number of seconds contained by this time
+    pub const fn sec(&self) -> i32 {
+        self.sec
+    }
+
+    /// Get the number of nanoseconds contained by this time
+    pub const fn nanosec(&self) -> u32 {
+        self.nanosec
+    }
+}
+
 /// Property type as defined in Section 9.3.2 of the DDS-RTPS specification and extended by DDS Security.
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
@@ -40,3 +67,24 @@ pub struct Property {
 
 /// Sequence of [`Property`].
 pub type PropertySeq = Vec<Property>;
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WriterProxy {
+    pub remote_writer_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub reliability_kind: ReliabilityKind,
+    pub durability_kind: DurabilityKind,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ReaderProxy {
+    pub remote_reader_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub reliability_kind: ReliabilityKind,
+    pub durability_kind: DurabilityKind,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub expects_inline_qos: bool,
+}

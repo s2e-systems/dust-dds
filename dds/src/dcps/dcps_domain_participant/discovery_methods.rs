@@ -65,11 +65,11 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    transport::{
+    rtps::{
         self,
-        types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
+        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
     },
+    transport::types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
     xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
@@ -1185,7 +1185,7 @@ impl DcpsDomainParticipant {
                                         }
                                     };
 
-                                    let reader_proxy = transport::types::ReaderProxy {
+                                    let reader_proxy = rtps::types::ReaderProxy {
                                         remote_reader_guid: discovered_reader_data
                                             .reader_proxy
                                             .remote_reader_guid,
@@ -1825,7 +1825,7 @@ impl DcpsDomainParticipant {
                                             DurabilityKind::Persistent
                                         }
                                     };
-                                    let writer_proxy = transport::types::WriterProxy {
+                                    let writer_proxy = rtps::types::WriterProxy {
                                         remote_writer_guid: discovered_writer_data
                                             .writer_proxy
                                             .remote_writer_guid,
@@ -2792,7 +2792,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2845,7 +2845,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
@@ -2893,7 +2893,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2946,7 +2946,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2994,7 +2994,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3041,7 +3041,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3083,7 +3083,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3136,7 +3136,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3184,7 +3184,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3237,7 +3237,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,

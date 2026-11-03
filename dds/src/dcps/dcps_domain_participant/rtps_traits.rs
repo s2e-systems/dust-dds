@@ -1,11 +1,14 @@
 use crate::{
-    rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
-    transport::types::{CacheChange, Guid},
+    rtps::{
+        cache_change::CacheChangeWrite, stateful_writer::RtpsStatefulWriter,
+        stateless_writer::RtpsStatelessWriter,
+    },
+    transport::types::Guid,
 };
 
 pub trait RtpsWriter {
     fn guid(&self) -> Guid;
-    fn add_change(&mut self, cache_change: CacheChange);
+    fn add_change(&mut self, cache_change: CacheChangeWrite);
 }
 
 impl RtpsWriter for RtpsStatefulWriter {
@@ -13,7 +16,7 @@ impl RtpsWriter for RtpsStatefulWriter {
         self.guid()
     }
 
-    fn add_change(&mut self, cache_change: CacheChange) {
+    fn add_change(&mut self, cache_change: CacheChangeWrite) {
         self.add_change(cache_change)
     }
 }
@@ -23,7 +26,7 @@ impl RtpsWriter for RtpsStatelessWriter {
         self.guid()
     }
 
-    fn add_change(&mut self, cache_change: CacheChange) {
+    fn add_change(&mut self, cache_change: CacheChangeWrite) {
         self.add_change(cache_change)
     }
 }

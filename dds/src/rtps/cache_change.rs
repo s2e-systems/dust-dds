@@ -1,8 +1,11 @@
+use alloc::sync::Arc;
+
 use super::error::RtpsError;
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
         PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
     },
+    rtps::types::Time,
     rtps_messages::{
         self,
         overall_structure::Endianness,
@@ -13,11 +16,24 @@ use crate::{
         },
         types::ParameterId,
     },
-    transport::types::{CacheChange, ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
+    transport::types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
 };
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
 pub const PID_STATUS_INFO: ParameterId = 0x0071;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheChangeRead {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: i64,
+    pub source_timestamp: Option<Time>,
+    pub instance_handle: Option<[u8; 16]>,
+    pub data_value: Arc<[u8]>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 struct StatusInfo(pub [u8; 4]);
@@ -25,69 +41,6 @@ const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
 const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
 const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
 const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
-
-impl CacheChange {
-    pub fn status_info_parameter(&self) -> Option<ParameterWrite<'static>> {
-        match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
-            ChangeKind::NotAliveDisposed => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED.0,
-            )),
-            ChangeKind::NotAliveUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_UNREGISTERED.0,
-            )),
-            ChangeKind::NotAliveDisposedUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED_UNREGISTERED.0,
-            )),
-        }
-    }
-
-    pub fn key_hash_parameter<'a>(&'a self) -> Option<ParameterWrite<'a>> {
-        self.instance_handle
-            .as_ref()
-            .map(|i| ParameterWrite::new(PID_KEY_HASH, i))
-    }
-
-    pub fn as_data_submessage<'a>(
-        &'a self,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        inline_qos: &'a [ParameterWrite<'a>],
-    ) -> DataSubmessageWrite<'a> {
-        let (data_flag, key_flag) = if self.data_value.is_empty() {
-            (false, false)
-        } else {
-            match self.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => (false, true),
-            }
-        };
-
-        let inline_qos_flag = !inline_qos.is_empty();
-        let parameter_list = if inline_qos_flag {
-            ParameterListWrite::new(inline_qos)
-        } else {
-            ParameterListWrite::empty()
-        };
-
-        DataSubmessageWrite::new(
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            false,
-            reader_id,
-            writer_id,
-            self.sequence_number,
-            parameter_list,
-            self.data_value.as_ref(),
-        )
-    }
-}
 
 use crate::rtps_messages::submessage_elements::ParameterList;
 
@@ -212,7 +165,7 @@ impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
     }
 }
 
-impl CacheChange {
+impl CacheChangeRead {
     pub fn try_from_data_submessage(
         data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
@@ -226,7 +179,7 @@ impl CacheChange {
             group_seq_num,
         } = data_submessage.inline_qos().try_into()?;
 
-        Ok(CacheChange {
+        Ok(Self {
             kind: change_kind,
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
             source_timestamp: source_timestamp.map(Into::into),
@@ -237,6 +190,90 @@ impl CacheChange {
             group_coherent_set,
             group_seq_num,
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheChangeWrite {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: i64,
+    pub source_timestamp: Option<Time>,
+    pub instance_handle: Option<[u8; 16]>,
+    pub data_value: Arc<[u8]>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
+}
+
+impl CacheChangeWrite {
+    pub fn status_info_parameter(&self) -> Option<ParameterWrite<'static>> {
+        match self.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
+            ChangeKind::NotAliveDisposed => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_DISPOSED.0,
+            )),
+            ChangeKind::NotAliveUnregistered => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_UNREGISTERED.0,
+            )),
+            ChangeKind::NotAliveDisposedUnregistered => Some(ParameterWrite::new(
+                PID_STATUS_INFO,
+                &STATUS_INFO_DISPOSED_UNREGISTERED.0,
+            )),
+        }
+    }
+
+    pub fn key_hash_parameter<'a>(&'a self) -> Option<ParameterWrite<'a>> {
+        self.instance_handle
+            .as_ref()
+            .map(|i| ParameterWrite::new(PID_KEY_HASH, i))
+    }
+
+    pub fn as_data_submessage<'a>(
+        &'a self,
+        reader_id: EntityId,
+        writer_id: EntityId,
+    ) -> DataSubmessageWrite<'a> {
+        let (data_flag, key_flag) = if self.data_value.is_empty() {
+            (false, false)
+        } else {
+            match self.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => (false, true),
+            }
+        };
+
+        let inline_qos = match (self.status_info_parameter(), self.key_hash_parameter()) {
+            (Some(s), Some(k)) => &[s, k][..],
+            (Some(s), None) => &[s][..],
+            (None, Some(k)) => &[k][..],
+            (None, None) => &[],
+        };
+
+        let inline_qos_flag = !inline_qos.is_empty();
+        let parameter_list = if inline_qos_flag {
+            ParameterListWrite::new(inline_qos)
+        } else {
+            ParameterListWrite::empty()
+        };
+
+        todo!()
+
+        // DataSubmessageWrite::new(
+        //     inline_qos_flag,
+        //     data_flag,
+        //     key_flag,
+        //     false,
+        //     reader_id,
+        //     writer_id,
+        //     self.sequence_number,
+        //     parameter_list,
+        //     self.data_value.as_ref(),
+        // )
     }
 
     pub fn as_data_frag_submessage<'a>(

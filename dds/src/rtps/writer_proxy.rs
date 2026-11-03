@@ -1,6 +1,6 @@
 use super::message_creator::write_submessages_into_transport;
 use crate::{
-    rtps::cache_change::CacheChangeParameters,
+    rtps::cache_change::{CacheChangeParameters, CacheChangeRead},
     rtps_messages::{
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
@@ -11,7 +11,7 @@ use crate::{
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{CacheChange, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -90,7 +90,7 @@ impl RtpsWriterProxy {
         &mut self,
         seq_num: SequenceNumber,
         source_timestamp: Option<Time>,
-    ) -> Option<CacheChange> {
+    ) -> Option<CacheChangeRead> {
         let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
         let total_fragments_expected = total_fragments_expected(frag_submessage);
 
@@ -125,7 +125,7 @@ impl RtpsWriterProxy {
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
 
-            Some(CacheChange {
+            Some(CacheChangeRead {
                 kind: change_kind,
                 writer_guid: self.remote_writer_guid,
                 source_timestamp: source_timestamp.map(Into::into),

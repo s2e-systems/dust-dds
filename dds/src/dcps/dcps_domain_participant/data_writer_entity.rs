@@ -13,7 +13,8 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
-    transport::types::{CacheChange, ChangeKind, TopicKind},
+    rtps::cache_change::CacheChangeWrite,
+    transport::types::{ChangeKind, TopicKind},
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -124,7 +125,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         }
 
         self.last_change_sequence_number += 1;
-        let change = CacheChange {
+        let change = CacheChangeWrite {
             kind: ChangeKind::Alive,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -192,7 +193,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_info.last_write_time = None;
 
         self.last_change_sequence_number += 1;
-        let cache_change = CacheChange {
+        let cache_change = CacheChangeWrite {
             kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -276,7 +277,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         } else {
             ChangeKind::NotAliveUnregistered
         };
-        let cache_change = CacheChange {
+        let cache_change = CacheChangeWrite {
             kind,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,

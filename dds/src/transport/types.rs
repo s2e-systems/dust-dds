@@ -1,4 +1,3 @@
-use alloc::{sync::Arc, vec::Vec};
 use dust_dds::xtypes::type_support::TypeSupport;
 
 pub type Octet = u8;
@@ -305,63 +304,4 @@ pub type VendorId = [Octet; 2];
 pub struct ChangeCount {
     high: Long,
     low: UnsignedLong,
-}
-
-#[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
-pub struct Time {
-    sec: i32,
-    nanosec: u32,
-}
-
-impl Time {
-    /// Create a new [`Time`] with a number of seconds and nanoseconds
-    pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000) as i32;
-        let nanosec = nanosec % 1_000_000_000;
-        Self { sec, nanosec }
-    }
-
-    /// Get the number of seconds contained by this time
-    pub const fn sec(&self) -> i32 {
-        self.sec
-    }
-
-    /// Get the number of nanoseconds contained by this time
-    pub const fn nanosec(&self) -> u32 {
-        self.nanosec
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct WriterProxy {
-    pub remote_writer_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub reliability_kind: ReliabilityKind,
-    pub durability_kind: DurabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CacheChange {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub sequence_number: i64,
-    pub source_timestamp: Option<Time>,
-    pub instance_handle: Option<[u8; 16]>,
-    pub data_value: Arc<[u8]>,
-    pub coherent_set: Option<SequenceNumber>,
-    pub group_coherent_set: Option<SequenceNumber>,
-    pub group_seq_num: Option<SequenceNumber>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ReaderProxy {
-    pub remote_reader_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub reliability_kind: ReliabilityKind,
-    pub durability_kind: DurabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub expects_inline_qos: bool,
 }
