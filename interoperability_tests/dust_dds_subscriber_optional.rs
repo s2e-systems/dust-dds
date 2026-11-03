@@ -42,6 +42,9 @@ fn main() {
         durability: DurabilityQosPolicy {
             kind: DurabilityQosPolicyKind::TransientLocal,
         },
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION],
+        },
         ..Default::default()
     };
     let reader = subscriber
