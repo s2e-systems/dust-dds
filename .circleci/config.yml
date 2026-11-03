@@ -21,8 +21,8 @@ jobs:
   hello_world_on_windows:
     machine:
       image: 'windows-server-2019-vs2019:2024.05.1'
-      resource_class: windows.medium
-      shell: powershell.exe -ExecutionPolicy Bypass
+    resource_class: windows.medium
+    shell: powershell.exe -ExecutionPolicy Bypass
     steps:
     - checkout
     - run:
@@ -189,7 +189,7 @@ jobs:
       - store_artifacts:
           path: type_sizes.txt
 
-  interoperability_tests:
+  fast_dds_interoperability_tests:
     docker:
       - image: cimg/rust:1.87.0
     resource_class: large
@@ -202,12 +202,7 @@ jobs:
           name: Build FastDDS Interoperability tests
           command: |
             cmake -S interoperability_tests/fast_dds -B build/fast_dds
-            cmake --build build/fast_dds --parallel 5
-      - run:
-          name: Build CycloneDDS Interoperability tests
-          command: |
-            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
-            cmake --build build/cyclone_dds --parallel 5
+            cmake --build build/fast_dds --parallel 17
       - run:
           name: Build dust binaries
           command: |
@@ -241,6 +236,23 @@ jobs:
             pid=$!
             build/fast_dds/FastDdsPublisherDispose
             wait $pid
+
+  cyclone_dds_interoperability_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Build CycloneDDS Interoperability tests
+          command: |
+            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
+            cmake --build build/cyclone_dds --parallel 9
+      - run:
+          name: Build dust binaries
+          command: |
+            cargo update --package dust_dds_interoperability
+            cargo build --package dust_dds_interoperability
       - run:
           name: Cyclone publisher interoperability test
           command: |
@@ -395,7 +407,8 @@ workflows:
     jobs:
       - tests
       - bindings_tests
-      - interoperability_tests
+      - fast_dds_interoperability_tests
+      - cyclone_dds_interoperability_tests
       - hello_world_on_macos
       - hello_world_on_windows
       - performance_benchmark
