@@ -137,7 +137,7 @@ struct XTypesSerializer<'a, E, V> {
 impl<'a, E: EndiannessWrite, V: EncodingVersion> XTypesSerializer<'a, E, V> {
     /// Rule: PUSH( ORIGIN = 0 )
     fn push_origin_0(&mut self) {
-        self.writer.position = 0;
+        self.writer.origin = self.writer.buffer.len();
     }
 
     /// Serialization Rule: { <OPTIONS> : Byte[2] }
@@ -658,7 +658,6 @@ impl<'a, 'b, E: EndiannessWrite, V: EncodingVersion> EMheader1<'a, 'b, E, V> {
                 .writer
                 .buffer
                 .splice(self.initial_pos..self.initial_pos, E::to_bytes_u32(ssize));
-            self.serializer.writer.position += 4;
         }
 
         Ok(())
@@ -892,12 +891,14 @@ impl EncodingVersion for EncodingVersion1 {
         let m_flag = member_descriptor.is_must_understand as u16;
         let pid = member_id as u16 + (m_flag << 14);
         serializer.serialize_primitive_type(&pid);
+        let orig_origin = serializer.writer.origin;
         let ssize = Ssize::new(serializer);
         ssize.serializer.push_origin_0();
         if v.get_value(member_id).is_ok() {
             ssize.serializer.serialize_value(v, member_id).unwrap();
         }
         ssize.write_ssize();
+        serializer.writer.origin = orig_origin;
         Ok(())
     }
 
@@ -1328,29 +1329,26 @@ impl EndiannessWrite for LittleEndian {
 
 struct CdrWriter<'a> {
     buffer: &'a mut Vec<u8>,
-    position: usize,
+    origin: usize,
 }
 impl<'a> CdrWriter<'a> {
     fn new(buffer: &'a mut Vec<u8>) -> Self {
-        Self {
-            buffer,
-            position: 0,
-        }
+        let origin = buffer.len();
+        Self { buffer, origin }
     }
     fn write_byte(&mut self, value: u8) {
         self.buffer.push(value);
-        self.position += 1;
     }
     fn write_slice(&mut self, value: &[u8]) {
         self.buffer.extend_from_slice(value);
-        self.position += value.len();
     }
     fn write_slice_at_position(&mut self, value: &[u8], position: usize) {
         self.buffer[position..position + value.len()].copy_from_slice(value);
     }
     fn pad(&mut self, alignment: usize) {
         const ZEROS: [u8; 8] = [0; 8];
-        let padding = self.position.div_ceil(alignment) * alignment - self.position;
+        let offset = self.buffer.len() - self.origin;
+        let padding = offset.div_ceil(alignment) * alignment - offset;
         self.write_slice(&ZEROS[..padding]);
     }
 }
