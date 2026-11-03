@@ -1,13 +1,16 @@
 use super::writer_proxy::RtpsWriterProxy;
 use crate::{
-    rtps::{cache_change::CacheChangeRead, types::WriterProxy},
+    rtps::{
+        cache_change::CacheChangeRead,
+        types::{ReliabilityKind, WriterProxy},
+    },
     rtps_messages::{
         submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
         types::Time,
     },
     transport::{
         interface::RtpsParticipant,
-        types::{Guid, GuidPrefix, ReliabilityKind},
+        types::{Guid, GuidPrefix},
     },
 };
 use alloc::vec::Vec;

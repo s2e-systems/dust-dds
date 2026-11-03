@@ -67,9 +67,9 @@ use crate::{
     },
     rtps::{
         self,
-        types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{DurabilityKind, PROTOCOLVERSION, ReliabilityKind, VENDOR_ID_S2E},
     },
-    transport::types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
+    transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
     xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},

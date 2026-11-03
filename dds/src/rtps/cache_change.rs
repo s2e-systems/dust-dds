@@ -5,7 +5,7 @@ use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
         PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
     },
-    rtps::types::Time,
+    rtps::types::{ChangeKind, Time},
     rtps_messages::{
         self,
         overall_structure::Endianness,
@@ -16,7 +16,7 @@ use crate::{
         },
         types::ParameterId,
     },
-    transport::types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
+    transport::types::{EntityId, Guid, GuidPrefix, SequenceNumber},
 };
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
@@ -247,7 +247,7 @@ impl CacheChangeWrite {
             }
         };
 
-        let inline_qos = match (self.status_info_parameter(), self.key_hash_parameter()) {
+        let inline_qos = match (self.status_info, self.key_hash_parameter()) {
             (Some(s), Some(k)) => &[s, k][..],
             (Some(s), None) => &[s][..],
             (None, Some(k)) => &[k][..],
@@ -261,19 +261,17 @@ impl CacheChangeWrite {
             ParameterListWrite::empty()
         };
 
-        todo!()
-
-        // DataSubmessageWrite::new(
-        //     inline_qos_flag,
-        //     data_flag,
-        //     key_flag,
-        //     false,
-        //     reader_id,
-        //     writer_id,
-        //     self.sequence_number,
-        //     parameter_list,
-        //     self.data_value.as_ref(),
-        // )
+        DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            false,
+            reader_id,
+            writer_id,
+            self.sequence_number,
+            parameter_list,
+            self.data_value.as_ref(),
+        )
     }
 
     pub fn as_data_frag_submessage<'a>(

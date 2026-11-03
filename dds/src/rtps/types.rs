@@ -1,9 +1,48 @@
 use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
-use crate::transport::types::{
-    DurabilityKind, EntityId, Guid, Locator, ProtocolVersion, ReliabilityKind, VendorId,
-};
+use crate::transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId};
+
+/// TopicKind_t
+/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
+/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TopicKind {
+    NoKey,
+    WithKey,
+}
+
+/// ChangeKind_t
+/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
+/// It can take the values:
+/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+    NotAliveDisposedUnregistered,
+}
+
+/// ReliabilityKind_t
+/// Enumeration used to indicate the level of the reliability used for communications.
+/// It can take the values: BEST_EFFORT, RELIABLE.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
+}
+
+/// DurabilityKind_t
+/// Enumeration used to indicate the level of the durability used for communications.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DurabilityKind {
+    Volatile,
+    TransientLocal,
+    Transient,
+    Persistent,
+}
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_5;
 #[allow(dead_code)]

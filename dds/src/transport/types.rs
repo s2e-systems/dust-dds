@@ -178,48 +178,6 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_
 /// Must be possible to represent using 64 bits.
 pub type SequenceNumber = i64;
 
-/// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
-/// ChangeKind_t
-/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
-/// It can take the values:
-/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-    NotAliveDisposedUnregistered,
-}
-
-/// ReliabilityKind_t
-/// Enumeration used to indicate the level of the reliability used for communications.
-/// It can take the values: BEST_EFFORT, RELIABLE.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
-}
-
-/// DurabilityKind_t
-/// Enumeration used to indicate the level of the durability used for communications.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DurabilityKind {
-    Volatile,
-    TransientLocal,
-    Transient,
-    Persistent,
-}
-
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.

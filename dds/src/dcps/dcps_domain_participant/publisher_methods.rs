@@ -17,11 +17,9 @@ use crate::{
         qos::{DataWriterQos, PublisherQos, QosKind},
         time::Time,
     },
-    rtps::stateful_writer::RtpsStatefulWriter,
+    rtps::{stateful_writer::RtpsStatefulWriter, types::TopicKind},
     runtime::Spawner,
-    transport::types::{
-        EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-    },
+    transport::types::{EntityId, Guid, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY},
 };
 
 impl DcpsDomainParticipant {

@@ -2,8 +2,8 @@ use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
     rtps::types::PropertySeq,
+    rtps::types::{DurabilityKind, ReliabilityKind},
     security::types::BinaryPropertySeq,
-    transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         dynamic_type::{
             DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,

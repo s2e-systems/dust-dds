@@ -13,8 +13,10 @@ use crate::{
         status::OfferedIncompatibleQosStatus,
         time::{Duration, DurationKind, Time},
     },
-    rtps::cache_change::CacheChangeWrite,
-    transport::types::{ChangeKind, TopicKind},
+    rtps::{
+        cache_change::CacheChangeWrite,
+        types::{ChangeKind, TopicKind},
+    },
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},

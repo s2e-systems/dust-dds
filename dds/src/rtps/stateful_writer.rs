@@ -4,7 +4,10 @@ use super::{
 };
 use crate::{
     infrastructure::time::Time,
-    rtps::{cache_change::CacheChangeWrite, types::ReaderProxy},
+    rtps::{
+        cache_change::CacheChangeWrite,
+        types::{ChangeKind, DurabilityKind, ReaderProxy, ReliabilityKind},
+    },
     rtps_messages::{
         submessage_elements::SequenceNumberSet,
         submessages::{
@@ -16,10 +19,7 @@ use crate::{
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{
-            ChangeKind, DurabilityKind, ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix,
-            ReliabilityKind, SequenceNumber,
-        },
+        types::{ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
 use alloc::vec::Vec;

@@ -1,11 +1,14 @@
 use crate::{
     infrastructure::time::{Duration, Time},
-    rtps::cache_change::CacheChangeWrite,
+    rtps::{
+        cache_change::CacheChangeWrite,
+        types::{DurabilityKind, ReliabilityKind},
+    },
     rtps_messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
-    transport::types::{DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+    transport::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 use alloc::vec::Vec;
 
