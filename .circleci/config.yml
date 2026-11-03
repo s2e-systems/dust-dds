@@ -40,7 +40,6 @@ jobs:
   code_checks:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     environment:
       RUSTFLAGS: -D warnings
     steps:
@@ -51,7 +50,6 @@ jobs:
   performance_benchmark:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline branch_baseline
@@ -64,7 +62,6 @@ jobs:
   memory_benchmark:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - run:
@@ -98,7 +95,6 @@ jobs:
   tests:
     machine:
       image: ubuntu-2604:current
-    resource_class: large
     steps:
       - checkout
       - rust/install
@@ -149,7 +145,6 @@ jobs:
   build_metrics:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - restore_cache:
@@ -251,7 +246,6 @@ jobs:
   cyclone_dds_interoperability_tests:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - run:
@@ -402,7 +396,6 @@ jobs:
   bindings_tests:
     docker:
       - image: cimg/rust:1.87.0
-    resource_class: large
     steps:
       - checkout
       - run:
