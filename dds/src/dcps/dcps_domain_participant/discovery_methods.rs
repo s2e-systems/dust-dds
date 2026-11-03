@@ -2,7 +2,8 @@ use crate::{
     builtin_topics::{
         BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
-    }, dcps::{
+    },
+    dcps::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
@@ -39,21 +40,37 @@ use crate::{
             user_defined_data_writer::UserDefinedDataWriter,
         },
         listeners::domain_participant_listener::ListenerMail,
-    }, dds_async::{
+    },
+    dds_async::{
         data_reader::DataReaderAsync, data_writer::DataWriterAsync,
         domain_participant::DomainParticipantAsync, publisher::PublisherAsync,
         subscriber::SubscriberAsync, topic::TopicAsync,
-    }, infrastructure::{
-        error::DdsError, instance::InstanceHandle, qos::{DataWriterQos, PublisherQos, SubscriberQos}, qos_policy::{
-            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
-        }, status::{
+    },
+    infrastructure::{
+        error::DdsError,
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos, SubscriberQos},
+        qos_policy::{
+            DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId,
+            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
+            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
+        },
+        status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
-        }, time::{Duration, DurationKind, Time},
-    }, rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E}, transport::{
+        },
+        time::{Duration, DurationKind, Time},
+    },
+    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    transport::{
         self,
         types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
-    }, xtypes::{
+    },
+    xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
         type_support::{_String, TypeSupport},
