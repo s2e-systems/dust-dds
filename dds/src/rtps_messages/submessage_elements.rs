@@ -12,9 +12,9 @@ use crate::{
             PID_KEY_HASH, PID_STATUS_INFO, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
             STATUS_INFO_UNREGISTERED,
         },
-        types::ChangeKind,
+        types::{ChangeKind, SequenceNumber},
     },
-    transport::types::{Locator, SequenceNumber},
+    transport::types::Locator,
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
@@ -444,38 +444,39 @@ pub struct ParameterListWrite {
 
 impl WriteIntoBytes for ParameterListWrite {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
+        let status_info = match self.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
+            ChangeKind::NotAliveDisposed => Some(STATUS_INFO_DISPOSED),
+            ChangeKind::NotAliveUnregistered => Some(STATUS_INFO_UNREGISTERED),
+            ChangeKind::NotAliveDisposedUnregistered => Some(STATUS_INFO_DISPOSED_UNREGISTERED),
+        };
+
         if let Some(key) = &self.instance_handle {
             ParameterWrite::new(PID_KEY_HASH, key).write_into_bytes(buf);
         }
 
-        match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (),
-            ChangeKind::NotAliveDisposed => {
-                ParameterWrite::new(PID_STATUS_INFO, &STATUS_INFO_DISPOSED.0).write_into_bytes(buf)
-            }
-            ChangeKind::NotAliveUnregistered => {
-                ParameterWrite::new(PID_STATUS_INFO, &STATUS_INFO_UNREGISTERED.0)
-                    .write_into_bytes(buf)
-            }
-            ChangeKind::NotAliveDisposedUnregistered => {
-                ParameterWrite::new(PID_STATUS_INFO, &STATUS_INFO_DISPOSED_UNREGISTERED.0)
-                    .write_into_bytes(buf)
-            }
+        if let Some(status_info) = status_info {
+            PID_STATUS_INFO.write_into_bytes(buf);
+            4_i16.write_into_bytes(buf);
+            status_info.0.write_into_bytes(buf);
         }
 
         if let Some(coherent_set) = &self.coherent_set {
-            ParameterWrite::new(PID_COHERENT_SET, &coherent_set.to_le_bytes())
-                .write_into_bytes(buf);
+            PID_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            coherent_set.write_into_bytes(buf);
         }
 
         if let Some(group_coherent_set) = &self.group_coherent_set {
-            ParameterWrite::new(PID_GROUP_COHERENT_SET, &group_coherent_set.to_le_bytes())
-                .write_into_bytes(buf);
+            PID_GROUP_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            group_coherent_set.write_into_bytes(buf);
         }
 
         if let Some(group_seq_num) = &self.group_seq_num {
-            ParameterWrite::new(PID_GROUP_SEQ_NUM, &group_seq_num.to_le_bytes())
-                .write_into_bytes(buf);
+            PID_GROUP_SEQ_NUM.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            group_seq_num.write_into_bytes(buf);
         }
 
         PID_SENTINEL.write_into_bytes(buf);

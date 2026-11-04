@@ -7,7 +7,7 @@ use super::super::{
     submessage_elements::{ParameterList, ParameterListWrite},
     types::{SubmessageFlag, SubmessageKind},
 };
-use crate::transport::types::{EntityId, SequenceNumber};
+use crate::{rtps::types::SequenceNumber, transport::types::EntityId};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataSubmessageWrite<'a> {

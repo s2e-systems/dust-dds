@@ -2,7 +2,7 @@ use super::message_creator::write_submessages_into_transport;
 use crate::{
     rtps::{
         cache_change::{CacheChangeParameters, CacheChangeRead},
-        types::ReliabilityKind,
+        types::{ReliabilityKind, SequenceNumber},
     },
     rtps_messages::{
         submessage_elements::{FragmentNumberSet, SequenceNumberSet},
@@ -14,7 +14,7 @@ use crate::{
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{EntityId, Guid, Locator, SequenceNumber},
+        types::{EntityId, Guid, Locator},
     },
 };
 use alloc::{sync::Arc, vec::Vec};

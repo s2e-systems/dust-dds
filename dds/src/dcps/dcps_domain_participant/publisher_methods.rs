@@ -21,14 +21,11 @@ use crate::{
     rtps::{
         cache_change::CacheChangeWrite,
         stateful_writer::RtpsStatefulWriter,
-        types::{ChangeKind, TopicKind},
+        types::{ChangeKind, SEQUENCE_NUMBER_UNKNOWN, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     runtime::Spawner,
-    transport::types::{
-        EntityId, Guid, SEQUENCE_NUMBER_UNKNOWN, USER_DEFINED_WRITER_NO_KEY,
-        USER_DEFINED_WRITER_WITH_KEY,
-    },
+    transport::types::{EntityId, Guid, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY},
 };
 
 impl DcpsDomainParticipant {

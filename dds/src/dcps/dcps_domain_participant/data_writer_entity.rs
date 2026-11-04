@@ -15,10 +15,9 @@ use crate::{
     },
     rtps::{
         cache_change::CacheChangeWrite,
-        types::{ChangeKind, TopicKind},
+        types::{ChangeKind, SequenceNumber, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
-    transport::types::SequenceNumber,
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},

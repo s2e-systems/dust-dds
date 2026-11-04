@@ -35,7 +35,7 @@ use crate::{
     },
     rtps::{
         message_receiver::MessageReceiver,
-        types::{ChangeKind, TopicKind},
+        types::{ChangeKind, SEQUENCE_NUMBER_UNKNOWN, TopicKind},
     },
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -44,7 +44,7 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    transport::types::{Guid, SEQUENCE_NUMBER_UNKNOWN},
+    transport::types::Guid,
     xtypes::{
         deserializer::deserialize_top_level_type,
         type_support::{Type, TypeSupport},

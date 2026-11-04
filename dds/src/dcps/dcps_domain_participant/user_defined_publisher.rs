@@ -8,7 +8,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos},
     },
-    transport::types::SequenceNumber,
+    rtps::types::SequenceNumber,
 };
 use alloc::vec::Vec;
 
