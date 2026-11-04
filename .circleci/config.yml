@@ -198,7 +198,7 @@ jobs:
           name: Build Fast DDS Interoperability tests
           command: |
             if [ ! -d build/fast_dds ]; then
-              cmake -S interoperability_tests/fast_dds -B build/fast_dds
+              cmake -S interoperability_tests/fast_dds -B build/fast_dds -DCMAKE_BUILD_TYPE=Debug
               cmake --build build/fast_dds --parallel 17
             fi
       - save_cache:
@@ -247,7 +247,7 @@ jobs:
       - run:
           name: Build Cyclone DDS Interoperability tests
           command: |
-            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
+            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds -DCMAKE_BUILD_TYPE=Debug
             cmake --build build/cyclone_dds --parallel 9
       - run:
           name: Build Dust DDS binaries
