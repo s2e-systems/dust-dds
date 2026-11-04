@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16.0)
+cmake_minimum_required(VERSION 3.24.0)
 project(CycloneInteroperability LANGUAGES C)
 
 include(FetchContent)
@@ -17,7 +17,6 @@ set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
 set(CMAKE_PROJECT_NAME CycloneDDS)
 FetchContent_MakeAvailable(CycloneDDS)
 
-add_compile_options(-Werror -Wall)
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
 idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
@@ -83,7 +82,6 @@ target_link_libraries(CycloneDdsPublisherNested PRIVATE
   CycloneDDS::ddsc
   NestedTypeGeneratedIdl
 )
-
 add_executable(CycloneDdsSubscriberNested
   cyclone_dds_subscriber_nested.c
 )
@@ -139,3 +137,19 @@ target_link_libraries(CycloneDdsPublisherOptional PRIVATE
   CycloneDDS::ddsc
   OptionalGeneratedIdl
 )
+
+set_target_properties(
+  CycloneDdsSubscriber
+  CycloneDdsPublisher
+  CycloneDdsBigDataSubscriber
+  CycloneDdsBigDataPublisher
+  CycloneDdsSubscriberDispose
+  CycloneDdsPublisherDispose
+  CycloneDdsSubscriberNested
+  CycloneDdsPublisherUnion
+  CycloneDdsSubscriberUnion
+  CycloneDdsSubscriberInheritance
+  CycloneDdsPublisherInheritance
+  CycloneDdsSubscriberOptional
+  CycloneDdsPublisherOptional
+  PROPERTIES COMPILE_WARNING_AS_ERROR TRUE)
