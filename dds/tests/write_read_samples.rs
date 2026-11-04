@@ -1716,7 +1716,6 @@ fn write_read_disposed_samples() {
 }
 
 #[test]
-#[ignore = "Dispose message not always sent after timing changes"]
 fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -1743,6 +1742,10 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
         .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
         },
@@ -1771,6 +1774,10 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
         .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
         },
@@ -1800,13 +1807,16 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
 
     writer.write(data1.clone(), None).unwrap();
     writer.dispose(data1, None).unwrap();
-    publisher.delete_datawriter(&writer).unwrap();
 
     let start_loop_time = std::time::Instant::now();
     let wait_for_disposed_timeout = std::time::Duration::from_secs(10);
     let samples = loop {
         if let Ok(samples) = reader.read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
-            if samples.len() == 2 {
+            if samples.len() == 2
+                && samples
+                    .iter()
+                    .all(|s| s.sample_info.instance_state == InstanceStateKind::NotAliveDisposed)
+            {
                 break samples;
             }
         }
@@ -1814,7 +1824,10 @@ fn write_read_disposed_samples_when_writer_is_immediately_deleted() {
         if start_loop_time.elapsed() > wait_for_disposed_timeout {
             panic!("Disposed sample not received within expected time.")
         }
+        std::thread::sleep(std::time::Duration::from_millis(10));
     };
+
+    publisher.delete_datawriter(&writer).unwrap();
 
     assert_eq!(samples.len(), 2);
     assert_eq!(
@@ -3447,7 +3460,6 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_at_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }
 
-#[ignore = "Channel changes made test flaky"]
 #[test]
 fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
     const LIFESPAN_MS: u32 = 100;
