@@ -13,7 +13,8 @@ use crate::{
         status::SampleRejectedStatusKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
-    transport::types::{ChangeKind, Guid},
+    rtps::types::ChangeKind,
+    transport::types::Guid,
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};

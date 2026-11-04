@@ -448,7 +448,7 @@ impl From<PresentationQosPolicyAccessScopeKind>
         match kind {
             PresentationQosPolicyAccessScopeKind::INSTANCE_PRESENTATION_QOS => Self::Instance,
             PresentationQosPolicyAccessScopeKind::TOPIC_PRESENTATION_QOS => Self::Topic,
-            PresentationQosPolicyAccessScopeKind::GROUP_PRESENTATION_QOS => Self::Topic,
+            PresentationQosPolicyAccessScopeKind::GROUP_PRESENTATION_QOS => Self::Group,
         }
     }
 }
@@ -462,6 +462,7 @@ impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScope
         match kind {
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance => Self::INSTANCE_PRESENTATION_QOS,
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic => Self::TOPIC_PRESENTATION_QOS,
+            dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Group => Self::GROUP_PRESENTATION_QOS,
         }
     }
 }

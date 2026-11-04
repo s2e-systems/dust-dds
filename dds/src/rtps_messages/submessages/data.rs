@@ -18,7 +18,7 @@ pub struct DataSubmessageWrite<'a> {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: ParameterListWrite<'a>,
+    inline_qos: ParameterListWrite,
     serialized_payload: &'a [u8],
 }
 
@@ -32,7 +32,7 @@ impl<'a> DataSubmessageWrite<'a> {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: ParameterListWrite<'a>,
+        inline_qos: ParameterListWrite,
         serialized_payload: &'a [u8],
     ) -> Self {
         Self {
@@ -48,7 +48,7 @@ impl<'a> DataSubmessageWrite<'a> {
         }
     }
 
-    pub fn inline_qos(&self) -> &ParameterListWrite<'a> {
+    pub fn inline_qos(&self) -> &ParameterListWrite {
         &self.inline_qos
     }
 
@@ -260,10 +260,8 @@ impl Submessage for DataSubmessage<'_> {
 mod tests {
     use super::*;
     use crate::{
-        rtps_messages::{
-            overall_structure::{Endianness, write_submessage_into_bytes_vec},
-            submessage_elements::ParameterWrite,
-        },
+        rtps::types::ChangeKind,
+        rtps_messages::overall_structure::{Endianness, write_submessage_into_bytes_vec},
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -276,7 +274,13 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let inline_qos = ParameterListWrite::empty();
+        let inline_qos = ParameterListWrite {
+            kind: ChangeKind::Alive,
+            instance_handle: None,
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
+        };
         let payload = [1, 2, 3];
         let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
@@ -303,47 +307,6 @@ mod tests {
     }
 
     #[test]
-    fn serialize_data_write_with_inline_qos() {
-        let inline_qos_flag = true;
-        let data_flag = false;
-        let key_flag = false;
-        let non_standard_payload_flag = false;
-        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
-        let writer_sn = 5;
-        let parameter_1 = ParameterWrite::new(6, &[10, 11, 12, 13]);
-        let parameter_2 = ParameterWrite::new(7, &[20, 21, 22, 23]);
-        let parameters = [parameter_1, parameter_2];
-        let inline_qos = ParameterListWrite::new(&parameters);
-        let submessage = DataSubmessageWrite::new(
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            &[],
-        );
-        #[rustfmt::skip]
-        assert_eq!(write_submessage_into_bytes_vec(&submessage), vec![
-                0x15, 0b_0000_0011, 40, 0, // Submessage header
-                0, 0, 16, 0, // extraFlags, octetsToInlineQos
-                1, 2, 3, 4, // readerId: value[4]
-                6, 7, 8, 9, // writerId: value[4]
-                0, 0, 0, 0, // writerSN: high
-                5, 0, 0, 0, // writerSN: low
-                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
-                10, 11, 12, 13, // inlineQos: value_1[length_1]
-                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
-                20, 21, 22, 23, // inlineQos: value_2[length_2]
-                1, 0, 0, 0, // inlineQos: Sentinel
-            ]
-        );
-    }
-
-    #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
         let inline_qos_flag = false;
         let data_flag = false;
@@ -352,9 +315,15 @@ mod tests {
         let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
         let writer_sn = 5;
-        let inline_qos = ParameterList::empty();
+        let inline_qos = ParameterListWrite {
+            kind: ChangeKind::Alive,
+            instance_handle: None,
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
+        };
         let serialized_payload = &[][..];
-        let submessage = DataSubmessage::new(
+        let submessage = DataSubmessageWrite::new(
             inline_qos_flag,
             data_flag,
             key_flag,

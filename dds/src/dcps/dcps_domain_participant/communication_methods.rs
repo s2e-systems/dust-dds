@@ -33,7 +33,10 @@ use crate::{
         status::StatusKind,
         time::Time,
     },
-    rtps::message_receiver::MessageReceiver,
+    rtps::{
+        message_receiver::MessageReceiver,
+        types::{ChangeKind, TopicKind},
+    },
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
         submessages::{
@@ -41,7 +44,7 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    transport::types::{ChangeKind, Guid, TopicKind},
+    transport::types::Guid,
     xtypes::{
         deserializer::deserialize_top_level_type,
         type_support::{Type, TypeSupport},
