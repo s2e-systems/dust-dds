@@ -3447,7 +3447,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data_at_write() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }
 
-#[ignore = "Channel changes made test flaky"]
+// #[ignore = "Channel changes made test flaky"]
 #[test]
 fn transient_local_writer_does_not_deliver_lifespan_expired_data_after_write() {
     const LIFESPAN_MS: u32 = 100;
