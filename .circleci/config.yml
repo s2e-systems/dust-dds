@@ -102,7 +102,10 @@ jobs:
       - run: cargo --version
       - run:
           name: Check compilation time
-          command: cargo build --package dust_dds --timings --tests --examples
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo build --package dust_dds --timings --tests --examples
       - store_artifacts:
           path: ./target/cargo-timings
       - run:
