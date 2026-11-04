@@ -101,6 +101,11 @@ jobs:
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
+          name: Check compilation time
+          command: cargo build --package dust_dds --timings --tests --examples
+      - store_artifacts:
+          path: ./target/cargo-timings
+      - run:
           name: Run Tests
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
@@ -139,10 +144,9 @@ jobs:
           command: |
             curl -L https://github.com/mozilla/grcov/releases/download/v0.8.20/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
             ./grcov . -s . --binary-path ./target/debug/ -t html --ignore-not-existing -o /tmp/coverage
-
       - store_artifacts:
           path: /tmp/coverage
-  build_metrics:
+  check_binary_sizes:
     docker:
       - image: cimg/rust:1.87.0
     steps:
@@ -161,9 +165,6 @@ jobs:
           paths:
             - ~/.cargo/bin/cargo-bloat
       - run:
-          name: Check compilation time
-          command: cargo build --package dust_dds --timings --tests --examples
-      - run:
           name: Check binary size hello_world_publisher
           command: cargo bloat -p dust_dds --example hello_world_publisher --release --wide -n 100 --filter dust_dds > hello_world_publisher_bloat.txt
       - store_artifacts:
@@ -179,8 +180,6 @@ jobs:
       - run:
           name: Print type sizes
           command: cargo +nightly rustc --package dust_dds --release -- -Zprint-type-sizes > type_sizes.txt
-      - store_artifacts:
-          path: ./target/cargo-timings
       - store_artifacts:
           path: type_sizes.txt
 
@@ -418,7 +417,7 @@ workflows:
       - performance_benchmark
       - memory_benchmark
       - micro_compile_check
-      - build_metrics
+      - check_binary_sizes
       - code_checks
       - multi_machine_tests
       - shapes_demo_build
