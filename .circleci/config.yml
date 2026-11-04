@@ -241,7 +241,7 @@ jobs:
 
   cyclone_dds_interoperability_tests:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.99
     steps:
       - checkout
       - run:
