@@ -178,6 +178,16 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
+    pub fn begin_coherent_changes(&mut self, publisher_handle: &InstanceHandle) -> DdsResult<()> {
+        todo!()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn end_coherent_changes(&mut self, publisher_handle: &InstanceHandle) -> DdsResult<()> {
+        todo!()
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn get_default_datawriter_qos(
         &mut self,
         publisher_handle: &InstanceHandle,
