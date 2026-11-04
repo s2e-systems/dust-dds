@@ -4755,6 +4755,153 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
 }
 
 #[test]
+fn test_lifespan_2() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant1 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant1
+        .create_topic::<KeyedData>(
+            "Square",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant1
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        lifespan: LifespanQosPolicy {
+            duration: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let participant2 = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic2 = participant2
+        .create_topic::<KeyedData>(
+            "Square",
+            "KeyedData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant2
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader::<KeyedData>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let cond = reader.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let writer_thread = std::thread::spawn(move || {
+        for i in 1..=10 {
+            writer.write(KeyedData { id: 1, value: i }, None).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(400));
+        }
+    });
+
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+    let samples1 = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+    let samples2 = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    writer_thread.join().unwrap();
+
+    assert!(
+        samples1.len() == 2 || samples1.len() == 3,
+        "Expected 2 or 3 samples in first read, got {}",
+        samples1.len()
+    );
+    assert!(
+        samples2.len() == 2 || samples2.len() == 3,
+        "Expected 2 or 3 samples in second read, got {}",
+        samples2.len()
+    );
+
+    for window in samples1.windows(2) {
+        let v1 = window[0].data.as_ref().unwrap().value;
+        let v2 = window[1].data.as_ref().unwrap().value;
+        assert_eq!(v1 + 1, v2, "Samples in first read must be consecutive");
+    }
+    for window in samples2.windows(2) {
+        let v1 = window[0].data.as_ref().unwrap().value;
+        let v2 = window[1].data.as_ref().unwrap().value;
+        assert_eq!(v1 + 1, v2, "Samples in second read must be consecutive");
+    }
+
+    let last_s1 = samples1.last().unwrap().data.as_ref().unwrap().value;
+    let first_s2 = samples2.first().unwrap().data.as_ref().unwrap().value;
+    assert!(
+        first_s2 > last_s1 + 1,
+        "Expected gap between batches due to lifespan expiration, but got last_s1={last_s1}, first_s2={first_s2}"
+    );
+}
+
+#[test]
 fn raw_struct_and_field_names_are_unrawed_in_metadata_and_hash_ids() {
     #[derive(DdsType)]
     #[dust_dds(autoid = "hash")]
