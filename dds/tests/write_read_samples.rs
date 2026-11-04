@@ -4754,8 +4754,9 @@ fn data_reader_does_not_read_lifespan_expired_samples() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data2);
 }
 
+// Port of Test_Lifespan_2 from the OMG DDS-RTPS interoperability test suite
 #[test]
-fn test_lifespan_2() {
+fn data_reader_removes_stale_samples_when_read_period_exceeds_lifespan() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant1 = DomainParticipantFactory::get_instance()
