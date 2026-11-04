@@ -17,6 +17,7 @@ use crate::{
         cache_change::CacheChangeWrite,
         types::{ChangeKind, TopicKind},
     },
+    rtps_messages::submessage_elements::ParameterListWrite,
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -128,19 +129,21 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
         self.last_change_sequence_number += 1;
         let change = CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(sample_timestamp.into()),
-            instance_handle: if self.key_holder_type.is_empty() {
-                None
-            } else {
-                Some(sample_instance_handle.into())
+            source_timestamp: sample_timestamp.into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: if self.key_holder_type.is_empty() {
+                    None
+                } else {
+                    Some(sample_instance_handle.into())
+                },
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
             },
             data_value: serialized_data.into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         };
 
         let instance_info = self
@@ -196,15 +199,17 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
 
         self.last_change_sequence_number += 1;
         let cache_change = CacheChangeWrite {
-            kind: ChangeKind::NotAliveDisposed,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
+            source_timestamp: timestamp.into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::NotAliveDisposed,
+                instance_handle: Some(instance_handle.into()),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: serialized_key.into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         };
         self.transport_writer.add_change(cache_change);
 
@@ -280,15 +285,17 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             ChangeKind::NotAliveUnregistered
         };
         let cache_change = CacheChangeWrite {
-            kind,
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
-            source_timestamp: Some(timestamp.into()),
-            instance_handle: Some(instance_handle.into()),
+            source_timestamp: timestamp.into(),
+            inline_qos: ParameterListWrite {
+                kind,
+                instance_handle: Some(instance_handle.into()),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: serialized_key.into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         };
         self.transport_writer.add_change(cache_change);
         Ok(())

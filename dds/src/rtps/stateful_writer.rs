@@ -15,7 +15,6 @@ use crate::{
             info_destination::InfoDestinationSubmessage, info_timestamp::InfoTimestampSubmessage,
             nack_frag::NackFragSubmessage,
         },
-        types::TIME_INVALID,
     },
     transport::{
         interface::{RtpsParticipant, Write},
@@ -292,11 +291,8 @@ impl RtpsReaderProxy {
 
                 let info_dst = InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-                let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp {
-                    InfoTimestampSubmessage::new(false, timestamp.into())
-                } else {
-                    InfoTimestampSubmessage::new(true, TIME_INVALID)
-                };
+                let info_timestamp =
+                    InfoTimestampSubmessage::new(false, cache_change.source_timestamp.into());
                 // Either send a DATAFRAG submessages or send a single DATA submessage
                 if number_of_fragments > 1 {
                     for fragment_number in 0..number_of_fragments {
@@ -383,7 +379,8 @@ impl RtpsReaderProxy {
                         .div_ceil(data_max_size_serialized);
 
                     // Either send a DATAFRAG submessages or send a single DATA submessage
-                    if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
+                    if number_of_fragments > 1 && cache_change.inline_qos.kind == ChangeKind::Alive
+                    {
                         for fragment_number in 0..number_of_fragments {
                             let reader_id = self.remote_reader_guid().entity_id();
                             let data_frag = cache_change.as_data_frag_submessage(
@@ -395,12 +392,10 @@ impl RtpsReaderProxy {
 
                             let info_dst =
                                 InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                            let info_timestamp =
-                                if let Some(timestamp) = cache_change.source_timestamp {
-                                    InfoTimestampSubmessage::new(false, timestamp.into())
-                                } else {
-                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
-                                };
+                            let info_timestamp = InfoTimestampSubmessage::new(
+                                false,
+                                cache_change.source_timestamp.into(),
+                            );
 
                             let heartbeat = if fragment_number == number_of_fragments - 1 {
                                 let first_sn = seq_num_min
@@ -434,12 +429,10 @@ impl RtpsReaderProxy {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
+                        let info_timestamp = InfoTimestampSubmessage::new(
+                            false,
+                            cache_change.source_timestamp.into(),
+                        );
 
                         let data_submessage = cache_change
                             .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
@@ -525,7 +518,8 @@ impl RtpsReaderProxy {
                         .div_ceil(data_max_size_serialized);
 
                     // Either send a DATAFRAG submessages or send a single DATA submessage
-                    if number_of_fragments > 1 && cache_change.kind == ChangeKind::Alive {
+                    if number_of_fragments > 1 && cache_change.inline_qos.kind == ChangeKind::Alive
+                    {
                         for fragment_number in 0..number_of_fragments {
                             let reader_id = self.remote_reader_guid().entity_id();
                             let data_frag = cache_change.as_data_frag_submessage(
@@ -537,12 +531,10 @@ impl RtpsReaderProxy {
 
                             let info_dst =
                                 InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                            let info_timestamp =
-                                if let Some(timestamp) = cache_change.source_timestamp {
-                                    InfoTimestampSubmessage::new(false, timestamp.into())
-                                } else {
-                                    InfoTimestampSubmessage::new(true, TIME_INVALID)
-                                };
+                            let info_timestamp = InfoTimestampSubmessage::new(
+                                false,
+                                cache_change.source_timestamp.into(),
+                            );
                             let heartbeat = if fragment_number == number_of_fragments - 1 {
                                 let first_sn = seq_num_min
                                     .unwrap_or(1)
@@ -575,12 +567,10 @@ impl RtpsReaderProxy {
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
 
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
+                        let info_timestamp = InfoTimestampSubmessage::new(
+                            false,
+                            cache_change.source_timestamp.into(),
+                        );
 
                         let data_submessage = cache_change
                             .as_data_submessage(self.remote_reader_guid().entity_id(), writer_id);
@@ -637,7 +627,7 @@ impl RtpsReaderProxy {
                         .div_ceil(data_max_size_serialized);
                     let request_fragment_number = request_fragment_number as usize;
                     if (1..=number_of_fragments).contains(&request_fragment_number)
-                        && cache_change.kind == ChangeKind::Alive
+                        && cache_change.inline_qos.kind == ChangeKind::Alive
                     {
                         let reader_id = self.remote_reader_guid().entity_id();
                         let data_frag = cache_change.as_data_frag_submessage(
@@ -649,12 +639,10 @@ impl RtpsReaderProxy {
 
                         let info_dst =
                             InfoDestinationSubmessage::new(self.remote_reader_guid().prefix());
-                        let info_timestamp = if let Some(timestamp) = cache_change.source_timestamp
-                        {
-                            InfoTimestampSubmessage::new(false, timestamp.into())
-                        } else {
-                            InfoTimestampSubmessage::new(true, TIME_INVALID)
-                        };
+                        let info_timestamp = InfoTimestampSubmessage::new(
+                            false,
+                            cache_change.source_timestamp.into(),
+                        );
 
                         let mut writer = transport_participant.writer(self.unicast_locator_list());
                         write_submessages_into_transport(
@@ -695,7 +683,7 @@ mod tests {
         infrastructure::time::Time,
         rtps_messages::{
             overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
-            submessage_elements::FragmentNumberSet,
+            submessage_elements::{FragmentNumberSet, ParameterListWrite},
         },
         transport::{
             interface::{RtpsParticipant, Write},
@@ -805,15 +793,17 @@ mod tests {
 
         let mut transport = MockTransport::default();
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 1,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
+            source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
         writer.write_message(&mut transport, Time::new(1, 0));
         let total_fragments_sent = transport
@@ -847,15 +837,17 @@ mod tests {
         });
         let mut transport = MockTransport::default();
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 1,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
+            source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
         writer.write_message(&mut transport, Time::new(1, 0));
 
@@ -901,26 +893,30 @@ mod tests {
 
         // Add non-contiguous sequence numbers (e.g. 2 and 5)
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 2,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            source_timestamp: Time::new(0, 0).into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: vec![1, 2, 3].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 5,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            source_timestamp: Time::new(0, 0).into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: vec![4, 5, 6].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
 
         let mut transport = MockTransport::default();
@@ -953,15 +949,17 @@ mod tests {
 
         // Add historical data before reader matches
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 1,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            source_timestamp: Time::new(0, 0).into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: vec![1, 2, 3].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
 
         // Now match a Reliable reader
@@ -1027,15 +1025,17 @@ mod tests {
 
         // Add historical data before reader matches
         writer.add_change(CacheChangeWrite {
-            kind: ChangeKind::Alive,
             writer_guid: guid,
             sequence_number: 1,
-            source_timestamp: None,
-            instance_handle: Some([10; 16]),
+            source_timestamp: Time::new(0, 0).into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: Some([10; 16]),
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+            },
             data_value: vec![1, 2, 3].into(),
-            coherent_set: None,
-            group_coherent_set: None,
-            group_seq_num: None,
         });
 
         // Match a BestEffort reader

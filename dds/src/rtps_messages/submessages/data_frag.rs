@@ -22,7 +22,7 @@ pub struct DataFragSubmessageWrite<'a> {
     fragments_in_submessage: u16,
     fragment_size: u16,
     data_size: u32,
-    inline_qos: ParameterListWrite<'a>,
+    inline_qos: ParameterListWrite,
     serialized_payload: &'a [u8],
 }
 
@@ -39,7 +39,7 @@ impl<'a> DataFragSubmessageWrite<'a> {
         fragments_in_submessage: u16,
         fragment_size: u16,
         data_size: u32,
-        inline_qos: ParameterListWrite<'a>,
+        inline_qos: ParameterListWrite,
         serialized_payload: &'a [u8],
     ) -> Self {
         Self {
@@ -302,13 +302,20 @@ impl Submessage for DataFragSubmessage {
 mod tests {
     use super::*;
     use crate::{
+        rtps::types::ChangeKind,
         rtps_messages::overall_structure::write_submessage_into_bytes_vec,
         transport::types::{USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
     #[test]
     fn serialize_data_frag_write_no_inline_qos_with_payload() {
-        let inline_qos = ParameterListWrite::empty();
+        let inline_qos = ParameterListWrite {
+            kind: ChangeKind::Alive,
+            instance_handle: None,
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
+        };
         let payload = [1, 2, 3];
         let submessage = DataFragSubmessageWrite::new(
             false,

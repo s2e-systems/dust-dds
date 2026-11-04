@@ -4,7 +4,6 @@ use crate::{
     rtps_messages::{
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
-        types::TIME_INVALID,
     },
     transport::{
         interface::{RtpsParticipant, Write},
@@ -56,11 +55,8 @@ impl RtpsStatelessWriter {
                     .iter()
                     .find(|cc| cc.sequence_number == unsent_change_seq_num)
                 {
-                    let info_ts_submessage = cache_change
-                        .source_timestamp
-                        .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
-                            InfoTimestampSubmessage::new(false, t.into())
-                        });
+                    let info_ts_submessage =
+                        InfoTimestampSubmessage::new(false, cache_change.source_timestamp.into());
                     let data_submessage =
                         cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id());
 

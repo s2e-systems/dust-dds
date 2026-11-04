@@ -9,7 +9,7 @@ use crate::{
     rtps_messages::{
         self,
         overall_structure::Endianness,
-        submessage_elements::{ParameterListWrite, ParameterWrite},
+        submessage_elements::ParameterListWrite,
         submessages::{
             data::{DataSubmessage, DataSubmessageWrite},
             data_frag::DataFragSubmessageWrite,
@@ -36,11 +36,11 @@ pub struct CacheChangeRead {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct StatusInfo(pub [u8; 4]);
-const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
-const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
-const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
-const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
+pub struct StatusInfo(pub [u8; 4]);
+pub const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
+pub const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
+pub const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
+pub const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
 
 use crate::rtps_messages::submessage_elements::ParameterList;
 
@@ -195,42 +195,14 @@ impl CacheChangeRead {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheChangeWrite {
-    pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: i64,
-    pub source_timestamp: Option<Time>,
-    pub instance_handle: Option<[u8; 16]>,
+    pub source_timestamp: Time,
     pub data_value: Arc<[u8]>,
-    pub coherent_set: Option<SequenceNumber>,
-    pub group_coherent_set: Option<SequenceNumber>,
-    pub group_seq_num: Option<SequenceNumber>,
+    pub inline_qos: ParameterListWrite,
 }
 
 impl CacheChangeWrite {
-    pub fn status_info_parameter(&self) -> Option<ParameterWrite<'static>> {
-        match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
-            ChangeKind::NotAliveDisposed => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED.0,
-            )),
-            ChangeKind::NotAliveUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_UNREGISTERED.0,
-            )),
-            ChangeKind::NotAliveDisposedUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED_UNREGISTERED.0,
-            )),
-        }
-    }
-
-    pub fn key_hash_parameter<'a>(&'a self) -> Option<ParameterWrite<'a>> {
-        self.instance_handle
-            .as_ref()
-            .map(|i| ParameterWrite::new(PID_KEY_HASH, i))
-    }
-
     pub fn as_data_submessage<'a>(
         &'a self,
         reader_id: EntityId,
@@ -239,7 +211,7 @@ impl CacheChangeWrite {
         let (data_flag, key_flag) = if self.data_value.is_empty() {
             (false, false)
         } else {
-            match self.kind {
+            match self.inline_qos.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
                 ChangeKind::NotAliveDisposed
                 | ChangeKind::NotAliveUnregistered
@@ -247,19 +219,7 @@ impl CacheChangeWrite {
             }
         };
 
-        let inline_qos = match (self.status_info, self.key_hash_parameter()) {
-            (Some(s), Some(k)) => &[s, k][..],
-            (Some(s), None) => &[s][..],
-            (None, Some(k)) => &[k][..],
-            (None, None) => &[],
-        };
-
-        let inline_qos_flag = !inline_qos.is_empty();
-        let parameter_list = if inline_qos_flag {
-            ParameterListWrite::new(inline_qos)
-        } else {
-            ParameterListWrite::empty()
-        };
+        let inline_qos_flag = true;
 
         DataSubmessageWrite::new(
             inline_qos_flag,
@@ -269,7 +229,7 @@ impl CacheChangeWrite {
             reader_id,
             writer_id,
             self.sequence_number,
-            parameter_list,
+            self.inline_qos,
             self.data_value.as_ref(),
         )
     }
@@ -309,7 +269,7 @@ impl CacheChangeWrite {
             fragments_in_submessage,
             fragment_size,
             data_size,
-            ParameterListWrite::empty(),
+            self.inline_qos,
             serialized_payload,
         )
     }
