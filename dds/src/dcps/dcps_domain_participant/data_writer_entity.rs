@@ -81,6 +81,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         serialized_data: Vec<u8>,
         sample_timestamp: Time,
         now: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self
             .registered_instance_info
@@ -153,8 +155,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                     Some(sample_instance_handle.into())
                 },
                 coherent_set,
-                group_coherent_set: None,
-                group_seq_num: None,
+                group_coherent_set,
+                group_seq_num,
             },
             data_value: serialized_data.into(),
         };

@@ -284,27 +284,26 @@ impl DcpsDomainParticipant {
                         if publisher.group_coherent_set.is_some() {
                             publisher.group_seq_num += 1;
                             let group_seq_num = publisher.group_seq_num;
+                            let group_coherent_set = publisher.group_coherent_set;
                             for writer in &mut publisher.data_writer_list {
-                                if writer.first_coherent_sequence_number.is_some() {
-                                    writer.last_change_sequence_number += 1;
-                                    let change = CacheChangeWrite {
-                                        writer_guid: writer.transport_writer.guid(),
-                                        sequence_number: writer.last_change_sequence_number,
-                                        source_timestamp: now.into(),
-                                        inline_qos: ParameterListWrite {
-                                            kind: ChangeKind::Alive,
-                                            instance_handle: None,
-                                            coherent_set: None,
-                                            group_coherent_set: Some(SEQUENCE_NUMBER_UNKNOWN),
-                                            group_seq_num: Some(group_seq_num),
-                                        },
-                                        data_value: Arc::from([]),
-                                    };
-                                    writer.transport_writer.add_change(change);
-                                    writer
-                                        .transport_writer
-                                        .write_message(transport_participant, now);
-                                }
+                                writer.last_change_sequence_number += 1;
+                                let change = CacheChangeWrite {
+                                    writer_guid: writer.transport_writer.guid(),
+                                    sequence_number: writer.last_change_sequence_number,
+                                    source_timestamp: now.into(),
+                                    inline_qos: ParameterListWrite {
+                                        kind: ChangeKind::Alive,
+                                        instance_handle: None,
+                                        coherent_set: None,
+                                        group_coherent_set,
+                                        group_seq_num: Some(group_seq_num),
+                                    },
+                                    data_value: Arc::from([]),
+                                };
+                                writer.transport_writer.add_change(change);
+                                writer
+                                    .transport_writer
+                                    .write_message(transport_participant, now);
                                 writer.is_in_coherent_set = false;
                                 writer.first_coherent_sequence_number = None;
                             }

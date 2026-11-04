@@ -79,11 +79,12 @@ impl DcpsDomainParticipant {
                     == PresentationQosPolicyAccessScopeKind::Group
             {
                 data_reader_list.iter().any(|reader| {
-                    reader
-                        .transport_reader
-                        .changes
-                        .iter()
-                        .any(|c| c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN))
+                    reader.transport_reader.changes.iter().any(|c| {
+                        c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                            || (c.data_value.is_empty()
+                                && c.coherent_set.is_none()
+                                && c.group_coherent_set.is_some())
+                    })
                 })
             } else {
                 false
@@ -471,6 +472,9 @@ impl DcpsDomainParticipant {
                                 data_reader.transport_reader.changes.iter().position(|c| {
                                     c.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
                                         || c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                        || (c.data_value.is_empty()
+                                            && c.coherent_set.is_none()
+                                            && c.group_coherent_set.is_some())
                                 })
                             {
                                 let writer_guid = data_reader.transport_reader.changes
@@ -534,6 +538,9 @@ impl DcpsDomainParticipant {
                                 data_reader.transport_reader.changes.retain(|c| {
                                     c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
                                         && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                                        && !(c.data_value.is_empty()
+                                            && c.coherent_set.is_none()
+                                            && c.group_coherent_set.is_some())
                                 });
                                 if data_reader.transport_reader.changes.len() > 1 {
                                     data_reader.transport_reader.changes.reverse();
@@ -573,6 +580,9 @@ impl DcpsDomainParticipant {
                     data_reader.transport_reader.changes.retain(|c| {
                         c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
                             && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                            && !(c.data_value.is_empty()
+                                && c.coherent_set.is_none()
+                                && c.group_coherent_set.is_some())
                     });
                     if data_reader.transport_reader.changes.len() > 1 {
                         data_reader.transport_reader.changes.reverse();

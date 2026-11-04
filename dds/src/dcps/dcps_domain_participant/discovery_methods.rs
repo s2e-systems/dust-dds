@@ -163,6 +163,8 @@ impl DcpsDomainParticipant {
                     serialized_data,
                     sample_timestamp,
                     now,
+                    None,
+                    None,
                 )
                 .ok();
             }
@@ -535,7 +537,8 @@ impl DcpsDomainParticipant {
         };
         let writer_proxy = WriterProxy {
             remote_writer_guid: data_writer.transport_writer.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(publisher.instance_handle))
+                .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
@@ -557,6 +560,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -681,7 +686,8 @@ impl DcpsDomainParticipant {
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(subscriber.instance_handle))
+                .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
@@ -704,6 +710,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -795,6 +803,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -994,6 +1004,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1054,6 +1066,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_types_lookup(unresolved);
@@ -1665,6 +1679,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1725,6 +1741,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_types_lookup(unresolved);
@@ -2085,7 +2103,14 @@ impl DcpsDomainParticipant {
                         serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                     type_lookup_reply_writer
-                        .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                        .write_w_timestamp(
+                            InstanceHandle::default(),
+                            serialized_data,
+                            now,
+                            now,
+                            None,
+                            None,
+                        )
                         .ok();
                     type_lookup_reply_writer
                         .transport_writer
@@ -2123,7 +2148,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                         type_lookup_reply_writer
-                            .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                            .write_w_timestamp(
+                                InstanceHandle::default(),
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         type_lookup_reply_writer
                             .transport_writer
@@ -2197,7 +2229,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                 .unwrap();
                         type_request_writer
-                            .write_w_timestamp(sample_instance_handle, serialized_data, now, now)
+                            .write_w_timestamp(
+                                sample_instance_handle,
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         self.domain_participant
                             .type_register
@@ -2523,6 +2562,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -2589,6 +2630,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -3300,6 +3343,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
