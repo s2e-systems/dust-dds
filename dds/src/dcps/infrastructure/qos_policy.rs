@@ -457,6 +457,8 @@ pub enum PresentationQosPolicyAccessScopeKind {
     Instance,
     /// Access scope per topic
     Topic,
+    /// Access scope per group
+    Group,
 }
 
 impl PartialOrd for PresentationQosPolicyAccessScopeKind {
@@ -465,10 +467,17 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
             PresentationQosPolicyAccessScopeKind::Instance => match other {
                 PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Equal),
                 PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Less),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Less),
             },
             PresentationQosPolicyAccessScopeKind::Topic => match other {
                 PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Greater),
                 PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Equal),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Less),
+            },
+            PresentationQosPolicyAccessScopeKind::Group => match other {
+                PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Greater),
+                PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Greater),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Equal),
             },
         }
     }
