@@ -28,7 +28,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
@@ -266,37 +266,30 @@ impl DcpsDomainParticipant {
                     .any(|p| matches!(p.lifespan().duration, DurationKind::Finite(_)));
                 if has_finite_lifespan {
                     for sample in &data_reader.sample_list {
-                        let timestamp = match data_reader.qos.destination_order.kind {
-                            DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                                sample.source_timestamp
-                            }
-                            DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                                Some(sample.reception_timestamp)
-                            }
-                        };
-                        if let Some(timestamp) = timestamp {
-                            if let Some(matched_publication) = data_reader
-                                .matched_publication_list
-                                .iter()
-                                .find(|x| x.key().value == sample.writer_guid)
+                        let timestamp = sample
+                            .source_timestamp
+                            .unwrap_or(sample.reception_timestamp);
+                        if let Some(matched_publication) = data_reader
+                            .matched_publication_list
+                            .iter()
+                            .find(|x| x.key().value == sample.writer_guid)
+                        {
+                            if let DurationKind::Finite(lifespan) =
+                                matched_publication.lifespan().duration
                             {
-                                if let DurationKind::Finite(lifespan) =
-                                    matched_publication.lifespan().duration
-                                {
-                                    let expiry = timestamp + lifespan;
-                                    let remaining = if expiry > now {
-                                        expiry - now
-                                    } else {
-                                        Duration::new(0, 0)
-                                    };
-                                    update(
-                                        remaining,
-                                        TimedEvent::RemoveStaleReaderSamples {
-                                            subscriber_handle: subscriber.instance_handle,
-                                            reader_handle: data_reader.instance_handle,
-                                        },
-                                    );
-                                }
+                                let expiry = timestamp + lifespan;
+                                let remaining = if expiry > now {
+                                    expiry - now
+                                } else {
+                                    Duration::new(0, 0)
+                                };
+                                update(
+                                    remaining,
+                                    TimedEvent::RemoveStaleReaderSamples {
+                                        subscriber_handle: subscriber.instance_handle,
+                                        reader_handle: data_reader.instance_handle,
+                                    },
+                                );
                             }
                         }
                     }
