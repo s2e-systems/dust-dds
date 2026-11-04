@@ -27,8 +27,8 @@ use crate::{
     infrastructure::{
         instance::InstanceHandle,
         qos_policy::{
-            HistoryQosPolicy, LifespanQosPolicy, ResourceLimitsQosPolicy,
-            TransportPriorityQosPolicy,
+            HistoryQosPolicy, LifespanQosPolicy, PresentationQosPolicyAccessScopeKind,
+            ResourceLimitsQosPolicy, TransportPriorityQosPolicy,
         },
         status::StatusKind,
         time::Time,
@@ -44,7 +44,7 @@ use crate::{
             heartbeat::HeartbeatSubmessage,
         },
     },
-    transport::types::Guid,
+    transport::types::{Guid, SEQUENCE_NUMBER_UNKNOWN},
     xtypes::{
         deserializer::deserialize_top_level_type,
         type_support::{Type, TypeSupport},
@@ -68,13 +68,112 @@ impl DcpsDomainParticipant {
             let subscriber_handle = subscriber.instance_handle;
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
+            let subscriber_presentation = subscriber.qos.presentation.clone();
             let (subscriber_status_condition, data_reader_list) = (
                 &mut subscriber.status_condition,
                 &mut subscriber.data_reader_list,
             );
+
+            let group_has_end_marker = if subscriber_presentation.coherent_access
+                && subscriber_presentation.access_scope
+                    == PresentationQosPolicyAccessScopeKind::Group
+            {
+                data_reader_list.iter().any(|reader| {
+                    reader
+                        .transport_reader
+                        .changes
+                        .iter()
+                        .any(|c| c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN))
+                })
+            } else {
+                false
+            };
+
             'data_readers: for data_reader in data_reader_list {
                 if data_reader.transport_reader.changes.is_empty() {
                     continue;
+                }
+
+                let changes = core::mem::take(&mut data_reader.transport_reader.changes);
+                let mut ready_changes = Vec::new();
+                let mut remaining_changes = Vec::new();
+
+                if subscriber_presentation.coherent_access {
+                    match subscriber_presentation.access_scope {
+                        PresentationQosPolicyAccessScopeKind::Instance
+                        | PresentationQosPolicyAccessScopeKind::Topic => {
+                            let mut last_end_marker: Vec<(Guid, usize)> = Vec::new();
+                            for (idx, change) in changes.iter().enumerate() {
+                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN) {
+                                    if let Some(entry) = last_end_marker
+                                        .iter_mut()
+                                        .find(|(guid, _)| *guid == change.writer_guid)
+                                    {
+                                        entry.1 = idx;
+                                    } else {
+                                        last_end_marker.push((change.writer_guid, idx));
+                                    }
+                                }
+                            }
+
+                            for (idx, change) in changes.into_iter().enumerate() {
+                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                    || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                {
+                                    continue;
+                                }
+
+                                if change.coherent_set.is_some() {
+                                    let is_ready = last_end_marker
+                                        .iter()
+                                        .find(|(guid, _)| *guid == change.writer_guid)
+                                        .is_some_and(|&(_, last_idx)| idx < last_idx);
+
+                                    if is_ready {
+                                        ready_changes.push(change);
+                                    } else {
+                                        remaining_changes.push(change);
+                                    }
+                                } else {
+                                    ready_changes.push(change);
+                                }
+                            }
+                        }
+                        PresentationQosPolicyAccessScopeKind::Group => {
+                            for change in changes {
+                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                    || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                {
+                                    continue;
+                                }
+
+                                if change.group_coherent_set.is_some() {
+                                    if group_has_end_marker {
+                                        ready_changes.push(change);
+                                    } else {
+                                        remaining_changes.push(change);
+                                    }
+                                } else {
+                                    ready_changes.push(change);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for change in changes {
+                        if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                            || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                        {
+                            continue;
+                        }
+                        ready_changes.push(change);
+                    }
+                }
+
+                data_reader.transport_reader.changes = remaining_changes;
+
+                if ready_changes.is_empty() {
+                    continue 'data_readers;
                 }
 
                 let Some(type_support) = get_topic_type_support(
@@ -112,15 +211,15 @@ impl DcpsDomainParticipant {
                     &reader_topic.type_name
                 };
 
-                let changes_len = data_reader.transport_reader.changes.len();
+                let changes_len = ready_changes.len();
                 let data_reader_handle = data_reader.instance_handle;
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes_len);
 
                 if changes_len > 1 {
-                    data_reader.transport_reader.changes.reverse();
+                    ready_changes.reverse();
                 }
 
-                while let Some(cache_change) = data_reader.transport_reader.changes.pop() {
+                while let Some(cache_change) = ready_changes.pop() {
                     if let Some(matched_participant) = discovered_participant_list
                         .iter_mut()
                         .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
@@ -135,7 +234,7 @@ impl DcpsDomainParticipant {
                                 type_support,
                                 cache_change.data_value.as_ref(),
                             ) else {
-                                data_reader.transport_reader.changes.clear();
+                                ready_changes.clear();
                                 continue 'data_readers;
                             };
                             enum Operator {
@@ -206,12 +305,12 @@ impl DcpsDomainParticipant {
                                     let Some(member_id) =
                                         data.get_member_id_by_name(variable_name.trim())
                                     else {
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
                                     let Ok(member_descriptor) = data.get_descriptor(member_id)
                                     else {
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
                                     match member_descriptor.r#type.get_kind() {
@@ -223,13 +322,13 @@ impl DcpsDomainParticipant {
                                             let member_value =
                                                 data.get_int32_value(member_id).unwrap();
                                             let Ok(rhs) = value_str.parse::<i32>() else {
-                                                data_reader.transport_reader.changes.clear();
+                                                ready_changes.clear();
                                                 continue 'data_readers;
                                             };
                                             if !comparison_function
                                                 .compare_int32(member_value, &rhs)
                                             {
-                                                data_reader.transport_reader.changes.clear();
+                                                ready_changes.clear();
                                                 continue 'data_readers;
                                             }
                                         }
@@ -251,7 +350,7 @@ impl DcpsDomainParticipant {
                                             if !comparison_function
                                                 .compare_string(member_value.as_str(), value_str)
                                             {
-                                                data_reader.transport_reader.changes.clear();
+                                                ready_changes.clear();
                                                 continue 'data_readers;
                                             }
                                         }
@@ -269,7 +368,7 @@ impl DcpsDomainParticipant {
                                         crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
                                     }
                                 } else {
-                                    data_reader.transport_reader.changes.clear();
+                                    ready_changes.clear();
                                     continue 'data_readers;
                                 };
                             }
@@ -290,7 +389,7 @@ impl DcpsDomainParticipant {
                                         cache_change.data_value.as_ref(),
                                     ) else {
                                         tracing::warn!("Failed to deserialize user defined data");
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
                                     let Ok(instance_handle) =
@@ -299,7 +398,7 @@ impl DcpsDomainParticipant {
                                         tracing::warn!(
                                             "Failed to get instance handle from dynamic_data"
                                         );
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
                                     instance_handle
@@ -310,7 +409,7 @@ impl DcpsDomainParticipant {
                                     let key_holder = KeyHolderType::new(&type_support);
                                     let Some(dynamic_type) = key_holder.as_dynamic_type() else {
                                         tracing::warn!("Failed to create key holder");
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
 
@@ -321,7 +420,7 @@ impl DcpsDomainParticipant {
                                         tracing::warn!(
                                             "Failed to deserialize disposed user defined data"
                                         );
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
 
@@ -331,7 +430,7 @@ impl DcpsDomainParticipant {
                                         tracing::warn!(
                                             "Failed to deserialize disposed key user defined data"
                                         );
-                                        data_reader.transport_reader.changes.clear();
+                                        ready_changes.clear();
                                         continue 'data_readers;
                                     };
                                     instance_handle
