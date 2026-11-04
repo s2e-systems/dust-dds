@@ -328,21 +328,19 @@ impl DcpsDomainParticipant {
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
                     if let Some(cc) = data_writer.transport_writer.changes().first() {
-                        if let Some(source_timestamp) = cc.source_timestamp {
-                            let expiry = Time::from(source_timestamp) + lifespan;
-                            let remaining = if expiry > now {
-                                expiry - now
-                            } else {
-                                Duration::new(0, 0)
-                            };
-                            update(
-                                remaining,
-                                TimedEvent::RemoveStaleWriterSamples {
-                                    publisher_handle: publisher.instance_handle,
-                                    writer_handle: data_writer.instance_handle,
-                                },
-                            );
-                        }
+                        let expiry = Time::from(cc.source_timestamp) + lifespan;
+                        let remaining = if expiry > now {
+                            expiry - now
+                        } else {
+                            Duration::new(0, 0)
+                        };
+                        update(
+                            remaining,
+                            TimedEvent::RemoveStaleWriterSamples {
+                                publisher_handle: publisher.instance_handle,
+                                writer_handle: data_writer.instance_handle,
+                            },
+                        );
                     }
                 }
 
@@ -440,13 +438,10 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                            data_writer.transport_writer.changes_mut().retain(|cc| {
-                                if let Some(timestamp) = &cc.source_timestamp {
-                                    Time::from(*timestamp) + lifespan > now
-                                } else {
-                                    true
-                                }
-                            });
+                            data_writer
+                                .transport_writer
+                                .changes_mut()
+                                .retain(|cc| Time::from(cc.source_timestamp) + lifespan > now);
                         }
                     }
                 }

@@ -21,12 +21,12 @@ use crate::{
         qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
-    rtps::stateful_reader::RtpsStatefulReader,
-    runtime::Spawner,
-    transport::types::{
-        EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_READER_NO_KEY,
-        USER_DEFINED_READER_WITH_KEY,
+    rtps::{
+        stateful_reader::RtpsStatefulReader,
+        types::{ReliabilityKind, TopicKind},
     },
+    runtime::Spawner,
+    transport::types::{EntityId, Guid, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY},
 };
 
 impl DcpsDomainParticipant {

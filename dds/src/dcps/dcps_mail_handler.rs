@@ -265,6 +265,12 @@ impl DcpsDomainParticipant {
                 now,
                 transport_participant,
             )),
+            DomainParticipantMail::BeginCoherentChanges(p) => {
+                DcpsReply::Ok(self.begin_coherent_changes(&p.publisher_handle))
+            }
+            DomainParticipantMail::EndCoherentChanges(p) => {
+                DcpsReply::Ok(self.end_coherent_changes(&p.publisher_handle))
+            }
             DomainParticipantMail::GetDefaultDataWriterQos(p) => DcpsReply::DataWriterQos(
                 self.get_default_datawriter_qos(&p.publisher_handle)
                     .map(Box::new),

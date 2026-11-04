@@ -278,6 +278,16 @@ pub struct GetDefaultDataWriterQosMail {
     pub publisher_handle: InstanceHandle,
 }
 
+pub struct BeginCoherentChanges {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
+pub struct EndCoherentChanges {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
 pub struct SetDefaultDataWriterQosMail {
     pub participant_handle: InstanceHandle,
     pub publisher_handle: InstanceHandle,
@@ -613,6 +623,8 @@ pub enum DomainParticipantMail {
     // Publisher
     CreateDataWriter(Box<CreateDataWriterMail>),
     DeleteDataWriter(DeleteDataWriterMail),
+    BeginCoherentChanges(BeginCoherentChanges),
+    EndCoherentChanges(EndCoherentChanges),
     GetDefaultDataWriterQos(GetDefaultDataWriterQosMail),
     SetDefaultDataWriterQos(SetDefaultDataWriterQosMail),
     GetPublisherQos(GetPublisherQosMail),
@@ -1324,6 +1336,36 @@ impl Operation for GetDefaultDataWriterQosMail {
         match reply {
             DcpsReply::DataWriterQos(res) => res.map(|b| *b),
             other => panic!("expected DataWriterQos reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for BeginCoherentChanges {
+    type Output = ();
+
+    fn into_mail(self) -> crate::dcps::dcps_mail::DomainParticipantMail {
+        DomainParticipantMail::BeginCoherentChanges(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EndCoherentChanges {
+    type Output = ();
+
+    fn into_mail(self) -> crate::dcps::dcps_mail::DomainParticipantMail {
+        DomainParticipantMail::EndCoherentChanges(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
         }
     }
 }

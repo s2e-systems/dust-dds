@@ -1,12 +1,14 @@
 use crate::{
     infrastructure::time::{Duration, Time},
+    rtps::{
+        cache_change::CacheChangeWrite,
+        types::{DurabilityKind, ReliabilityKind},
+    },
     rtps_messages::{
         submessages::{heartbeat::HeartbeatSubmessage, heartbeat_frag::HeartbeatFragSubmessage},
         types::{Count, FragmentNumber},
     },
-    transport::types::{
-        CacheChange, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
-    },
+    transport::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 use alloc::vec::Vec;
 
@@ -195,7 +197,7 @@ impl RtpsReaderProxy {
 
     pub fn next_unsent_change(
         &self,
-        writer_history_cache: &[CacheChange],
+        writer_history_cache: &[CacheChangeWrite],
     ) -> Option<SequenceNumber> {
         //         unsent_changes :=
         // { changes SUCH_THAT change.sequenceNumber > this.highestSentChangeSN }
@@ -213,7 +215,7 @@ impl RtpsReaderProxy {
             .min()
     }
 
-    pub fn unsent_changes(&self, writer_history_cache: &[CacheChange]) -> bool {
+    pub fn unsent_changes(&self, writer_history_cache: &[CacheChangeWrite]) -> bool {
         // return this.next_unsent_change() != SEQUENCE_NUMBER_INVALID;
         self.next_unsent_change(writer_history_cache).is_some()
     }

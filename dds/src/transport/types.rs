@@ -1,4 +1,3 @@
-use alloc::{sync::Arc, vec::Vec};
 use dust_dds::xtypes::type_support::TypeSupport;
 
 pub type Octet = u8;
@@ -179,48 +178,6 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_
 /// Must be possible to represent using 64 bits.
 pub type SequenceNumber = i64;
 
-/// TopicKind_t
-/// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
-/// The following values are reserved by the protocol: NO_KEY, WITH_KEY
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
-/// ChangeKind_t
-/// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
-/// It can take the values:
-/// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-    NotAliveDisposedUnregistered,
-}
-
-/// ReliabilityKind_t
-/// Enumeration used to indicate the level of the reliability used for communications.
-/// It can take the values: BEST_EFFORT, RELIABLE.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
-}
-
-/// DurabilityKind_t
-/// Enumeration used to indicate the level of the durability used for communications.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DurabilityKind {
-    Volatile,
-    TransientLocal,
-    Transient,
-    Persistent,
-}
-
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
@@ -305,60 +262,4 @@ pub type VendorId = [Octet; 2];
 pub struct ChangeCount {
     high: Long,
     low: UnsignedLong,
-}
-
-#[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
-pub struct Time {
-    sec: i32,
-    nanosec: u32,
-}
-
-impl Time {
-    /// Create a new [`Time`] with a number of seconds and nanoseconds
-    pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000) as i32;
-        let nanosec = nanosec % 1_000_000_000;
-        Self { sec, nanosec }
-    }
-
-    /// Get the number of seconds contained by this time
-    pub const fn sec(&self) -> i32 {
-        self.sec
-    }
-
-    /// Get the number of nanoseconds contained by this time
-    pub const fn nanosec(&self) -> u32 {
-        self.nanosec
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct WriterProxy {
-    pub remote_writer_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub reliability_kind: ReliabilityKind,
-    pub durability_kind: DurabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CacheChange {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub sequence_number: i64,
-    pub source_timestamp: Option<Time>,
-    pub instance_handle: Option<[u8; 16]>,
-    pub data_value: Arc<[u8]>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ReaderProxy {
-    pub remote_reader_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub reliability_kind: ReliabilityKind,
-    pub durability_kind: DurabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub expects_inline_qos: bool,
 }
