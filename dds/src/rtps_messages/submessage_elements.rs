@@ -4,6 +4,9 @@ use super::{
     types::{Checksum32, Checksum64, Checksum128, FragmentNumber, ParameterId},
 };
 use crate::{
+    dcps::data_representation_builtin_endpoints::parameter_id_values::{
+        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
+    },
     rtps::{
         cache_change::{
             PID_KEY_HASH, PID_STATUS_INFO, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
@@ -458,6 +461,21 @@ impl WriteIntoBytes for ParameterListWrite {
                 ParameterWrite::new(PID_STATUS_INFO, &STATUS_INFO_DISPOSED_UNREGISTERED.0)
                     .write_into_bytes(buf)
             }
+        }
+
+        if let Some(coherent_set) = &self.coherent_set {
+            ParameterWrite::new(PID_COHERENT_SET, &coherent_set.to_le_bytes())
+                .write_into_bytes(buf);
+        }
+
+        if let Some(group_coherent_set) = &self.group_coherent_set {
+            ParameterWrite::new(PID_GROUP_COHERENT_SET, &group_coherent_set.to_le_bytes())
+                .write_into_bytes(buf);
+        }
+
+        if let Some(group_seq_num) = &self.group_seq_num {
+            ParameterWrite::new(PID_GROUP_SEQ_NUM, &group_seq_num.to_le_bytes())
+                .write_into_bytes(buf);
         }
 
         PID_SENTINEL.write_into_bytes(buf);
