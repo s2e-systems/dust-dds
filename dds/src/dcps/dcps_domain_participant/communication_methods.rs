@@ -89,91 +89,9 @@ impl DcpsDomainParticipant {
                 false
             };
 
-            'data_readers: for data_reader in data_reader_list {
+            for data_reader in data_reader_list {
                 if data_reader.transport_reader.changes.is_empty() {
                     continue;
-                }
-
-                let changes = core::mem::take(&mut data_reader.transport_reader.changes);
-                let mut ready_changes = Vec::new();
-                let mut remaining_changes = Vec::new();
-
-                if subscriber_presentation.coherent_access {
-                    match subscriber_presentation.access_scope {
-                        PresentationQosPolicyAccessScopeKind::Instance
-                        | PresentationQosPolicyAccessScopeKind::Topic => {
-                            let mut last_end_marker: Vec<(Guid, usize)> = Vec::new();
-                            for (idx, change) in changes.iter().enumerate() {
-                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN) {
-                                    if let Some(entry) = last_end_marker
-                                        .iter_mut()
-                                        .find(|(guid, _)| *guid == change.writer_guid)
-                                    {
-                                        entry.1 = idx;
-                                    } else {
-                                        last_end_marker.push((change.writer_guid, idx));
-                                    }
-                                }
-                            }
-
-                            for (idx, change) in changes.into_iter().enumerate() {
-                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                    || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                {
-                                    continue;
-                                }
-
-                                if change.coherent_set.is_some() {
-                                    let is_ready = last_end_marker
-                                        .iter()
-                                        .find(|(guid, _)| *guid == change.writer_guid)
-                                        .is_some_and(|&(_, last_idx)| idx < last_idx);
-
-                                    if is_ready {
-                                        ready_changes.push(change);
-                                    } else {
-                                        remaining_changes.push(change);
-                                    }
-                                } else {
-                                    ready_changes.push(change);
-                                }
-                            }
-                        }
-                        PresentationQosPolicyAccessScopeKind::Group => {
-                            for change in changes {
-                                if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                    || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                {
-                                    continue;
-                                }
-
-                                if change.group_coherent_set.is_some() {
-                                    if group_has_end_marker {
-                                        ready_changes.push(change);
-                                    } else {
-                                        remaining_changes.push(change);
-                                    }
-                                } else {
-                                    ready_changes.push(change);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    for change in changes {
-                        if change.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                            || change.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                        {
-                            continue;
-                        }
-                        ready_changes.push(change);
-                    }
-                }
-
-                data_reader.transport_reader.changes = remaining_changes;
-
-                if ready_changes.is_empty() {
-                    continue 'data_readers;
                 }
 
                 let Some(type_support) = get_topic_type_support(
@@ -183,7 +101,7 @@ impl DcpsDomainParticipant {
                     type_register,
                 ) else {
                     tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
-                    continue 'data_readers;
+                    continue;
                 };
 
                 let content_filtered_topic = content_filtered_topic_list
@@ -197,7 +115,7 @@ impl DcpsDomainParticipant {
                         .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
                     else {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
-                        continue 'data_readers;
+                        continue;
                     };
                     &reader_topic.type_name
                 } else {
@@ -206,267 +124,296 @@ impl DcpsDomainParticipant {
                         .find(|t| t.topic_name == data_reader.topic_name)
                     else {
                         tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
-                        continue 'data_readers;
+                        continue;
                     };
                     &reader_topic.type_name
                 };
 
-                let changes_len = ready_changes.len();
+                let changes_len = data_reader.transport_reader.changes.len();
                 let data_reader_handle = data_reader.instance_handle;
                 tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes_len);
 
-                if changes_len > 1 {
-                    ready_changes.reverse();
-                }
+                let mut process_single_cache_change =
+                    |cache_change: crate::rtps::cache_change::CacheChangeRead,
+                     data_reader: &mut crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader|
+                     -> bool {
+                        if let Some(matched_participant) = discovered_participant_list
+                            .iter_mut()
+                            .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
+                        {
+                            matched_participant.last_communication_timestamp = reception_timestamp;
+                        }
 
-                while let Some(cache_change) = ready_changes.pop() {
-                    if let Some(matched_participant) = discovered_participant_list
-                        .iter_mut()
-                        .find(|x| x.guid_prefix == cache_change.writer_guid.prefix())
-                    {
-                        matched_participant.last_communication_timestamp = reception_timestamp;
-                    }
+                        if let Some(content_filtered_topic) = content_filtered_topic {
+                            if cache_change.kind == ChangeKind::Alive {
+                                let Some(data) = deserialize_topic_type(
+                                    &data_reader.topic_name,
+                                    type_support,
+                                    cache_change.data_value.as_ref(),
+                                ) else {
+                                    return false;
+                                };
+                                enum Operator {
+                                    LessThan,
+                                    Equal,
+                                }
 
-                    if let Some(content_filtered_topic) = content_filtered_topic {
-                        if cache_change.kind == ChangeKind::Alive {
-                            let Some(data) = deserialize_topic_type(
-                                &data_reader.topic_name,
-                                type_support,
-                                cache_change.data_value.as_ref(),
-                            ) else {
-                                ready_changes.clear();
-                                continue 'data_readers;
-                            };
-                            enum Operator {
-                                LessThan,
-                                Equal,
-                            }
+                                impl Operator {
+                                    fn to_str(&self) -> &'static str {
+                                        match self {
+                                            Self::Equal => "=",
+                                            Self::LessThan => "<=",
+                                        }
+                                    }
 
-                            impl Operator {
-                                fn to_str(&self) -> &'static str {
-                                    match self {
-                                        Self::Equal => "=",
-                                        Self::LessThan => "<=",
+                                    fn compare_string(&self, lhs: &str, rhs: &str) -> bool {
+                                        match self {
+                                            Self::Equal => lhs == rhs,
+                                            Self::LessThan => lhs <= rhs,
+                                        }
+                                    }
+                                    fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
+                                        match self {
+                                            Self::Equal => lhs == rhs,
+                                            Self::LessThan => lhs <= rhs,
+                                        }
                                     }
                                 }
 
-                                fn compare_string(&self, lhs: &str, rhs: &str) -> bool {
-                                    match self {
-                                        Self::Equal => lhs == rhs,
-                                        Self::LessThan => lhs <= rhs,
-                                    }
-                                }
-                                fn compare_int32(&self, lhs: &i32, rhs: &i32) -> bool {
-                                    match self {
-                                        Self::Equal => lhs == rhs,
-                                        Self::LessThan => lhs <= rhs,
-                                    }
-                                }
-                            }
-
-                            for clause in content_filtered_topic.filter_expression.split("AND") {
-                                let clause = clause
-                                    .trim()
-                                    .trim_start_matches('(')
-                                    .trim_end_matches(')')
-                                    .trim();
-                                let mut operators = [Operator::LessThan, Operator::Equal].iter();
-                                let filter = loop {
-                                    if let Some(operator) = operators.next() {
-                                        if let Some((variable_name, value_expr)) =
-                                            clause.split_once(operator.to_str())
-                                        {
-                                            let trimmed_val = value_expr.trim();
-                                            let value_str = if let Some(stripped) =
-                                                trimmed_val.strip_prefix('%')
+                                for clause in content_filtered_topic.filter_expression.split("AND") {
+                                    let clause = clause
+                                        .trim()
+                                        .trim_start_matches('(')
+                                        .trim_end_matches(')')
+                                        .trim();
+                                    let mut operators = [Operator::LessThan, Operator::Equal].iter();
+                                    let filter = loop {
+                                        if let Some(operator) = operators.next() {
+                                            if let Some((variable_name, value_expr)) =
+                                                clause.split_once(operator.to_str())
                                             {
-                                                if let Ok(index) = stripped.parse::<usize>() {
-                                                    content_filtered_topic
-                                                        .expression_parameters
-                                                        .get(index)
-                                                        .map(|s| s.as_str())
-                                                        .unwrap_or(trimmed_val)
+                                                let trimmed_val = value_expr.trim();
+                                                let value_str = if let Some(stripped) =
+                                                    trimmed_val.strip_prefix('%')
+                                                {
+                                                    if let Ok(index) = stripped.parse::<usize>() {
+                                                        content_filtered_topic
+                                                            .expression_parameters
+                                                            .get(index)
+                                                            .map(|s| s.as_str())
+                                                            .unwrap_or(trimmed_val)
+                                                    } else {
+                                                        trimmed_val
+                                                    }
                                                 } else {
-                                                    trimmed_val
+                                                    trimmed_val.trim_matches('\'').trim_matches('"')
+                                                };
+                                                break Some((variable_name, operator, value_str));
+                                            }
+                                        } else {
+                                            break None;
+                                        };
+                                    };
+
+                                    if let Some((variable_name, comparison_function, value_str)) =
+                                        filter
+                                    {
+                                        let Some(member_id) =
+                                            data.get_member_id_by_name(variable_name.trim())
+                                        else {
+                                            return false;
+                                        };
+                                        let Ok(member_descriptor) = data.get_descriptor(member_id)
+                                        else {
+                                            return false;
+                                        };
+                                        match member_descriptor.r#type.get_kind() {
+                                            crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::INT32 => {
+                                                let member_value =
+                                                    data.get_int32_value(member_id).unwrap();
+                                                let Ok(rhs) = value_str.parse::<i32>() else {
+                                                    return false;
+                                                };
+                                                if !comparison_function
+                                                    .compare_int32(member_value, &rhs)
+                                                {
+                                                    return false;
                                                 }
-                                            } else {
-                                                trimmed_val.trim_matches('\'').trim_matches('"')
-                                            };
-                                            break Some((variable_name, operator, value_str));
+                                            }
+                                            crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::STRING8
+                                            | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
+                                                let member_value =
+                                                    data.get_string_value(member_id).unwrap();
+                                                if !comparison_function
+                                                    .compare_string(member_value.as_str(), value_str)
+                                                {
+                                                    return false;
+                                                }
+                                            }
+                                            crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
+                                                todo!()
+                                            }
+                                            crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
+                                            crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
                                         }
                                     } else {
-                                        break None;
+                                        return false;
                                     };
-                                };
-
-                                if let Some((variable_name, comparison_function, value_str)) =
-                                    filter
-                                {
-                                    let Some(member_id) =
-                                        data.get_member_id_by_name(variable_name.trim())
-                                    else {
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
-                                    let Ok(member_descriptor) = data.get_descriptor(member_id)
-                                    else {
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
-                                    match member_descriptor.r#type.get_kind() {
-                                        crate::xtypes::dynamic_type::TypeKind::NONE => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::BOOLEAN => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::BYTE => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::INT16 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::INT32 => {
-                                            let member_value =
-                                                data.get_int32_value(member_id).unwrap();
-                                            let Ok(rhs) = value_str.parse::<i32>() else {
-                                                ready_changes.clear();
-                                                continue 'data_readers;
-                                            };
-                                            if !comparison_function
-                                                .compare_int32(member_value, &rhs)
-                                            {
-                                                ready_changes.clear();
-                                                continue 'data_readers;
-                                            }
-                                        }
-                                        crate::xtypes::dynamic_type::TypeKind::INT64 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::UINT16 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::UINT32 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::UINT64 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::FLOAT32 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::FLOAT64 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::FLOAT128 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::INT8 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::UINT8 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::CHAR8 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::CHAR16 => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::STRING8
-                                        | crate::xtypes::dynamic_type::TypeKind::STRING16 => {
-                                            let member_value =
-                                                data.get_string_value(member_id).unwrap();
-                                            if !comparison_function
-                                                .compare_string(member_value.as_str(), value_str)
-                                            {
-                                                ready_changes.clear();
-                                                continue 'data_readers;
-                                            }
-                                        }
-                                        crate::xtypes::dynamic_type::TypeKind::ALIAS => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::ENUM => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::BITMASK => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::ANNOTATION => {
-                                            todo!()
-                                        }
-                                        crate::xtypes::dynamic_type::TypeKind::STRUCTURE => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::UNION => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::BITSET => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::SEQUENCE => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::ARRAY => todo!(),
-                                        crate::xtypes::dynamic_type::TypeKind::MAP => todo!(),
-                                    }
-                                } else {
-                                    ready_changes.clear();
-                                    continue 'data_readers;
-                                };
+                                }
                             }
                         }
-                    }
 
-                    let change_instance_handle =
-                        if TopicKind::from(&type_support) == TopicKind::NoKey {
-                            InstanceHandle::default()
-                        } else if let Some(i) = cache_change.instance_handle {
-                            InstanceHandle::new(i)
-                        } else {
-                            match cache_change.kind {
-                                ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                                    let Some(data_value) = deserialize_topic_type(
-                                        &data_reader.topic_name,
-                                        type_support,
-                                        cache_change.data_value.as_ref(),
-                                    ) else {
-                                        tracing::warn!("Failed to deserialize user defined data");
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
-                                    let Ok(instance_handle) =
-                                        get_instance_handle_from_dynamic_data(&data_value)
-                                    else {
-                                        tracing::warn!(
-                                            "Failed to get instance handle from dynamic_data"
-                                        );
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
-                                    instance_handle
+                        let change_instance_handle =
+                            if TopicKind::from(&type_support) == TopicKind::NoKey {
+                                InstanceHandle::default()
+                            } else if let Some(i) = cache_change.instance_handle {
+                                InstanceHandle::new(i)
+                            } else {
+                                match cache_change.kind {
+                                    ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                                        let Some(data_value) = deserialize_topic_type(
+                                            &data_reader.topic_name,
+                                            type_support,
+                                            cache_change.data_value.as_ref(),
+                                        ) else {
+                                            tracing::warn!("Failed to deserialize user defined data");
+                                            return false;
+                                        };
+                                        let Ok(instance_handle) =
+                                            get_instance_handle_from_dynamic_data(&data_value)
+                                        else {
+                                            tracing::warn!(
+                                                "Failed to get instance handle from dynamic_data"
+                                            );
+                                            return false;
+                                        };
+                                        instance_handle
+                                    }
+                                    ChangeKind::NotAliveDisposed
+                                    | ChangeKind::NotAliveUnregistered
+                                    | ChangeKind::NotAliveDisposedUnregistered => {
+                                        let key_holder = KeyHolderType::new(&type_support);
+                                        let Some(dynamic_type) = key_holder.as_dynamic_type() else {
+                                            tracing::warn!("Failed to create key holder");
+                                            return false;
+                                        };
+
+                                        let Ok(data_value) = deserialize_top_level_type(
+                                            dynamic_type,
+                                            cache_change.data_value.as_ref(),
+                                        ) else {
+                                            tracing::warn!(
+                                                "Failed to deserialize disposed user defined data"
+                                            );
+                                            return false;
+                                        };
+
+                                        let Ok(instance_handle) =
+                                            get_instance_handle_from_dynamic_data(&data_value)
+                                        else {
+                                            tracing::warn!(
+                                                "Failed to get instance handle from disposed key user defined data"
+                                            );
+                                            return false;
+                                        };
+                                        instance_handle
+                                    }
                                 }
-                                ChangeKind::NotAliveDisposed
-                                | ChangeKind::NotAliveUnregistered
-                                | ChangeKind::NotAliveDisposedUnregistered => {
-                                    let key_holder = KeyHolderType::new(&type_support);
-                                    let Some(dynamic_type) = key_holder.as_dynamic_type() else {
-                                        tracing::warn!("Failed to create key holder");
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
+                            };
 
-                                    let Ok(data_value) = deserialize_top_level_type(
-                                        dynamic_type,
-                                        cache_change.data_value.as_ref(),
-                                    ) else {
-                                        tracing::warn!(
-                                            "Failed to deserialize disposed user defined data"
-                                        );
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
+                        match data_reader.add_reader_change(
+                            cache_change.writer_guid,
+                            cache_change.data_value,
+                            cache_change.kind,
+                            change_instance_handle.into(),
+                            cache_change.source_timestamp.map(Into::into),
+                            reception_timestamp,
+                        ) {
+                            Ok(AddChangeResult::Added) => {
+                                tracing::info!("New change added");
 
-                                    let Ok(instance_handle) =
-                                        get_instance_handle_from_dynamic_data(&data_value)
-                                    else {
-                                        tracing::warn!(
-                                            "Failed to deserialize disposed key user defined data"
+                                let data_reader_on_data_available_active = data_reader
+                                    .listener_mask
+                                    .is_enabled(&StatusKind::DataAvailable);
+
+                                if subscriber_listener_mask.is_enabled(&StatusKind::DataOnReaders) {
+                                    if let Some(l) = &subscriber_listener_sender {
+                                        let the_participant = DomainParticipantAsync::new(
+                                            dcps_sender.clone(),
+                                            domain_id,
+                                            dp_instance_handle,
                                         );
-                                        ready_changes.clear();
-                                        continue 'data_readers;
-                                    };
-                                    instance_handle
+                                        let the_subscriber =
+                                            SubscriberAsync::new(subscriber_handle, the_participant);
+                                        l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
+                                    }
+                                } else if data_reader_on_data_available_active {
+                                    if let Some(l) = &data_reader.listener_sender {
+                                        info!("Triggering data reader DataAvailable listener");
+                                        let the_participant = DomainParticipantAsync::new(
+                                            dcps_sender.clone(),
+                                            domain_id,
+                                            dp_instance_handle,
+                                        );
+                                        let the_subscriber =
+                                            SubscriberAsync::new(subscriber_handle, the_participant);
+                                        let the_reader = DataReaderAsync::new(
+                                            data_reader_handle,
+                                            the_subscriber,
+                                            data_reader.topic_name.clone(),
+                                            reader_type_name.clone(),
+                                        );
+                                        l.send(ListenerMail::DataAvailable { the_reader }).ok();
+                                    }
                                 }
+
+                                subscriber_status_condition
+                                    .add_communication_state(StatusKind::DataOnReaders);
+
+                                data_reader
+                                    .status_condition
+                                    .add_communication_state(StatusKind::DataAvailable);
                             }
-                        };
+                            Ok(AddChangeResult::NotAdded) => (), // Do nothing
+                            Ok(AddChangeResult::Rejected(
+                                instance_handle,
+                                sample_rejected_status_kind,
+                            )) => {
+                                tracing::info!("Change rejected");
+                                data_reader.increment_sample_rejected_status(
+                                    instance_handle,
+                                    sample_rejected_status_kind,
+                                );
 
-                    match data_reader.add_reader_change(
-                        cache_change.writer_guid,
-                        cache_change.data_value,
-                        cache_change.kind,
-                        change_instance_handle.into(),
-                        cache_change.source_timestamp.map(Into::into),
-                        reception_timestamp,
-                    ) {
-                        Ok(AddChangeResult::Added) => {
-                            tracing::info!("New change added");
+                                let is_listener_enabled = data_reader
+                                    .listener_mask
+                                    .is_enabled(&StatusKind::SampleRejected)
+                                    || subscriber_listener_mask.is_enabled(&StatusKind::SampleRejected)
+                                    || dp_listener_mask.is_enabled(&StatusKind::SampleRejected);
 
-                            let data_reader_on_data_available_active = data_reader
-                                .listener_mask
-                                .is_enabled(&StatusKind::DataAvailable);
-
-                            if subscriber_listener_mask.is_enabled(&StatusKind::DataOnReaders) {
-                                if let Some(l) = &subscriber_listener_sender {
-                                    let the_participant = DomainParticipantAsync::new(
-                                        dcps_sender.clone(),
-                                        domain_id,
-                                        dp_instance_handle,
-                                    );
-                                    let the_subscriber =
-                                        SubscriberAsync::new(subscriber_handle, the_participant);
-                                    l.send(ListenerMail::DataOnReaders { the_subscriber }).ok();
-                                }
-                            } else if data_reader_on_data_available_active {
-                                if let Some(l) = &data_reader.listener_sender {
-                                    info!("Triggering data reader DataAvailable listener");
+                                if is_listener_enabled {
                                     let the_participant = DomainParticipantAsync::new(
                                         dcps_sender.clone(),
                                         domain_id,
@@ -480,78 +427,161 @@ impl DcpsDomainParticipant {
                                         data_reader.topic_name.clone(),
                                         reader_type_name.clone(),
                                     );
-                                    l.send(ListenerMail::DataAvailable { the_reader }).ok();
+                                    let status = data_reader.get_sample_rejected_status();
+
+                                    if data_reader
+                                        .listener_mask
+                                        .is_enabled(&StatusKind::SampleRejected)
+                                    {
+                                        if let Some(l) = &data_reader.listener_sender {
+                                            l.send(ListenerMail::SampleRejected { the_reader, status })
+                                                .ok();
+                                        };
+                                    } else if subscriber_listener_mask
+                                        .is_enabled(&StatusKind::SampleRejected)
+                                    {
+                                        if let Some(l) = &subscriber_listener_sender {
+                                            l.send(ListenerMail::SampleRejected { status, the_reader })
+                                                .ok();
+                                        }
+                                    } else if dp_listener_mask.is_enabled(&StatusKind::SampleRejected) {
+                                        if let Some(l) = dp_listener_sender {
+                                            l.send(ListenerMail::SampleRejected { status, the_reader })
+                                                .ok();
+                                        }
+                                    }
+                                }
+
+                                data_reader
+                                    .status_condition
+                                    .add_communication_state(StatusKind::SampleRejected);
+                            }
+                            Err(_) => (),
+                        }
+
+                        true
+                    };
+
+                if subscriber_presentation.coherent_access {
+                    match subscriber_presentation.access_scope {
+                        PresentationQosPolicyAccessScopeKind::Instance
+                        | PresentationQosPolicyAccessScopeKind::Topic => {
+                            let mut aborted = false;
+                            while let Some(mut end_marker_pos) =
+                                data_reader.transport_reader.changes.iter().position(|c| {
+                                    c.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                        || c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                                })
+                            {
+                                let writer_guid = data_reader.transport_reader.changes
+                                    [end_marker_pos]
+                                    .writer_guid;
+                                let mut i = 0;
+                                while i < end_marker_pos {
+                                    if data_reader.transport_reader.changes[i].writer_guid
+                                        == writer_guid
+                                        && (data_reader.transport_reader.changes[i]
+                                            .coherent_set
+                                            .is_some()
+                                            || data_reader.transport_reader.changes[i]
+                                                .group_coherent_set
+                                                .is_some())
+                                    {
+                                        let cache_change =
+                                            data_reader.transport_reader.changes.remove(i);
+                                        end_marker_pos -= 1;
+                                        if !process_single_cache_change(cache_change, data_reader) {
+                                            data_reader.transport_reader.changes.clear();
+                                            aborted = true;
+                                            break;
+                                        }
+                                    } else {
+                                        i += 1;
+                                    }
+                                }
+                                if aborted {
+                                    break;
+                                }
+                                if end_marker_pos < data_reader.transport_reader.changes.len() {
+                                    data_reader.transport_reader.changes.remove(end_marker_pos);
                                 }
                             }
 
-                            subscriber_status_condition
-                                .add_communication_state(StatusKind::DataOnReaders);
-
-                            data_reader
-                                .status_condition
-                                .add_communication_state(StatusKind::DataAvailable);
-                        }
-                        Ok(AddChangeResult::NotAdded) => (), // Do nothing
-                        Ok(AddChangeResult::Rejected(
-                            instance_handle,
-                            sample_rejected_status_kind,
-                        )) => {
-                            tracing::info!("Change rejected");
-                            data_reader.increment_sample_rejected_status(
-                                instance_handle,
-                                sample_rejected_status_kind,
-                            );
-
-                            let is_listener_enabled = data_reader
-                                .listener_mask
-                                .is_enabled(&StatusKind::SampleRejected)
-                                || subscriber_listener_mask.is_enabled(&StatusKind::SampleRejected)
-                                || dp_listener_mask.is_enabled(&StatusKind::SampleRejected);
-
-                            if is_listener_enabled {
-                                let the_participant = DomainParticipantAsync::new(
-                                    dcps_sender.clone(),
-                                    domain_id,
-                                    dp_instance_handle,
-                                );
-                                let the_subscriber =
-                                    SubscriberAsync::new(subscriber_handle, the_participant);
-                                let the_reader = DataReaderAsync::new(
-                                    data_reader_handle,
-                                    the_subscriber,
-                                    data_reader.topic_name.clone(),
-                                    reader_type_name.clone(),
-                                );
-                                let status = data_reader.get_sample_rejected_status();
-
-                                if data_reader
-                                    .listener_mask
-                                    .is_enabled(&StatusKind::SampleRejected)
-                                {
-                                    if let Some(l) = &data_reader.listener_sender {
-                                        l.send(ListenerMail::SampleRejected { the_reader, status })
-                                            .ok();
-                                    };
-                                } else if subscriber_listener_mask
-                                    .is_enabled(&StatusKind::SampleRejected)
-                                {
-                                    if let Some(l) = &subscriber_listener_sender {
-                                        l.send(ListenerMail::SampleRejected { status, the_reader })
-                                            .ok();
-                                    }
-                                } else if dp_listener_mask.is_enabled(&StatusKind::SampleRejected) {
-                                    if let Some(l) = dp_listener_sender {
-                                        l.send(ListenerMail::SampleRejected { status, the_reader })
-                                            .ok();
+                            if !aborted {
+                                let mut i = 0;
+                                while i < data_reader.transport_reader.changes.len() {
+                                    if data_reader.transport_reader.changes[i]
+                                        .coherent_set
+                                        .is_none()
+                                        && data_reader.transport_reader.changes[i]
+                                            .group_coherent_set
+                                            .is_none()
+                                    {
+                                        let cache_change =
+                                            data_reader.transport_reader.changes.remove(i);
+                                        if !process_single_cache_change(cache_change, data_reader) {
+                                            data_reader.transport_reader.changes.clear();
+                                            break;
+                                        }
+                                    } else {
+                                        i += 1;
                                     }
                                 }
                             }
-
-                            data_reader
-                                .status_condition
-                                .add_communication_state(StatusKind::SampleRejected);
                         }
-                        Err(_) => (),
+                        PresentationQosPolicyAccessScopeKind::Group => {
+                            if group_has_end_marker {
+                                data_reader.transport_reader.changes.retain(|c| {
+                                    c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                                        && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                                });
+                                if data_reader.transport_reader.changes.len() > 1 {
+                                    data_reader.transport_reader.changes.reverse();
+                                }
+                                while let Some(cache_change) =
+                                    data_reader.transport_reader.changes.pop()
+                                {
+                                    if !process_single_cache_change(cache_change, data_reader) {
+                                        data_reader.transport_reader.changes.clear();
+                                        break;
+                                    }
+                                }
+                            } else {
+                                let mut i = 0;
+                                while i < data_reader.transport_reader.changes.len() {
+                                    if data_reader.transport_reader.changes[i]
+                                        .group_coherent_set
+                                        .is_none()
+                                        && data_reader.transport_reader.changes[i]
+                                            .coherent_set
+                                            .is_none()
+                                    {
+                                        let cache_change =
+                                            data_reader.transport_reader.changes.remove(i);
+                                        if !process_single_cache_change(cache_change, data_reader) {
+                                            data_reader.transport_reader.changes.clear();
+                                            break;
+                                        }
+                                    } else {
+                                        i += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    data_reader.transport_reader.changes.retain(|c| {
+                        c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                            && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                    });
+                    if data_reader.transport_reader.changes.len() > 1 {
+                        data_reader.transport_reader.changes.reverse();
+                    }
+                    while let Some(cache_change) = data_reader.transport_reader.changes.pop() {
+                        if !process_single_cache_change(cache_change, data_reader) {
+                            data_reader.transport_reader.changes.clear();
+                            break;
+                        }
                     }
                 }
             }
