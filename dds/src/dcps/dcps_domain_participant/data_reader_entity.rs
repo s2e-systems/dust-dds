@@ -295,26 +295,20 @@ impl<T> DataReaderEntity<T> {
     }
 
     pub fn remove_stale_samples(&mut self, now: Time) {
-        let destination_order = self.qos.destination_order.kind;
         self.sample_list.retain(|sample| {
-            let timestamp = match destination_order {
-                DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
-                DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                    Some(sample.reception_timestamp)
-                }
-            };
-            if let Some(timestamp) = timestamp {
-                if let Some(matched_publication) = self
-                    .matched_publication_list
-                    .iter()
-                    .find(|x| x.key().value == sample.writer_guid)
+            let timestamp = sample
+                .source_timestamp
+                .unwrap_or(sample.reception_timestamp);
+            if let Some(matched_publication) = self
+                .matched_publication_list
+                .iter()
+                .find(|x| x.key().value == sample.writer_guid)
+            {
+                if let DurationKind::Finite(lifespan_duration) =
+                    matched_publication.lifespan().duration
                 {
-                    if let DurationKind::Finite(lifespan_duration) =
-                        matched_publication.lifespan().duration
-                    {
-                        if now >= timestamp + lifespan_duration {
-                            return false;
-                        }
+                    if now >= timestamp + lifespan_duration {
+                        return false;
                     }
                 }
             }
