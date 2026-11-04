@@ -101,19 +101,13 @@ jobs:
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
-          name: Check compilation time
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo build --package dust_dds --timings --tests --examples
-      - store_artifacts:
-          path: ./target/cargo-timings
-      - run:
           name: Run Tests
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen
+            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen --timings
+      - store_artifacts:
+          path: ./target/cargo-timings
       - run:
           name: Hello world example
           command: |
