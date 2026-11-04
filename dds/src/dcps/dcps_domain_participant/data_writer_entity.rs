@@ -18,6 +18,7 @@ use crate::{
         types::{ChangeKind, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
+    transport::types::SequenceNumber,
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -48,6 +49,8 @@ pub struct DataWriterEntity<T> {
     pub qos: DataWriterQos,
     pub registered_instance_info: Vec<RegisteredInstanceInfo>,
     pub key_holder_type: KeyHolderType,
+    pub is_in_coherent_set: bool,
+    pub first_coherent_sequence_number: Option<SequenceNumber>,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
@@ -67,6 +70,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             qos,
             registered_instance_info: Vec::new(),
             key_holder_type,
+            is_in_coherent_set: false,
+            first_coherent_sequence_number: None,
         }
     }
 
@@ -128,6 +133,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         }
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -139,7 +152,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 } else {
                     Some(sample_instance_handle.into())
                 },
-                coherent_set: None,
+                coherent_set,
                 group_coherent_set: None,
                 group_seq_num: None,
             },
@@ -198,6 +211,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_info.last_write_time = None;
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let cache_change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -205,7 +226,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::NotAliveDisposed,
                 instance_handle: Some(instance_handle.into()),
-                coherent_set: None,
+                coherent_set,
                 group_coherent_set: None,
                 group_seq_num: None,
             },
@@ -275,6 +296,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_info.last_write_time = None;
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let kind = if self
             .qos
             .writer_data_lifecycle
@@ -291,7 +320,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind,
                 instance_handle: Some(instance_handle.into()),
-                coherent_set: None,
+                coherent_set,
                 group_coherent_set: None,
                 group_seq_num: None,
             },

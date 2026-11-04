@@ -177,6 +177,7 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 pub type SequenceNumber = i64;
+pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = (-1_i64) << 32;
 
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.

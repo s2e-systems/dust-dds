@@ -28,9 +28,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{
-            DataWriterQos, DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos,
-        },
+        qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         time::{Duration, Time},
     },
     runtime::Spawner,
@@ -73,15 +71,13 @@ impl DcpsDomainParticipant {
         self.publisher_counter += 1;
         let data_writer_list = Default::default();
         let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
-        let mut publisher = PublisherEntity {
-            qos: publisher_qos,
-            instance_handle: publisher_handle,
+        let mut publisher = PublisherEntity::new(
+            publisher_qos,
+            publisher_handle,
             data_writer_list,
-            enabled: false,
-            default_datawriter_qos: DataWriterQos::const_default(),
             listener_sender,
             listener_mask,
-        };
+        );
 
         if self.domain_participant.enabled
             && self

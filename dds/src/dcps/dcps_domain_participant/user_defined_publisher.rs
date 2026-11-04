@@ -8,6 +8,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos},
     },
+    transport::types::SequenceNumber,
 };
 use alloc::vec::Vec;
 
@@ -19,6 +20,9 @@ pub struct PublisherEntity {
     pub default_datawriter_qos: DataWriterQos,
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
+    pub coherent_changes_depth: usize,
+    pub group_seq_num: SequenceNumber,
+    pub group_coherent_set: Option<SequenceNumber>,
 }
 
 impl PublisherEntity {
@@ -37,6 +41,9 @@ impl PublisherEntity {
             default_datawriter_qos: DataWriterQos::const_default(),
             listener_sender,
             listener_mask,
+            coherent_changes_depth: 0,
+            group_seq_num: 0,
+            group_coherent_set: None,
         }
     }
 }

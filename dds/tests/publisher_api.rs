@@ -1,9 +1,13 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
+        error::DdsError,
         listener::NO_LISTENER,
-        qos::{DataWriterQos, QosKind, TopicQos},
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy},
+        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, PresentationQosPolicy,
+            PresentationQosPolicyAccessScopeKind, UserDataQosPolicy,
+        },
         status::NO_STATUS,
         type_support::DdsType,
     },
@@ -205,4 +209,96 @@ fn data_writer_qos_history_keep_all() {
             NO_STATUS,
         )
         .unwrap();
+}
+
+#[test]
+fn end_coherent_changes_without_begin_fails() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    assert!(matches!(
+        publisher.end_coherent_changes(),
+        Err(DdsError::PreconditionNotMet(_))
+    ));
+}
+
+#[test]
+fn coherent_changes_nested_calls() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    publisher.begin_coherent_changes().unwrap();
+    publisher.begin_coherent_changes().unwrap();
+
+    publisher.end_coherent_changes().unwrap();
+    publisher.end_coherent_changes().unwrap();
+
+    assert!(matches!(
+        publisher.end_coherent_changes(),
+        Err(DdsError::PreconditionNotMet(_))
+    ));
+}
+
+#[test]
+fn coherent_changes_with_different_presentation_qos() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    for access_scope in [
+        PresentationQosPolicyAccessScopeKind::Instance,
+        PresentationQosPolicyAccessScopeKind::Topic,
+        PresentationQosPolicyAccessScopeKind::Group,
+    ] {
+        let publisher_qos = PublisherQos {
+            presentation: PresentationQosPolicy {
+                access_scope,
+                coherent_access: true,
+                ordered_access: false,
+            },
+            ..Default::default()
+        };
+        let publisher = participant
+            .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+            .unwrap();
+
+        publisher.begin_coherent_changes().unwrap();
+        publisher.end_coherent_changes().unwrap();
+    }
+}
+
+#[test]
+fn coherent_changes_on_deleted_publisher_fails() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    participant.delete_publisher(&publisher).unwrap();
+
+    assert_eq!(
+        publisher.begin_coherent_changes(),
+        Err(DdsError::AlreadyDeleted)
+    );
+    assert_eq!(
+        publisher.end_coherent_changes(),
+        Err(DdsError::AlreadyDeleted)
+    );
 }
