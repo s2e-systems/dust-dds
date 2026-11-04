@@ -1,20 +1,20 @@
 use super::{message_creator::write_submessages_into_transport, reader_locator::RtpsReaderLocator};
 use crate::{
+    rtps::cache_change::CacheChangeWrite,
     rtps_messages::{
         submessage_elements::SequenceNumberSet,
         submessages::{gap::GapSubmessage, info_timestamp::InfoTimestampSubmessage},
-        types::TIME_INVALID,
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{CacheChange, ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
+        types::{ENTITYID_UNKNOWN, Guid, Locator, SequenceNumber},
     },
 };
 use alloc::vec::Vec;
 
 pub struct RtpsStatelessWriter {
     guid: Guid,
-    changes: Vec<CacheChange>,
+    changes: Vec<CacheChangeWrite>,
     reader_locators: Vec<RtpsReaderLocator>,
 }
 
@@ -31,7 +31,7 @@ impl RtpsStatelessWriter {
         self.guid
     }
 
-    pub fn add_change(&mut self, cache_change: CacheChange) {
+    pub fn add_change(&mut self, cache_change: CacheChangeWrite) {
         self.changes.push(cache_change);
     }
 
@@ -55,26 +55,10 @@ impl RtpsStatelessWriter {
                     .iter()
                     .find(|cc| cc.sequence_number == unsent_change_seq_num)
                 {
-                    let info_ts_submessage = cache_change
-                        .source_timestamp
-                        .map_or(InfoTimestampSubmessage::new(true, TIME_INVALID), |t| {
-                            InfoTimestampSubmessage::new(false, t.into())
-                        });
-
-                    let inline_qos = match (
-                        cache_change.status_info_parameter(),
-                        cache_change.key_hash_parameter(),
-                    ) {
-                        (Some(s), Some(k)) => &[s, k][..],
-                        (Some(s), None) => &[s][..],
-                        (None, Some(k)) => &[k][..],
-                        (None, None) => &[],
-                    };
-                    let data_submessage = cache_change.as_data_submessage(
-                        ENTITYID_UNKNOWN,
-                        self.guid.entity_id(),
-                        inline_qos,
-                    );
+                    let info_ts_submessage =
+                        InfoTimestampSubmessage::new(false, cache_change.source_timestamp.into());
+                    let data_submessage =
+                        cache_change.as_data_submessage(ENTITYID_UNKNOWN, self.guid.entity_id());
 
                     write_submessages_into_transport(
                         &[&info_ts_submessage, &data_submessage],
@@ -119,11 +103,11 @@ impl RtpsStatelessWriter {
         &mut self.reader_locators
     }
 
-    pub fn changes(&self) -> &[CacheChange] {
+    pub fn changes(&self) -> &[CacheChangeWrite] {
         &self.changes
     }
 
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+    pub fn changes_mut(&mut self) -> &mut Vec<CacheChangeWrite> {
         &mut self.changes
     }
 }

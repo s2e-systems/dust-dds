@@ -18,8 +18,7 @@ use crate::{
         },
         time::Time,
     },
-    rtps::stateful_reader::RtpsStatefulReader,
-    transport::types::ChangeKind,
+    rtps::{stateful_reader::RtpsStatefulReader, types::ChangeKind},
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};

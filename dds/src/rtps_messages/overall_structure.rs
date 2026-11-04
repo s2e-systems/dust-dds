@@ -202,6 +202,14 @@ impl TryReadFromBytes for GuidPrefix {
     }
 }
 
+impl TryReadFromBytes for [Octet; 16] {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 16];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
+    }
+}
+
 impl TryReadFromBytes for EntityId {
     fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
         let mut entity_key = [0; 3];

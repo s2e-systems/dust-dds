@@ -12,8 +12,11 @@ use crate::{
         },
     },
     infrastructure::{instance::InstanceHandle, qos::SubscriberQos},
-    rtps::{stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader},
-    transport::types::{Guid, GuidPrefix, ReliabilityKind},
+    rtps::{
+        stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader,
+        types::ReliabilityKind,
+    },
+    transport::types::{Guid, GuidPrefix},
 };
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut};

@@ -2,8 +2,8 @@ use super::time::{DURATION_ZERO_NSEC, DURATION_ZERO_SEC};
 use crate::{
     infrastructure::time::{Duration, DurationKind},
     rtps::types::PropertySeq,
+    rtps::types::{DurabilityKind, ReliabilityKind},
     security::types::BinaryPropertySeq,
-    transport::types::{DurabilityKind, ReliabilityKind},
     xtypes::{
         dynamic_type::{
             DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, ExtensibilityKind,
@@ -457,6 +457,8 @@ pub enum PresentationQosPolicyAccessScopeKind {
     Instance,
     /// Access scope per topic
     Topic,
+    /// Access scope per group
+    Group,
 }
 
 impl PartialOrd for PresentationQosPolicyAccessScopeKind {
@@ -465,10 +467,17 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
             PresentationQosPolicyAccessScopeKind::Instance => match other {
                 PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Equal),
                 PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Less),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Less),
             },
             PresentationQosPolicyAccessScopeKind::Topic => match other {
                 PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Greater),
                 PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Equal),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Less),
+            },
+            PresentationQosPolicyAccessScopeKind::Group => match other {
+                PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Greater),
+                PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Greater),
+                PresentationQosPolicyAccessScopeKind::Group => Some(Ordering::Equal),
             },
         }
     }

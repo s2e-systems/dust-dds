@@ -23,8 +23,8 @@ use crate::{
         status::{OfferedDeadlineMissedStatus, PublicationMatchedStatus, StatusKind},
         time::{DurationKind, Time},
     },
+    rtps::types::TopicKind,
     runtime::Spawner,
-    transport::types::TopicKind,
     xtypes::dynamic_type::DynamicData,
 };
 
