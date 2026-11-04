@@ -179,12 +179,34 @@ impl DcpsDomainParticipant {
 
     #[tracing::instrument(skip(self))]
     pub fn begin_coherent_changes(&mut self, publisher_handle: &InstanceHandle) -> DdsResult<()> {
-        todo!()
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        todo!();
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
     pub fn end_coherent_changes(&mut self, publisher_handle: &InstanceHandle) -> DdsResult<()> {
-        todo!()
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        todo!();
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
