@@ -1,6 +1,8 @@
 use crate::{
     dcps::dcps_domain_participant::data_reader_entity::DataReaderEntity,
-    infrastructure::{instance::InstanceHandle, qos::DataReaderQos},
+    infrastructure::{
+        instance::InstanceHandle, qos::DataReaderQos, qos_policy::PresentationQosPolicy,
+    },
 };
 use alloc::sync::Arc;
 use core::{
@@ -21,7 +23,13 @@ impl<R, T> BuiltinDataReader<R, T> {
         transport_reader: R,
     ) -> Self {
         Self {
-            reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
+            reader: DataReaderEntity::new(
+                instance_handle,
+                qos,
+                topic_name,
+                transport_reader,
+                PresentationQosPolicy::default(),
+            ),
             phantom: PhantomData,
         }
     }

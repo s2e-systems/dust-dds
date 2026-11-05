@@ -7042,12 +7042,11 @@ fn ordered_access_instance_and_topic_presentation() {
     r1_dws
         .attach_condition(Condition::StatusCondition(r1_data_cond))
         .unwrap();
-    while reader1
-        .read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap()
-        .len()
-        < total_samples
-    {
+    while match reader1.read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+        Ok(s) => s.len() < total_samples,
+        Err(DdsError::NoData) => true,
+        Err(e) => panic!("{e:?}"),
+    } {
         r1_dws.wait(Duration::new(10, 0)).unwrap();
     }
 
@@ -7059,12 +7058,11 @@ fn ordered_access_instance_and_topic_presentation() {
     r2_dws
         .attach_condition(Condition::StatusCondition(r2_data_cond))
         .unwrap();
-    while reader2
-        .read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap()
-        .len()
-        < total_samples
-    {
+    while match reader2.read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE) {
+        Ok(s) => s.len() < total_samples,
+        Err(DdsError::NoData) => true,
+        Err(e) => panic!("{e:?}"),
+    } {
         r2_dws.wait(Duration::new(10, 0)).unwrap();
     }
 

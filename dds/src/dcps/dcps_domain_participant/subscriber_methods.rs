@@ -146,6 +146,7 @@ impl DcpsDomainParticipant {
             listener_sender,
             listener_mask,
             transport_reader,
+            subscriber.qos.presentation.clone(),
         );
 
         let data_reader_handle = data_reader.instance_handle;
@@ -330,6 +331,9 @@ impl DcpsDomainParticipant {
 
         if subscriber.enabled {
             subscriber.qos.check_immutability(&qos)?;
+        }
+        for reader in &mut subscriber.data_reader_list {
+            reader.presentation = qos.presentation.clone();
         }
         subscriber.qos = qos;
         Ok(())

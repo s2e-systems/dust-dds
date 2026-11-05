@@ -276,6 +276,7 @@ pub struct DataReaderEntity<T> {
     pub instances: Vec<InstanceState>,
     pub instance_ownership: Vec<InstanceOwnership>,
     pub transport_reader: T,
+    pub presentation: PresentationQosPolicy,
 }
 
 impl<T> DataReaderEntity<T> {
@@ -284,6 +285,7 @@ impl<T> DataReaderEntity<T> {
         qos: DataReaderQos,
         topic_name: Arc<str>,
         transport_reader: T,
+        presentation: PresentationQosPolicy,
     ) -> Self {
         Self {
             instance_handle,
@@ -295,6 +297,7 @@ impl<T> DataReaderEntity<T> {
             instances: Vec::new(),
             instance_ownership: Vec::new(),
             transport_reader,
+            presentation,
         }
     }
 
@@ -328,7 +331,6 @@ impl<T> DataReaderEntity<T> {
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
         take: bool,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if self.sample_list.is_empty() || max_samples <= 0 {
             return Err(DdsError::NoData);
@@ -577,8 +579,8 @@ impl<T> DataReaderEntity<T> {
 
         let ordered_by_instance = specific_instance_handle.is_none()
             && self.instances.len() > 1
-            && !(presentation.ordered_access
-                && presentation.access_scope >= PresentationQosPolicyAccessScopeKind::Topic);
+            && !(self.presentation.ordered_access
+                && self.presentation.access_scope >= PresentationQosPolicyAccessScopeKind::Topic);
 
         if !take {
             if !ordered_by_instance {
@@ -1114,7 +1116,6 @@ impl<T> DataReaderEntity<T> {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -1127,7 +1128,6 @@ impl<T> DataReaderEntity<T> {
             instance_state_mask,
             specific_instance_handle,
             false,
-            presentation,
         )
     }
 
@@ -1138,7 +1138,6 @@ impl<T> DataReaderEntity<T> {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -1151,7 +1150,6 @@ impl<T> DataReaderEntity<T> {
             instance_state_mask,
             specific_instance_handle,
             true,
-            presentation,
         )
     }
 }

@@ -59,9 +59,16 @@ impl UserDefinedDataReader {
         listener_sender: Option<MpscSender<ListenerMail>>,
         listener_mask: StatusMask,
         transport_reader: RtpsStatefulReader,
+        presentation: PresentationQosPolicy,
     ) -> Self {
         Self {
-            reader: DataReaderEntity::new(instance_handle, qos, topic_name, transport_reader),
+            reader: DataReaderEntity::new(
+                instance_handle,
+                qos,
+                topic_name,
+                transport_reader,
+                presentation,
+            ),
             listener_sender,
             listener_mask,
             status_condition: DcpsStatusCondition::default(),
@@ -217,7 +224,6 @@ impl UserDefinedDataReader {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
@@ -227,7 +233,6 @@ impl UserDefinedDataReader {
             view_state_mask,
             instance_state_mask,
             specific_instance_handle,
-            presentation,
         )
     }
 
@@ -238,7 +243,6 @@ impl UserDefinedDataReader {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
@@ -248,7 +252,6 @@ impl UserDefinedDataReader {
             view_state_mask,
             instance_state_mask,
             specific_instance_handle,
-            presentation,
         )
     }
 
@@ -259,7 +262,6 @@ impl UserDefinedDataReader {
         sample_state_mask: SampleStateMask,
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -272,7 +274,6 @@ impl UserDefinedDataReader {
                 view_state_mask,
                 instance_state_mask,
                 &Some(next_handle),
-                presentation,
             ),
             None => Err(DdsError::NoData),
         }
@@ -285,7 +286,6 @@ impl UserDefinedDataReader {
         sample_state_mask: SampleStateMask,
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
-        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -298,7 +298,6 @@ impl UserDefinedDataReader {
                 view_state_mask,
                 instance_state_mask,
                 &Some(next_handle),
-                presentation,
             ),
             None => Err(DdsError::NoData),
         }
