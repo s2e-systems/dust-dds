@@ -219,6 +219,18 @@ impl SubscriberAsync {
             .await
     }
 
+    /// Async version of [`begin_access`](crate::subscription::subscriber::Subscriber::begin_access).
+    #[tracing::instrument(skip(self))]
+    pub async fn begin_access(&self) -> DdsResult<()> {
+        todo!()
+    }
+
+    /// Async version of [`end_access`](crate::subscription::subscriber::Subscriber::end_access).
+    #[tracing::instrument(skip(self))]
+    pub async fn end_access(&self) -> DdsResult<()> {
+        todo!()
+    }
+
     /// Async version of [`get_statuscondition`](crate::subscription::subscriber::Subscriber::get_statuscondition).
     #[tracing::instrument(skip(self))]
     pub fn get_statuscondition(&self) -> StatusConditionAsync {
