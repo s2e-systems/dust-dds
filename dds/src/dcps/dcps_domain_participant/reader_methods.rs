@@ -24,7 +24,9 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
-        qos_policy::{DurabilityQosPolicyKind, PresentationQosPolicyAccessScopeKind},
+        qos_policy::{
+            DurabilityQosPolicyKind, PresentationQosPolicy, PresentationQosPolicyAccessScopeKind,
+        },
         sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
@@ -82,6 +84,7 @@ impl DcpsDomainParticipant {
                         view_state_mask,
                         instance_state_mask,
                         specific_instance_handle,
+                        &PresentationQosPolicy::default(),
                     )?;
                     (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
                 } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
@@ -91,6 +94,7 @@ impl DcpsDomainParticipant {
                         view_state_mask,
                         instance_state_mask,
                         specific_instance_handle,
+                        &PresentationQosPolicy::default(),
                     )?;
                     (sample_list, dr.topic_name.as_ref())
                 } else {
@@ -113,6 +117,7 @@ impl DcpsDomainParticipant {
                         "read called without calling begin_access on Subscriber with GROUP access_scope",
                     )));
                 }
+                let presentation = subscriber.qos.presentation.clone();
                 let Some(data_reader) = subscriber
                     .data_reader_list
                     .iter_mut()
@@ -126,6 +131,7 @@ impl DcpsDomainParticipant {
                     view_state_mask,
                     instance_state_mask,
                     specific_instance_handle,
+                    &presentation,
                 )?;
                 (sample_list, data_reader.topic_name.as_ref())
             };
@@ -169,6 +175,7 @@ impl DcpsDomainParticipant {
                 "take called without calling begin_access on Subscriber with GROUP access_scope",
             )));
         }
+        let presentation = subscriber.qos.presentation.clone();
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
@@ -182,6 +189,7 @@ impl DcpsDomainParticipant {
             view_state_mask,
             instance_state_mask,
             specific_instance_handle,
+            &presentation,
         )?;
 
         let Some(type_support) = get_topic_type_support(
@@ -223,6 +231,7 @@ impl DcpsDomainParticipant {
                 "read_next_instance called without calling begin_access on Subscriber with GROUP access_scope",
             )));
         }
+        let presentation = subscriber.qos.presentation.clone();
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
@@ -236,6 +245,7 @@ impl DcpsDomainParticipant {
             sample_state_mask,
             view_state_mask,
             instance_state_mask,
+            &presentation,
         )?;
 
         let Some(type_support) = get_topic_type_support(
@@ -277,6 +287,7 @@ impl DcpsDomainParticipant {
                 "take_next_instance called without calling begin_access on Subscriber with GROUP access_scope",
             )));
         }
+        let presentation = subscriber.qos.presentation.clone();
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
@@ -290,6 +301,7 @@ impl DcpsDomainParticipant {
             sample_state_mask,
             view_state_mask,
             instance_state_mask,
+            &presentation,
         )?;
 
         let Some(type_support) = get_topic_type_support(

@@ -6858,3 +6858,251 @@ fn multiple_writers_coherent_and_non_coherent() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap().value, 1);
 }
+
+#[test]
+fn ordered_access_instance_and_topic_presentation() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<ShapeType>(
+            "Square",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let pub_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: false,
+            ordered_access: true,
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(pub_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Subscriber 1 with INSTANCE presentation
+    let sub1_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
+            coherent_access: false,
+            ordered_access: true,
+        },
+        ..Default::default()
+    };
+    let subscriber1 = participant
+        .create_subscriber(QosKind::Specific(sub1_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        ..Default::default()
+    };
+    let reader1 = subscriber1
+        .create_datareader::<ShapeType>(
+            &topic,
+            QosKind::Specific(reader_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Subscriber 2 with TOPIC presentation
+    let sub2_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: false,
+            ordered_access: true,
+        },
+        ..Default::default()
+    };
+    let subscriber2 = participant
+        .create_subscriber(QosKind::Specific(sub2_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader2 = subscriber2
+        .create_datareader::<ShapeType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Wait for match
+    let writer_cond = writer.get_statuscondition();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut ws = WaitSet::new();
+    ws.attach_condition(Condition::StatusCondition(writer_cond))
+        .unwrap();
+    while writer
+        .get_publication_matched_status()
+        .unwrap()
+        .current_count
+        < 2
+    {
+        ws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    let r1_cond = reader1.get_statuscondition();
+    r1_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut r1_ws = WaitSet::new();
+    r1_ws
+        .attach_condition(Condition::StatusCondition(r1_cond))
+        .unwrap();
+    while reader1
+        .get_subscription_matched_status()
+        .unwrap()
+        .current_count
+        < 1
+    {
+        r1_ws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    let r2_cond = reader2.get_statuscondition();
+    r2_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut r2_ws = WaitSet::new();
+    r2_ws
+        .attach_condition(Condition::StatusCondition(r2_cond))
+        .unwrap();
+    while reader2
+        .get_subscription_matched_status()
+        .unwrap()
+        .current_count
+        < 1
+    {
+        r2_ws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    // Publish 4 instances interleaved
+    let instances = ["BLUE", "BLUE1", "BLUE2", "BLUE3"];
+    let num_samples_per_instance = 5;
+    for size in 0..num_samples_per_instance {
+        for color in &instances {
+            writer
+                .write(
+                    ShapeType {
+                        color: color.to_string(),
+                        x: 10,
+                        y: 10,
+                        shapesize: size,
+                    },
+                    None,
+                )
+                .unwrap();
+        }
+    }
+
+    let total_samples = instances.len() * num_samples_per_instance as usize;
+
+    // Wait until both readers have all samples
+    let r1_data_cond = reader1.get_statuscondition();
+    r1_data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut r1_dws = WaitSet::new();
+    r1_dws
+        .attach_condition(Condition::StatusCondition(r1_data_cond))
+        .unwrap();
+    while reader1
+        .read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap()
+        .len()
+        < total_samples
+    {
+        r1_dws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    let r2_data_cond = reader2.get_statuscondition();
+    r2_data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut r2_dws = WaitSet::new();
+    r2_dws
+        .attach_condition(Condition::StatusCondition(r2_data_cond))
+        .unwrap();
+    while reader2
+        .read(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap()
+        .len()
+        < total_samples
+    {
+        r2_dws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    // Subscriber 1 (Instance Presentation): samples must be grouped contiguously by instance
+    let sub1_samples = reader1
+        .take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(sub1_samples.len(), total_samples);
+
+    // Grouping check: for each instance, all its samples must appear contiguously
+    let mut seen_instances = std::collections::HashSet::new();
+    let mut current_instance = String::new();
+    for sample in &sub1_samples {
+        let sample_data = sample.data.as_ref().unwrap();
+        if sample_data.color != current_instance {
+            assert!(
+                !seen_instances.contains(&sample_data.color),
+                "Instance {} appeared again after another instance; samples are not grouped by instance",
+                sample_data.color
+            );
+            seen_instances.insert(sample_data.color.clone());
+            current_instance = sample_data.color.clone();
+        }
+    }
+
+    // Subscriber 2 (Topic Presentation): samples must be ordered in publish order (interleaved)
+    let sub2_samples = reader2
+        .take(100, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(sub2_samples.len(), total_samples);
+
+    let mut expected_index = 0;
+    for size in 0..num_samples_per_instance {
+        for color in &instances {
+            let data = sub2_samples[expected_index].data.as_ref().unwrap();
+            assert_eq!(data.color, *color);
+            assert_eq!(data.shapesize, size);
+            expected_index += 1;
+        }
+    }
+}
