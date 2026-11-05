@@ -5472,9 +5472,9 @@ fn samples_should_be_content_filtered() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>(
+        .create_topic::<StringData>(
             "MyTopic",
-            "KeyedData",
+            "StringData",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
@@ -5774,9 +5774,9 @@ fn samples_should_be_content_filtered_by_literal_string() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>(
+        .create_topic::<StringData>(
             "MyTopic",
-            "KeyedData",
+            "StringData",
             QosKind::Default,
             NO_LISTENER,
             NO_STATUS,
