@@ -6152,6 +6152,212 @@ fn coherent_sets_with_multiple_instances_and_topics() {
     }
 }
 
+// Test_CoherentSets_12: Test the behavior of coherent access with GROUP_PRESENTATION with several instances
+#[test]
+fn coherent_sets_group_presentation_with_multiple_instances_and_topics() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic_names = ["Square", "Square1", "Square2"];
+    let mut topics = Vec::new();
+    for topic_name in topic_names {
+        let topic = participant
+            .create_topic::<ShapeType>(
+                topic_name,
+                "ShapeType",
+                QosKind::Default,
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+        topics.push(topic);
+    }
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let mut writers = Vec::new();
+    for topic in &topics {
+        let writer = publisher
+            .create_datawriter(
+                topic,
+                QosKind::Specific(writer_qos.clone()),
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+        writers.push(writer);
+    }
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let mut readers = Vec::new();
+    for topic in &topics {
+        let reader = subscriber
+            .create_datareader::<ShapeType>(
+                topic,
+                QosKind::Specific(reader_qos.clone()),
+                NO_LISTENER,
+                NO_STATUS,
+            )
+            .unwrap();
+        readers.push(reader);
+    }
+
+    for writer in &writers {
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    let instance_colors = ["BLUE", "BLUE1", "BLUE2", "BLUE3"];
+    let coherent_sample_count = 3;
+
+    // Verify calling sample-accessing operations without begin_access returns PreconditionNotMet
+    for reader in &readers {
+        assert!(matches!(
+            reader.take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE),
+            Err(DdsError::PreconditionNotMet(_))
+        ));
+    }
+
+    publisher.begin_coherent_changes().unwrap();
+
+    for n in 1..=coherent_sample_count {
+        for writer in &writers {
+            for &color in &instance_colors {
+                let data = ShapeType {
+                    color: color.to_string(),
+                    x: 100,
+                    y: 100,
+                    shapesize: n,
+                };
+                writer.write(data, None).unwrap();
+            }
+        }
+    }
+
+    for writer in &writers {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    // Inside begin_access but before coherent set ends, no samples should be available
+    subscriber.begin_access().unwrap();
+    for reader in &readers {
+        assert!(
+            reader
+                .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .is_err()
+        );
+    }
+    subscriber.end_access().unwrap();
+
+    publisher.end_coherent_changes().unwrap();
+
+    for writer in &writers {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    // After coherent set ends, taking without begin_access still fails with PreconditionNotMet
+    for reader in &readers {
+        assert!(matches!(
+            reader.take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE),
+            Err(DdsError::PreconditionNotMet(_))
+        ));
+    }
+
+    subscriber.begin_access().unwrap();
+
+    let mut total_samples = 0;
+    for reader in &readers {
+        let samples = reader
+            .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
+
+        total_samples += samples.len();
+        assert_eq!(
+            samples.len(),
+            instance_colors.len() * coherent_sample_count as usize
+        );
+
+        for &color in &instance_colors {
+            let instance_samples: Vec<_> = samples
+                .iter()
+                .filter(|s| s.data.as_ref().unwrap().color == color)
+                .collect();
+            assert_eq!(instance_samples.len(), coherent_sample_count as usize);
+            let sizes: Vec<i32> = instance_samples
+                .iter()
+                .map(|s| s.data.as_ref().unwrap().shapesize)
+                .collect();
+            assert_eq!(sizes, vec![1, 2, 3]);
+        }
+    }
+    assert_eq!(total_samples, 36);
+
+    subscriber.end_access().unwrap();
+
+    // Calling end_access again without matching begin_access returns PreconditionNotMet
+    assert!(matches!(
+        subscriber.end_access(),
+        Err(DdsError::PreconditionNotMet(_))
+    ));
+}
+
 #[test]
 fn coherent_sets_topic_presentation() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

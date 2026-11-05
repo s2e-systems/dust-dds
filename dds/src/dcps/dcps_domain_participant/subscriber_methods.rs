@@ -18,7 +18,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicyKind},
         time::Time,
     },
     rtps::{
@@ -372,6 +372,45 @@ impl DcpsDomainParticipant {
         let listener_sender = listener_sender_task.map(|l| l.spawn(spawner));
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = listener_mask;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn begin_access(&mut self, subscriber_handle: &InstanceHandle) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group {
+            subscriber.access_depth += 1;
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn end_access(&mut self, subscriber_handle: &InstanceHandle) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group {
+            if subscriber.access_depth == 0 {
+                return Err(DdsError::PreconditionNotMet(String::from(
+                    "end_access called without matching begin_access",
+                )));
+            }
+            subscriber.access_depth -= 1;
+        }
         Ok(())
     }
 }

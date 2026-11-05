@@ -337,6 +337,12 @@ impl DcpsDomainParticipant {
                     spawner,
                 ))
             }
+            DomainParticipantMail::BeginAccess(p) => {
+                DcpsReply::Ok(self.begin_access(&p.subscriber_handle))
+            }
+            DomainParticipantMail::EndAccess(p) => {
+                DcpsReply::Ok(self.end_access(&p.subscriber_handle))
+            }
 
             // Writer
             DomainParticipantMail::SetDataWriterListener(m) => {

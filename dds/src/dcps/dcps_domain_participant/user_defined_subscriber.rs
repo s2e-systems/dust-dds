@@ -23,6 +23,7 @@ pub struct UserDefinedSubscriber {
     pub listener_sender: Option<MpscSender<ListenerMail>>,
     pub listener_mask: StatusMask,
     pub data_reader_list: Vec<UserDefinedDataReader>,
+    pub access_depth: usize,
 }
 
 impl UserDefinedSubscriber {
@@ -39,6 +40,7 @@ impl UserDefinedSubscriber {
             listener_sender,
             listener_mask,
             data_reader_list: Vec::new(),
+            access_depth: 0,
         }
     }
 }

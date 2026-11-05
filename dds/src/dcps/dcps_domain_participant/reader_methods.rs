@@ -24,7 +24,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
-        qos_policy::DurabilityQosPolicyKind,
+        qos_policy::{DurabilityQosPolicyKind, PresentationQosPolicyAccessScopeKind},
         sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
@@ -105,6 +105,14 @@ impl DcpsDomainParticipant {
                 let Some(subscriber) = subscriber else {
                     return Err(DdsError::AlreadyDeleted);
                 };
+                if subscriber.qos.presentation.access_scope
+                    == PresentationQosPolicyAccessScopeKind::Group
+                    && subscriber.access_depth == 0
+                {
+                    return Err(DdsError::PreconditionNotMet(String::from(
+                        "read called without calling begin_access on Subscriber with GROUP access_scope",
+                    )));
+                }
                 let Some(data_reader) = subscriber
                     .data_reader_list
                     .iter_mut()
@@ -154,6 +162,13 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        if subscriber.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group
+            && subscriber.access_depth == 0
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "take called without calling begin_access on Subscriber with GROUP access_scope",
+            )));
+        }
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
@@ -201,6 +216,13 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        if subscriber.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group
+            && subscriber.access_depth == 0
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "read_next_instance called without calling begin_access on Subscriber with GROUP access_scope",
+            )));
+        }
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
@@ -248,6 +270,13 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+        if subscriber.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group
+            && subscriber.access_depth == 0
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "take_next_instance called without calling begin_access on Subscriber with GROUP access_scope",
+            )));
+        }
         let Some(data_reader) = subscriber
             .data_reader_list
             .iter_mut()
