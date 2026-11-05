@@ -35,7 +35,7 @@ use crate::{
     },
     rtps::{
         message_receiver::MessageReceiver,
-        types::{ChangeKind, SEQUENCE_NUMBER_UNKNOWN, TopicKind},
+        types::{ChangeKind, SEQUENCENUMBER_UNKNOWN, TopicKind},
     },
     rtps_messages::{
         overall_structure::{RtpsMessageRead, RtpsSubmessageReadKind},
@@ -80,7 +80,7 @@ impl DcpsDomainParticipant {
             {
                 data_reader_list.iter().any(|reader| {
                     reader.transport_reader.changes.iter().any(|c| {
-                        c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
+                        c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
                             || (c.data_value.is_empty()
                                 && c.coherent_set.is_none()
                                 && c.group_coherent_set.is_some())
@@ -467,60 +467,31 @@ impl DcpsDomainParticipant {
                     match subscriber_presentation.access_scope {
                         PresentationQosPolicyAccessScopeKind::Instance
                         | PresentationQosPolicyAccessScopeKind::Topic => {
-                            let mut aborted = false;
-                            while let Some(mut end_marker_pos) =
-                                data_reader.transport_reader.changes.iter().position(|c| {
-                                    c.coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                        || c.group_coherent_set == Some(SEQUENCE_NUMBER_UNKNOWN)
-                                        || (c.data_value.is_empty()
-                                            && c.coherent_set.is_none()
-                                            && c.group_coherent_set.is_some())
-                                })
-                            {
-                                let writer_guid = data_reader.transport_reader.changes
-                                    [end_marker_pos]
-                                    .writer_guid;
-                                let mut i = 0;
-                                while i < end_marker_pos {
-                                    if data_reader.transport_reader.changes[i].writer_guid
-                                        == writer_guid
-                                        && (data_reader.transport_reader.changes[i]
-                                            .coherent_set
-                                            .is_some()
-                                            || data_reader.transport_reader.changes[i]
-                                                .group_coherent_set
-                                                .is_some())
-                                    {
-                                        let cache_change =
-                                            data_reader.transport_reader.changes.remove(i);
-                                        end_marker_pos -= 1;
-                                        if !process_single_cache_change(cache_change, data_reader) {
-                                            data_reader.transport_reader.changes.clear();
-                                            aborted = true;
-                                            break;
+                            let mut i = 0;
+                            while i < data_reader.transport_reader.changes.len() {
+                                let c = &data_reader.transport_reader.changes[i];
+                                if c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                    || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                    || (c.data_value.is_empty()
+                                        && c.coherent_set.is_none()
+                                        && c.group_coherent_set.is_some())
+                                {
+                                    data_reader.transport_reader.changes.remove(i);
+                                } else {
+                                    let is_complete = match c.coherent_set {
+                                        Some(sn) => {
+                                            let writer_guid = c.writer_guid;
+                                            data_reader.transport_reader.changes[i + 1..]
+                                                .iter()
+                                                .any(|c| {
+                                                    c.writer_guid == writer_guid
+                                                        && c.coherent_set != Some(sn)
+                                                })
                                         }
-                                    } else {
-                                        i += 1;
-                                    }
-                                }
-                                if aborted {
-                                    break;
-                                }
-                                if end_marker_pos < data_reader.transport_reader.changes.len() {
-                                    data_reader.transport_reader.changes.remove(end_marker_pos);
-                                }
-                            }
+                                        None => true,
+                                    };
 
-                            if !aborted {
-                                let mut i = 0;
-                                while i < data_reader.transport_reader.changes.len() {
-                                    if data_reader.transport_reader.changes[i]
-                                        .coherent_set
-                                        .is_none()
-                                        && data_reader.transport_reader.changes[i]
-                                            .group_coherent_set
-                                            .is_none()
-                                    {
+                                    if is_complete {
                                         let cache_change =
                                             data_reader.transport_reader.changes.remove(i);
                                         if !process_single_cache_change(cache_change, data_reader) {
@@ -536,8 +507,8 @@ impl DcpsDomainParticipant {
                         PresentationQosPolicyAccessScopeKind::Group => {
                             if group_has_end_marker {
                                 data_reader.transport_reader.changes.retain(|c| {
-                                    c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
-                                        && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                                    c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
+                                        && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
                                         && !(c.data_value.is_empty()
                                             && c.coherent_set.is_none()
                                             && c.group_coherent_set.is_some())
@@ -578,8 +549,8 @@ impl DcpsDomainParticipant {
                     }
                 } else {
                     data_reader.transport_reader.changes.retain(|c| {
-                        c.coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
-                            && c.group_coherent_set != Some(SEQUENCE_NUMBER_UNKNOWN)
+                        c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
+                            && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
                             && !(c.data_value.is_empty()
                                 && c.coherent_set.is_none()
                                 && c.group_coherent_set.is_some())

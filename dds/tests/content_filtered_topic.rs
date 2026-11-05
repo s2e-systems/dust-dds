@@ -34,6 +34,11 @@ struct ShapeType {
     shapesize: i32,
 }
 
+#[derive(Clone, Debug, PartialEq, DdsType)]
+struct CoherentData {
+    value: i32,
+}
+
 #[test]
 fn samples_should_be_content_filtered() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
@@ -844,4 +849,368 @@ fn coherent_sets_topic_presentation() {
         .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
     assert_eq!(samples.len(), 3);
+}
+
+#[test]
+fn coherent_changes_topic_access_scope() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<CoherentData>(
+            "CoherentTopic",
+            "CoherentData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<CoherentData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    // 1. Begin coherent set and write 2 samples
+    publisher.begin_coherent_changes().unwrap();
+    writer.write(CoherentData { value: 10 }, None).unwrap();
+    writer.write(CoherentData { value: 20 }, None).unwrap();
+
+    // Reader should not see data before coherent set ends
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut data_wait_set = WaitSet::new();
+    data_wait_set
+        .attach_condition(Condition::StatusCondition(data_cond.clone()))
+        .unwrap();
+    assert!(data_wait_set.wait(Duration::new(0, 200_000_000)).is_err());
+
+    // 2. End coherent changes -> triggers DataAvailable
+    publisher.end_coherent_changes().unwrap();
+    data_wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 2);
+    assert_eq!(samples[0].data.as_ref().unwrap().value, 10);
+    assert_eq!(samples[1].data.as_ref().unwrap().value, 20);
+
+    // 3. Subsequent sample outside coherent set is received immediately
+    writer.write(CoherentData { value: 30 }, None).unwrap();
+    data_wait_set.wait(Duration::new(5, 0)).unwrap();
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap().value, 30);
+}
+
+#[test]
+fn coherent_changes_instance_access_scope() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<CoherentData>(
+            "CoherentInstanceTopic",
+            "CoherentData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<CoherentData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    publisher.begin_coherent_changes().unwrap();
+    writer.write(CoherentData { value: 100 }, None).unwrap();
+    writer.write(CoherentData { value: 200 }, None).unwrap();
+
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut data_wait_set = WaitSet::new();
+    data_wait_set
+        .attach_condition(Condition::StatusCondition(data_cond))
+        .unwrap();
+    assert!(data_wait_set.wait(Duration::new(0, 200_000_000)).is_err());
+
+    publisher.end_coherent_changes().unwrap();
+    data_wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 2);
+    assert_eq!(samples[0].data.as_ref().unwrap().value, 100);
+    assert_eq!(samples[1].data.as_ref().unwrap().value, 200);
+}
+
+#[test]
+fn multiple_writers_coherent_and_non_coherent() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<CoherentData>(
+            "CoherentMultiWriterTopic",
+            "CoherentData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let pub_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+
+    // Publisher 1: coherent access enabled
+    let pub1 = participant
+        .create_publisher(QosKind::Specific(pub_qos.clone()), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer1 = pub1
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Publisher 2: also coherent access enabled
+    let pub2 = participant
+        .create_publisher(QosKind::Specific(pub_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer2 = pub2
+        .create_datawriter(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Subscriber: coherent access
+    let sub_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Topic,
+            coherent_access: true,
+            ordered_access: false,
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(sub_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<CoherentData>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    // Wait for matching
+    let cond1 = writer1.get_statuscondition();
+    cond1
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut ws1 = WaitSet::new();
+    ws1.attach_condition(Condition::StatusCondition(cond1))
+        .unwrap();
+    ws1.wait(Duration::new(10, 0)).unwrap();
+
+    let cond2 = writer2.get_statuscondition();
+    cond2
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut ws2 = WaitSet::new();
+    ws2.attach_condition(Condition::StatusCondition(cond2))
+        .unwrap();
+    ws2.wait(Duration::new(10, 0)).unwrap();
+
+    let reader_cond = reader.get_statuscondition();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut rws = WaitSet::new();
+    rws.attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+    while reader
+        .get_subscription_matched_status()
+        .unwrap()
+        .current_count
+        < 2
+    {
+        rws.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut dws = WaitSet::new();
+    dws.attach_condition(Condition::StatusCondition(data_cond))
+        .unwrap();
+
+    // Writer 1 begins coherent set and writes
+    pub1.begin_coherent_changes().unwrap();
+    writer1.write(CoherentData { value: 1 }, None).unwrap();
+
+    // Writer 2 writes a non-coherent sample
+    writer2.write(CoherentData { value: 99 }, None).unwrap();
+
+    // Reader should receive Writer 2's sample even though Writer 1 is in an open coherent set
+    dws.wait(Duration::new(5, 0)).unwrap();
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap().value, 99);
+
+    // Writer 1 ends coherent changes
+    pub1.end_coherent_changes().unwrap();
+    dws.wait(Duration::new(5, 0)).unwrap();
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap().value, 1);
 }

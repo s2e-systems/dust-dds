@@ -21,7 +21,7 @@ use crate::{
     rtps::{
         cache_change::CacheChangeWrite,
         stateful_writer::RtpsStatefulWriter,
-        types::{ChangeKind, SEQUENCE_NUMBER_UNKNOWN, TopicKind},
+        types::{ChangeKind, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     runtime::Spawner,
@@ -262,7 +262,7 @@ impl DcpsDomainParticipant {
                                     inline_qos: ParameterListWrite {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
-                                        coherent_set: Some(SEQUENCE_NUMBER_UNKNOWN),
+                                        coherent_set: None,
                                         group_coherent_set: None,
                                         group_seq_num: None,
                                     },
