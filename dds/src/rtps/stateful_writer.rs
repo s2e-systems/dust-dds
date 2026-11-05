@@ -6,7 +6,7 @@ use crate::{
     infrastructure::time::Time,
     rtps::{
         cache_change::CacheChangeWrite,
-        types::{ChangeKind, DurabilityKind, ReaderProxy, ReliabilityKind},
+        types::{ChangeKind, DurabilityKind, ReaderProxy, ReliabilityKind, SequenceNumber},
     },
     rtps_messages::{
         submessage_elements::SequenceNumberSet,
@@ -18,7 +18,7 @@ use crate::{
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix, SequenceNumber},
+        types::{ENTITYID_UNKNOWN, EntityId, Guid, GuidPrefix},
     },
 };
 use alloc::vec::Vec;

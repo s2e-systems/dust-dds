@@ -1,4 +1,4 @@
-use crate::transport::types::{EntityId, SequenceNumber};
+use crate::{rtps::types::SequenceNumber, transport::types::EntityId};
 
 use super::super::{
     error::{RtpsMessageError, RtpsMessageResult},

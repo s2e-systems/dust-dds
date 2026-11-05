@@ -15,7 +15,7 @@ use crate::{
     },
     rtps::{
         cache_change::CacheChangeWrite,
-        types::{ChangeKind, TopicKind},
+        types::{ChangeKind, SequenceNumber, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     xtypes::{
@@ -48,6 +48,8 @@ pub struct DataWriterEntity<T> {
     pub qos: DataWriterQos,
     pub registered_instance_info: Vec<RegisteredInstanceInfo>,
     pub key_holder_type: KeyHolderType,
+    pub is_in_coherent_set: bool,
+    pub first_coherent_sequence_number: Option<SequenceNumber>,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
@@ -67,6 +69,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             qos,
             registered_instance_info: Vec::new(),
             key_holder_type,
+            is_in_coherent_set: false,
+            first_coherent_sequence_number: None,
         }
     }
 
@@ -76,6 +80,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         serialized_data: Vec<u8>,
         sample_timestamp: Time,
         now: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self
             .registered_instance_info
@@ -128,6 +134,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         }
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -139,9 +153,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 } else {
                     Some(sample_instance_handle.into())
                 },
-                coherent_set: None,
-                group_coherent_set: None,
-                group_seq_num: None,
+                coherent_set,
+                group_coherent_set,
+                group_seq_num,
             },
             data_value: serialized_data.into(),
         };
@@ -198,6 +212,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_info.last_write_time = None;
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let cache_change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -205,7 +227,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::NotAliveDisposed,
                 instance_handle: Some(instance_handle.into()),
-                coherent_set: None,
+                coherent_set,
                 group_coherent_set: None,
                 group_seq_num: None,
             },
@@ -275,6 +297,14 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_info.last_write_time = None;
 
         self.last_change_sequence_number += 1;
+        let coherent_set = if self.is_in_coherent_set {
+            if self.first_coherent_sequence_number.is_none() {
+                self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
+            }
+            self.first_coherent_sequence_number
+        } else {
+            None
+        };
         let kind = if self
             .qos
             .writer_data_lifecycle
@@ -291,7 +321,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind,
                 instance_handle: Some(instance_handle.into()),
-                coherent_set: None,
+                coherent_set,
                 group_coherent_set: None,
                 group_seq_num: None,
             },

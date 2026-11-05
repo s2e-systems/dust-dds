@@ -5,10 +5,10 @@ use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
         PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
     },
-    rtps::types::{ChangeKind, Time},
+    rtps::types::{ChangeKind, SequenceNumber, Time},
     rtps_messages::{
         self,
-        overall_structure::Endianness,
+        overall_structure::TryReadFromBytes,
         submessage_elements::ParameterListWrite,
         submessages::{
             data::{DataSubmessage, DataSubmessageWrite},
@@ -16,7 +16,7 @@ use crate::{
         },
         types::ParameterId,
     },
-    transport::types::{EntityId, Guid, GuidPrefix, SequenceNumber},
+    transport::types::{EntityId, Guid, GuidPrefix},
 };
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
@@ -93,67 +93,34 @@ impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
             .parameters()
             .find(|x| x.parameter_id() == PID_COHERENT_SET)
         {
-            Some(x) => {
-                let data = x.value();
-                if x.length() == 8 {
-                    let data = [
-                        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                    ];
-                    Ok(Some(match value.endianness() {
-                        Endianness::BigEndian => SequenceNumber::from_be_bytes(data),
-                        Endianness::LittleEndian => SequenceNumber::from_le_bytes(data),
-                    }))
-                } else {
-                    tracing::warn!("Received invalid PID_COHERENT_SET value");
-                    Err(RtpsError::InvalidData)
-                }
-            }
-            None => Ok(None),
-        }?;
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
 
         let group_coherent_set = match value
             .parameters()
             .find(|x| x.parameter_id() == PID_GROUP_COHERENT_SET)
         {
-            Some(x) => {
-                let data = x.value();
-                if x.length() == 8 {
-                    let data = [
-                        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                    ];
-                    Ok(Some(match value.endianness() {
-                        Endianness::BigEndian => SequenceNumber::from_be_bytes(data),
-                        Endianness::LittleEndian => SequenceNumber::from_le_bytes(data),
-                    }))
-                } else {
-                    tracing::warn!("Received invalid PID_GROUP_COHERENT_SET value");
-                    Err(RtpsError::InvalidData)
-                }
-            }
-            None => Ok(None),
-        }?;
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
 
         let group_seq_num = match value
             .parameters()
             .find(|x| x.parameter_id() == PID_GROUP_SEQ_NUM)
         {
-            Some(x) => {
-                let data = x.value();
-                if x.length() == 8 {
-                    let data = [
-                        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                    ];
-                    Ok(Some(match value.endianness() {
-                        Endianness::BigEndian => SequenceNumber::from_be_bytes(data),
-                        Endianness::LittleEndian => SequenceNumber::from_le_bytes(data),
-                    }))
-                } else {
-                    tracing::warn!("Received invalid PID_GROUP_SEQ_NUM value");
-                    Err(RtpsError::InvalidData)
-                }
-            }
-            None => Ok(None),
-        }?;
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
 
         Ok(Self {
             change_kind,

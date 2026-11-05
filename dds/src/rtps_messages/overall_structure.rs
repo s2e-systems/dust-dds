@@ -1,6 +1,8 @@
-use crate::transport::types::{
-    EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, SequenceNumber, UnsignedLong,
-    VendorId,
+use crate::{
+    rtps::types::SequenceNumber,
+    transport::types::{
+        EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, UnsignedLong, VendorId,
+    },
 };
 
 use super::{

@@ -1,6 +1,6 @@
 use crate::{
-    rtps::cache_change::CacheChangeWrite,
-    transport::types::{Locator, SequenceNumber},
+    rtps::{cache_change::CacheChangeWrite, types::SequenceNumber},
+    transport::types::Locator,
 };
 
 pub struct RtpsReaderLocator {
