@@ -698,8 +698,8 @@ impl<T> DataReaderEntity<T> {
                 let mut taken_indices = Vec::new();
                 'take_outer: for target_handle in instance_order {
                     for (idx, cache_change) in self.sample_list.iter().enumerate() {
-                        if cache_change.instance_handle == target_handle {
-                            if match_sample(
+                        if cache_change.instance_handle == target_handle
+                            && match_sample(
                                 cache_change,
                                 specific_instance_handle,
                                 &self.instances,
@@ -717,7 +717,6 @@ impl<T> DataReaderEntity<T> {
                                     break 'take_outer;
                                 }
                             }
-                        }
                     }
                 }
 
