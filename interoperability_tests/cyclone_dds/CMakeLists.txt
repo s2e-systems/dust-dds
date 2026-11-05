@@ -18,11 +18,6 @@ if(_generator_is_multi_config)
 else()
   set(CMAKE_BUILD_TYPE Debug)
 endif()
-if (MSVC)
-  add_compile_options(/W4 /WX)
-elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-endif()
 
 #
 # Cyclone DDS
@@ -50,10 +45,14 @@ FetchContent_Declare(
   )
 FetchContent_MakeAvailable(CycloneDDS)
 
-# TODO: remove when using `SYSTEM` in `FetchContent_Declare`
-get_target_property(_cyclone_dds_ddsc_aliased_target CycloneDDS::ddsc ALIASED_TARGET)
-get_target_property(_cyclone_dds_ddsc_interface_include_dirs ${_cyclone_dds_ddsc_aliased_target} INTERFACE_INCLUDE_DIRECTORIES)
-set_target_properties(${_cyclone_dds_ddsc_aliased_target} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_cyclone_dds_ddsc_interface_include_dirs}")
+#
+# Compile options
+#
+if (MSVC)
+  add_compile_options(/W4 /WX)
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
 
 #
 # Hello world
