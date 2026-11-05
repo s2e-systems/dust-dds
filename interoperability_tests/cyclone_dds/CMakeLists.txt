@@ -22,7 +22,6 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
 set(ENABLE_SSL OFF CACHE STRING "" FORCE)
 set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
-set(CMAKE_PROJECT_NAME CycloneDDS)
 FetchContent_MakeAvailable(CycloneDDS)
 
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
