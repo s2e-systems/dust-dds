@@ -3,6 +3,12 @@ use dust_dds_derive::TypeSupport;
 
 use crate::transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId};
 
+/// SequenceNumber_t
+/// Type used to hold sequence numbers.
+/// Must be possible to represent using 64 bits.
+pub type SequenceNumber = i64;
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = (-1_i64) << 32;
+
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the 'key' that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY, WITH_KEY

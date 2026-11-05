@@ -2,11 +2,31 @@ cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
 project(cyclone_dds_interoperability LANGUAGES C)
 
+#
 # Settings
+#
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+get_property(_generator_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_generator_is_multi_config)
+  set(CMAKE_CONFIGURATION_TYPES Debug)
+  if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
+    set(CMAKE_DEFAULT_BUILD_TYPE Debug)
+  endif()
+else()
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
+if (MSVC)
+  add_compile_options(/W4 /WX)
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
 
+#
 # Cyclone DDS
+#
 set(ENABLE_SSL OFF CACHE BOOL "" FORCE)
 set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
@@ -35,121 +55,156 @@ get_target_property(_cyclone_dds_ddsc_aliased_target CycloneDDS::ddsc ALIASED_TA
 get_target_property(_cyclone_dds_ddsc_interface_include_dirs ${_cyclone_dds_ddsc_aliased_target} INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(${_cyclone_dds_ddsc_aliased_target} PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_cyclone_dds_ddsc_interface_include_dirs}")
 
-# Generate subscriber and publisher same idl
-function(interoperability_test)
-  # Arguments
-  cmake_parse_arguments(PARSE_ARGV 0 "" "" "IDL;SUBSCRIBER;PUBLISHER" "")
-
-  # Targets
-  cmake_path(GET _IDL STEM LAST_ONLY IDL_TARGET)
-  cmake_path(GET _SUBSCRIBER STEM LAST_ONLY SUBSCRIBER_TARGET)
-  cmake_path(GET _PUBLISHER STEM LAST_ONLY PUBLISHER_TARGET)
-
-  # IDL
-  idlc_generate(TARGET ${IDL_TARGET} FILES "${_IDL}")
-
-  # Subscriber
-  add_executable(${SUBSCRIBER_TARGET} "${_SUBSCRIBER}")
-  target_link_libraries(${SUBSCRIBER_TARGET} PRIVATE CycloneDDS::ddsc ${IDL_TARGET})
-  set_target_properties(
-    ${SUBSCRIBER_TARGET}
-    PROPERTIES
-      C_EXTENSIONS OFF
-  )
-  target_compile_options(
-    ${SUBSCRIBER_TARGET}
-    PRIVATE
-      $<$<C_COMPILER_ID:MSVC>:/W4 /WX>
-      $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
-  )
-  if(WIN32)
-    # Copy runtime dll(s)
-    add_custom_command(
-      TARGET ${SUBSCRIBER_TARGET}
-      POST_BUILD
-      COMMAND
-        ${CMAKE_COMMAND} -E
-        $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}>>,copy_if_different,true>
-        $<TARGET_RUNTIME_DLLS:${SUBSCRIBER_TARGET}> $<TARGET_FILE_DIR:${SUBSCRIBER_TARGET}>
-      COMMAND_EXPAND_LISTS
-      VERBATIM
-    )
-  endif()
-
-  # Publisher
-  add_executable(${PUBLISHER_TARGET} "${_PUBLISHER}")
-  target_link_libraries(${PUBLISHER_TARGET} PRIVATE CycloneDDS::ddsc ${IDL_TARGET})
-  set_target_properties(
-    ${PUBLISHER_TARGET}
-    PROPERTIES
-      C_EXTENSIONS OFF
-  )
-  target_compile_options(
-    ${PUBLISHER_TARGET}
-    PRIVATE
-      $<$<C_COMPILER_ID:MSVC>:/W4 /WX>
-      $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
-  )
-  if(WIN32)
-    # Copy runtime dll(s)
-    add_custom_command(
-      TARGET ${PUBLISHER_TARGET}
-      POST_BUILD
-      COMMAND
-        ${CMAKE_COMMAND} -E
-        $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}>>,copy_if_different,true>
-        $<TARGET_RUNTIME_DLLS:${PUBLISHER_TARGET}> $<TARGET_FILE_DIR:${PUBLISHER_TARGET}>
-      COMMAND_EXPAND_LISTS
-      VERBATIM
-    )
-  endif()
-endfunction()
-
+#
 # Hello world
-interoperability_test(
-  IDL ../HelloWorld.idl
-  SUBSCRIBER cyclone_dds_subscriber_hello_world.c
-  PUBLISHER cyclone_dds_publisher_hello_world.c
+#
+# IDL
+idlc_generate(TARGET hello_world_idl FILES ../HelloWorld.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_hello_world
+  cyclone_dds_subscriber_hello_world.c
+)
+target_link_libraries(cyclone_dds_subscriber_hello_world PRIVATE
+  CycloneDDS::ddsc
+  hello_world_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_hello_world
+  cyclone_dds_publisher_hello_world.c
+)
+target_link_libraries(cyclone_dds_publisher_hello_world PRIVATE
+  CycloneDDS::ddsc
+  hello_world_idl
 )
 
+#
 # Big data
-interoperability_test(
-  IDL ../BigData.idl
-  SUBSCRIBER cyclone_dds_subscriber_big_data.c
-  PUBLISHER cyclone_dds_publisher_big_data.c
+#
+# IDL
+idlc_generate(TARGET big_data_idl FILES ../BigData.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_big_data
+  cyclone_dds_subscriber_big_data.c
+)
+target_link_libraries(cyclone_dds_subscriber_big_data PRIVATE
+  CycloneDDS::ddsc
+  big_data_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_big_data
+  cyclone_dds_publisher_big_data.c
+)
+target_link_libraries(cyclone_dds_publisher_big_data PRIVATE
+  CycloneDDS::ddsc
+  big_data_idl
 )
 
+#
 # Dispose
-interoperability_test(
-  IDL ../DisposeData.idl
-  SUBSCRIBER cyclone_dds_subscriber_dispose.c
-  PUBLISHER cyclone_dds_publisher_dispose.c
+#
+# IDL
+idlc_generate(TARGET dispose_data_idl FILES ../DisposeData.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_dispose
+  cyclone_dds_subscriber_dispose.c
+)
+target_link_libraries(cyclone_dds_subscriber_dispose PRIVATE
+  CycloneDDS::ddsc
+  dispose_data_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_dispose
+  cyclone_dds_publisher_dispose.c
+)
+target_link_libraries(cyclone_dds_publisher_dispose PRIVATE
+  CycloneDDS::ddsc
+  dispose_data_idl
 )
 
+#
 # Nested
-interoperability_test(
-  IDL ../NestedType.idl
-  SUBSCRIBER cyclone_dds_subscriber_nested.c
-  PUBLISHER cyclone_dds_publisher_nested.c
+#
+# IDL
+idlc_generate(TARGET nested_type_idl FILES ../NestedType.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_nested
+  cyclone_dds_subscriber_nested.c
+)
+target_link_libraries(cyclone_dds_subscriber_nested PRIVATE
+  CycloneDDS::ddsc
+  nested_type_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_nested
+  cyclone_dds_publisher_nested.c
+)
+target_link_libraries(cyclone_dds_publisher_nested PRIVATE
+  CycloneDDS::ddsc
+  nested_type_idl
 )
 
+#
 # Union
-interoperability_test(
-  IDL ../Union.idl
-  SUBSCRIBER cyclone_dds_subscriber_union.c
-  PUBLISHER cyclone_dds_publisher_union.c
+#
+# IDL
+idlc_generate(TARGET union_idl FILES ../Union.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_union
+  cyclone_dds_subscriber_union.c
+)
+target_link_libraries(cyclone_dds_subscriber_union PRIVATE
+  CycloneDDS::ddsc
+  union_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_union
+  cyclone_dds_publisher_union.c
+)
+target_link_libraries(cyclone_dds_publisher_union PRIVATE
+  CycloneDDS::ddsc
+  union_idl
 )
 
+#
 # Inheritance
-interoperability_test(
-  IDL ../Inheritance.idl
-  SUBSCRIBER cyclone_dds_subscriber_inheritance.c
-  PUBLISHER cyclone_dds_publisher_inheritance.c
+#
+# IDL
+idlc_generate(TARGET inheritance_idl FILES ../Inheritance.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_inheritance
+  cyclone_dds_subscriber_inheritance.c
+)
+target_link_libraries(cyclone_dds_subscriber_inheritance PRIVATE
+  CycloneDDS::ddsc
+  inheritance_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_inheritance
+  cyclone_dds_publisher_inheritance.c
+)
+target_link_libraries(cyclone_dds_publisher_inheritance PRIVATE
+  CycloneDDS::ddsc
+  inheritance_idl
 )
 
+#
 # Optional
-interoperability_test(
-  IDL ../Optional.idl
-  SUBSCRIBER cyclone_dds_subscriber_optional.c
-  PUBLISHER cyclone_dds_publisher_optional.c
+#
+# IDL
+idlc_generate(TARGET optional_idl FILES ../Optional.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_optional
+  cyclone_dds_subscriber_optional.c
+)
+target_link_libraries(cyclone_dds_subscriber_optional PRIVATE
+  CycloneDDS::ddsc
+  optional_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_optional
+  cyclone_dds_publisher_optional.c
+)
+target_link_libraries(cyclone_dds_publisher_optional PRIVATE
+  CycloneDDS::ddsc
+  optional_idl
 )

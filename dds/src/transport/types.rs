@@ -173,11 +173,6 @@ impl PartialEq<EntityId> for [u8; 4] {
 pub const ENTITYID_UNKNOWN: EntityId = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId::new([0, 0, 0x01], BUILT_IN_PARTICIPANT);
 
-/// SequenceNumber_t
-/// Type used to hold sequence numbers.
-/// Must be possible to represent using 64 bits.
-pub type SequenceNumber = i64;
-
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.

@@ -500,7 +500,10 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 ///   independently. That is, changes made to instances within each individual DataWriter will be available as coherent with
 ///   respect to other changes to instances in that same DataWriter, but will not be grouped with changes made to instances
 ///   belonging to a different DataWriter.
-///   If ordered_access is set, then the access_scope controls the maximum extent for which order will be preserved by the Service.
+/// - If access_scope is set to GROUP, then coherent changes made to instances through a DataWriter attached to a common
+///   Publisher are made available as a unit to remote subscribers
+///
+/// If ordered_access is set, then the access_scope controls the maximum extent for which order will be preserved by the Service.
 /// - If access_scope is set to INSTANCE (the lowest level), then changes to each instance are considered unordered relative
 ///   to changes to any other instance. That means that changes (creations, deletions, modifications) made to two instances
 ///   are not necessarily seen in the order they occur. This is the case even if it is the same application thread making the
@@ -509,6 +512,8 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 ///   available to subscribers in the same order they occur. Changes made to instances through different DataWriter entities
 ///   are not necessarily seen in the order they occur. This is the case, even if the changes are made by a single application
 ///   thread using DataWriter objects attached to the same Publisher.
+/// - Finally, if access_scope is set to GROUP, changes made to instances via DataWriter entities attached to the same
+///   Publisher object are made available to subscribers on the same order they occur.
 ///
 /// Note that this QoS policy controls the scope at which related changes are made available to the subscriber. This means the
 /// subscriber can access the changes in a coherent manner and in the proper order; however, it does not necessarily imply that the
