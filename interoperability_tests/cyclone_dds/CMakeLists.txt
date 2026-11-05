@@ -9,6 +9,11 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 
+if(MSVC)
+  add_compile_options(/W3 /WX)
+else()
+  add_compile_options(-Werror -Wall)
+endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE STRING "" FORCE)
 set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -140,19 +145,3 @@ target_link_libraries(CycloneDdsPublisherOptional PRIVATE
   CycloneDDS::ddsc
   OptionalGeneratedIdl
 )
-
-set_target_properties(
-  CycloneDdsSubscriber
-  CycloneDdsPublisher
-  CycloneDdsBigDataSubscriber
-  CycloneDdsBigDataPublisher
-  CycloneDdsSubscriberDispose
-  CycloneDdsPublisherDispose
-  CycloneDdsSubscriberNested
-  CycloneDdsPublisherUnion
-  CycloneDdsSubscriberUnion
-  CycloneDdsSubscriberInheritance
-  CycloneDdsPublisherInheritance
-  CycloneDdsSubscriberOptional
-  CycloneDdsPublisherOptional
-  PROPERTIES COMPILE_WARNING_AS_ERROR TRUE)

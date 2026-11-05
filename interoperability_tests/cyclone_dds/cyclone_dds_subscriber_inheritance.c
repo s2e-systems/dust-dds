@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	interoperability_test_Cat *msg;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
-	samples[0] = interoperability_test_Animal__alloc();
+	samples[0] = interoperability_test_Cat__alloc();
 
 	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)
