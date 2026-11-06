@@ -293,10 +293,13 @@ pub unsafe extern "C" fn DDS_Subscriber_set_listener(
 pub unsafe extern "C" fn DDS_Subscriber_begin_access(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
-    let Some(_) = subscriber else {
+    let Some(subscriber) = subscriber else {
         return RETCODE_BAD_PARAMETER;
     };
-    RETCODE_UNSUPPORTED
+    match unsafe { subscriber.as_ref() }.inner().begin_access() {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
 }
 
 /// Ends access to the data samples.
@@ -309,10 +312,13 @@ pub unsafe extern "C" fn DDS_Subscriber_begin_access(
 pub unsafe extern "C" fn DDS_Subscriber_end_access(
     subscriber: Option<NonNull<Subscriber>>,
 ) -> ReturnCode {
-    let Some(_) = subscriber else {
+    let Some(subscriber) = subscriber else {
         return RETCODE_BAD_PARAMETER;
     };
-    RETCODE_UNSUPPORTED
+    match unsafe { subscriber.as_ref() }.inner().end_access() {
+        Ok(()) => RETCODE_OK,
+        Err(e) => e.into(),
+    }
 }
 
 /// Returns the DomainParticipant to which the Subscriber belongs.

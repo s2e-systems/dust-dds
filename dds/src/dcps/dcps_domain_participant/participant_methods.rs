@@ -50,6 +50,7 @@ impl DcpsDomainParticipant {
             QosKind::Specific(q) => q,
         };
 
+        self.publisher_counter += 1;
         let publisher_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -68,7 +69,7 @@ impl DcpsDomainParticipant {
             0,
             USER_DEFINED_WRITER_GROUP,
         ]);
-        self.publisher_counter += 1;
+
         let data_writer_list = Default::default();
         let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let mut publisher = PublisherEntity::new(
@@ -140,6 +141,8 @@ impl DcpsDomainParticipant {
             QosKind::Default => self.domain_participant.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
         };
+
+        self.subscriber_counter += 1;
         let subscriber_handle = InstanceHandle::new([
             self.domain_participant.instance_handle[0],
             self.domain_participant.instance_handle[1],
@@ -158,7 +161,6 @@ impl DcpsDomainParticipant {
             0,
             USER_DEFINED_READER_GROUP,
         ]);
-        self.subscriber_counter += 1;
 
         let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
         let mut subscriber = UserDefinedSubscriber::new(
@@ -175,7 +177,7 @@ impl DcpsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber.enabled = true;
+            subscriber.subscriber_entity.enabled = true;
         }
 
         self.domain_participant
@@ -201,7 +203,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

@@ -28,7 +28,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
@@ -254,27 +254,18 @@ impl DcpsDomainParticipant {
         &self,
         now: Time,
         participant_announcement_interval: Duration,
-    ) -> Option<(Duration, TimedEvent)> {
-        let mut min_time: Option<Duration> = None;
-        let mut earliest_event: Option<TimedEvent> = None;
+    ) -> (Duration, TimedEvent) {
+        let mut min_time = self
+            .time_until_participant_announcement(now, participant_announcement_interval)
+            .unwrap_or(Duration::new(0, 0));
+        let mut earliest_event = TimedEvent::AnnounceParticipant;
 
-        let mut update = |duration: Duration, event: TimedEvent| match min_time {
-            Some(m) if duration < m => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
+        let mut update = |duration: Duration, event: TimedEvent| {
+            if duration < min_time {
+                min_time = duration;
+                earliest_event = event;
             }
-            None => {
-                min_time = Some(duration);
-                earliest_event = Some(event);
-            }
-            _ => (),
         };
-
-        if let Some(announcement_time) =
-            self.time_until_participant_announcement(now, participant_announcement_interval)
-        {
-            update(announcement_time, TimedEvent::AnnounceParticipant);
-        }
 
         for dp in &self.domain_participant.discovered_participant_list {
             let elapsed = now - dp.last_communication_timestamp;
@@ -332,7 +323,7 @@ impl DcpsDomainParticipant {
                             update(
                                 remaining,
                                 TimedEvent::CheckMissedReaderDeadline {
-                                    subscriber_handle: subscriber.instance_handle,
+                                    subscriber_handle: subscriber.subscriber_entity.instance_handle,
                                     reader_handle: data_reader.instance_handle,
                                 },
                             );
@@ -340,14 +331,15 @@ impl DcpsDomainParticipant {
                     }
                 }
 
-                for sample in &data_reader.sample_list {
-                    let timestamp = match data_reader.qos.destination_order.kind {
-                        DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
-                        DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                            Some(sample.reception_timestamp)
-                        }
-                    };
-                    if let Some(timestamp) = timestamp {
+                let has_finite_lifespan = data_reader
+                    .matched_publication_list
+                    .iter()
+                    .any(|p| matches!(p.lifespan().duration, DurationKind::Finite(_)));
+                if has_finite_lifespan {
+                    for sample in &data_reader.sample_list {
+                        let timestamp = sample
+                            .source_timestamp
+                            .unwrap_or(sample.reception_timestamp);
                         if let Some(matched_publication) = data_reader
                             .matched_publication_list
                             .iter()
@@ -365,7 +357,9 @@ impl DcpsDomainParticipant {
                                 update(
                                     remaining,
                                     TimedEvent::RemoveStaleReaderSamples {
-                                        subscriber_handle: subscriber.instance_handle,
+                                        subscriber_handle: subscriber
+                                            .subscriber_entity
+                                            .instance_handle,
                                         reader_handle: data_reader.instance_handle,
                                     },
                                 );
@@ -400,21 +394,19 @@ impl DcpsDomainParticipant {
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
                     if let Some(cc) = data_writer.transport_writer.changes().first() {
-                        if let Some(source_timestamp) = cc.source_timestamp {
-                            let expiry = Time::from(source_timestamp) + lifespan;
-                            let remaining = if expiry > now {
-                                expiry - now
-                            } else {
-                                Duration::new(0, 0)
-                            };
-                            update(
-                                remaining,
-                                TimedEvent::RemoveStaleWriterSamples {
-                                    publisher_handle: publisher.instance_handle,
-                                    writer_handle: data_writer.instance_handle,
-                                },
-                            );
-                        }
+                        let expiry = Time::from(cc.source_timestamp) + lifespan;
+                        let remaining = if expiry > now {
+                            expiry - now
+                        } else {
+                            Duration::new(0, 0)
+                        };
+                        update(
+                            remaining,
+                            TimedEvent::RemoveStaleWriterSamples {
+                                publisher_handle: publisher.instance_handle,
+                                writer_handle: data_writer.instance_handle,
+                            },
+                        );
                     }
                 }
 
@@ -453,7 +445,7 @@ impl DcpsDomainParticipant {
             }
         }
 
-        min_time.zip(earliest_event)
+        (min_time, earliest_event)
     }
 
     pub fn handle_timed_event(
@@ -512,13 +504,10 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                            data_writer.transport_writer.changes_mut().retain(|cc| {
-                                if let Some(timestamp) = &cc.source_timestamp {
-                                    Time::from(*timestamp) + lifespan > now
-                                } else {
-                                    true
-                                }
-                            });
+                            data_writer
+                                .transport_writer
+                                .changes_mut()
+                                .retain(|cc| Time::from(cc.source_timestamp) + lifespan > now);
                         }
                     }
                 }
@@ -533,7 +522,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     if let Some(data_reader) = subscriber
                         .data_reader_list
@@ -814,7 +803,7 @@ impl DomainParticipantEntity {
         let i = self
             .user_defined_subscriber_list
             .iter()
-            .position(|x| &x.instance_handle == handle)?;
+            .position(|x| &x.subscriber_entity.instance_handle == handle)?;
 
         Some(self.user_defined_subscriber_list.remove(i))
     }

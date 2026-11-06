@@ -151,6 +151,14 @@ impl Subscriber {
         self.0.set_listener(listener, &mask).map_err(into_pyerr)
     }
 
+    pub fn begin_access(&self) -> PyResult<()> {
+        self.0.begin_access().map_err(into_pyerr)
+    }
+
+    pub fn end_access(&self) -> PyResult<()> {
+        self.0.end_access().map_err(into_pyerr)
+    }
+
     pub fn get_statuscondition(&self) -> StatusCondition {
         self.0.get_statuscondition().into()
     }

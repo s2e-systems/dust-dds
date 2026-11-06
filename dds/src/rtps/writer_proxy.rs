@@ -1,16 +1,20 @@
 use super::message_creator::write_submessages_into_transport;
 use crate::{
+    rtps::{
+        cache_change::{CacheChangeParameters, CacheChangeRead},
+        types::{ReliabilityKind, SequenceNumber},
+    },
     rtps_messages::{
-        submessage_elements::{Data, FragmentNumberSet, SequenceNumberSet},
+        submessage_elements::{FragmentNumberSet, SequenceNumberSet},
         submessages::{
-            ack_nack::AckNackSubmessage, data::DataSubmessage, data_frag::DataFragSubmessage,
+            ack_nack::AckNackSubmessage, data_frag::DataFragSubmessage,
             info_destination::InfoDestinationSubmessage, nack_frag::NackFragSubmessage,
         },
-        types::Count,
+        types::{Count, Time},
     },
     transport::{
         interface::{RtpsParticipant, Write},
-        types::{EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
+        types::{EntityId, Guid, Locator},
     },
 };
 use alloc::{sync::Arc, vec::Vec};
@@ -88,7 +92,8 @@ impl RtpsWriterProxy {
     pub fn reconstruct_data_from_frag(
         &mut self,
         seq_num: SequenceNumber,
-    ) -> Option<DataSubmessage> {
+        source_timestamp: Option<Time>,
+    ) -> Option<CacheChangeRead> {
         let frag_submessage = self.frag_buffer.iter().find(|f| f.writer_sn() == seq_num)?;
         let total_fragments_expected = total_fragments_expected(frag_submessage);
 
@@ -113,29 +118,29 @@ impl RtpsWriterProxy {
             }
 
             let first_frag = matching_frags.first().copied()?;
-
-            let inline_qos_flag = first_frag.inline_qos_flag();
-            let data_flag = !first_frag.key_flag();
-            let key_flag = first_frag.key_flag();
-            let non_standard_payload_flag = false;
-            let writer_id = self.remote_writer_guid.entity_id();
-            let reader_id = first_frag.reader_id();
-            let writer_sn = seq_num;
-            let inline_qos = first_frag.inline_qos().clone();
+            let CacheChangeParameters {
+                change_kind,
+                instance_handle,
+                coherent_set,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info,
+            } = (&first_frag.inline_qos()).try_into().ok()?;
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
 
-            Some(DataSubmessage::new(
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos,
-                Data::new(Arc::from(data)),
-            ))
+            Some(CacheChangeRead {
+                kind: change_kind,
+                writer_guid: self.remote_writer_guid,
+                source_timestamp: source_timestamp.map(Into::into),
+                instance_handle,
+                sequence_number: seq_num,
+                data_value: Arc::from(data),
+                coherent_set,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info,
+            })
         } else {
             None
         }
@@ -143,6 +148,10 @@ impl RtpsWriterProxy {
 
     pub fn remote_writer_guid(&self) -> Guid {
         self.remote_writer_guid
+    }
+
+    pub fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {

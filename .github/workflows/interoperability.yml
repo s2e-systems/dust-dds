@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  dds_rtps_rep_ref: update-dust-dds
+  dds_rtps_rep_ref: update-dust-dds-to-0.17
 
 jobs:
   create_bin_release:
@@ -39,7 +39,7 @@ jobs:
         path: artifacts
 
   run_tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: create_bin_release
     strategy:
       matrix:
@@ -54,6 +54,8 @@ jobs:
           subscriber: toc_coredx_dds
         - publisher: dust_dds
           subscriber: opendds
+        - publisher: dust_dds
+          subscriber: eclipse_cyclone
 
         - publisher: connext_dds
           subscriber: dust_dds
@@ -62,6 +64,8 @@ jobs:
         - publisher: toc_coredx_dds
           subscriber: dust_dds
         - publisher: opendds
+          subscriber: dust_dds
+        - publisher: eclipse_cyclone
           subscriber: dust_dds
 
     steps:
@@ -109,7 +113,7 @@ jobs:
         path: ./junit_report-${{ matrix.publisher }}-${{ matrix.subscriber }}.xml
 
   report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: run_tests
     steps:
     - name: Download junit reports

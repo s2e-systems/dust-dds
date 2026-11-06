@@ -1,99 +1,66 @@
+use alloc::sync::Arc;
+
 use super::error::RtpsError;
 use crate::{
+    dcps::data_representation_builtin_endpoints::parameter_id_values::{
+        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM, PID_WRITER_GROUP_INFO,
+    },
+    rtps::types::{ChangeKind, SequenceNumber, Time, WriterGroupInfo},
     rtps_messages::{
         self,
-        submessage_elements::{ParameterListWrite, ParameterWrite},
+        overall_structure::TryReadFromBytes,
+        submessage_elements::ParameterListWrite,
         submessages::{
             data::{DataSubmessage, DataSubmessageWrite},
             data_frag::DataFragSubmessageWrite,
         },
-        types::ParameterId,
+        types::{GroupDigest, ParameterId},
     },
-    transport::types::{CacheChange, ChangeKind, EntityId, Guid, GuidPrefix},
+    transport::types::{EntityId, Guid, GuidPrefix},
 };
 
 pub const PID_KEY_HASH: ParameterId = 0x0070;
 pub const PID_STATUS_INFO: ParameterId = 0x0071;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheChangeRead {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: i64,
+    pub source_timestamp: Option<Time>,
+    pub instance_handle: Option<[u8; 16]>,
+    pub data_value: Arc<[u8]>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct StatusInfo(pub [u8; 4]);
-const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
-const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
-const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
-const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
+pub struct StatusInfo(pub [u8; 4]);
+pub const STATUS_INFO_DISPOSED: StatusInfo = StatusInfo([0, 0, 0, 0b00000001]);
+pub const STATUS_INFO_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000010]);
+pub const STATUS_INFO_DISPOSED_UNREGISTERED: StatusInfo = StatusInfo([0, 0, 0, 0b00000011]);
+pub const STATUS_INFO_FILTERED: StatusInfo = StatusInfo([0, 0, 0, 0b0000100]);
 
-impl CacheChange {
-    pub fn status_info_parameter(&self) -> Option<ParameterWrite<'static>> {
-        match self.kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
-            ChangeKind::NotAliveDisposed => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED.0,
-            )),
-            ChangeKind::NotAliveUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_UNREGISTERED.0,
-            )),
-            ChangeKind::NotAliveDisposedUnregistered => Some(ParameterWrite::new(
-                PID_STATUS_INFO,
-                &STATUS_INFO_DISPOSED_UNREGISTERED.0,
-            )),
-        }
-    }
+use crate::rtps_messages::submessage_elements::ParameterList;
 
-    pub fn key_hash_parameter<'a>(&'a self) -> Option<ParameterWrite<'a>> {
-        self.instance_handle
-            .as_ref()
-            .map(|i| ParameterWrite::new(PID_KEY_HASH, i))
-    }
+pub struct CacheChangeParameters {
+    pub change_kind: ChangeKind,
+    pub instance_handle: Option<[u8; 16]>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
+}
 
-    pub fn as_data_submessage<'a>(
-        &'a self,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        inline_qos: &'a [ParameterWrite<'a>],
-    ) -> DataSubmessageWrite<'a> {
-        let (data_flag, key_flag) = if self.data_value.is_empty() {
-            (false, false)
-        } else {
-            match self.kind {
-                ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
-                ChangeKind::NotAliveDisposed
-                | ChangeKind::NotAliveUnregistered
-                | ChangeKind::NotAliveDisposedUnregistered => (false, true),
-            }
-        };
+impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
+    type Error = RtpsError;
 
-        let inline_qos_flag = !inline_qos.is_empty();
-        let parameter_list = if inline_qos_flag {
-            ParameterListWrite::new(inline_qos)
-        } else {
-            ParameterListWrite::empty()
-        };
-
-        DataSubmessageWrite::new(
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            false,
-            reader_id,
-            writer_id,
-            self.sequence_number,
-            parameter_list,
-            self.data_value.as_ref(),
-        )
-    }
-
-    pub fn try_from_data_submessage(
-        data_submessage: &DataSubmessage,
-        source_guid_prefix: GuidPrefix,
-        source_timestamp: Option<rtps_messages::types::Time>,
-    ) -> Result<Self, RtpsError> {
-        let kind = match data_submessage
-            .inline_qos()
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+    fn try_from(value: &ParameterList<'_>) -> Result<Self, Self::Error> {
+        let change_kind = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_STATUS_INFO)
         {
             Some(p) => {
                 if p.length() == 4 {
@@ -115,25 +82,138 @@ impl CacheChange {
             None => Ok(ChangeKind::Alive),
         }?;
 
-        let instance_handle = match data_submessage
-            .inline_qos()
-            .parameter()
-            .iter()
-            .find(|&x| x.parameter_id() == PID_KEY_HASH)
+        let instance_handle = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_KEY_HASH)
         {
             Some(p) => <[u8; 16]>::try_from(p.value()).ok(),
 
             None => None,
         };
 
-        Ok(CacheChange {
-            kind,
+        let coherent_set = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_COHERENT_SET)
+        {
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
+
+        let group_coherent_set = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_GROUP_COHERENT_SET)
+        {
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
+
+        let group_seq_num = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_GROUP_SEQ_NUM)
+        {
+            Some(x) => Some(SequenceNumber::try_read_from_bytes(
+                &mut x.value(),
+                &value.endianness(),
+            )?),
+            None => None,
+        };
+
+        let writer_group_info = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_WRITER_GROUP_INFO)
+        {
+            Some(x) => Some(WriterGroupInfo {
+                writer_set: GroupDigest::try_read_from_bytes(&mut x.value(), &value.endianness())?,
+            }),
+            None => None,
+        };
+
+        Ok(Self {
+            change_kind,
+            instance_handle,
+            coherent_set,
+            group_coherent_set,
+            group_seq_num,
+            writer_group_info,
+        })
+    }
+}
+
+impl CacheChangeRead {
+    pub fn try_from_data_submessage(
+        data_submessage: &DataSubmessage<'_>,
+        source_guid_prefix: GuidPrefix,
+        source_timestamp: Option<rtps_messages::types::Time>,
+    ) -> Result<Self, RtpsError> {
+        let CacheChangeParameters {
+            change_kind,
+            instance_handle,
+            coherent_set,
+            group_coherent_set,
+            group_seq_num,
+            writer_group_info,
+        } = data_submessage.inline_qos().try_into()?;
+
+        Ok(Self {
+            kind: change_kind,
             writer_guid: Guid::new(source_guid_prefix, data_submessage.writer_id()),
             source_timestamp: source_timestamp.map(Into::into),
             instance_handle,
             sequence_number: data_submessage.writer_sn(),
-            data_value: data_submessage.serialized_payload().clone().into(),
+            data_value: data_submessage.serialized_payload().into(),
+            coherent_set,
+            group_coherent_set,
+            group_seq_num,
+            writer_group_info,
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheChangeWrite {
+    pub writer_guid: Guid,
+    pub sequence_number: i64,
+    pub source_timestamp: Time,
+    pub data_value: Arc<[u8]>,
+    pub inline_qos: ParameterListWrite,
+}
+
+impl CacheChangeWrite {
+    pub fn as_data_submessage<'a>(
+        &'a self,
+        reader_id: EntityId,
+        writer_id: EntityId,
+    ) -> DataSubmessageWrite<'a> {
+        let (data_flag, key_flag) = if self.data_value.is_empty() {
+            (false, false)
+        } else {
+            match self.inline_qos.kind {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => (true, false),
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => (false, true),
+            }
+        };
+
+        let inline_qos_flag = true;
+
+        DataSubmessageWrite::new(
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            false,
+            reader_id,
+            writer_id,
+            self.sequence_number,
+            self.inline_qos,
+            self.data_value.as_ref(),
+        )
     }
 
     pub fn as_data_frag_submessage<'a>(
@@ -143,7 +223,7 @@ impl CacheChange {
         data_max_size_serialized: usize,
         fragment_number: usize,
     ) -> DataFragSubmessageWrite<'a> {
-        let inline_qos_flag = false;
+        let inline_qos_flag = fragment_number == 0;
         let key_flag = false;
         let non_standard_payload_flag = false;
         let writer_sn = self.sequence_number;
@@ -171,7 +251,7 @@ impl CacheChange {
             fragments_in_submessage,
             fragment_size,
             data_size,
-            ParameterListWrite::empty(),
+            self.inline_qos,
             serialized_payload,
         )
     }

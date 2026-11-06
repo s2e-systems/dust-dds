@@ -1,12 +1,14 @@
 use crate::{
+    rtps::cache_change::CacheChangeRead,
     rtps_messages::{submessages::data::DataSubmessage, types::Time},
-    transport::types::{CacheChange, ENTITYID_UNKNOWN, Guid, GuidPrefix},
+    transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
 };
 use alloc::vec::Vec;
 
 pub struct RtpsStatelessReader {
     guid: Guid,
-    changes: Vec<CacheChange>,
+    /// History cache of changes received by this reader.
+    pub changes: Vec<CacheChangeRead>,
 }
 
 impl RtpsStatelessReader {
@@ -24,14 +26,14 @@ impl RtpsStatelessReader {
     #[tracing::instrument(skip(self))]
     pub fn on_data_submessage(
         &mut self,
-        data_submessage: &DataSubmessage,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
         source_timestamp: Option<Time>,
     ) {
         if data_submessage.reader_id() == ENTITYID_UNKNOWN
             || data_submessage.reader_id() == self.guid.entity_id()
         {
-            if let Ok(change) = CacheChange::try_from_data_submessage(
+            if let Ok(change) = CacheChangeRead::try_from_data_submessage(
                 data_submessage,
                 source_guid_prefix,
                 source_timestamp,
@@ -40,9 +42,5 @@ impl RtpsStatelessReader {
                 self.changes.push(change);
             }
         }
-    }
-
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        &mut self.changes
     }
 }

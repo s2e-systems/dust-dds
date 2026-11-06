@@ -1,9 +1,29 @@
-cmake_minimum_required(VERSION 3.14.0)
+cmake_minimum_required(VERSION 3.16.0)
 project(CycloneInteroperability LANGUAGES C)
 
-add_compile_options(-Werror -Wall)
+include(FetchContent)
+FetchContent_Declare(
+  CycloneDDS
+  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+  GIT_TAG 3a5526315e64ac1d2a52e6ac1ae7f3e861c593d3
+  GIT_SHALLOW TRUE
+)
 
-find_package(CycloneDDS REQUIRED)
+if(MSVC)
+  add_compile_options(/W3 /WX)
+else()
+  add_compile_options(-Werror -Wall)
+endif()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE STRING "" FORCE)
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
+set(ENABLE_SSL OFF CACHE STRING "" FORCE)
+set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(CycloneDDS)
+
 idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
 idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
 idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
@@ -69,7 +89,6 @@ target_link_libraries(CycloneDdsPublisherNested PRIVATE
   CycloneDDS::ddsc
   NestedTypeGeneratedIdl
 )
-
 add_executable(CycloneDdsSubscriberNested
   cyclone_dds_subscriber_nested.c
 )

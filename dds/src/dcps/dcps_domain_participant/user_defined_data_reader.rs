@@ -10,16 +10,15 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataReaderQos,
-        qos_policy::QosPolicyId,
-        sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
+        qos_policy::{PresentationQosPolicy, QosPolicyId},
+        sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{
             QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
         time::Time,
     },
-    rtps::stateful_reader::RtpsStatefulReader,
-    transport::types::ChangeKind,
+    rtps::{stateful_reader::RtpsStatefulReader, types::ChangeKind},
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
@@ -214,38 +213,42 @@ impl UserDefinedDataReader {
     pub fn read(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
         self.reader.read(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
+            presentation,
         )
     }
 
     pub fn take(
         &mut self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
         self.reader.take(
             max_samples,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
             specific_instance_handle,
+            presentation,
         )
     }
 
@@ -253,9 +256,10 @@ impl UserDefinedDataReader {
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -264,10 +268,11 @@ impl UserDefinedDataReader {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.take(
                 max_samples,
-                sample_states,
-                view_states,
-                instance_states,
+                sample_state_mask,
+                view_state_mask,
+                instance_state_mask,
                 &Some(next_handle),
+                presentation,
             ),
             None => Err(DdsError::NoData),
         }
@@ -277,9 +282,10 @@ impl UserDefinedDataReader {
         &mut self,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -288,10 +294,11 @@ impl UserDefinedDataReader {
         match self.next_instance(previous_handle) {
             Some(next_handle) => self.read(
                 max_samples,
-                sample_states,
-                view_states,
-                instance_states,
+                sample_state_mask,
+                view_state_mask,
+                instance_state_mask,
                 &Some(next_handle),
+                presentation,
             ),
             None => Err(DdsError::NoData),
         }

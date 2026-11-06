@@ -55,9 +55,10 @@ use crate::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
-            ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
-            XCDR_DATA_REPRESENTATION,
+            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId,
+            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
+            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -65,14 +66,14 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
+    rtps::{
+        self,
+        types::{DurabilityKind, PROTOCOLVERSION, ReliabilityKind, VENDOR_ID_S2E},
+    },
     security::types::{
         PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT, ParticipantSecurityProtectionInfo,
     },
-    transport::{
-        self,
-        types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
-    },
+    transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
     xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
@@ -166,6 +167,8 @@ impl DcpsDomainParticipant {
                     serialized_data,
                     sample_timestamp,
                     now,
+                    None,
+                    None,
                 )
                 .ok();
             }
@@ -198,7 +201,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
             self.domain_participant
                 .builtin_publisher
@@ -248,11 +251,11 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|s| &s.instance_handle == subscriber_handle)
+            .find(|s| &s.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
-        let subscriber_handle = subscriber.instance_handle;
+        let subscriber_handle = subscriber.subscriber_entity.instance_handle;
         let subscriber_listener_mask = subscriber.listener_mask;
         let subscriber_listener_sender = subscriber.listener_sender.clone();
         let Some(data_reader) = subscriber
@@ -538,7 +541,8 @@ impl DcpsDomainParticipant {
         };
         let writer_proxy = WriterProxy {
             remote_writer_guid: data_writer.transport_writer.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(publisher.instance_handle))
+                .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
@@ -560,6 +564,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -589,7 +595,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -612,7 +618,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -673,10 +679,10 @@ impl DcpsDomainParticipant {
             destination_order: data_reader.qos.destination_order.clone(),
             user_data: data_reader.qos.user_data.clone(),
             time_based_filter: data_reader.qos.time_based_filter.clone(),
-            presentation: subscriber.qos.presentation.clone(),
-            partition: subscriber.qos.partition.clone(),
+            presentation: subscriber.subscriber_entity.qos.presentation.clone(),
+            partition: subscriber.subscriber_entity.qos.partition.clone(),
             topic_data: topic.qos.topic_data.clone(),
-            group_data: subscriber.qos.group_data.clone(),
+            group_data: subscriber.subscriber_entity.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
             type_consistency: data_reader.qos.type_consistency.clone(),
             protection_info: Default::default(),
@@ -684,7 +690,10 @@ impl DcpsDomainParticipant {
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(
+                subscriber.subscriber_entity.instance_handle,
+            ))
+            .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
@@ -707,6 +716,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -736,7 +747,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -798,6 +809,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -997,6 +1010,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1057,6 +1072,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_types_lookup(unresolved);
@@ -1188,7 +1205,7 @@ impl DcpsDomainParticipant {
                                         }
                                     };
 
-                                    let reader_proxy = transport::types::ReaderProxy {
+                                    let reader_proxy = rtps::types::ReaderProxy {
                                         remote_reader_guid: discovered_reader_data
                                             .reader_proxy
                                             .remote_reader_guid,
@@ -1489,8 +1506,8 @@ impl DcpsDomainParticipant {
         let dcps_sender = self.dcps_sender.clone();
 
         for subscriber in user_defined_subscriber_list.iter_mut() {
-            let subscriber_handle = subscriber.instance_handle;
-            let subscriber_qos = subscriber.qos.clone();
+            let subscriber_handle = subscriber.subscriber_entity.instance_handle;
+            let subscriber_qos = subscriber.subscriber_entity.qos.clone();
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {
@@ -1668,6 +1685,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_dependencies_lookup(
@@ -1728,6 +1747,8 @@ impl DcpsDomainParticipant {
                                                     serialized_data,
                                                     now,
                                                     now,
+                                                    None,
+                                                    None,
                                                 )
                                                 .ok();
                                             type_register.add_pending_types_lookup(unresolved);
@@ -1828,7 +1849,7 @@ impl DcpsDomainParticipant {
                                             DurabilityKind::Persistent
                                         }
                                     };
-                                    let writer_proxy = transport::types::WriterProxy {
+                                    let writer_proxy = rtps::types::WriterProxy {
                                         remote_writer_guid: discovered_writer_data
                                             .writer_proxy
                                             .remote_writer_guid,
@@ -2088,7 +2109,14 @@ impl DcpsDomainParticipant {
                         serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                     type_lookup_reply_writer
-                        .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                        .write_w_timestamp(
+                            InstanceHandle::default(),
+                            serialized_data,
+                            now,
+                            now,
+                            None,
+                            None,
+                        )
                         .ok();
                     type_lookup_reply_writer
                         .transport_writer
@@ -2126,7 +2154,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                         type_lookup_reply_writer
-                            .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                            .write_w_timestamp(
+                                InstanceHandle::default(),
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         type_lookup_reply_writer
                             .transport_writer
@@ -2200,7 +2235,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                 .unwrap();
                         type_request_writer
-                            .write_w_timestamp(sample_instance_handle, serialized_data, now, now)
+                            .write_w_timestamp(
+                                sample_instance_handle,
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         self.domain_participant
                             .type_register
@@ -2526,6 +2568,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -2592,6 +2636,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -2899,7 +2945,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2952,7 +2998,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
@@ -3000,7 +3046,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3053,7 +3099,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3101,7 +3147,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3148,7 +3194,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3190,7 +3236,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3243,7 +3289,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3291,7 +3337,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3344,7 +3390,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3407,6 +3453,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -3423,11 +3471,13 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     if &writer_qos.durability < discovered_reader_data.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
+
+    if !(publisher_qos.presentation.access_scope
+        >= discovered_reader_data.presentation.access_scope
+        && (!discovered_reader_data.presentation.coherent_access
+            || publisher_qos.presentation.coherent_access)
+        && (!discovered_reader_data.presentation.ordered_access
+            || publisher_qos.presentation.ordered_access))
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3455,13 +3505,12 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
+    let reader_representation = if discovered_reader_data.representation().value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        discovered_reader_data.representation().value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
@@ -3476,14 +3525,9 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
 ) -> Vec<QosPolicyId> {
     let mut incompatible_qos_policy_list = Vec::new();
 
-    if subscriber_qos.presentation.access_scope
-        > publication_builtin_topic_data.presentation().access_scope
-        || subscriber_qos.presentation.coherent_access
-            != publication_builtin_topic_data
-                .presentation()
-                .coherent_access
-        || subscriber_qos.presentation.ordered_access
-            != publication_builtin_topic_data.presentation().ordered_access
+    if !publication_builtin_topic_data
+        .presentation()
+        .is_compatible_with_requested(&subscriber_qos.presentation)
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3514,49 +3558,53 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !data_reader
-        .qos
-        .representation
-        .value
-        .contains(writer_offered_representation)
-    {
-        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos.representation.value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
-        }
+    let reader_representation = if data_reader.qos.representation.value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        data_reader.qos.representation.value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list
 }
 
 fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> bool {
-    if p1 == p2 {
+    let default_partition = [String::new()];
+    let p1_names = if p1.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p1.name.as_slice()
+    };
+    let p2_names = if p2.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p2.name.as_slice()
+    };
+    if p1_names == p2_names {
         return true;
     }
-    if p1.name.iter().any(|n| p2.name.contains(n)) {
+    if p1_names.iter().any(|n| p2_names.contains(n)) {
         return true;
     }
-    let p1_has_wildcard = p1.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
-    let p2_has_wildcard = p2.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p1_has_wildcard = p1_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p2_has_wildcard = p2_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
     if p1_has_wildcard
-        && p1
-            .name
+        && p1_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p2.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p2_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
     if p2_has_wildcard
-        && p2
-            .name
+        && p2_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p1.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p1_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
@@ -3650,6 +3698,14 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     flush_literal(&mut out, &mut literal);
     out.push('$');
     out
+}
+
+impl PresentationQosPolicy {
+    fn is_compatible_with_requested(&self, requested: &Self) -> bool {
+        self.access_scope >= requested.access_scope
+            && (!requested.coherent_access || self.coherent_access)
+            && (!requested.ordered_access || self.ordered_access)
+    }
 }
 
 impl PublicationMatchedStatus {

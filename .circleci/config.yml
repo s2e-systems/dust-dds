@@ -1,15 +1,420 @@
 version: 2.1
 
-setup: true
-
 orbs:
-  path-filtering: circleci/path-filtering@2.0.4
+  rust: circleci/rust@2.0.0
+
+jobs:
+  hello_world_on_macos:
+    macos:
+      xcode: 16.4.0
+    resource_class: m4pro.medium
+    steps:
+    - checkout
+    - rust/install
+    - run:
+        name: Run Hello world example
+        command: |
+          cargo run --example hello_world_publisher &
+          pid=$!
+          cargo run --example hello_world_subscriber
+          wait $pid
+  hello_world_on_windows:
+    machine:
+      image: 'windows-server-2019-vs2019:2024.05.1'
+    resource_class: windows.medium
+    shell: powershell.exe -ExecutionPolicy Bypass
+    steps:
+    - checkout
+    - run:
+        name: Install Rust
+        command: |
+          curl -o rustup.sh https://sh.rustup.rs
+          bash rustup.sh -y
+    - run:
+        name: Run Hello world example
+        command: |
+          $publisher = Start-Process cargo -ArgumentList 'run --example hello_world_publisher' -PassThru
+          cargo run --example hello_world_subscriber
+          $publisher.WaitForExit()
+
+  code_checks:
+    docker:
+      - image: cimg/rust:1.87.0
+    environment:
+      RUSTFLAGS: -D warnings
+    steps:
+      - checkout
+      - run: cargo --version
+      - run: cargo clippy --all-features
+      - run: cargo fmt --check --all
+  performance_benchmark:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline branch_baseline
+      - run: git checkout main
+      - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline main_baseline
+      - run: cargo bench --bench benchmark -- --load-baseline branch_baseline --baseline main_baseline --color never | tee /tmp/output
+      # Performance regression is not explicitly checked due to measurement instability issues
+      - store_artifacts:
+          path: ./target/criterion
+  memory_benchmark:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Install Valgrind and jq
+          command: sudo apt-get update && sudo apt-get install -y valgrind jq
+      - run:
+          name: Measure heap usage
+          command: |
+            TEST_BIN=$(cargo test --package dust_dds --test write_read_samples read_only_unread_samples --no-run --message-format=json -- --exact | jq -r 'select(.profile.test == true) | .executable' | grep -v null)
+            valgrind --tool=massif --massif-out-file=massif.out $TEST_BIN read_only_unread_samples -- --exact
+      - store_artifacts:
+          path: massif.out
+      - run:
+          name: Convert heap usage data to text
+          command: ms_print massif.out > massif_report.txt
+      - store_artifacts:
+          path: massif_report.txt
+  micro_compile_check:
+    docker:
+      - image: cimg/rust:1.99.0
+    steps:
+      - checkout
+      - run: rustup target add thumbv7em-none-eabihf
+      - run:
+          name: Compile micro  tests
+          command: cargo build --tests --package micro-dust-dds-tests
+      - run:
+          name: Compile micro app
+          command: cargo build --profile micro-dev
+          working_directory: micro/micro_app
+  tests:
+    machine:
+      image: ubuntu-2604:current
+    steps:
+      - checkout
+      - rust/install
+      - run: rustup component add llvm-tools-preview
+      - run: cargo --version
+      - run:
+          name: Run Tests
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo test --package dust_dds --package dust_dds_derive --package dust_dds_gen --timings
+      - store_artifacts:
+          path: ./target/cargo-timings
+      - run:
+          name: Hello world example
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example hello_world_publisher &
+            pid=$!
+            cargo run --example hello_world_subscriber
+            wait $pid
+      - run:
+          name: BestEffort example
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example best_effort_subscriber &
+            pid=$!
+            cargo run --example best_effort_publisher
+            wait $pid
+      - run:
+          name: Tokio runtime example
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example tokio_runtime
+      - run:
+          name: Compile No Std Project
+          command: |
+            cargo test --package nostd_test_project
+      - run:
+          name: Gather coverage data
+          command: |
+            curl -L https://github.com/mozilla/grcov/releases/download/v0.8.20/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+            ./grcov . -s . --binary-path ./target/debug/ -t html --ignore-not-existing -o /tmp/coverage
+      - store_artifacts:
+          path: /tmp/coverage
+  check_binary_sizes:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - cargo-bloat-bin-v1-{{ arch }}
+      - run:
+          name: Install cargo-bloat
+          command: |
+            if ! command -v cargo-bloat &> /dev/null; then
+              cargo install cargo-bloat --locked
+            fi
+      - save_cache:
+          key: cargo-bloat-bin-v1-{{ arch }}
+          paths:
+            - ~/.cargo/bin/cargo-bloat
+      - run:
+          name: Check binary size hello_world_publisher
+          command: cargo bloat -p dust_dds --example hello_world_publisher --release --wide -n 100 --filter dust_dds > hello_world_publisher_bloat.txt
+      - store_artifacts:
+          path: hello_world_publisher_bloat.txt
+      - run:
+          name: Check binary size hello_world_subscriber
+          command: cargo bloat -p dust_dds --example hello_world_subscriber --release --wide -n 100 --filter dust_dds > hello_world_subscriber_bloat.txt
+      - store_artifacts:
+          path: hello_world_subscriber_bloat.txt
+      - run:
+          name: Install nightly toolchain
+          command: rustup toolchain install nightly
+      - run:
+          name: Print type sizes
+          command: cargo +nightly rustc --package dust_dds --release -- -Zprint-type-sizes > type_sizes.txt
+      - store_artifacts:
+          path: type_sizes.txt
+
+  fast_dds_interoperability_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: sudo apt-get update && sudo apt-get install -y libasio-dev libtinyxml2-dev openjdk-17-jdk-headless
+      - run:
+          name: Compute hash for cache
+          command: sha256sum interoperability_tests/fast_dds/* interoperability_tests/HelloWorld.idl interoperability_tests/DisposeData.idl > /tmp/fast_dds_checksum
+      - restore_cache:
+          keys:
+            - fast-dds-build-v1-{{ arch }}-{{ checksum "/tmp/fast_dds_checksum" }}
+      - run:
+          name: Build FastDDS Interoperability tests
+          command: |
+            if [ ! -d build/fast_dds ]; then
+              cmake -S interoperability_tests/fast_dds -B build/fast_dds
+              cmake --build build/fast_dds --parallel 17
+            fi
+      - save_cache:
+          key: fast-dds-build-v1-{{ arch }}-{{ checksum "/tmp/fast_dds_checksum" }}
+          paths:
+            - build/fast_dds
+      - run:
+          name: Build dust binaries
+          command: |
+            cargo update --package dust_dds_interoperability
+            cargo build --package dust_dds_interoperability
+      - run:
+          name: FastDDS publisher interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
+            pid=$!
+            build/fast_dds/FastDdsPublisher
+            wait $pid
+      - run:
+          name: FastDDS subscriber interoperability test
+          command: |
+            build/fast_dds/FastDdsSubscriber &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher
+            wait $pid
+      - run:
+          name: FastDDS publisher dispose interoperability test
+          command: |
+            build/fast_dds/FastDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: FastDDS subscriber dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            pid=$!
+            build/fast_dds/FastDdsPublisherDispose
+            wait $pid
+
+  cyclone_dds_interoperability_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Build CycloneDDS Interoperability tests
+          command: |
+            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
+            cmake --build build/cyclone_dds --parallel 9
+      - run:
+          name: Build dust binaries
+          command: |
+            cargo update --package dust_dds_interoperability
+            cargo build --package dust_dds_interoperability
+      - run:
+          name: Cyclone publisher interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisher
+            wait $pid
+      - run:
+          name: Cyclone subscriber interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriber &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher
+            wait $pid
+      - run:
+          name: Cyclone Big data subscriber interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsBigDataSubscriber &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_publisher
+            wait $pid
+      - run:
+          name: Cyclone Big data publisher interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsBigDataPublisher &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_big_data_subscriber
+            wait $pid
+      - run:
+          name: Cyclone subscriber dispose interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberDispose &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_dispose
+            wait $pid
+      - run:
+          name: Cyclone publisher dispose interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_dispose &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherDispose
+            wait $pid
+      - run:
+          name: Cyclone subscriber nested interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberNested &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_nested
+            wait $pid
+      - run:
+          name: Cyclone publisher nested interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_nested &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherNested
+            wait $pid
+      - run:
+          name: Cyclone publisher union interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_union &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherUnion
+            wait $pid
+      - run:
+          name: Cyclone subscriber union interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberUnion &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_union
+            wait $pid
+      - run:
+          name: Cyclone publisher inheritance interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_inheritance &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherInheritance
+            wait $pid
+      - run:
+          name: Cyclone subscriber inheritance interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberInheritance &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_inheritance
+            wait $pid
+      - run:
+          name: Cyclone publisher optional interoperability test
+          command: |
+            cargo run --package dust_dds_interoperability --bin dust_dds_subscriber_optional &
+            pid=$!
+            build/cyclone_dds/CycloneDdsPublisherOptional
+            wait $pid
+      - run:
+          name: Cyclone subscriber optional interoperability test
+          command: |
+            build/cyclone_dds/CycloneDdsSubscriberOptional &
+            pid=$!
+            cargo run --package dust_dds_interoperability --bin dust_dds_publisher_optional
+            wait $pid
+
+  multi_machine_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build executables
+          command: |
+            cargo build --package dust_dds_interoperability --bin multiple_subscriber_test_subscriber
+            cargo build --package dust_dds_interoperability --bin multiple_subscriber_test_publisher
+      - run:
+          name: Run 2 subscribers with different IPs
+          command: |
+            # create docker volume (since direct mapping is not possible)
+            docker create -v /var --name storage cimg/rust:1.87.0 /bin/true
+            docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
+            docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
+            docker network create --subnet 192.0.2.0/24 test-network
+            docker run --detach --name subscriber_1 --volumes-from storage --network=test-network --ip=192.0.2.5 cimg/rust:1.87.0  /var/multiple_subscriber_test_subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage --network=test-network --ip=192.0.2.6  cimg/rust:1.87.0  /var/multiple_subscriber_test_subscriber
+            docker run --rm --name publisher --volumes-from storage --network=test-network --ip=192.0.2.7  cimg/rust:1.87.0  /var/multiple_subscriber_test_publisher
+            docker logs subscriber_1 | tee subscriber_1.out
+            docker logs subscriber_2 | tee subscriber_2.out
+            echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
+            cmp subscriber_1.out subscriber_2.out
+
+  shapes_demo_build:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: cargo build --package dust_dds_shapes_demo
+
+  bindings_tests:
+    docker:
+      - image: cimg/rust:1.87.0
+    steps:
+      - checkout
+      - run:
+          name: Run C bindings tests
+          command: |
+            cargo build --package dust_dds_c --package dust_dds_gen
+            cmake -S bindings/c/tests -B bindings/c/tests/build
+            cmake --build bindings/c/tests/build
+            cd bindings/c/tests/build && ctest --output-on-failure
 
 workflows:
-  setup-workflow:
+  build_and_run_tests:
     jobs:
-      - path-filtering/filter:
-          base-revision: main
-          config-path: .circleci/continue-config.yml
-          mapping: |
-            .circleci/Dockerfile build_docker_image true
+      - tests
+      - bindings_tests
+      - fast_dds_interoperability_tests
+      - cyclone_dds_interoperability_tests
+      - hello_world_on_macos
+      - hello_world_on_windows
+      - performance_benchmark
+      - memory_benchmark
+      - micro_compile_check
+      - check_binary_sizes
+      - code_checks
+      - multi_machine_tests
+      - shapes_demo_build

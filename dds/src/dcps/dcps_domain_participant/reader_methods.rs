@@ -14,7 +14,8 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         dcps_domain_participant::{
-            participant_entity::DcpsDomainParticipant, topic_entity::get_topic_type_support,
+            data_reader_entity::SampleList, participant_entity::DcpsDomainParticipant,
+            topic_entity::get_topic_type_support,
         },
         listeners::data_reader_listener::DcpsDataReaderListener,
         status_mask::StatusMask,
@@ -24,7 +25,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         qos_policy::DurabilityQosPolicyKind,
-        sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+        sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
         status::{StatusKind, SubscriptionMatchedStatus},
         time::Time,
     },
@@ -59,70 +60,49 @@ pub fn deserialize_topic_type(
 }
 
 impl DcpsDomainParticipant {
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn read(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
         let (sample_list, topic_name) =
             if subscriber_handle == &self.domain_participant.instance_handle {
-                let bs = &mut self.domain_participant.builtin_subscriber;
-                if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
-                    let sample_list = bs.dcps_participant_reader.read(
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    )?;
-                    (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
-                } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
-                    let sample_list = dr.read(
-                        max_samples,
-                        sample_states,
-                        view_states,
-                        instance_states,
-                        specific_instance_handle,
-                    )?;
-                    (sample_list, dr.topic_name.as_ref())
-                } else {
-                    return Err(DdsError::AlreadyDeleted);
-                }
+                self.domain_participant.builtin_subscriber.read(
+                    data_reader_handle,
+                    max_samples,
+                    sample_state_mask,
+                    view_state_mask,
+                    instance_state_mask,
+                    specific_instance_handle,
+                )?
             } else {
                 let subscriber = self
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|x| &x.instance_handle == subscriber_handle);
+                    .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle);
                 let Some(subscriber) = subscriber else {
                     return Err(DdsError::AlreadyDeleted);
                 };
-                let Some(data_reader) = subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|x| &x.instance_handle == data_reader_handle)
-                else {
-                    return Err(DdsError::AlreadyDeleted);
-                };
-                let sample_list = data_reader.read(
+                subscriber.read(
+                    data_reader_handle,
                     max_samples,
-                    sample_states,
-                    view_states,
-                    instance_states,
+                    sample_state_mask,
+                    view_state_mask,
+                    instance_state_mask,
                     specific_instance_handle,
-                )?;
-                (sample_list, data_reader.topic_name.as_ref())
+                )?
             };
 
         let Some(type_support) = get_topic_type_support(
-            topic_name,
+            topic_name.as_ref(),
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -130,58 +110,52 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn take(
         &mut self,
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        let sample_list = data_reader.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )?;
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
+        let (sample_list, topic_name) =
+            if subscriber_handle == &self.domain_participant.instance_handle {
+                self.domain_participant.builtin_subscriber.take(
+                    data_reader_handle,
+                    max_samples,
+                    sample_state_mask,
+                    view_state_mask,
+                    instance_state_mask,
+                    specific_instance_handle,
+                )?
+            } else {
+                let subscriber = self
+                    .domain_participant
+                    .user_defined_subscriber_list
+                    .iter_mut()
+                    .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle);
+                let Some(subscriber) = subscriber else {
+                    return Err(DdsError::AlreadyDeleted);
+                };
+                subscriber.take(
+                    data_reader_handle,
+                    max_samples,
+                    sample_state_mask,
+                    view_state_mask,
+                    instance_state_mask,
+                    specific_instance_handle,
+                )?
+            };
 
         let Some(type_support) = get_topic_type_support(
-            &data_reader.topic_name,
+            topic_name.as_ref(),
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -189,22 +163,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn read_next_instance(
         &mut self,
@@ -212,35 +174,29 @@ impl DcpsDomainParticipant {
         data_reader_handle: &InstanceHandle,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let Some(subscriber) = self
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
+        let subscriber = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
-        else {
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle);
+        let Some(subscriber) = subscriber else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        let sample_list = data_reader.read_next_instance(
+        let (sample_list, topic_name) = subscriber.read_next_instance(
+            data_reader_handle,
             max_samples,
             previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
         )?;
 
         let Some(type_support) = get_topic_type_support(
-            &data_reader.topic_name,
+            topic_name.as_ref(),
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -248,22 +204,10 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self))]
     pub fn take_next_instance(
         &mut self,
@@ -271,35 +215,29 @@ impl DcpsDomainParticipant {
         data_reader_handle: &InstanceHandle,
         max_samples: i32,
         previous_handle: &Option<InstanceHandle>,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<(Option<DynamicData<'static>>, SampleInfo)>> {
-        let Some(subscriber) = self
+        sample_state_mask: SampleStateMask,
+        view_state_mask: ViewStateMask,
+        instance_state_mask: InstanceStateMask,
+    ) -> DdsResult<(DynamicType<'static>, SampleList)> {
+        let subscriber = self
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
-        else {
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle);
+        let Some(subscriber) = subscriber else {
             return Err(DdsError::AlreadyDeleted);
         };
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        let sample_list = data_reader.take_next_instance(
+        let (sample_list, topic_name) = subscriber.take_next_instance(
+            data_reader_handle,
             max_samples,
             previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
+            sample_state_mask,
+            view_state_mask,
+            instance_state_mask,
         )?;
 
         let Some(type_support) = get_topic_type_support(
-            &data_reader.topic_name,
+            topic_name.as_ref(),
             &self.domain_participant.content_filtered_topic_list,
             &self.domain_participant.locally_created_topic_list,
             &self.domain_participant.type_register,
@@ -307,19 +245,7 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(sample_list
-            .into_iter()
-            .map(|(data, info)| {
-                (
-                    if info.valid_data {
-                        deserialize_topic_type(&data_reader.topic_name, type_support, data.as_ref())
-                    } else {
-                        None
-                    },
-                    info,
-                )
-            })
-            .collect())
+        Ok((type_support, sample_list))
     }
 
     #[tracing::instrument(skip(self))]
@@ -332,7 +258,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -361,7 +287,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -394,7 +320,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -423,7 +349,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -468,7 +394,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -496,7 +422,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -524,7 +450,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return notify_sender.send(Err(DdsError::AlreadyDeleted));
         };
@@ -571,7 +497,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
