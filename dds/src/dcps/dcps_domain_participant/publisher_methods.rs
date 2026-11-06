@@ -351,7 +351,7 @@ impl DcpsDomainParticipant {
                                     inline_qos: ParameterListWrite {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
-                                        coherent_set: writer.first_coherent_sequence_number,
+                                        coherent_set: None,
                                         original_writer_info,
                                         group_coherent_set,
                                         group_seq_num: Some(group_seq_num),
