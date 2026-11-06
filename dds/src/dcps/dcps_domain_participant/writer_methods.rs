@@ -263,18 +263,28 @@ impl DcpsDomainParticipant {
             &data_writer.qos.representation,
         )?;
 
-        if publisher.coherent_changes_depth > 0
-            && publisher.qos.presentation.coherent_access
-            && publisher.qos.presentation.access_scope
-                == PresentationQosPolicyAccessScopeKind::Group
+        let (group_coherent_set, group_seq_num) = if publisher.qos.presentation.access_scope
+            == PresentationQosPolicyAccessScopeKind::Group
         {
             publisher.group_seq_num += 1;
-            if publisher.group_coherent_set.is_none() {
+            if publisher.coherent_changes_depth > 0
+                && publisher.qos.presentation.coherent_access
+                && publisher.group_coherent_set.is_none()
+            {
                 publisher.group_coherent_set = Some(publisher.group_seq_num);
             }
-        }
+            (publisher.group_coherent_set, Some(publisher.group_seq_num))
+        } else {
+            (None, None)
+        };
 
-        let res = data_writer.unregister_w_timestamp(instance_handle, serialized_key, timestamp);
+        let res = data_writer.unregister_w_timestamp(
+            instance_handle,
+            serialized_key,
+            timestamp,
+            group_coherent_set,
+            group_seq_num,
+        );
         if res.is_ok() {
             data_writer
                 .transport_writer
@@ -496,18 +506,28 @@ impl DcpsDomainParticipant {
             &data_writer.qos.representation,
         )?;
 
-        if publisher.coherent_changes_depth > 0
-            && publisher.qos.presentation.coherent_access
-            && publisher.qos.presentation.access_scope
-                == PresentationQosPolicyAccessScopeKind::Group
+        let (group_coherent_set, group_seq_num) = if publisher.qos.presentation.access_scope
+            == PresentationQosPolicyAccessScopeKind::Group
         {
             publisher.group_seq_num += 1;
-            if publisher.group_coherent_set.is_none() {
+            if publisher.coherent_changes_depth > 0
+                && publisher.qos.presentation.coherent_access
+                && publisher.group_coherent_set.is_none()
+            {
                 publisher.group_coherent_set = Some(publisher.group_seq_num);
             }
-        }
+            (publisher.group_coherent_set, Some(publisher.group_seq_num))
+        } else {
+            (None, None)
+        };
 
-        let res = data_writer.dispose_w_timestamp(instance_handle, serialized_key, timestamp);
+        let res = data_writer.dispose_w_timestamp(
+            instance_handle,
+            serialized_key,
+            timestamp,
+            group_coherent_set,
+            group_seq_num,
+        );
         if res.is_ok() {
             data_writer
                 .transport_writer

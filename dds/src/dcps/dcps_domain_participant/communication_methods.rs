@@ -65,76 +65,71 @@ impl DcpsDomainParticipant {
         let type_register = &self.domain_participant.type_register;
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            let subscriber_handle = subscriber.instance_handle;
+            let subscriber_handle = subscriber.subscriber_entity.instance_handle;
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
-            let subscriber_presentation = subscriber.qos.presentation.clone();
+            let subscriber_presentation = subscriber.subscriber_entity.qos.presentation.clone();
             let (subscriber_status_condition, data_reader_list) = (
                 &mut subscriber.status_condition,
                 &mut subscriber.data_reader_list,
             );
 
-            let group_has_end_marker = if subscriber_presentation.coherent_access
-                && subscriber_presentation.access_scope
-                    == PresentationQosPolicyAccessScopeKind::Group
-            {
-                data_reader_list.iter().any(|reader| {
-                    reader.transport_reader.changes.iter().any(|c| {
-                        c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
-                            || (c.data_value.is_empty()
-                                && c.coherent_set.is_none()
-                                && c.group_coherent_set.is_some())
-                    })
-                })
-            } else {
-                false
-            };
-
-            for data_reader in data_reader_list {
-                if data_reader.transport_reader.changes.is_empty() {
-                    continue;
-                }
-
-                let Some(type_support) = get_topic_type_support(
-                    &data_reader.topic_name,
-                    content_filtered_topic_list,
-                    locally_created_topic_list,
-                    type_register,
-                ) else {
-                    tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
-                    continue;
-                };
-
-                let content_filtered_topic = content_filtered_topic_list
-                    .iter()
-                    .find(|t| t.topic_name == data_reader.topic_name);
-
-                let reader_type_name = if let Some(content_filtered_topic) = content_filtered_topic
+            loop {
+                let finished_group_coherent_set = if subscriber_presentation.coherent_access
+                    && subscriber_presentation.access_scope
+                        == PresentationQosPolicyAccessScopeKind::Group
                 {
-                    let Some(reader_topic) = locally_created_topic_list
-                        .iter()
-                        .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
-                    else {
-                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
-                        continue;
-                    };
-                    &reader_topic.type_name
+                    find_finished_group_coherent_set(data_reader_list)
                 } else {
-                    let Some(reader_topic) = locally_created_topic_list
-                        .iter()
-                        .find(|t| t.topic_name == data_reader.topic_name)
-                    else {
-                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
-                        continue;
-                    };
-                    &reader_topic.type_name
+                    None
                 };
 
-                let changes_len = data_reader.transport_reader.changes.len();
-                let data_reader_handle = data_reader.instance_handle;
-                tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes_len);
+                for data_reader in data_reader_list.iter_mut() {
+                    if data_reader.transport_reader.changes.is_empty() {
+                        continue;
+                    }
 
-                let mut process_single_cache_change =
+                    let Some(type_support) = get_topic_type_support(
+                        &data_reader.topic_name,
+                        content_filtered_topic_list,
+                        locally_created_topic_list,
+                        type_register,
+                    ) else {
+                        tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find type support for reader");
+                        continue;
+                    };
+
+                    let content_filtered_topic = content_filtered_topic_list
+                        .iter()
+                        .find(|t| t.topic_name == data_reader.topic_name);
+
+                    let reader_type_name = if let Some(content_filtered_topic) =
+                        content_filtered_topic
+                    {
+                        let Some(reader_topic) = locally_created_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == content_filtered_topic.related_topic_name)
+                        else {
+                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find related_topic_name for reader");
+                            continue;
+                        };
+                        &reader_topic.type_name
+                    } else {
+                        let Some(reader_topic) = locally_created_topic_list
+                            .iter()
+                            .find(|t| t.topic_name == data_reader.topic_name)
+                        else {
+                            tracing::warn!(topic_name = ?data_reader.topic_name, "Failed to find topic for reader");
+                            continue;
+                        };
+                        &reader_topic.type_name
+                    };
+
+                    let changes_len = data_reader.transport_reader.changes.len();
+                    let data_reader_handle = data_reader.instance_handle;
+                    tracing::trace!(subscriber_handle=?subscriber_handle, data_reader_handle=?data_reader_handle, "Processing {} reader cache changes", changes_len);
+
+                    let mut process_single_cache_change =
                     |cache_change: crate::rtps::cache_change::CacheChangeRead,
                      data_reader: &mut crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader|
                      -> bool {
@@ -463,77 +458,94 @@ impl DcpsDomainParticipant {
                         true
                     };
 
-                if subscriber_presentation.coherent_access {
-                    match subscriber_presentation.access_scope {
-                        PresentationQosPolicyAccessScopeKind::Instance
-                        | PresentationQosPolicyAccessScopeKind::Topic => {
-                            let mut i = 0;
-                            while i < data_reader.transport_reader.changes.len() {
-                                let c = &data_reader.transport_reader.changes[i];
-                                if c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
-                                    || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
-                                    || (c.data_value.is_empty()
-                                        && c.coherent_set.is_none()
-                                        && c.group_coherent_set.is_some())
-                                {
-                                    data_reader.transport_reader.changes.remove(i);
-                                } else {
-                                    let is_complete = match c.coherent_set {
-                                        Some(sn) => {
-                                            let writer_guid = c.writer_guid;
-                                            data_reader.transport_reader.changes[i + 1..]
-                                                .iter()
-                                                .any(|c| {
-                                                    c.writer_guid == writer_guid
-                                                        && c.coherent_set != Some(sn)
-                                                })
-                                        }
-                                        None => true,
-                                    };
-
-                                    if is_complete {
-                                        let cache_change =
-                                            data_reader.transport_reader.changes.remove(i);
-                                        if !process_single_cache_change(cache_change, data_reader) {
-                                            data_reader.transport_reader.changes.clear();
-                                            break;
-                                        }
-                                    } else {
-                                        i += 1;
-                                    }
-                                }
-                            }
-                        }
-                        PresentationQosPolicyAccessScopeKind::Group => {
-                            if group_has_end_marker {
-                                data_reader.transport_reader.changes.retain(|c| {
-                                    c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
-                                        && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
-                                        && !(c.data_value.is_empty()
-                                            && c.coherent_set.is_none()
-                                            && c.group_coherent_set.is_some())
-                                });
-                                if data_reader.transport_reader.changes.len() > 1 {
-                                    data_reader.transport_reader.changes.reverse();
-                                }
-                                while let Some(cache_change) =
-                                    data_reader.transport_reader.changes.pop()
-                                {
-                                    if !process_single_cache_change(cache_change, data_reader) {
-                                        data_reader.transport_reader.changes.clear();
-                                        break;
-                                    }
-                                }
-                            } else {
+                    if subscriber_presentation.coherent_access {
+                        match subscriber_presentation.access_scope {
+                            PresentationQosPolicyAccessScopeKind::Instance
+                            | PresentationQosPolicyAccessScopeKind::Topic => {
                                 let mut i = 0;
                                 while i < data_reader.transport_reader.changes.len() {
-                                    if data_reader.transport_reader.changes[i]
-                                        .group_coherent_set
-                                        .is_none()
-                                        && data_reader.transport_reader.changes[i]
-                                            .coherent_set
-                                            .is_none()
+                                    let c = &data_reader.transport_reader.changes[i];
+                                    if c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                        || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                        || (c.data_value.is_empty()
+                                            && c.coherent_set.is_none()
+                                            && c.group_coherent_set.is_some())
                                     {
+                                        data_reader.transport_reader.changes.remove(i);
+                                    } else {
+                                        let is_complete = match c.coherent_set {
+                                            Some(sn) => {
+                                                let writer_guid = c.writer_guid;
+                                                data_reader.transport_reader.changes[i + 1..]
+                                                    .iter()
+                                                    .any(|c| {
+                                                        c.writer_guid == writer_guid
+                                                            && c.coherent_set != Some(sn)
+                                                    })
+                                            }
+                                            None => true,
+                                        };
+
+                                        if is_complete {
+                                            let cache_change =
+                                                data_reader.transport_reader.changes.remove(i);
+                                            if !process_single_cache_change(
+                                                cache_change,
+                                                data_reader,
+                                            ) {
+                                                data_reader.transport_reader.changes.clear();
+                                                break;
+                                            }
+                                        } else {
+                                            i += 1;
+                                        }
+                                    }
+                                }
+                            }
+                            PresentationQosPolicyAccessScopeKind::Group => {
+                                let mut i = 0;
+                                while i < data_reader.transport_reader.changes.len() {
+                                    let c = &data_reader.transport_reader.changes[i];
+                                    if c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                        || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                    {
+                                        data_reader.transport_reader.changes.remove(i);
+                                    } else if let Some(group_sn) = c.group_coherent_set {
+                                        let pub_guid = data_reader
+                                            .transport_reader
+                                            .matched_writer(c.writer_guid)
+                                            .map(|wp| {
+                                                Guid::new(
+                                                    c.writer_guid.prefix(),
+                                                    wp.remote_group_entity_id(),
+                                                )
+                                            })
+                                            .unwrap_or_else(|| {
+                                                Guid::new(
+                                                    c.writer_guid.prefix(),
+                                                    crate::transport::types::ENTITYID_UNKNOWN,
+                                                )
+                                            });
+
+                                        if finished_group_coherent_set == Some((pub_guid, group_sn))
+                                        {
+                                            let cache_change =
+                                                data_reader.transport_reader.changes.remove(i);
+                                            let is_ecs = cache_change.data_value.is_empty()
+                                                && cache_change.group_coherent_set.is_some();
+                                            if !is_ecs
+                                                && !process_single_cache_change(
+                                                    cache_change,
+                                                    data_reader,
+                                                )
+                                            {
+                                                data_reader.transport_reader.changes.clear();
+                                                break;
+                                            }
+                                        } else {
+                                            i += 1;
+                                        }
+                                    } else if c.coherent_set.is_none() {
                                         let cache_change =
                                             data_reader.transport_reader.changes.remove(i);
                                         if !process_single_cache_change(cache_change, data_reader) {
@@ -546,24 +558,28 @@ impl DcpsDomainParticipant {
                                 }
                             }
                         }
-                    }
-                } else {
-                    data_reader.transport_reader.changes.retain(|c| {
-                        c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
-                            && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
-                            && !(c.data_value.is_empty()
-                                && c.coherent_set.is_none()
-                                && c.group_coherent_set.is_some())
-                    });
-                    if data_reader.transport_reader.changes.len() > 1 {
-                        data_reader.transport_reader.changes.reverse();
-                    }
-                    while let Some(cache_change) = data_reader.transport_reader.changes.pop() {
-                        if !process_single_cache_change(cache_change, data_reader) {
-                            data_reader.transport_reader.changes.clear();
-                            break;
+                    } else {
+                        data_reader.transport_reader.changes.retain(|c| {
+                            c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
+                                && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
+                                && !(c.data_value.is_empty()
+                                    && c.coherent_set.is_none()
+                                    && c.group_coherent_set.is_some())
+                        });
+                        if data_reader.transport_reader.changes.len() > 1 {
+                            data_reader.transport_reader.changes.reverse();
+                        }
+                        while let Some(cache_change) = data_reader.transport_reader.changes.pop() {
+                            if !process_single_cache_change(cache_change, data_reader) {
+                                data_reader.transport_reader.changes.clear();
+                                break;
+                            }
                         }
                     }
+                }
+
+                if finished_group_coherent_set.is_none() {
+                    break;
                 }
             }
         }
@@ -1361,4 +1377,60 @@ impl DcpsDomainParticipant {
         }
         self.process_pending_write_samples(now, transport_participant);
     }
+}
+
+fn find_finished_group_coherent_set(
+    data_reader_list: &[crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
+) -> Option<(Guid, crate::rtps::types::SequenceNumber)> {
+    for reader in data_reader_list {
+        for c in &reader.transport_reader.changes {
+            if c.data_value.is_empty() {
+                if let Some(group_sn) = c.group_coherent_set {
+                    if group_sn != SEQUENCENUMBER_UNKNOWN {
+                        let pub_guid = reader
+                            .transport_reader
+                            .matched_writer(c.writer_guid)
+                            .map(|wp| {
+                                Guid::new(c.writer_guid.prefix(), wp.remote_group_entity_id())
+                            })
+                            .unwrap_or_else(|| {
+                                Guid::new(
+                                    c.writer_guid.prefix(),
+                                    crate::transport::types::ENTITYID_UNKNOWN,
+                                )
+                            });
+
+                        let mut has_matched = false;
+                        let all_delivered = data_reader_list.iter().all(|r| {
+                            r.transport_reader.matched_writers().iter().all(|wp| {
+                                let wp_pub = Guid::new(
+                                    wp.remote_writer_guid().prefix(),
+                                    wp.remote_group_entity_id(),
+                                );
+                                if wp_pub == pub_guid {
+                                    has_matched = true;
+                                    let writer_guid = wp.remote_writer_guid();
+                                    data_reader_list.iter().any(|r2| {
+                                        r2.transport_reader.changes.iter().any(|other_c| {
+                                            other_c.writer_guid == writer_guid
+                                                && other_c.group_coherent_set == Some(group_sn)
+                                                && (other_c.data_value.is_empty()
+                                                    || other_c.writer_group_info.is_some())
+                                        })
+                                    })
+                                } else {
+                                    true
+                                }
+                            })
+                        });
+
+                        if has_matched && all_delivered {
+                            return Some((pub_guid, group_sn));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }

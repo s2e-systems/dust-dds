@@ -1,4 +1,5 @@
 use crate::{
+    rtps::types::PROTOCOLVERSION,
     rtps_messages::{
         error::RtpsMessageResult,
         overall_structure::{
@@ -8,7 +9,7 @@ use crate::{
     transport::types::GuidPrefix,
 };
 
-use super::types::{PROTOCOLVERSION_2_4, VENDOR_ID_S2E};
+use super::types::VENDOR_ID_S2E;
 
 struct TransportWrite<'a, W: ?Sized>(&'a mut W);
 
@@ -25,7 +26,7 @@ pub fn write_submessages_into_transport(
     guid_prefix: GuidPrefix,
     writer: &mut (impl crate::transport::interface::Write + ?Sized),
 ) {
-    let header = RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
+    let header = RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
     write_rtps_message(&header, submessages, &mut TransportWrite(writer));
 }
 
@@ -35,7 +36,7 @@ impl<'a> RtpsMessageWrite<'a> {
         submessages: &[&(dyn Submessage + Send)],
         guid_prefix: GuidPrefix,
     ) -> Self {
-        let header = RtpsMessageHeader::new(PROTOCOLVERSION_2_4, VENDOR_ID_S2E, guid_prefix);
+        let header = RtpsMessageHeader::new(PROTOCOLVERSION, VENDOR_ID_S2E, guid_prefix);
         RtpsMessageWrite::new(buffer, &header, submessages)
     }
 }
