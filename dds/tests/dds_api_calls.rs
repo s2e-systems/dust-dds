@@ -1598,7 +1598,13 @@ fn create_delete_datawriter_during_group_coherent_changes_fails() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserType>("UserTypeTopic", "UserType", QosKind::Default, NO_LISTENER, NO_STATUS)
+        .create_topic::<UserType>(
+            "UserTypeTopic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher_qos = PublisherQos {

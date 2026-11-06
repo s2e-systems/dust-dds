@@ -129,10 +129,7 @@ impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
             .find(|x| x.parameter_id() == PID_WRITER_GROUP_INFO)
         {
             Some(x) => Some(WriterGroupInfo {
-                writer_set: GroupDigest::try_read_from_bytes(
-                    &mut x.value(),
-                    &value.endianness(),
-                )?,
+                writer_set: GroupDigest::try_read_from_bytes(&mut x.value(), &value.endianness())?,
             }),
             None => None,
         };

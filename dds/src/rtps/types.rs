@@ -2,7 +2,10 @@ use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
 use crate::{
-    rtps_messages::types::GroupDigest,
+    rtps_messages::{
+        overall_structure::{Write, WriteIntoBytes},
+        types::GroupDigest,
+    },
     transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId},
 };
 
@@ -155,5 +158,18 @@ impl WriterGroupInfo {
         }
         let writer_set: GroupDigest = md5.compute().into();
         Self { writer_set }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct OriginalWriterInfo {
+    pub original_writer_guid: Guid,
+    pub original_writer_sn: SequenceNumber,
+}
+
+impl WriteIntoBytes for OriginalWriterInfo {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.original_writer_guid.write_into_bytes(buf);
+        self.original_writer_sn.write_into_bytes(buf);
     }
 }

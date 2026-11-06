@@ -21,7 +21,7 @@ use crate::{
     rtps::{
         cache_change::CacheChangeWrite,
         stateful_writer::RtpsStatefulWriter,
-        types::{ChangeKind, TopicKind, WriterGroupInfo},
+        types::{ChangeKind, OriginalWriterInfo, TopicKind, WriterGroupInfo},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     runtime::Spawner,
@@ -70,7 +70,8 @@ impl DcpsDomainParticipant {
 
         if publisher.coherent_changes_depth > 0
             && publisher.qos.presentation.coherent_access
-            && publisher.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
         {
             return Err(DdsError::PreconditionNotMet(String::from(
                 "Cannot create data writer while a group coherent set is active",
@@ -188,7 +189,8 @@ impl DcpsDomainParticipant {
 
         if publisher.coherent_changes_depth > 0
             && publisher.qos.presentation.coherent_access
-            && publisher.qos.presentation.access_scope == PresentationQosPolicyAccessScopeKind::Group
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
         {
             return Err(DdsError::PreconditionNotMet(String::from(
                 "Cannot delete data writer while a group coherent set is active",
@@ -273,6 +275,7 @@ impl DcpsDomainParticipant {
                         for writer in &mut publisher.data_writer_list {
                             if writer.first_coherent_sequence_number.is_some() {
                                 writer.last_change_sequence_number += 1;
+
                                 let change = CacheChangeWrite {
                                     writer_guid: writer.transport_writer.guid(),
                                     sequence_number: writer.last_change_sequence_number,
@@ -280,6 +283,7 @@ impl DcpsDomainParticipant {
                                     inline_qos: ParameterListWrite {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
+                                        original_writer_info: None,
                                         coherent_set: None,
                                         group_coherent_set: None,
                                         group_seq_num: None,
@@ -312,6 +316,10 @@ impl DcpsDomainParticipant {
 
                             for writer in &mut publisher.data_writer_list {
                                 writer.last_change_sequence_number += 1;
+                                let original_writer_info = Some(OriginalWriterInfo {
+                                    original_writer_guid: writer.transport_writer.guid(),
+                                    original_writer_sn: group_seq_num,
+                                });
                                 let change = CacheChangeWrite {
                                     writer_guid: writer.transport_writer.guid(),
                                     sequence_number: writer.last_change_sequence_number,
@@ -320,6 +328,7 @@ impl DcpsDomainParticipant {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
                                         coherent_set: writer.first_coherent_sequence_number,
+                                        original_writer_info,
                                         group_coherent_set,
                                         group_seq_num: Some(group_seq_num),
                                         writer_group_info,

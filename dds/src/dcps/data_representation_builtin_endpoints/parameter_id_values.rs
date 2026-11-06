@@ -62,9 +62,9 @@ pub const PID_GROUP_ENTITYID: ParameterId = 0x0053;
 pub const PID_DATA_REPRESENTATION: ParameterId = 0x0073;
 pub const PID_TYPE_CONSISTENCY_ENFORCEMENT: ParameterId = 0x0074;
 pub const PID_COHERENT_SET: ParameterId = 0x0056;
+pub const PID_ORIGINAL_WRITER_INFO: ParameterId = 0x0061;
 pub const PID_GROUP_COHERENT_SET: ParameterId = 0x0063;
 pub const PID_GROUP_SEQ_NUM: ParameterId = 0x0064;
-#[allow(dead_code)]
 pub const PID_WRITER_GROUP_INFO: ParameterId = 0x0065;
 #[allow(dead_code)]
 pub const PID_SECURE_WRITER_GROUP_INFO: ParameterId = 0x0066;

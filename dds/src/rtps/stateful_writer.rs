@@ -798,6 +798,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
@@ -843,6 +844,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
@@ -901,6 +903,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
@@ -915,6 +918,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
@@ -959,6 +963,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
@@ -1036,6 +1041,7 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,

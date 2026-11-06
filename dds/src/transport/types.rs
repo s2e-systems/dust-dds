@@ -1,5 +1,7 @@
 use dust_dds::xtypes::type_support::TypeSupport;
 
+use crate::rtps_messages::overall_structure::{Write, WriteIntoBytes};
+
 pub type Octet = u8;
 pub type Short = i16;
 pub type Long = i32;
@@ -102,6 +104,13 @@ impl PartialEq<Guid> for [u8; 16] {
     #[inline]
     fn eq(&self, other: &Guid) -> bool {
         other.eq(self)
+    }
+}
+
+impl WriteIntoBytes for Guid {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.prefix.write_into_bytes(buf);
+        self.entity_id.write_into_bytes(buf);
     }
 }
 
