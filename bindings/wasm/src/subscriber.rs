@@ -127,4 +127,12 @@ impl Subscriber {
         self._inner.end_access().await.map_err(into_js_error)?;
         Ok(())
     }
+
+    #[wasm_bindgen(js_name = getStatusCondition)]
+    pub fn get_status_condition(&self) -> crate::condition::StatusCondition {
+        crate::condition::StatusCondition::new(
+            self._inner.get_statuscondition(),
+            self._inner.get_instance_handle(),
+        )
+    }
 }

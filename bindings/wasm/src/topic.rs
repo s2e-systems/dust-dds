@@ -45,4 +45,12 @@ impl Topic {
             .map_err(into_js_error)?;
         Ok(DynamicType { inner: dt })
     }
+
+    #[wasm_bindgen(js_name = getStatusCondition)]
+    pub fn get_status_condition(&self) -> crate::condition::StatusCondition {
+        crate::condition::StatusCondition::new(
+            self._inner.get_statuscondition(),
+            self._inner.get_instance_handle(),
+        )
+    }
 }

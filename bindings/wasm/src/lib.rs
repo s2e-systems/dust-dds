@@ -1,3 +1,4 @@
+pub mod condition;
 pub mod data_reader;
 pub mod data_writer;
 pub mod domain_participant;
@@ -13,7 +14,9 @@ pub mod topic;
 pub mod topic_description;
 pub mod transport;
 pub mod type_support;
+pub mod wait_set;
 
+pub use condition::{Condition, StatusCondition};
 pub use data_reader::{DataReader, Sample};
 pub use data_writer::DataWriter;
 pub use domain_participant::DomainParticipant;
@@ -27,7 +30,7 @@ pub use infrastructure::qos::{
     SubscriberQos, TopicQos,
 };
 pub use infrastructure::qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy};
-pub use infrastructure::status::{PublicationMatchedStatus, SubscriptionMatchedStatus};
+pub use infrastructure::status::{PublicationMatchedStatus, StatusKind, SubscriptionMatchedStatus};
 pub use publisher::Publisher;
 pub use result::{DdsResult, Result};
 pub use sample_info::{
@@ -37,3 +40,4 @@ pub use sample_info::{
 pub use subscriber::Subscriber;
 pub use topic::Topic;
 pub use topic_description::TopicDescription;
+pub use wait_set::WaitSet;
