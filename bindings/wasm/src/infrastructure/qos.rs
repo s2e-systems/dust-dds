@@ -185,3 +185,59 @@ impl From<TopicQos> for dust_dds::infrastructure::qos::TopicQos {
         value.inner
     }
 }
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct DataWriterQos {
+    pub(crate) inner: dust_dds::infrastructure::qos::DataWriterQos,
+}
+
+#[wasm_bindgen]
+impl DataWriterQos {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            inner: Default::default(),
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::DataWriterQos> for DataWriterQos {
+    fn from(inner: dust_dds::infrastructure::qos::DataWriterQos) -> Self {
+        Self { inner }
+    }
+}
+
+impl From<DataWriterQos> for dust_dds::infrastructure::qos::DataWriterQos {
+    fn from(value: DataWriterQos) -> Self {
+        value.inner
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct DataReaderQos {
+    pub(crate) inner: dust_dds::infrastructure::qos::DataReaderQos,
+}
+
+#[wasm_bindgen]
+impl DataReaderQos {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self {
+            inner: Default::default(),
+        }
+    }
+}
+
+impl From<dust_dds::infrastructure::qos::DataReaderQos> for DataReaderQos {
+    fn from(inner: dust_dds::infrastructure::qos::DataReaderQos) -> Self {
+        Self { inner }
+    }
+}
+
+impl From<DataReaderQos> for dust_dds::infrastructure::qos::DataReaderQos {
+    fn from(value: DataReaderQos) -> Self {
+        value.inner
+    }
+}

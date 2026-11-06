@@ -1,5 +1,5 @@
 use dust_dds_wasm::{
-    DomainParticipantFactoryAsync, DomainParticipantFactoryQos, DomainParticipantQos,
+    DomainParticipantFactory, DomainParticipantFactoryQos, DomainParticipantQos,
     EntityFactoryQosPolicy, UserDataQosPolicy,
 };
 use wasm_bindgen_test::*;
@@ -8,14 +8,14 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn test_create_participant() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory.create_participant(0, None).await;
     assert!(participant.is_ok());
 }
 
 #[wasm_bindgen_test]
 async fn test_create_and_delete_participant() {
-    let factory = DomainParticipantFactoryAsync::get_instance(None);
+    let factory = DomainParticipantFactory::get_instance(None);
     let participant = factory
         .create_participant(1, None)
         .await
@@ -26,7 +26,7 @@ async fn test_create_and_delete_participant() {
 
 #[wasm_bindgen_test]
 async fn test_lookup_participant() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(2, None)
         .await
@@ -52,7 +52,7 @@ async fn test_lookup_participant() {
 
 #[wasm_bindgen_test]
 async fn test_default_participant_qos() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let default_qos = factory
         .get_default_participant_qos()
         .await
@@ -82,7 +82,7 @@ async fn test_default_participant_qos() {
 
 #[wasm_bindgen_test]
 async fn test_factory_qos() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let current_qos = factory.get_qos().await.expect("Failed to get factory qos");
     assert!(current_qos.entity_factory().autoenable_created_entities);
 

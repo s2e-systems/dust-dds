@@ -40,6 +40,15 @@ impl Timer for WasmTimer {
     }
 }
 
+pub async fn sleep_ms(ms: i32) {
+    let (sender, receiver) = futures_channel::oneshot::channel::<()>();
+    let cb = Closure::once_into_js(move || {
+        let _ = sender.send(());
+    });
+    set_timeout(cb.unchecked_ref(), ms);
+    let _ = receiver.await;
+}
+
 #[derive(Clone, Default)]
 pub struct WasmSpawner;
 

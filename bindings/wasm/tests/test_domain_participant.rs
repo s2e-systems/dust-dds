@@ -1,6 +1,7 @@
 use dust_dds_wasm::{
-    DomainParticipantFactoryAsync, DomainParticipantQos, EntityFactoryQosPolicy, InstanceHandle,
-    PublisherQos, SubscriberQos, TopicQos, UserDataQosPolicy,
+    DomainParticipantFactory, DomainParticipantQos, DynamicTypeBuilderFactory,
+    EntityFactoryQosPolicy, InstanceHandle, PublisherQos, SubscriberQos, TopicQos,
+    UserDataQosPolicy,
 };
 use wasm_bindgen_test::*;
 
@@ -8,7 +9,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn test_participant_properties() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(10, None)
         .await
@@ -47,7 +48,7 @@ async fn test_participant_properties() {
 
 #[wasm_bindgen_test]
 async fn test_participant_qos() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let custom_qos = DomainParticipantQos::new(
         Some(UserDataQosPolicy::new(Some(vec![42]))),
         Some(EntityFactoryQosPolicy::new(Some(true))),
@@ -71,7 +72,7 @@ async fn test_participant_qos() {
 
 #[wasm_bindgen_test]
 async fn test_publisher_lifecycle() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(12, None)
         .await
@@ -106,7 +107,7 @@ async fn test_publisher_lifecycle() {
 
 #[wasm_bindgen_test]
 async fn test_subscriber_lifecycle() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(13, None)
         .await
@@ -144,7 +145,7 @@ async fn test_subscriber_lifecycle() {
 
 #[wasm_bindgen_test]
 async fn test_topic_lifecycle() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(14, None)
         .await
@@ -160,8 +161,11 @@ async fn test_topic_lifecycle() {
         .expect("Failed to set default topic qos");
 
     let custom_topic_qos = TopicQos::new();
+    let dynamic_type = DynamicTypeBuilderFactory::create_structure_type("HelloWorldType")
+        .build()
+        .expect("Build dynamic type");
     let topic = participant
-        .create_topic("HelloWorldTopic", "HelloWorldType", Some(custom_topic_qos))
+        .create_topic("HelloWorldTopic", &dynamic_type, Some(custom_topic_qos))
         .await
         .expect("Failed to create topic");
 
@@ -182,7 +186,7 @@ async fn test_topic_lifecycle() {
 
 #[wasm_bindgen_test]
 async fn test_delete_contained_entities() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(15, None)
         .await
@@ -196,8 +200,11 @@ async fn test_delete_contained_entities() {
         .create_subscriber(None)
         .await
         .expect("Failed to create subscriber");
+    let temp_dynamic_type = DynamicTypeBuilderFactory::create_structure_type("TempType")
+        .build()
+        .expect("Build dynamic type");
     let _topic = participant
-        .create_topic("TempTopic", "TempType", None)
+        .create_topic("TempTopic", &temp_dynamic_type, None)
         .await
         .expect("Failed to create topic");
 
@@ -214,7 +221,7 @@ async fn test_delete_contained_entities() {
 
 #[wasm_bindgen_test]
 async fn test_discovered_entities() {
-    let factory = DomainParticipantFactoryAsync::new(None);
+    let factory = DomainParticipantFactory::new(None);
     let participant = factory
         .create_participant(16, None)
         .await
@@ -224,7 +231,7 @@ async fn test_discovered_entities() {
         .get_discovered_participants()
         .await
         .expect("Failed to get discovered participants");
-    assert_eq!(participants.length(), 0);
+    assert_eq!(participants.length(), 1);
 
     let topics = participant
         .get_discovered_topics()

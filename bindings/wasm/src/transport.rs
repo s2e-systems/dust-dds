@@ -295,6 +295,7 @@ fn spawn_transport_actor(
                         let is_multicast = addr == [0u8; 16];
 
                         if is_multicast {
+                            let _ = incoming_sender.try_send(data.clone());
                             // Send binary datagram through WebSocket relay/broadcast
                             if let Some(ref ws) = *ws_rc.borrow() {
                                 let _ = ws.send_with_u8_array(&data);
@@ -302,6 +303,11 @@ fn spawn_transport_actor(
                         } else {
                             let mut target_prefix = [0u8; 12];
                             target_prefix.copy_from_slice(&addr[0..12]);
+
+                            if target_prefix == guid_prefix {
+                                let _ = incoming_sender.try_send(data.clone());
+                                continue;
+                            }
 
                             let peers_map = peers.borrow();
                             if let Some(peer) = peers_map.get(&target_prefix) {

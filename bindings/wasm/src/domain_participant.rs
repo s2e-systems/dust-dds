@@ -6,18 +6,18 @@ use crate::{
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publisher::PublisherAsync,
+    publisher::Publisher,
     result::{Result, into_js_error},
-    subscriber::SubscriberAsync,
-    topic::TopicAsync,
+    subscriber::Subscriber,
+    topic::Topic,
 };
 
 #[wasm_bindgen]
-pub struct DomainParticipantAsync {
+pub struct DomainParticipant {
     pub(crate) _inner: dust_dds::dds_async::domain_participant::DomainParticipantAsync,
 }
 
-impl DomainParticipantAsync {
+impl DomainParticipant {
     pub(crate) fn new(
         inner: dust_dds::dds_async::domain_participant::DomainParticipantAsync,
     ) -> Self {
@@ -26,7 +26,7 @@ impl DomainParticipantAsync {
 }
 
 #[wasm_bindgen]
-impl DomainParticipantAsync {
+impl DomainParticipant {
     #[wasm_bindgen(js_name = getDomainId)]
     pub fn get_domain_id(&self) -> i32 {
         self._inner.get_domain_id()
@@ -68,7 +68,7 @@ impl DomainParticipantAsync {
     }
 
     #[wasm_bindgen(js_name = createPublisher)]
-    pub async fn create_publisher(&self, qos: Option<PublisherQos>) -> Result<PublisherAsync> {
+    pub async fn create_publisher(&self, qos: Option<PublisherQos>) -> Result<Publisher> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
@@ -78,11 +78,11 @@ impl DomainParticipantAsync {
             .create_publisher(qos, NO_LISTENER, NO_STATUS)
             .await
             .map_err(into_js_error)?;
-        Ok(PublisherAsync::new(publisher))
+        Ok(Publisher::new(publisher))
     }
 
     #[wasm_bindgen(js_name = deletePublisher)]
-    pub async fn delete_publisher(&self, a_publisher: &PublisherAsync) -> Result<()> {
+    pub async fn delete_publisher(&self, a_publisher: &Publisher) -> Result<()> {
         self._inner
             .delete_publisher(&a_publisher._inner)
             .await
@@ -114,7 +114,7 @@ impl DomainParticipantAsync {
     }
 
     #[wasm_bindgen(js_name = createSubscriber)]
-    pub async fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Result<SubscriberAsync> {
+    pub async fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Result<Subscriber> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
@@ -124,11 +124,11 @@ impl DomainParticipantAsync {
             .create_subscriber(qos, NO_LISTENER, NO_STATUS)
             .await
             .map_err(into_js_error)?;
-        Ok(SubscriberAsync::new(subscriber))
+        Ok(Subscriber::new(subscriber))
     }
 
     #[wasm_bindgen(js_name = deleteSubscriber)]
-    pub async fn delete_subscriber(&self, a_subscriber: &SubscriberAsync) -> Result<()> {
+    pub async fn delete_subscriber(&self, a_subscriber: &Subscriber) -> Result<()> {
         self._inner
             .delete_subscriber(&a_subscriber._inner)
             .await
@@ -137,8 +137,8 @@ impl DomainParticipantAsync {
     }
 
     #[wasm_bindgen(js_name = getBuiltinSubscriber)]
-    pub fn get_builtin_subscriber(&self) -> SubscriberAsync {
-        SubscriberAsync::new(self._inner.get_builtin_subscriber())
+    pub fn get_builtin_subscriber(&self) -> Subscriber {
+        Subscriber::new(self._inner.get_builtin_subscriber())
     }
 
     #[wasm_bindgen(js_name = getDefaultSubscriberQos)]
@@ -168,29 +168,15 @@ impl DomainParticipantAsync {
     pub async fn create_topic(
         &self,
         topic_name: &str,
-        type_name: &str,
+        dynamic_type: &crate::dynamic_type::DynamicType,
         qos: Option<TopicQos>,
-    ) -> Result<TopicAsync> {
+    ) -> Result<Topic> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
         };
 
-        let dynamic_type = dust_dds::xtypes::dynamic_type::DynamicTypeBuilderFactory::create_type(
-            dust_dds::xtypes::dynamic_type::TypeDescriptor {
-                kind: dust_dds::xtypes::dynamic_type::TypeKind::STRUCTURE,
-                name: Box::leak(type_name.to_string().into_boxed_str()),
-                base_type: None,
-                discriminator_type: None,
-                bound: &[],
-                element_type: None,
-                key_element_type: None,
-                extensibility_kind: dust_dds::xtypes::dynamic_type::ExtensibilityKind::Final,
-                is_nested: false,
-                is_autoid_hash: false,
-            },
-        )
-        .build();
+        let type_name = dynamic_type.inner.get_name();
 
         let topic = self
             ._inner
@@ -200,15 +186,15 @@ impl DomainParticipantAsync {
                 qos,
                 NO_LISTENER,
                 NO_STATUS,
-                dynamic_type,
+                dynamic_type.inner,
             )
             .await
             .map_err(into_js_error)?;
-        Ok(TopicAsync::new(topic))
+        Ok(Topic::new(topic))
     }
 
     #[wasm_bindgen(js_name = deleteTopic)]
-    pub async fn delete_topic(&self, a_topic: &TopicAsync) -> Result<()> {
+    pub async fn delete_topic(&self, a_topic: &Topic) -> Result<()> {
         self._inner
             .delete_topic(&a_topic._inner)
             .await

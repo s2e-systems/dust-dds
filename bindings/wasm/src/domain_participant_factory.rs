@@ -7,20 +7,20 @@ use dust_dds::{
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    domain_participant::DomainParticipantAsync,
+    domain_participant::DomainParticipant,
     infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
-    result::{into_js_error, Result},
+    result::{Result, into_js_error},
     runtime::WasmRuntime,
     transport::WasmTransport,
 };
 
 #[wasm_bindgen]
-pub struct DomainParticipantFactoryAsync {
+pub struct DomainParticipantFactory {
     inner: dust_dds::dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
 }
 
 #[wasm_bindgen]
-impl DomainParticipantFactoryAsync {
+impl DomainParticipantFactory {
     #[wasm_bindgen(constructor)]
     pub fn new(discovery_url: Option<String>) -> Self {
         let configuration = DustDdsConfiguration::default();
@@ -49,7 +49,7 @@ impl DomainParticipantFactoryAsync {
         &self,
         domain_id: i32,
         qos: Option<DomainParticipantQos>,
-    ) -> Result<DomainParticipantAsync> {
+    ) -> Result<DomainParticipant> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
@@ -61,11 +61,11 @@ impl DomainParticipantFactoryAsync {
             .await
             .map_err(into_js_error)?;
 
-        Ok(DomainParticipantAsync::new(participant))
+        Ok(DomainParticipant::new(participant))
     }
 
     #[wasm_bindgen(js_name = deleteParticipant)]
-    pub async fn delete_participant(&self, participant: &DomainParticipantAsync) -> Result<()> {
+    pub async fn delete_participant(&self, participant: &DomainParticipant) -> Result<()> {
         self.inner
             .delete_participant(&participant._inner)
             .await
@@ -75,17 +75,14 @@ impl DomainParticipantFactoryAsync {
     }
 
     #[wasm_bindgen(js_name = lookupParticipant)]
-    pub async fn lookup_participant(
-        &self,
-        domain_id: i32,
-    ) -> Result<Option<DomainParticipantAsync>> {
+    pub async fn lookup_participant(&self, domain_id: i32) -> Result<Option<DomainParticipant>> {
         let participant = self
             .inner
             .lookup_participant(domain_id)
             .await
             .map_err(into_js_error)?;
 
-        Ok(participant.map(DomainParticipantAsync::new))
+        Ok(participant.map(DomainParticipant::new))
     }
 
     #[wasm_bindgen(js_name = setDefaultParticipantQos)]
@@ -135,7 +132,7 @@ impl DomainParticipantFactoryAsync {
     }
 }
 
-impl Default for DomainParticipantFactoryAsync {
+impl Default for DomainParticipantFactory {
     fn default() -> Self {
         Self::new(None)
     }
