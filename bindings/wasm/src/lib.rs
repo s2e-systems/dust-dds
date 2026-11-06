@@ -30,7 +30,9 @@ pub use infrastructure::qos::{
     DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos, PublisherQos,
     SubscriberQos, TopicQos,
 };
-pub use infrastructure::qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy};
+pub use infrastructure::qos_policy::{
+    EntityFactoryQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy,
+};
 pub use infrastructure::status::{
     InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
     OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,

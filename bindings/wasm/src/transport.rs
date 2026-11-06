@@ -258,7 +258,6 @@ fn spawn_transport_actor(
         onopen.forget();
 
         // Setup WebSocket onmessage
-        let incoming_tx = incoming_sender.clone();
         let ws_for_signaling = ws.clone();
         let peers_for_signaling = peers.clone();
         let incoming_tx_for_dc = incoming_sender.clone();
@@ -266,10 +265,7 @@ fn spawn_transport_actor(
         let onmessage =
             Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {
                 let data = ev.data();
-                if let Ok(ab) = data.clone().dyn_into::<js_sys::ArrayBuffer>() {
-                    let u8_array = js_sys::Uint8Array::new(&ab);
-                    let _ = incoming_tx.try_send(u8_array.to_vec());
-                } else if let Some(txt) = data.as_string() {
+                if let Some(txt) = data.as_string() {
                     if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&txt) {
                         handle_signaling_message(
                             msg,
@@ -288,17 +284,20 @@ fn spawn_transport_actor(
         while let Ok(mail) = outgoing_receiver.recv().await {
             match mail {
                 TransportOutboundMail::SendDatagram { locators, data } => {
-                    let mut sent_to_any_dc = false;
-
                     for loc in &locators {
                         let addr = loc.address();
                         let is_multicast = addr == [0u8; 16];
 
                         if is_multicast {
                             let _ = incoming_sender.try_send(data.clone());
-                            // Send binary datagram through WebSocket relay/broadcast
-                            if let Some(ref ws) = *ws_rc.borrow() {
-                                let _ = ws.send_with_u8_array(&data);
+                            // Send to all peers with Open DataChannel
+                            let peers_map = peers.borrow();
+                            for peer in peers_map.values() {
+                                if let Some(ref dc) = peer.data_channel {
+                                    if dc.ready_state() == web_sys::RtcDataChannelState::Open {
+                                        let _ = dc.send_with_u8_array(&data);
+                                    }
+                                }
                             }
                         } else {
                             let mut target_prefix = [0u8; 12];
@@ -314,16 +313,7 @@ fn spawn_transport_actor(
                                 if let Some(ref dc) = peer.data_channel {
                                     if dc.ready_state() == web_sys::RtcDataChannelState::Open {
                                         let _ = dc.send_with_u8_array(&data);
-                                        sent_to_any_dc = true;
-                                        continue;
                                     }
-                                }
-                            }
-
-                            // Fallback to WebSocket relay if DC not open yet
-                            if !sent_to_any_dc {
-                                if let Some(ref ws) = *ws_rc.borrow() {
-                                    let _ = ws.send_with_u8_array(&data);
                                 }
                             }
                         }
@@ -513,6 +503,13 @@ fn handle_remote_ice_candidate(
     sdp_m_line_index: Option<u16>,
     peers: &Rc<RefCell<HashMap<[u8; 12], PeerState>>>,
 ) {
+    web_sys::console::info_1(
+        &format!(
+            "[Browser WebRTC] Remote ICE candidate from {:?}: {}",
+            from, candidate_str
+        )
+        .into(),
+    );
     if let Some(peer) = peers.borrow().get(&from) {
         let pc = peer.peer_connection.clone();
         spawn_local(async move {
@@ -523,13 +520,41 @@ fn handle_remote_ice_candidate(
             if let Some(index) = sdp_m_line_index {
                 init.set_sdp_m_line_index(Some(index));
             }
-            if let Ok(cand) = web_sys::RtcIceCandidate::new(&init) {
-                let _ = wasm_bindgen_futures::JsFuture::from(
-                    pc.add_ice_candidate_with_opt_rtc_ice_candidate(Some(&cand)),
-                )
-                .await;
+            match web_sys::RtcIceCandidate::new(&init) {
+                Ok(cand) => {
+                    match wasm_bindgen_futures::JsFuture::from(
+                        pc.add_ice_candidate_with_opt_rtc_ice_candidate(Some(&cand)),
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            web_sys::console::info_1(
+                                &"[Browser WebRTC] Successfully added ICE candidate to PC!".into(),
+                            );
+                        }
+                        Err(e) => {
+                            web_sys::console::warn_1(
+                                &format!("[Browser WebRTC] Error adding ICE candidate: {:?}", e)
+                                    .into(),
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    web_sys::console::warn_1(
+                        &format!(
+                            "[Browser WebRTC] Error constructing RtcIceCandidate: {:?}",
+                            e
+                        )
+                        .into(),
+                    );
+                }
             }
         });
+    } else {
+        web_sys::console::warn_1(
+            &format!("[Browser WebRTC] Unknown peer for candidate: {:?}", from).into(),
+        );
     }
 }
 
@@ -543,6 +568,13 @@ fn setup_ice_candidate_handler(
     let onice = Closure::<dyn FnMut(web_sys::RtcPeerConnectionIceEvent)>::new(
         move |ev: web_sys::RtcPeerConnectionIceEvent| {
             if let Some(candidate) = ev.candidate() {
+                web_sys::console::info_1(
+                    &format!(
+                        "[Browser WebRTC] Generated local ICE candidate: {}",
+                        candidate.candidate()
+                    )
+                    .into(),
+                );
                 let msg = SignalingMessage::IceCandidate {
                     from: my_guid_prefix,
                     to: target_prefix,
@@ -553,6 +585,11 @@ fn setup_ice_candidate_handler(
                 if let Ok(json) = serde_json::to_string(&msg) {
                     let _ = ws_clone.send_with_str(&json);
                 }
+            } else {
+                web_sys::console::info_1(
+                    &"[Browser WebRTC] Local ICE candidate gathering completed (null candidate)"
+                        .into(),
+                );
             }
         },
     );
@@ -564,6 +601,12 @@ fn setup_data_channel_onmessage(
     dc: &web_sys::RtcDataChannel,
     incoming_tx: &async_channel::Sender<Vec<u8>>,
 ) {
+    let onopen = Closure::<dyn FnMut()>::new(move || {
+        web_sys::console::info_1(&"[Browser WebRTC] RTCDataChannel 'dust_rtps' OPENED!".into());
+    });
+    dc.set_onopen(Some(onopen.as_ref().unchecked_ref()));
+    onopen.forget();
+
     let tx = incoming_tx.clone();
     let onmessage =
         Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {

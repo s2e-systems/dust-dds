@@ -10,6 +10,7 @@ members = [
     "bindings/python",
     "bindings/c",
     "bindings/wasm",
+    "bindings/wasm/demo/native_reader",
     "nostd_test_project",
     "micro",
     "micro/interface",
@@ -51,3 +52,6 @@ overflow-checks = true # <-
 
 [profile.bench]
 debug = true
+
+[patch.crates-io]
+webrtc-dtls = { path = "bindings/wasm/demo/native_reader/patches/webrtc-dtls" }

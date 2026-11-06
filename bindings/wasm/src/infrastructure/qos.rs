@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use super::qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy};
+use super::qos_policy::{EntityFactoryQosPolicy, HistoryQosPolicy, UserDataQosPolicy};
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -172,6 +172,21 @@ impl TopicQos {
             inner: Default::default(),
         }
     }
+
+    #[wasm_bindgen(getter, js_name = history)]
+    pub fn history(&self) -> HistoryQosPolicy {
+        self.inner.history.clone().into()
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_history(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
+    }
+
+    #[wasm_bindgen(js_name = setHistory)]
+    pub fn set_history_method(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
+    }
 }
 
 impl From<dust_dds::infrastructure::qos::TopicQos> for TopicQos {
@@ -200,6 +215,21 @@ impl DataWriterQos {
             inner: Default::default(),
         }
     }
+
+    #[wasm_bindgen(getter, js_name = history)]
+    pub fn history(&self) -> HistoryQosPolicy {
+        self.inner.history.clone().into()
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_history(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
+    }
+
+    #[wasm_bindgen(js_name = setHistory)]
+    pub fn set_history_method(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
+    }
 }
 
 impl From<dust_dds::infrastructure::qos::DataWriterQos> for DataWriterQos {
@@ -227,6 +257,21 @@ impl DataReaderQos {
         Self {
             inner: Default::default(),
         }
+    }
+
+    #[wasm_bindgen(getter, js_name = history)]
+    pub fn history(&self) -> HistoryQosPolicy {
+        self.inner.history.clone().into()
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_history(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
+    }
+
+    #[wasm_bindgen(js_name = setHistory)]
+    pub fn set_history_method(&mut self, history: HistoryQosPolicy) {
+        self.inner.history = history.into();
     }
 }
 
