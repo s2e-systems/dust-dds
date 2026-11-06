@@ -9,6 +9,7 @@ members = [
     "fuzz",
     "bindings/python",
     "bindings/c",
+    "bindings/wasm",
     "nostd_test_project",
     "micro",
     "micro/interface",
