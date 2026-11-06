@@ -213,6 +213,12 @@ impl Transport for WasmTransport {
     fn delete_participant(&mut self, _handle: Guid) {}
 }
 
+impl Drop for WasmRtpsParticipant {
+    fn drop(&mut self) {
+        let _ = self.outgoing_sender.try_send(TransportOutboundMail::Close);
+    }
+}
+
 struct PeerState {
     peer_connection: web_sys::RtcPeerConnection,
     data_channel: Option<web_sys::RtcDataChannel>,
@@ -320,12 +326,20 @@ fn spawn_transport_actor(
                     }
                 }
                 TransportOutboundMail::Close => {
-                    if let Some(ws) = ws_rc.borrow_mut().take() {
-                        let _ = ws.close();
-                    }
                     break;
                 }
             }
+        }
+
+        // Clean up all peer connections and WebSocket on shutdown
+        for (_, peer) in peers.borrow_mut().drain() {
+            if let Some(dc) = peer.data_channel {
+                let _ = dc.close();
+            }
+            let _ = peer.peer_connection.close();
+        }
+        if let Some(ws) = ws_rc.borrow_mut().take() {
+            let _ = ws.close();
         }
     });
 }
@@ -359,7 +373,12 @@ fn handle_signaling_message(
             handle_remote_ice_candidate(from, candidate, sdp_mid, sdp_m_line_index, peers);
         }
         SignalingMessage::PeerLeft { guid_prefix } => {
-            peers.borrow_mut().remove(&guid_prefix);
+            if let Some(peer) = peers.borrow_mut().remove(&guid_prefix) {
+                if let Some(dc) = peer.data_channel {
+                    let _ = dc.close();
+                }
+                let _ = peer.peer_connection.close();
+            }
         }
         _ => {}
     }
@@ -601,6 +620,9 @@ fn setup_data_channel_onmessage(
     dc: &web_sys::RtcDataChannel,
     incoming_tx: &async_channel::Sender<Vec<u8>>,
 ) {
+    if dc.ready_state() == web_sys::RtcDataChannelState::Open {
+        web_sys::console::info_1(&"[Browser WebRTC] RTCDataChannel 'dust_rtps' OPENED!".into());
+    }
     let onopen = Closure::<dyn FnMut()>::new(move || {
         web_sys::console::info_1(&"[Browser WebRTC] RTCDataChannel 'dust_rtps' OPENED!".into());
     });

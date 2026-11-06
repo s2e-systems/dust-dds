@@ -468,13 +468,13 @@ async fn handle_incoming_connection(
                                 let _ = target_session.ws_tx.send(Message::Text(txt.into())).await;
                             }
                         }
-                        SignalingMessage::SdpAnswer { from, sdp, .. } => {
-                            if registered_prefix == Some(from) {
+                        SignalingMessage::SdpAnswer { to, sdp, .. } => {
+                            if to == native_guid_prefix || to == [0; 12] {
                                 let answer = RTCSessionDescription::answer(sdp).unwrap_or_default();
                                 let _ = pc.set_remote_description(answer).await;
                             } else {
                                 let clients_map = clients.lock().await;
-                                if let Some(target_session) = clients_map.get(&from) {
+                                if let Some(target_session) = clients_map.get(&to) {
                                     let _ =
                                         target_session.ws_tx.send(Message::Text(txt.into())).await;
                                 }
@@ -533,4 +533,6 @@ async fn handle_incoming_connection(
             }
         }
     }
+
+    let _ = pc.close().await;
 }

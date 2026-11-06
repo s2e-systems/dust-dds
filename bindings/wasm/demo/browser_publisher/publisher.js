@@ -12,6 +12,8 @@ import init, {
 
 let dataWriter = null;
 let sineReader = null;
+let participantFactory = null;
+let participant = null;
 let currentMessageId = 1;
 let publishedCount = 0;
 
@@ -234,11 +236,17 @@ async function startDds() {
     setBadge(signalingBadge, signalingText, 'info', `Connecting to ${signalingUrl}...`);
 
     // 1. Create DomainParticipantFactory with signaling URL
-    const factory = new DomainParticipantFactory(signalingUrl);
+    participantFactory = new DomainParticipantFactory(signalingUrl);
 
     // 2. Create Participant on domain 0
-    const participant = await factory.createParticipant(0);
+    participant = await participantFactory.createParticipant(0);
     setBadge(signalingBadge, signalingText, 'success', `Connected to ${signalingUrl}`);
+
+    window.addEventListener('beforeunload', () => {
+      if (participantFactory && participant) {
+        participantFactory.deleteParticipant(participant).catch(() => {});
+      }
+    });
 
     // -------------------------------------------------------------------------
     // TextMessage Publisher Setup
