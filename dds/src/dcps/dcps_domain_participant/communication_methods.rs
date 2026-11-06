@@ -65,10 +65,10 @@ impl DcpsDomainParticipant {
         let type_register = &self.domain_participant.type_register;
 
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
-            let subscriber_handle = subscriber.instance_handle;
+            let subscriber_handle = subscriber.subscriber_entity.instance_handle;
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
-            let subscriber_presentation = subscriber.qos.presentation.clone();
+            let subscriber_presentation = subscriber.subscriber_entity.qos.presentation.clone();
             let (subscriber_status_condition, data_reader_list) = (
                 &mut subscriber.status_condition,
                 &mut subscriber.data_reader_list,
