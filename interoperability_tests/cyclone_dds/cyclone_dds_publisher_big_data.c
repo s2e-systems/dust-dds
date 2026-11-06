@@ -1,16 +1,17 @@
+#include <stdint.h>
 #include "ddsc/dds.h"
-#include "HelloWorld.h"
+#include "BigData.h"
 
-int main(int argc, char *argv[])
+int main()
 {
-	const char *topic_name = "HelloWorld";
+	const char *topic_name = "BigData";
 
 	const dds_entity_t participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL /*qos*/, NULL /*listener*/);
 	if (participant < 0)
 	{
 		DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 	}
-	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_HelloWorldType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
+	const dds_entity_t topic = dds_create_topic(participant, &interoperability_test_BigDataType_desc, topic_name, NULL /*qos*/, NULL /*listener*/);
 	if (topic < 0)
 	{
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
@@ -42,9 +43,10 @@ int main(int argc, char *argv[])
 	}
 
 	dds_attach_t wsresults[1];
-	const size_t wsresultsize = 1U;
+	const dds_return_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(60));
-	if (rc == 0) {
+	if (rc == 0)
+	{
 		DDS_FATAL("dds_waitset_wait: timeout");
 	}
 	if (rc != wsresultsize)
@@ -52,12 +54,20 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-
-	interoperability_test_HelloWorldType msg = {8, 'a'};
-	dds_write(data_writer, &msg);
+	uint8_t data_bytes[15001];
+	for (uint32_t i = 0; i<sizeof(data_bytes); i++) {
+		data_bytes[i] = (uint8_t) i % 256;
+	};
+	const struct dds_sequence_octet msg = {
+		._length = sizeof(data_bytes),
+		._buffer = data_bytes,
+		._release = false};
+	const interoperability_test_BigDataType data = {msg};
+	dds_write(data_writer, &data);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
-	if (rc != DDS_RETCODE_OK) {
+	if (rc != DDS_RETCODE_OK)
+	{
 		DDS_FATAL("dds_wait_for_acks: %s\n", dds_strretcode(-rc));
 	}
 }

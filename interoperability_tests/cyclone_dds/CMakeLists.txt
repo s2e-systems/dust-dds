@@ -1,146 +1,209 @@
-cmake_minimum_required(VERSION 3.16.0)
-project(CycloneInteroperability LANGUAGES C)
+cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
+
+project(cyclone_dds_interoperability LANGUAGES C)
+
+#
+# Settings
+#
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+get_property(_generator_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_generator_is_multi_config)
+  set(CMAKE_CONFIGURATION_TYPES Debug)
+  if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
+    set(CMAKE_DEFAULT_BUILD_TYPE Debug)
+  endif()
+else()
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+#
+# Cyclone DDS
+#
+set(ENABLE_SSL OFF CACHE BOOL "" FORCE)
+set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 include(FetchContent)
 FetchContent_Declare(
-  CycloneDDS
-  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-  GIT_TAG 3a5526315e64ac1d2a52e6ac1ae7f3e861c593d3
-  GIT_SHALLOW TRUE
-)
-
-if(MSVC)
-  add_compile_options(/W3 /WX)
-else()
-  add_compile_options(-Werror -Wall)
-endif()
-set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE STRING "" FORCE)
-set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BUILD_DDSPERF OFF CACHE BOOL "" FORCE)
-set(ENABLE_SSL OFF CACHE STRING "" FORCE)
-set(ENABLE_SECURITY OFF CACHE BOOL "" FORCE)
+    CycloneDDS
+    GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+    # TODO: proper tag and not a commit hash,
+    #       latest known commit with all CI checks passing
+    GIT_TAG 663cdbee019e06d97222463b72220b9061170ab7
+    # TODO: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
+    # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
+    # GIT_SHALLOW ON
+    #
+    # TODO: uncomment when `cmake_minimum_required` >= 3.25,
+    # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
+    # SYSTEM
+  )
 FetchContent_MakeAvailable(CycloneDDS)
 
-idlc_generate(TARGET HelloWorldGeneratedIdl FILES ../HelloWorld.idl)
-idlc_generate(TARGET BigDataGeneratedIdl FILES ../BigData.idl)
-idlc_generate(TARGET DisposeDataGeneratedIdl FILES ../DisposeData.idl)
-idlc_generate(TARGET NestedTypeGeneratedIdl FILES ../NestedType.idl)
-idlc_generate(TARGET UnionGeneratedIdl FILES ../Union.idl)
-idlc_generate(TARGET InheritanceGeneratedIdl FILES ../Inheritance.idl)
-idlc_generate(TARGET OptionalGeneratedIdl FILES ../Optional.idl)
+#
+# Compile options
+#
+if (MSVC)
+  add_compile_options(/W4 /WX)
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
 
-add_executable(CycloneDdsSubscriber
-  cyclone_dds_subscriber.c
+#
+# Hello world
+#
+# IDL
+idlc_generate(TARGET hello_world_idl FILES ../HelloWorld.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_hello_world
+  cyclone_dds_subscriber_hello_world.c
 )
-target_link_libraries(CycloneDdsSubscriber PRIVATE
+target_link_libraries(cyclone_dds_subscriber_hello_world PRIVATE
   CycloneDDS::ddsc
-  HelloWorldGeneratedIdl
+  hello_world_idl
 )
-
-add_executable(CycloneDdsPublisher
-  cyclone_dds_publisher.c
+# Publisher
+add_executable(cyclone_dds_publisher_hello_world
+  cyclone_dds_publisher_hello_world.c
 )
-target_link_libraries(CycloneDdsPublisher PRIVATE
+target_link_libraries(cyclone_dds_publisher_hello_world PRIVATE
   CycloneDDS::ddsc
-  HelloWorldGeneratedIdl
+  hello_world_idl
 )
 
-
-add_executable(CycloneDdsBigDataSubscriber
-  cyclone_dds_big_data_subscriber.c
+#
+# Big data
+#
+# IDL
+idlc_generate(TARGET big_data_idl FILES ../BigData.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_big_data
+  cyclone_dds_subscriber_big_data.c
 )
-target_link_libraries(CycloneDdsBigDataSubscriber PRIVATE
+target_link_libraries(cyclone_dds_subscriber_big_data PRIVATE
   CycloneDDS::ddsc
-  BigDataGeneratedIdl
+  big_data_idl
 )
-
-add_executable(CycloneDdsBigDataPublisher
-  cyclone_dds_big_data_publisher.c
+# Publisher
+add_executable(cyclone_dds_publisher_big_data
+  cyclone_dds_publisher_big_data.c
 )
-target_link_libraries(CycloneDdsBigDataPublisher PRIVATE
+target_link_libraries(cyclone_dds_publisher_big_data PRIVATE
   CycloneDDS::ddsc
-  BigDataGeneratedIdl
+  big_data_idl
 )
 
-
-add_executable(CycloneDdsSubscriberDispose
+#
+# Dispose
+#
+# IDL
+idlc_generate(TARGET dispose_data_idl FILES ../DisposeData.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_dispose
   cyclone_dds_subscriber_dispose.c
 )
-target_link_libraries(CycloneDdsSubscriberDispose PRIVATE
+target_link_libraries(cyclone_dds_subscriber_dispose PRIVATE
   CycloneDDS::ddsc
-  DisposeDataGeneratedIdl
+  dispose_data_idl
 )
-
-add_executable(CycloneDdsPublisherDispose
+# Publisher
+add_executable(cyclone_dds_publisher_dispose
   cyclone_dds_publisher_dispose.c
 )
-target_link_libraries(CycloneDdsPublisherDispose PRIVATE
+target_link_libraries(cyclone_dds_publisher_dispose PRIVATE
   CycloneDDS::ddsc
-  DisposeDataGeneratedIdl
+  dispose_data_idl
 )
 
-add_executable(CycloneDdsPublisherNested
-  cyclone_dds_publisher_nested.c
-)
-target_link_libraries(CycloneDdsPublisherNested PRIVATE
-  CycloneDDS::ddsc
-  NestedTypeGeneratedIdl
-)
-add_executable(CycloneDdsSubscriberNested
+#
+# Nested
+#
+# IDL
+idlc_generate(TARGET nested_type_idl FILES ../NestedType.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_nested
   cyclone_dds_subscriber_nested.c
 )
-target_link_libraries(CycloneDdsSubscriberNested PRIVATE
+target_link_libraries(cyclone_dds_subscriber_nested PRIVATE
   CycloneDDS::ddsc
-  NestedTypeGeneratedIdl
+  nested_type_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_nested
+  cyclone_dds_publisher_nested.c
+)
+target_link_libraries(cyclone_dds_publisher_nested PRIVATE
+  CycloneDDS::ddsc
+  nested_type_idl
 )
 
-add_executable(CycloneDdsPublisherUnion
-  cyclone_dds_publisher_union.c
-)
-target_link_libraries(CycloneDdsPublisherUnion PRIVATE
-  CycloneDDS::ddsc
-  UnionGeneratedIdl
-)
-
-add_executable(CycloneDdsSubscriberUnion
+#
+# Union
+#
+# IDL
+idlc_generate(TARGET union_idl FILES ../Union.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_union
   cyclone_dds_subscriber_union.c
 )
-target_link_libraries(CycloneDdsSubscriberUnion PRIVATE
+target_link_libraries(cyclone_dds_subscriber_union PRIVATE
   CycloneDDS::ddsc
-  UnionGeneratedIdl
+  union_idl
+)
+# Publisher
+add_executable(cyclone_dds_publisher_union
+  cyclone_dds_publisher_union.c
+)
+target_link_libraries(cyclone_dds_publisher_union PRIVATE
+  CycloneDDS::ddsc
+  union_idl
 )
 
-add_executable(CycloneDdsSubscriberInheritance
+#
+# Inheritance
+#
+# IDL
+idlc_generate(TARGET inheritance_idl FILES ../Inheritance.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_inheritance
   cyclone_dds_subscriber_inheritance.c
 )
-target_link_libraries(CycloneDdsSubscriberInheritance PRIVATE
+target_link_libraries(cyclone_dds_subscriber_inheritance PRIVATE
   CycloneDDS::ddsc
-  InheritanceGeneratedIdl
+  inheritance_idl
 )
-
-add_executable(CycloneDdsPublisherInheritance
+# Publisher
+add_executable(cyclone_dds_publisher_inheritance
   cyclone_dds_publisher_inheritance.c
 )
-target_link_libraries(CycloneDdsPublisherInheritance PRIVATE
+target_link_libraries(cyclone_dds_publisher_inheritance PRIVATE
   CycloneDDS::ddsc
-  InheritanceGeneratedIdl
+  inheritance_idl
 )
 
-add_executable(CycloneDdsSubscriberOptional
+#
+# Optional
+#
+# IDL
+idlc_generate(TARGET optional_idl FILES ../Optional.idl)
+# Subscriber
+add_executable(cyclone_dds_subscriber_optional
   cyclone_dds_subscriber_optional.c
 )
-target_link_libraries(CycloneDdsSubscriberOptional PRIVATE
+target_link_libraries(cyclone_dds_subscriber_optional PRIVATE
   CycloneDDS::ddsc
-  OptionalGeneratedIdl
+  optional_idl
 )
-
-add_executable(CycloneDdsPublisherOptional
+# Publisher
+add_executable(cyclone_dds_publisher_optional
   cyclone_dds_publisher_optional.c
 )
-target_link_libraries(CycloneDdsPublisherOptional PRIVATE
+target_link_libraries(cyclone_dds_publisher_optional PRIVATE
   CycloneDDS::ddsc
-  OptionalGeneratedIdl
+  optional_idl
 )
