@@ -1588,3 +1588,53 @@ fn create_delete_content_filtered_topic() {
         Err(DdsError::AlreadyDeleted)
     );
 }
+
+#[test]
+fn create_delete_datawriter_during_group_coherent_changes_fails() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<UserType>("UserTypeTopic", "UserType", QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer1 = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    publisher.begin_coherent_changes().unwrap();
+
+    // Adding or removing a writer during active group coherent set should return PreconditionNotMet
+    assert!(matches!(
+        publisher.create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS),
+        Err(DdsError::PreconditionNotMet(_))
+    ));
+    assert!(matches!(
+        publisher.delete_datawriter(&writer1),
+        Err(DdsError::PreconditionNotMet(_))
+    ));
+
+    publisher.end_coherent_changes().unwrap();
+
+    // After ending coherent changes, creating and deleting writers should succeed
+    let writer2 = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    assert_eq!(publisher.delete_datawriter(&writer1), Ok(()));
+    assert_eq!(publisher.delete_datawriter(&writer2), Ok(()));
+}

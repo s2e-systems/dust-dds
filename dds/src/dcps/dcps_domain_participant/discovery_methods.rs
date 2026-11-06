@@ -197,7 +197,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
             self.domain_participant
                 .builtin_publisher
@@ -591,7 +591,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -743,7 +743,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant

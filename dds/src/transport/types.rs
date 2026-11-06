@@ -122,7 +122,7 @@ pub const fn transport_handle_from_guid_prefix(prefix: &GuidPrefix) -> Transport
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, TypeSupport)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, TypeSupport)]
 #[dust_dds(extensibility = "final", nested)]
 pub struct EntityId {
     pub(crate) entity_key: OctetArray3,

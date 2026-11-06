@@ -156,6 +156,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 coherent_set,
                 group_coherent_set,
                 group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_data.into(),
         };
@@ -196,6 +197,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_handle: InstanceHandle,
         serialized_key: Vec<u8>,
         timestamp: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -228,8 +231,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 kind: ChangeKind::NotAliveDisposed,
                 instance_handle: Some(instance_handle.into()),
                 coherent_set,
-                group_coherent_set: None,
-                group_seq_num: None,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_key.into(),
         };
@@ -281,6 +285,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_handle: InstanceHandle,
         serialized_key: Vec<u8>,
         timestamp: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -322,8 +328,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 kind,
                 instance_handle: Some(instance_handle.into()),
                 coherent_set,
-                group_coherent_set: None,
-                group_seq_num: None,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_key.into(),
         };

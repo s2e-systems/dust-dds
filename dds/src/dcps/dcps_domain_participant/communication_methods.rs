@@ -81,9 +81,7 @@ impl DcpsDomainParticipant {
                 data_reader_list.iter().any(|reader| {
                     reader.transport_reader.changes.iter().any(|c| {
                         c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
-                            || (c.data_value.is_empty()
-                                && c.coherent_set.is_none()
-                                && c.group_coherent_set.is_some())
+                            || (c.data_value.is_empty() && c.group_coherent_set.is_some())
                     })
                 })
             } else {
@@ -510,7 +508,6 @@ impl DcpsDomainParticipant {
                                     c.coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
                                         && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
                                         && !(c.data_value.is_empty()
-                                            && c.coherent_set.is_none()
                                             && c.group_coherent_set.is_some())
                                 });
                                 if data_reader.transport_reader.changes.len() > 1 {

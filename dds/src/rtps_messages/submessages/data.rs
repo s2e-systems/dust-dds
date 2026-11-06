@@ -280,6 +280,7 @@ mod tests {
             coherent_set: None,
             group_coherent_set: None,
             group_seq_num: None,
+            writer_group_info: None,
         };
         let payload = [1, 2, 3];
         let submessage = DataSubmessageWrite::new(
@@ -321,6 +322,7 @@ mod tests {
             coherent_set: None,
             group_coherent_set: None,
             group_seq_num: None,
+            writer_group_info: None,
         };
         let serialized_payload = &[][..];
         let submessage = DataSubmessageWrite::new(

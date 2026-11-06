@@ -3,9 +3,9 @@ use alloc::sync::Arc;
 use super::error::RtpsError;
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
+        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM, PID_WRITER_GROUP_INFO,
     },
-    rtps::types::{ChangeKind, SequenceNumber, Time},
+    rtps::types::{ChangeKind, SequenceNumber, Time, WriterGroupInfo},
     rtps_messages::{
         self,
         overall_structure::TryReadFromBytes,
@@ -14,7 +14,7 @@ use crate::{
             data::{DataSubmessage, DataSubmessageWrite},
             data_frag::DataFragSubmessageWrite,
         },
-        types::ParameterId,
+        types::{GroupDigest, ParameterId},
     },
     transport::types::{EntityId, Guid, GuidPrefix},
 };
@@ -33,6 +33,7 @@ pub struct CacheChangeRead {
     pub coherent_set: Option<SequenceNumber>,
     pub group_coherent_set: Option<SequenceNumber>,
     pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -50,6 +51,7 @@ pub struct CacheChangeParameters {
     pub coherent_set: Option<SequenceNumber>,
     pub group_coherent_set: Option<SequenceNumber>,
     pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
 }
 
 impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
@@ -122,12 +124,26 @@ impl TryFrom<&ParameterList<'_>> for CacheChangeParameters {
             None => None,
         };
 
+        let writer_group_info = match value
+            .parameters()
+            .find(|x| x.parameter_id() == PID_WRITER_GROUP_INFO)
+        {
+            Some(x) => Some(WriterGroupInfo {
+                writer_set: GroupDigest::try_read_from_bytes(
+                    &mut x.value(),
+                    &value.endianness(),
+                )?,
+            }),
+            None => None,
+        };
+
         Ok(Self {
             change_kind,
             instance_handle,
             coherent_set,
             group_coherent_set,
             group_seq_num,
+            writer_group_info,
         })
     }
 }
@@ -144,6 +160,7 @@ impl CacheChangeRead {
             coherent_set,
             group_coherent_set,
             group_seq_num,
+            writer_group_info,
         } = data_submessage.inline_qos().try_into()?;
 
         Ok(Self {
@@ -156,6 +173,7 @@ impl CacheChangeRead {
             coherent_set,
             group_coherent_set,
             group_seq_num,
+            writer_group_info,
         })
     }
 }
@@ -208,7 +226,7 @@ impl CacheChangeWrite {
         data_max_size_serialized: usize,
         fragment_number: usize,
     ) -> DataFragSubmessageWrite<'a> {
-        let inline_qos_flag = false;
+        let inline_qos_flag = fragment_number == 0;
         let key_flag = false;
         let non_standard_payload_flag = false;
         let writer_sn = self.sequence_number;

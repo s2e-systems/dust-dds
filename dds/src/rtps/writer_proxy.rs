@@ -124,6 +124,7 @@ impl RtpsWriterProxy {
                 coherent_set,
                 group_coherent_set,
                 group_seq_num,
+                writer_group_info,
             } = (&first_frag.inline_qos()).try_into().ok()?;
 
             self.frag_buffer.retain(|f| f.writer_sn() != seq_num);
@@ -138,6 +139,7 @@ impl RtpsWriterProxy {
                 coherent_set,
                 group_coherent_set,
                 group_seq_num,
+                writer_group_info,
             })
         } else {
             None
