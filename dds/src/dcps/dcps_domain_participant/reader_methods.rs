@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use crate::{
     builtin_topics::{
@@ -72,63 +72,64 @@ impl DcpsDomainParticipant {
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<(DynamicType<'static>, SampleList)> {
-        let (sample_list, topic_name) =
-            if subscriber_handle == &self.domain_participant.instance_handle {
-                let bs = &mut self.domain_participant.builtin_subscriber;
-                if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
-                    let sample_list = bs.dcps_participant_reader.read(
-                        max_samples,
-                        sample_state_mask,
-                        view_state_mask,
-                        instance_state_mask,
-                        specific_instance_handle,
-                    )?;
-                    (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
-                } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
-                    let sample_list = dr.read(
-                        max_samples,
-                        sample_state_mask,
-                        view_state_mask,
-                        instance_state_mask,
-                        specific_instance_handle,
-                    )?;
-                    (sample_list, dr.topic_name.as_ref())
-                } else {
-                    return Err(DdsError::AlreadyDeleted);
-                }
-            } else {
-                let subscriber = self
-                    .domain_participant
-                    .user_defined_subscriber_list
-                    .iter_mut()
-                    .find(|x| &x.instance_handle == subscriber_handle);
-                let Some(subscriber) = subscriber else {
-                    return Err(DdsError::AlreadyDeleted);
-                };
-                if subscriber.qos.presentation.access_scope
-                    == PresentationQosPolicyAccessScopeKind::Group
-                    && subscriber.access_depth == 0
-                {
-                    return Err(DdsError::PreconditionNotMet(String::from(
-                        "read called without calling begin_access on Subscriber with GROUP access_scope",
-                    )));
-                }
-                let Some(data_reader) = subscriber
-                    .data_reader_list
-                    .iter_mut()
-                    .find(|x| &x.instance_handle == data_reader_handle)
-                else {
-                    return Err(DdsError::AlreadyDeleted);
-                };
-                let sample_list = data_reader.read(
+        let (sample_list, topic_name) = if subscriber_handle
+            == &self.domain_participant.instance_handle
+        {
+            let bs = &mut self.domain_participant.builtin_subscriber;
+            if &bs.dcps_participant_reader.instance_handle == data_reader_handle {
+                let sample_list = bs.dcps_participant_reader.read(
                     max_samples,
                     sample_state_mask,
                     view_state_mask,
                     instance_state_mask,
                     specific_instance_handle,
                 )?;
-                (sample_list, data_reader.topic_name.as_ref())
+                (sample_list, bs.dcps_participant_reader.topic_name.as_ref())
+            } else if let Some(dr) = bs.find_stateful_data_reader_mut(data_reader_handle) {
+                let sample_list = dr.read(
+                    max_samples,
+                    sample_state_mask,
+                    view_state_mask,
+                    instance_state_mask,
+                    specific_instance_handle,
+                )?;
+                (sample_list, dr.topic_name.as_ref())
+            } else {
+                return Err(DdsError::AlreadyDeleted);
+            }
+        } else {
+            let subscriber = self
+                .domain_participant
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == subscriber_handle);
+            let Some(subscriber) = subscriber else {
+                return Err(DdsError::AlreadyDeleted);
             };
+            if subscriber.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
+                && subscriber.access_depth == 0
+            {
+                return Err(DdsError::PreconditionNotMet(String::from(
+                    "read called without calling begin_access on Subscriber with GROUP access_scope",
+                )));
+            }
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == data_reader_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            let sample_list = data_reader.read(
+                max_samples,
+                sample_state_mask,
+                view_state_mask,
+                instance_state_mask,
+                specific_instance_handle,
+            )?;
+            (sample_list, data_reader.topic_name.as_ref())
+        };
 
         let Some(type_support) = get_topic_type_support(
             topic_name,

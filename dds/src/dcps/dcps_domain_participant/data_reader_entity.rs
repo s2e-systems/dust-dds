@@ -655,107 +655,104 @@ impl<T> DataReaderEntity<T> {
                     }
                 }
             }
-        } else {
-            if !ordered_by_instance {
-                self.sample_list.retain_mut(|cache_change| {
-                    if samples.len() as i32 == max_samples {
-                        return true;
-                    }
-
-                    if let Some((instance_idx, instance)) = match_sample(
-                        cache_change,
-                        specific_instance_handle,
-                        &self.instances,
-                        match_all_sample_states,
-                        sample_state_mask,
-                        match_all_view_states,
-                        view_state_mask,
-                        match_all_instance_states,
-                        instance_state_mask,
-                    ) {
-                        let (data, sample_info, absolute_generation_rank) =
-                            create_sample_info(cache_change, instance);
-
-                        if self.instances.len() > 1 {
-                            let inst_in_coll = instances_in_collection
-                                .get_or_insert_mut(cache_change.instance_handle, instance_idx);
-                            inst_in_coll.most_recent_sample_absolute_generation_rank =
-                                absolute_generation_rank;
-                        }
-
-                        samples.push((data, sample_info));
-                        false
-                    } else {
-                        true
-                    }
-                });
-            } else {
-                let mut instance_order = Vec::new();
-                for cache_change in &self.sample_list {
-                    if !instance_order.contains(&cache_change.instance_handle) {
-                        instance_order.push(cache_change.instance_handle);
-                    }
+        } else if !ordered_by_instance {
+            self.sample_list.retain_mut(|cache_change| {
+                if samples.len() as i32 == max_samples {
+                    return true;
                 }
 
-                let mut taken_indices = Vec::new();
-                'take_outer: for target_handle in instance_order {
-                    for (idx, cache_change) in self.sample_list.iter().enumerate() {
-                        if cache_change.instance_handle == target_handle
-                            && match_sample(
-                                cache_change,
-                                specific_instance_handle,
-                                &self.instances,
-                                match_all_sample_states,
-                                sample_state_mask,
-                                match_all_view_states,
-                                view_state_mask,
-                                match_all_instance_states,
-                                instance_state_mask,
-                            )
-                            .is_some()
-                            {
-                                taken_indices.push(idx);
-                                if taken_indices.len() as i32 == max_samples {
-                                    break 'take_outer;
-                                }
-                            }
-                    }
-                }
-
-                for &idx in &taken_indices {
-                    let cache_change = &self.sample_list[idx];
-                    let (instance_idx, instance) = match_sample(
-                        cache_change,
-                        specific_instance_handle,
-                        &self.instances,
-                        match_all_sample_states,
-                        sample_state_mask,
-                        match_all_view_states,
-                        view_state_mask,
-                        match_all_instance_states,
-                        instance_state_mask,
-                    )
-                    .unwrap();
+                if let Some((instance_idx, instance)) = match_sample(
+                    cache_change,
+                    specific_instance_handle,
+                    &self.instances,
+                    match_all_sample_states,
+                    sample_state_mask,
+                    match_all_view_states,
+                    view_state_mask,
+                    match_all_instance_states,
+                    instance_state_mask,
+                ) {
                     let (data, sample_info, absolute_generation_rank) =
                         create_sample_info(cache_change, instance);
-                    let inst_in_coll = instances_in_collection
-                        .get_or_insert_mut(cache_change.instance_handle, instance_idx);
-                    inst_in_coll.most_recent_sample_absolute_generation_rank =
-                        absolute_generation_rank;
-                    samples.push((data, sample_info));
-                }
 
-                let mut taken_set = alloc::vec![false; self.sample_list.len()];
-                for &idx in &taken_indices {
-                    taken_set[idx] = true;
+                    if self.instances.len() > 1 {
+                        let inst_in_coll = instances_in_collection
+                            .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                        inst_in_coll.most_recent_sample_absolute_generation_rank =
+                            absolute_generation_rank;
+                    }
+
+                    samples.push((data, sample_info));
+                    false
+                } else {
+                    true
                 }
-                let mut i = 0;
-                self.sample_list.retain(|_| {
-                    let keep = !taken_set[i];
-                    i += 1;
-                    keep
-                });
+            });
+        } else {
+            let mut instance_order = Vec::new();
+            for cache_change in &self.sample_list {
+                if !instance_order.contains(&cache_change.instance_handle) {
+                    instance_order.push(cache_change.instance_handle);
+                }
             }
+
+            let mut taken_indices = Vec::new();
+            'take_outer: for target_handle in instance_order {
+                for (idx, cache_change) in self.sample_list.iter().enumerate() {
+                    if cache_change.instance_handle == target_handle
+                        && match_sample(
+                            cache_change,
+                            specific_instance_handle,
+                            &self.instances,
+                            match_all_sample_states,
+                            sample_state_mask,
+                            match_all_view_states,
+                            view_state_mask,
+                            match_all_instance_states,
+                            instance_state_mask,
+                        )
+                        .is_some()
+                    {
+                        taken_indices.push(idx);
+                        if taken_indices.len() as i32 == max_samples {
+                            break 'take_outer;
+                        }
+                    }
+                }
+            }
+
+            for &idx in &taken_indices {
+                let cache_change = &self.sample_list[idx];
+                let (instance_idx, instance) = match_sample(
+                    cache_change,
+                    specific_instance_handle,
+                    &self.instances,
+                    match_all_sample_states,
+                    sample_state_mask,
+                    match_all_view_states,
+                    view_state_mask,
+                    match_all_instance_states,
+                    instance_state_mask,
+                )
+                .unwrap();
+                let (data, sample_info, absolute_generation_rank) =
+                    create_sample_info(cache_change, instance);
+                let inst_in_coll = instances_in_collection
+                    .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                inst_in_coll.most_recent_sample_absolute_generation_rank = absolute_generation_rank;
+                samples.push((data, sample_info));
+            }
+
+            let mut taken_set = alloc::vec![false; self.sample_list.len()];
+            for &idx in &taken_indices {
+                taken_set[idx] = true;
+            }
+            let mut i = 0;
+            self.sample_list.retain(|_| {
+                let keep = !taken_set[i];
+                i += 1;
+                keep
+            });
         }
 
         if samples.is_empty() {
