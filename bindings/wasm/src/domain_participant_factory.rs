@@ -18,10 +18,13 @@ pub struct DomainParticipantFactoryAsync {
 #[wasm_bindgen]
 impl DomainParticipantFactoryAsync {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
+    pub fn new(discovery_url: Option<String>) -> Self {
         let configuration = DustDdsConfiguration::default();
         let runtime = WasmRuntime;
-        let transport = WasmTransport::new();
+        let transport = match discovery_url {
+            Some(url) => WasmTransport::with_url(url),
+            None => WasmTransport::new(),
+        };
         let inner =
             dust_dds::dds_async::domain_participant_factory::DomainParticipantFactoryAsync::new(
                 configuration,
@@ -33,8 +36,8 @@ impl DomainParticipantFactoryAsync {
     }
 
     #[wasm_bindgen(js_name = getInstance)]
-    pub fn get_instance() -> Self {
-        Self::new()
+    pub fn get_instance(discovery_url: Option<String>) -> Self {
+        Self::new(discovery_url)
     }
 
     pub async fn create_participant(
@@ -65,6 +68,6 @@ impl DomainParticipantFactoryAsync {
 
 impl Default for DomainParticipantFactoryAsync {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }

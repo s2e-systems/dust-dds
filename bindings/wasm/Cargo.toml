@@ -24,6 +24,29 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 futures-channel = "0.3"
 critical-section = { version = "1.2.0", features = ["std"] }
+async-channel = "2.3"
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+web-sys = { version = "0.3", features = [
+    "console",
+    "BinaryType",
+    "Blob",
+    "MessageEvent",
+    "WebSocket",
+    "RtcPeerConnection",
+    "RtcDataChannel",
+    "RtcDataChannelInit",
+    "RtcDataChannelEvent",
+    "RtcDataChannelState",
+    "RtcDataChannelType",
+    "RtcSessionDescriptionInit",
+    "RtcSessionDescription",
+    "RtcSdpType",
+    "RtcIceCandidate",
+    "RtcIceCandidateInit",
+    "RtcPeerConnectionIceEvent",
+    "RtcConfiguration",
+] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
