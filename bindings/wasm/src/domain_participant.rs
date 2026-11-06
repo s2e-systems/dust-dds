@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct DomainParticipant {
     pub(crate) _inner: dust_dds::dds_async::domain_participant::DomainParticipantAsync,
 }

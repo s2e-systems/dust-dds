@@ -10,6 +10,7 @@ pub mod runtime;
 pub mod sample_info;
 pub mod subscriber;
 pub mod topic;
+pub mod topic_description;
 pub mod transport;
 pub mod type_support;
 
@@ -35,3 +36,4 @@ pub use sample_info::{
 };
 pub use subscriber::Subscriber;
 pub use topic::Topic;
+pub use topic_description::TopicDescription;
