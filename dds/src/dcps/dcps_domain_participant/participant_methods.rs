@@ -177,7 +177,7 @@ impl DcpsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber.enabled = true;
+            subscriber.subscriber_entity.enabled = true;
         }
 
         self.domain_participant
@@ -203,7 +203,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };

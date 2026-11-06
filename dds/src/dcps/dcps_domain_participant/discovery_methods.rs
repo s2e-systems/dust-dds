@@ -197,7 +197,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
             self.domain_participant
                 .builtin_publisher
@@ -247,11 +247,11 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|s| &s.instance_handle == subscriber_handle)
+            .find(|s| &s.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
-        let subscriber_handle = subscriber.instance_handle;
+        let subscriber_handle = subscriber.subscriber_entity.instance_handle;
         let subscriber_listener_mask = subscriber.listener_mask;
         let subscriber_listener_sender = subscriber.listener_sender.clone();
         let Some(data_reader) = subscriber
@@ -591,7 +591,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -614,7 +614,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -675,10 +675,10 @@ impl DcpsDomainParticipant {
             destination_order: data_reader.qos.destination_order.clone(),
             user_data: data_reader.qos.user_data.clone(),
             time_based_filter: data_reader.qos.time_based_filter.clone(),
-            presentation: subscriber.qos.presentation.clone(),
-            partition: subscriber.qos.partition.clone(),
+            presentation: subscriber.subscriber_entity.qos.presentation.clone(),
+            partition: subscriber.subscriber_entity.qos.partition.clone(),
             topic_data: topic.qos.topic_data.clone(),
-            group_data: subscriber.qos.group_data.clone(),
+            group_data: subscriber.subscriber_entity.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
             type_consistency: data_reader.qos.type_consistency.clone(),
             protection_info: Default::default(),
@@ -686,8 +686,10 @@ impl DcpsDomainParticipant {
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
-            remote_group_entity_id: Guid::from(<[u8; 16]>::from(subscriber.instance_handle))
-                .entity_id(),
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(
+                subscriber.subscriber_entity.instance_handle,
+            ))
+            .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
@@ -741,7 +743,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -1500,8 +1502,8 @@ impl DcpsDomainParticipant {
         let dcps_sender = self.dcps_sender.clone();
 
         for subscriber in user_defined_subscriber_list.iter_mut() {
-            let subscriber_handle = subscriber.instance_handle;
-            let subscriber_qos = subscriber.qos.clone();
+            let subscriber_handle = subscriber.subscriber_entity.instance_handle;
+            let subscriber_qos = subscriber.subscriber_entity.qos.clone();
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {

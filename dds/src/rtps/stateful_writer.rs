@@ -798,9 +798,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
@@ -842,9 +844,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
@@ -899,9 +903,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             data_value: vec![1, 2, 3].into(),
         });
@@ -912,9 +918,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             data_value: vec![4, 5, 6].into(),
         });
@@ -955,9 +963,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             data_value: vec![1, 2, 3].into(),
         });
@@ -1031,9 +1041,11 @@ mod tests {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::Alive,
                 instance_handle: Some([10; 16]),
+                original_writer_info: None,
                 coherent_set: None,
                 group_coherent_set: None,
                 group_seq_num: None,
+                writer_group_info: None,
             },
             data_value: vec![1, 2, 3].into(),
         });

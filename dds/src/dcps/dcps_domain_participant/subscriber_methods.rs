@@ -18,7 +18,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicyKind},
         time::Time,
     },
     rtps::{
@@ -82,7 +82,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -104,7 +104,7 @@ impl DcpsDomainParticipant {
         };
         let entity_id = EntityId::new(
             [
-                subscriber.instance_handle[12],
+                subscriber.subscriber_entity.instance_handle[12],
                 self.reader_counter.to_ne_bytes()[0],
                 self.reader_counter.to_ne_bytes()[1],
             ],
@@ -152,7 +152,13 @@ impl DcpsDomainParticipant {
 
         subscriber.data_reader_list.push(data_reader);
 
-        if subscriber.enabled && subscriber.qos.entity_factory.autoenable_created_entities {
+        if subscriber.subscriber_entity.enabled
+            && subscriber
+                .subscriber_entity
+                .qos
+                .entity_factory
+                .autoenable_created_entities
+        {
             self.enable_data_reader(
                 subscriber_handle,
                 &data_reader_handle,
@@ -176,7 +182,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -257,7 +263,7 @@ impl DcpsDomainParticipant {
                 .domain_participant
                 .user_defined_subscriber_list
                 .iter_mut()
-                .find(|x| &x.instance_handle == subscriber_handle)
+                .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
             else {
                 return Err(DdsError::AlreadyDeleted);
             };
@@ -278,7 +284,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -300,7 +306,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -323,15 +329,15 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        if subscriber.enabled {
-            subscriber.qos.check_immutability(&qos)?;
+        if subscriber.subscriber_entity.enabled {
+            subscriber.subscriber_entity.qos.check_immutability(&qos)?;
         }
-        subscriber.qos = qos;
+        subscriber.subscriber_entity.qos = qos;
         Ok(())
     }
 
@@ -344,12 +350,12 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
 
-        Ok(subscriber.qos.clone())
+        Ok(subscriber.subscriber_entity.qos.clone())
     }
 
     #[tracing::instrument(skip(self, listener_sender_task, spawner))]
@@ -364,7 +370,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return Err(DdsError::AlreadyDeleted);
         };
@@ -372,6 +378,49 @@ impl DcpsDomainParticipant {
         let listener_sender = listener_sender_task.map(|l| l.spawn(spawner));
         subscriber.listener_sender = listener_sender;
         subscriber.listener_mask = listener_mask;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn begin_access(&mut self, subscriber_handle: &InstanceHandle) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.subscriber_entity.qos.presentation.access_scope
+            == PresentationQosPolicyAccessScopeKind::Group
+        {
+            subscriber.access_depth += 1;
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn end_access(&mut self, subscriber_handle: &InstanceHandle) -> DdsResult<()> {
+        let Some(subscriber) = self
+            .domain_participant
+            .user_defined_subscriber_list
+            .iter_mut()
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if subscriber.subscriber_entity.qos.presentation.access_scope
+            == PresentationQosPolicyAccessScopeKind::Group
+        {
+            if subscriber.access_depth == 0 {
+                return Err(DdsError::PreconditionNotMet(String::from(
+                    "end_access called without matching begin_access",
+                )));
+            }
+            subscriber.access_depth -= 1;
+        }
         Ok(())
     }
 }

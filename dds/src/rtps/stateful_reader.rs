@@ -67,6 +67,16 @@ impl RtpsStatefulReader {
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 
+    pub fn matched_writers(&self) -> &[RtpsWriterProxy] {
+        &self.matched_writers
+    }
+
+    pub fn matched_writer(&self, a_writer_guid: Guid) -> Option<&RtpsWriterProxy> {
+        self.matched_writers
+            .iter()
+            .find(|x| x.remote_writer_guid() == a_writer_guid)
+    }
+
     pub fn reliability(&self) -> ReliabilityKind {
         self.reliability
     }

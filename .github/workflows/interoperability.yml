@@ -54,6 +54,8 @@ jobs:
           subscriber: toc_coredx_dds
         - publisher: dust_dds
           subscriber: opendds
+        - publisher: dust_dds
+          subscriber: eclipse_cyclone
 
         - publisher: connext_dds
           subscriber: dust_dds
@@ -62,6 +64,8 @@ jobs:
         - publisher: toc_coredx_dds
           subscriber: dust_dds
         - publisher: opendds
+          subscriber: dust_dds
+        - publisher: eclipse_cyclone
           subscriber: dust_dds
 
     steps:

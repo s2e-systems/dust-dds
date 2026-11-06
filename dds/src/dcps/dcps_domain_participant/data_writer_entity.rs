@@ -15,7 +15,7 @@ use crate::{
     },
     rtps::{
         cache_change::CacheChangeWrite,
-        types::{ChangeKind, SequenceNumber, TopicKind},
+        types::{ChangeKind, OriginalWriterInfo, SequenceNumber, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     xtypes::{
@@ -142,6 +142,11 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         } else {
             None
         };
+
+        let original_writer_info = Some(OriginalWriterInfo {
+            original_writer_guid: self.transport_writer.guid(),
+            original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
+        });
         let change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -153,9 +158,11 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 } else {
                     Some(sample_instance_handle.into())
                 },
+                original_writer_info,
                 coherent_set,
                 group_coherent_set,
                 group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_data.into(),
         };
@@ -196,6 +203,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_handle: InstanceHandle,
         serialized_key: Vec<u8>,
         timestamp: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -220,6 +229,12 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         } else {
             None
         };
+
+        let original_writer_info = Some(OriginalWriterInfo {
+            original_writer_guid: self.transport_writer.guid(),
+            original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
+        });
+
         let cache_change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -227,9 +242,11 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind: ChangeKind::NotAliveDisposed,
                 instance_handle: Some(instance_handle.into()),
+                original_writer_info,
                 coherent_set,
-                group_coherent_set: None,
-                group_seq_num: None,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_key.into(),
         };
@@ -281,6 +298,8 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         instance_handle: InstanceHandle,
         serialized_key: Vec<u8>,
         timestamp: Time,
+        group_coherent_set: Option<SequenceNumber>,
+        group_seq_num: Option<SequenceNumber>,
     ) -> DdsResult<()> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -314,6 +333,12 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
         } else {
             ChangeKind::NotAliveUnregistered
         };
+
+        let original_writer_info = Some(OriginalWriterInfo {
+            original_writer_guid: self.transport_writer.guid(),
+            original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
+        });
+
         let cache_change = CacheChangeWrite {
             writer_guid: self.transport_writer.guid(),
             sequence_number: self.last_change_sequence_number,
@@ -321,9 +346,11 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             inline_qos: ParameterListWrite {
                 kind,
                 instance_handle: Some(instance_handle.into()),
+                original_writer_info,
                 coherent_set,
-                group_coherent_set: None,
-                group_seq_num: None,
+                group_coherent_set,
+                group_seq_num,
+                writer_group_info: None,
             },
             data_value: serialized_key.into(),
         };

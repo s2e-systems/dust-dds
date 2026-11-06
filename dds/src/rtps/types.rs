@@ -1,7 +1,13 @@
 use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
-use crate::transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId};
+use crate::{
+    rtps_messages::{
+        overall_structure::{Write, WriteIntoBytes},
+        types::GroupDigest,
+    },
+    transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId},
+};
 
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
@@ -132,4 +138,38 @@ pub struct ReaderProxy {
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
     pub expects_inline_qos: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct WriterGroupInfo {
+    /// Identifies the set of Writer EntityIds that are announced in the
+    /// DiscoveredWriterData that belonged to the Publisher at the
+    /// time the sample was written.
+    pub writer_set: GroupDigest,
+}
+
+impl WriterGroupInfo {
+    pub fn new(writer_entities: &[EntityId]) -> Self {
+        debug_assert!(writer_entities.is_sorted());
+        let mut md5 = md5::Context::new();
+        for id in writer_entities {
+            md5.consume(id.entity_key());
+            md5.consume([id.entity_kind()]);
+        }
+        let writer_set: GroupDigest = md5.compute().into();
+        Self { writer_set }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct OriginalWriterInfo {
+    pub original_writer_guid: Guid,
+    pub original_writer_sn: SequenceNumber,
+}
+
+impl WriteIntoBytes for OriginalWriterInfo {
+    fn write_into_bytes(&self, buf: &mut dyn Write) {
+        self.original_writer_guid.write_into_bytes(buf);
+        self.original_writer_sn.write_into_bytes(buf);
+    }
 }
