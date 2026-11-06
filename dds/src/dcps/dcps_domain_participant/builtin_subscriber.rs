@@ -9,7 +9,6 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::SubscriberQos,
-        qos_policy::PresentationQosPolicy,
         sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
     },
     rtps::{
@@ -157,15 +156,6 @@ impl BuiltinSubscriber {
         ]
     }
 
-    pub fn find_stateful_data_reader_mut(
-        &mut self,
-        handle: &InstanceHandle,
-    ) -> Option<&mut DataReaderEntity<RtpsStatefulReader>> {
-        self.stateful_data_reader_list_mut()
-            .into_iter()
-            .find(|dr| &dr.instance_handle == handle)
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn read(
         &mut self,
@@ -176,7 +166,6 @@ impl BuiltinSubscriber {
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<(SampleList, Arc<str>)> {
-        const DEFAULT_PRESENTATION: PresentationQosPolicy = PresentationQosPolicy::const_default();
         if &self.dcps_participant_reader.instance_handle == data_reader_handle {
             let sample_list = self.dcps_participant_reader.read(
                 max_samples,
@@ -184,17 +173,26 @@ impl BuiltinSubscriber {
                 view_state_mask,
                 instance_state_mask,
                 specific_instance_handle,
-                &DEFAULT_PRESENTATION,
+                &self.subscriber_entity.qos.presentation,
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
-        } else if let Some(dr) = self.find_stateful_data_reader_mut(data_reader_handle) {
+        } else if let Some(dr) = [
+            &mut self.dcps_topic_reader,
+            &mut self.dcps_publication_reader,
+            &mut self.dcps_subscription_reader,
+            &mut self.type_lookup_request_reader,
+            &mut self.type_lookup_reply_reader,
+        ]
+        .iter_mut()
+        .find(|dr| &dr.instance_handle == data_reader_handle)
+        {
             let sample_list = dr.read(
                 max_samples,
                 sample_state_mask,
                 view_state_mask,
                 instance_state_mask,
                 specific_instance_handle,
-                &DEFAULT_PRESENTATION,
+                &self.subscriber_entity.qos.presentation,
             )?;
             Ok((sample_list, dr.topic_name.clone()))
         } else {
@@ -212,7 +210,6 @@ impl BuiltinSubscriber {
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
     ) -> DdsResult<(SampleList, Arc<str>)> {
-        const DEFAULT_PRESENTATION: PresentationQosPolicy = PresentationQosPolicy::const_default();
         if &self.dcps_participant_reader.instance_handle == data_reader_handle {
             let sample_list = self.dcps_participant_reader.take(
                 max_samples,
@@ -220,17 +217,26 @@ impl BuiltinSubscriber {
                 view_state_mask,
                 instance_state_mask,
                 specific_instance_handle,
-                &DEFAULT_PRESENTATION,
+                &self.subscriber_entity.qos.presentation,
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
-        } else if let Some(dr) = self.find_stateful_data_reader_mut(data_reader_handle) {
+        } else if let Some(dr) = [
+            &mut self.dcps_topic_reader,
+            &mut self.dcps_publication_reader,
+            &mut self.dcps_subscription_reader,
+            &mut self.type_lookup_request_reader,
+            &mut self.type_lookup_reply_reader,
+        ]
+        .iter_mut()
+        .find(|dr| &dr.instance_handle == data_reader_handle)
+        {
             let sample_list = dr.take(
                 max_samples,
                 sample_state_mask,
                 view_state_mask,
                 instance_state_mask,
                 specific_instance_handle,
-                &DEFAULT_PRESENTATION,
+                &self.subscriber_entity.qos.presentation,
             )?;
             Ok((sample_list, dr.topic_name.clone()))
         } else {
