@@ -239,7 +239,8 @@ fn spawn_transport_actor(
 
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
-        let peers: Rc<RefCell<HashMap<[u8; 12], PeerState>>> = Rc::new(RefCell::new(HashMap::new()));
+        let peers: Rc<RefCell<HashMap<[u8; 12], PeerState>>> =
+            Rc::new(RefCell::new(HashMap::new()));
         let ws_rc = Rc::new(RefCell::new(Some(ws.clone())));
 
         // Setup WebSocket onopen
@@ -262,23 +263,24 @@ fn spawn_transport_actor(
         let peers_for_signaling = peers.clone();
         let incoming_tx_for_dc = incoming_sender.clone();
 
-        let onmessage = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {
-            let data = ev.data();
-            if let Ok(ab) = data.clone().dyn_into::<js_sys::ArrayBuffer>() {
-                let u8_array = js_sys::Uint8Array::new(&ab);
-                let _ = incoming_tx.try_send(u8_array.to_vec());
-            } else if let Some(txt) = data.as_string() {
-                if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&txt) {
-                    handle_signaling_message(
-                        msg,
-                        guid_prefix,
-                        &ws_for_signaling,
-                        &peers_for_signaling,
-                        &incoming_tx_for_dc,
-                    );
+        let onmessage =
+            Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {
+                let data = ev.data();
+                if let Ok(ab) = data.clone().dyn_into::<js_sys::ArrayBuffer>() {
+                    let u8_array = js_sys::Uint8Array::new(&ab);
+                    let _ = incoming_tx.try_send(u8_array.to_vec());
+                } else if let Some(txt) = data.as_string() {
+                    if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&txt) {
+                        handle_signaling_message(
+                            msg,
+                            guid_prefix,
+                            &ws_for_signaling,
+                            &peers_for_signaling,
+                            &incoming_tx_for_dc,
+                        );
+                    }
                 }
-            }
-        });
+            });
         ws.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
         onmessage.forget();
 
@@ -466,7 +468,8 @@ fn handle_remote_offer(
         {
             if let Ok(answer_val) = wasm_bindgen_futures::JsFuture::from(pc.create_answer()).await {
                 let answer: web_sys::RtcSessionDescriptionInit = answer_val.unchecked_into();
-                let _ = wasm_bindgen_futures::JsFuture::from(pc.set_local_description(&answer)).await;
+                let _ =
+                    wasm_bindgen_futures::JsFuture::from(pc.set_local_description(&answer)).await;
                 if let Some(desc) = pc.local_description() {
                     let reply = SignalingMessage::SdpAnswer {
                         from: my_guid_prefix,
@@ -556,15 +559,13 @@ fn setup_data_channel_onmessage(
     incoming_tx: &async_channel::Sender<Vec<u8>>,
 ) {
     let tx = incoming_tx.clone();
-    let onmessage = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(
-        move |ev: web_sys::MessageEvent| {
+    let onmessage =
+        Closure::<dyn FnMut(web_sys::MessageEvent)>::new(move |ev: web_sys::MessageEvent| {
             if let Ok(ab) = ev.data().dyn_into::<js_sys::ArrayBuffer>() {
                 let u8_array = js_sys::Uint8Array::new(&ab);
                 let _ = tx.try_send(u8_array.to_vec());
             }
-        },
-    );
+        });
     dc.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
     onmessage.forget();
 }
-
