@@ -1,7 +1,10 @@
 use alloc::{string::String, vec::Vec};
 use dust_dds_derive::TypeSupport;
 
-use crate::transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId};
+use crate::{
+    rtps_messages::types::GroupDigest,
+    transport::types::{EntityId, Guid, Locator, ProtocolVersion, VendorId},
+};
 
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
@@ -132,4 +135,12 @@ pub struct ReaderProxy {
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
     pub expects_inline_qos: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WriterGroupInfo {
+    /// Identifies the set of Writer EntityIds that are announced in the
+    /// DiscoveredWriterData that belonged to the Publisher at the
+    /// time the sample was written.
+    pub writer_set: GroupDigest,
 }
