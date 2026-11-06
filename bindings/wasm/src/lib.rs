@@ -5,6 +5,7 @@ pub mod domain_participant;
 pub mod domain_participant_factory;
 pub mod dynamic_type;
 pub mod infrastructure;
+pub mod listener;
 pub mod publisher;
 pub mod result;
 pub mod runtime;
@@ -30,7 +31,13 @@ pub use infrastructure::qos::{
     SubscriberQos, TopicQos,
 };
 pub use infrastructure::qos_policy::{EntityFactoryQosPolicy, UserDataQosPolicy};
-pub use infrastructure::status::{PublicationMatchedStatus, StatusKind, SubscriptionMatchedStatus};
+pub use infrastructure::status::{
+    InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+    OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+    QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+    SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
+    SubscriptionMatchedStatus,
+};
 pub use publisher::Publisher;
 pub use result::{DdsResult, Result};
 pub use sample_info::{

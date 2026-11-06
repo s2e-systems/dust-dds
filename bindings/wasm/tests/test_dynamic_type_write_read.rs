@@ -41,7 +41,7 @@ async fn test_dynamic_type_builder() {
 async fn test_write_read_dynamic_data() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(100, None)
+        .create_participant(100, None, None, None)
         .await
         .expect("Create participant");
 
@@ -84,7 +84,7 @@ async fn test_write_read_dynamic_data() {
     let dynamic_type = builder.build().unwrap();
 
     let topic = participant
-        .create_topic("TestTopic", &dynamic_type, None)
+        .create_topic("TestTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
     let retrieved_type = topic
@@ -94,20 +94,20 @@ async fn test_write_read_dynamic_data() {
     assert_eq!(retrieved_type.get_name(), "TestData");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 

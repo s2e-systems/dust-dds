@@ -9,7 +9,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test]
 async fn test_create_participant() {
     let factory = DomainParticipantFactory::new(None);
-    let participant = factory.create_participant(0, None).await;
+    let participant = factory.create_participant(0, None, None, None).await;
     assert!(participant.is_ok());
 }
 
@@ -17,7 +17,7 @@ async fn test_create_participant() {
 async fn test_create_and_delete_participant() {
     let factory = DomainParticipantFactory::get_instance(None);
     let participant = factory
-        .create_participant(1, None)
+        .create_participant(1, None, None, None)
         .await
         .expect("Failed to create participant");
     let delete_result = factory.delete_participant(&participant).await;
@@ -28,7 +28,7 @@ async fn test_create_and_delete_participant() {
 async fn test_lookup_participant() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(2, None)
+        .create_participant(2, None, None, None)
         .await
         .expect("Failed to create participant");
 

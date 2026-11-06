@@ -53,4 +53,21 @@ impl Topic {
             self._inner.get_instance_handle(),
         )
     }
+
+    #[wasm_bindgen(js_name = setListener)]
+    pub async fn set_listener(
+        &self,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
+    ) -> Result<()> {
+        let listener = a_listener.map(|l| crate::listener::WasmTopicListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+        self._inner
+            .set_listener(listener, &status_mask)
+            .await
+            .map_err(into_js_error)?;
+        Ok(())
+    }
 }

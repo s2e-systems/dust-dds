@@ -38,23 +38,23 @@ fn create_test_topic_type() -> dust_dds_wasm::DynamicType {
 async fn test_reader_properties() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(50, None)
+        .create_participant(50, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("ReaderPropTopic", &dynamic_type, None)
+        .create_topic("ReaderPropTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
 
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -94,23 +94,23 @@ async fn test_reader_properties() {
 async fn test_reader_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(51, None)
+        .create_participant(51, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("ReaderQosTopic", &dynamic_type, None)
+        .create_topic("ReaderQosTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
 
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -140,23 +140,23 @@ async fn test_reader_qos() {
 async fn test_reader_operations() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(52, None)
+        .create_participant(52, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("ReaderOpsTopic", &dynamic_type, None)
+        .create_topic("ReaderOpsTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
 
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -200,31 +200,31 @@ async fn test_reader_operations() {
 async fn test_reader_sample_access_methods() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(53, None)
+        .create_participant(53, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("ReaderAccessTopic", &dynamic_type, None)
+        .create_topic("ReaderAccessTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 

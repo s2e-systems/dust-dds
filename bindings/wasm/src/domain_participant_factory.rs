@@ -1,7 +1,5 @@
 use dust_dds::{
-    infrastructure::{
-        configuration::DustDdsConfiguration, listener::NO_LISTENER, qos::QosKind, status::NO_STATUS,
-    },
+    infrastructure::{configuration::DustDdsConfiguration, qos::QosKind},
     security::plugins::types::DdsSecurityPlugins,
 };
 use wasm_bindgen::prelude::*;
@@ -49,15 +47,22 @@ impl DomainParticipantFactory {
         &self,
         domain_id: i32,
         qos: Option<DomainParticipantQos>,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
     ) -> Result<DomainParticipant> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
         };
 
+        let listener = a_listener.map(|l| crate::listener::WasmDomainParticipantListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+
         let participant = self
             .inner
-            .create_participant(domain_id, qos, NO_LISTENER, NO_STATUS)
+            .create_participant(domain_id, qos, listener, &status_mask)
             .await
             .map_err(into_js_error)?;
 

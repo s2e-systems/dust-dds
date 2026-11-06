@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS};
+use dust_dds::infrastructure::qos::QosKind;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -69,14 +69,23 @@ impl DomainParticipant {
     }
 
     #[wasm_bindgen(js_name = createPublisher)]
-    pub async fn create_publisher(&self, qos: Option<PublisherQos>) -> Result<Publisher> {
+    pub async fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
+    ) -> Result<Publisher> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
         };
+        let listener = a_listener.map(|l| crate::listener::WasmPublisherListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
         let publisher = self
             ._inner
-            .create_publisher(qos, NO_LISTENER, NO_STATUS)
+            .create_publisher(qos, listener, &status_mask)
             .await
             .map_err(into_js_error)?;
         Ok(Publisher::new(publisher))
@@ -115,14 +124,23 @@ impl DomainParticipant {
     }
 
     #[wasm_bindgen(js_name = createSubscriber)]
-    pub async fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Result<Subscriber> {
+    pub async fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
+    ) -> Result<Subscriber> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
             None => QosKind::Default,
         };
+        let listener = a_listener.map(|l| crate::listener::WasmSubscriberListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
         let subscriber = self
             ._inner
-            .create_subscriber(qos, NO_LISTENER, NO_STATUS)
+            .create_subscriber(qos, listener, &status_mask)
             .await
             .map_err(into_js_error)?;
         Ok(Subscriber::new(subscriber))
@@ -171,6 +189,8 @@ impl DomainParticipant {
         topic_name: &str,
         dynamic_type: &crate::dynamic_type::DynamicType,
         qos: Option<TopicQos>,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
     ) -> Result<Topic> {
         let qos = match qos {
             Some(q) => QosKind::Specific(q.into()),
@@ -179,14 +199,19 @@ impl DomainParticipant {
 
         let type_name = dynamic_type.inner.get_name();
 
+        let listener = a_listener.map(|l| crate::listener::WasmTopicListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+
         let topic = self
             ._inner
             .create_dynamic_topic(
                 topic_name,
                 type_name,
                 qos,
-                NO_LISTENER,
-                NO_STATUS,
+                listener,
+                &status_mask,
                 dynamic_type.inner,
             )
             .await
@@ -279,5 +304,22 @@ impl DomainParticipant {
             array.push(&JsValue::from(InstanceHandle::from(h)));
         }
         Ok(array)
+    }
+
+    #[wasm_bindgen(js_name = setListener)]
+    pub async fn set_listener(
+        &self,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
+    ) -> Result<()> {
+        let listener = a_listener.map(|l| crate::listener::WasmDomainParticipantListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+        self._inner
+            .set_listener(listener, &status_mask)
+            .await
+            .map_err(into_js_error)?;
+        Ok(())
     }
 }

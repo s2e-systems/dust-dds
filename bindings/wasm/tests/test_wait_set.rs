@@ -11,7 +11,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn test_entity_status_conditions() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(50, None)
+        .create_participant(50, None, None, None)
         .await
         .expect("Create participant");
 
@@ -29,25 +29,25 @@ async fn test_entity_status_conditions() {
     let dynamic_type = builder.build().unwrap();
 
     let topic = participant
-        .create_topic("TestStatusTopic", &dynamic_type, None)
+        .create_topic("TestStatusTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -82,7 +82,7 @@ async fn test_entity_status_conditions() {
 async fn test_status_condition_enabled_statuses() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(51, None)
+        .create_participant(51, None, None, None)
         .await
         .expect("Create participant");
 
@@ -100,15 +100,15 @@ async fn test_status_condition_enabled_statuses() {
     let dynamic_type = builder.build().unwrap();
 
     let topic = participant
-        .create_topic("TestStatusTopic2", &dynamic_type, None)
+        .create_topic("TestStatusTopic2", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -134,7 +134,7 @@ async fn test_status_condition_enabled_statuses() {
 async fn test_wait_set_attach_detach() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(52, None)
+        .create_participant(52, None, None, None)
         .await
         .expect("Create participant");
 
@@ -152,23 +152,23 @@ async fn test_wait_set_attach_detach() {
     let dynamic_type = builder.build().unwrap();
 
     let topic = participant
-        .create_topic("TestStatusTopic3", &dynamic_type, None)
+        .create_topic("TestStatusTopic3", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 
@@ -219,7 +219,7 @@ async fn test_wait_set_attach_detach() {
 async fn test_wait_set_wait_trigger() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(53, None)
+        .create_participant(53, None, None, None)
         .await
         .expect("Create participant");
 
@@ -237,23 +237,23 @@ async fn test_wait_set_wait_trigger() {
     let dynamic_type = builder.build().unwrap();
 
     let topic = participant
-        .create_topic("TestStatusTopic4", &dynamic_type, None)
+        .create_topic("TestStatusTopic4", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Create subscriber");
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Create reader");
 

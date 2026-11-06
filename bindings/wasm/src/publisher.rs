@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::{listener::NO_LISTENER, qos::QosKind, status::NO_STATUS};
+use dust_dds::infrastructure::qos::QosKind;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -42,6 +42,8 @@ impl Publisher {
         &self,
         a_topic: &Topic,
         qos: Option<DataWriterQos>,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
     ) -> Result<DataWriter> {
         let dynamic_type = a_topic
             ._inner
@@ -54,9 +56,17 @@ impl Publisher {
             None => QosKind::Default,
         };
 
+        let listener = a_listener.map(|l| crate::listener::WasmDataWriterListener {
+            listener: crate::listener::SendJsValue(l.into()),
+            dynamic_type: DynamicType {
+                inner: dynamic_type.clone(),
+            },
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+
         let writer = self
             ._inner
-            .create_datawriter::<JsDdsData>(&a_topic._inner, qos, NO_LISTENER, NO_STATUS)
+            .create_datawriter::<JsDdsData>(&a_topic._inner, qos, listener, &status_mask)
             .await
             .map_err(into_js_error)?;
 
@@ -129,6 +139,23 @@ impl Publisher {
     pub async fn end_coherent_changes(&self) -> Result<()> {
         self._inner
             .end_coherent_changes()
+            .await
+            .map_err(into_js_error)?;
+        Ok(())
+    }
+
+    #[wasm_bindgen(js_name = setListener)]
+    pub async fn set_listener(
+        &self,
+        a_listener: Option<js_sys::Object>,
+        mask: Option<js_sys::Array>,
+    ) -> Result<()> {
+        let listener = a_listener.map(|l| crate::listener::WasmPublisherListener {
+            listener: crate::listener::SendJsValue(l.into()),
+        });
+        let status_mask = crate::listener::parse_status_mask(mask)?;
+        self._inner
+            .set_listener(listener, &status_mask)
             .await
             .map_err(into_js_error)?;
         Ok(())

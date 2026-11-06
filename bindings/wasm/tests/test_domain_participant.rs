@@ -11,7 +11,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn test_participant_properties() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(10, None)
+        .create_participant(10, None, None, None)
         .await
         .expect("Failed to create participant");
 
@@ -54,7 +54,7 @@ async fn test_participant_qos() {
         Some(EntityFactoryQosPolicy::new(Some(true))),
     );
     let participant = factory
-        .create_participant(11, Some(custom_qos))
+        .create_participant(11, Some(custom_qos), None, None)
         .await
         .expect("Failed to create participant");
 
@@ -74,7 +74,7 @@ async fn test_participant_qos() {
 async fn test_publisher_lifecycle() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(12, None)
+        .create_participant(12, None, None, None)
         .await
         .expect("Failed to create participant");
 
@@ -89,7 +89,7 @@ async fn test_publisher_lifecycle() {
 
     let custom_pub_qos = PublisherQos::new();
     let publisher = participant
-        .create_publisher(Some(custom_pub_qos))
+        .create_publisher(Some(custom_pub_qos), None, None)
         .await
         .expect("Failed to create publisher");
     assert_eq!(publisher.get_instance_handle().value().len(), 16);
@@ -109,7 +109,7 @@ async fn test_publisher_lifecycle() {
 async fn test_subscriber_lifecycle() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(13, None)
+        .create_participant(13, None, None, None)
         .await
         .expect("Failed to create participant");
 
@@ -124,7 +124,7 @@ async fn test_subscriber_lifecycle() {
 
     let custom_sub_qos = SubscriberQos::new();
     let subscriber = participant
-        .create_subscriber(Some(custom_sub_qos))
+        .create_subscriber(Some(custom_sub_qos), None, None)
         .await
         .expect("Failed to create subscriber");
     assert_eq!(subscriber.get_instance_handle().value().len(), 16);
@@ -147,7 +147,7 @@ async fn test_subscriber_lifecycle() {
 async fn test_topic_lifecycle() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(14, None)
+        .create_participant(14, None, None, None)
         .await
         .expect("Failed to create participant");
 
@@ -165,7 +165,13 @@ async fn test_topic_lifecycle() {
         .build()
         .expect("Build dynamic type");
     let topic = participant
-        .create_topic("HelloWorldTopic", &dynamic_type, Some(custom_topic_qos))
+        .create_topic(
+            "HelloWorldTopic",
+            &dynamic_type,
+            Some(custom_topic_qos),
+            None,
+            None,
+        )
         .await
         .expect("Failed to create topic");
 
@@ -188,23 +194,23 @@ async fn test_topic_lifecycle() {
 async fn test_delete_contained_entities() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(15, None)
+        .create_participant(15, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let _publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
     let _subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
     let temp_dynamic_type = DynamicTypeBuilderFactory::create_structure_type("TempType")
         .build()
         .expect("Build dynamic type");
     let _topic = participant
-        .create_topic("TempTopic", &temp_dynamic_type, None)
+        .create_topic("TempTopic", &temp_dynamic_type, None, None, None)
         .await
         .expect("Failed to create topic");
 
@@ -223,7 +229,7 @@ async fn test_delete_contained_entities() {
 async fn test_discovered_entities() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(16, None)
+        .create_participant(16, None, None, None)
         .await
         .expect("Failed to create participant");
 

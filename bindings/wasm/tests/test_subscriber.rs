@@ -7,12 +7,12 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn test_subscriber_properties() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(30, None)
+        .create_participant(30, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
 
@@ -39,12 +39,12 @@ async fn test_subscriber_properties() {
 async fn test_subscriber_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(31, None)
+        .create_participant(31, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
 
@@ -69,12 +69,12 @@ async fn test_subscriber_qos() {
 async fn test_subscriber_default_datareader_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(32, None)
+        .create_participant(32, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
 
@@ -105,12 +105,12 @@ async fn test_subscriber_default_datareader_qos() {
 async fn test_subscriber_datareader_lifecycle() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(33, None)
+        .create_participant(33, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
 
@@ -118,12 +118,12 @@ async fn test_subscriber_datareader_lifecycle() {
         .build()
         .expect("Build dynamic type");
     let topic = participant
-        .create_topic("SubTestTopic", &dynamic_type, None)
+        .create_topic("SubTestTopic", &dynamic_type, None, None, None)
         .await
         .expect("Failed to create topic");
 
     let reader = subscriber
-        .create_datareader(&topic, None)
+        .create_datareader(&topic, None, None, None)
         .await
         .expect("Failed to create datareader");
 
@@ -150,12 +150,12 @@ async fn test_subscriber_datareader_lifecycle() {
 async fn test_subscriber_access() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(34, None)
+        .create_participant(34, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let subscriber = participant
-        .create_subscriber(None)
+        .create_subscriber(None, None, None)
         .await
         .expect("Failed to create subscriber");
 

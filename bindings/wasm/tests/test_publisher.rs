@@ -7,12 +7,12 @@ wasm_bindgen_test_configure!(run_in_browser);
 async fn test_publisher_properties() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(20, None)
+        .create_participant(20, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
 
@@ -39,12 +39,12 @@ async fn test_publisher_properties() {
 async fn test_publisher_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(21, None)
+        .create_participant(21, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
 
@@ -69,12 +69,12 @@ async fn test_publisher_qos() {
 async fn test_publisher_default_datawriter_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(22, None)
+        .create_participant(22, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
 
@@ -105,12 +105,12 @@ async fn test_publisher_default_datawriter_qos() {
 async fn test_publisher_datawriter_lifecycle() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(23, None)
+        .create_participant(23, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
 
@@ -118,12 +118,12 @@ async fn test_publisher_datawriter_lifecycle() {
         .build()
         .expect("Build dynamic type");
     let topic = participant
-        .create_topic("PubTestTopic", &dynamic_type, None)
+        .create_topic("PubTestTopic", &dynamic_type, None, None, None)
         .await
         .expect("Failed to create topic");
 
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Failed to create datawriter");
 
@@ -150,12 +150,12 @@ async fn test_publisher_datawriter_lifecycle() {
 async fn test_publisher_coherent_changes() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(24, None)
+        .create_participant(24, None, None, None)
         .await
         .expect("Failed to create participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Failed to create publisher");
 

@@ -37,23 +37,23 @@ fn create_test_topic_type() -> dust_dds_wasm::DynamicType {
 async fn test_writer_properties() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(40, None)
+        .create_participant(40, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("WriterPropTopic", &dynamic_type, None)
+        .create_topic("WriterPropTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
 
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
@@ -90,23 +90,23 @@ async fn test_writer_properties() {
 async fn test_writer_qos() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(41, None)
+        .create_participant(41, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("WriterQosTopic", &dynamic_type, None)
+        .create_topic("WriterQosTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
 
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
@@ -136,23 +136,23 @@ async fn test_writer_qos() {
 async fn test_writer_instance_management() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(42, None)
+        .create_participant(42, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("WriterInstanceTopic", &dynamic_type, None)
+        .create_topic("WriterInstanceTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
 
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
@@ -217,23 +217,23 @@ async fn test_writer_instance_management() {
 async fn test_writer_operations() {
     let factory = DomainParticipantFactory::new(None);
     let participant = factory
-        .create_participant(43, None)
+        .create_participant(43, None, None, None)
         .await
         .expect("Create participant");
 
     let dynamic_type = create_test_topic_type();
     let topic = participant
-        .create_topic("WriterOpsTopic", &dynamic_type, None)
+        .create_topic("WriterOpsTopic", &dynamic_type, None, None, None)
         .await
         .expect("Create topic");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, None)
         .await
         .expect("Create publisher");
 
     let writer = publisher
-        .create_datawriter(&topic, None)
+        .create_datawriter(&topic, None, None, None)
         .await
         .expect("Create writer");
 
