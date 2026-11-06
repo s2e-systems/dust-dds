@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   rust: circleci/rust@2.0.0
+  browser-tools: circleci/browser-tools@1.5.2
 
 jobs:
   hello_world_on_macos:
@@ -401,6 +402,31 @@ jobs:
             cmake -S bindings/c/tests -B bindings/c/tests/build
             cmake --build bindings/c/tests/build
             cd bindings/c/tests/build && ctest --output-on-failure
+      - browser-tools/install-chrome
+      - browser-tools/install-chromedriver
+      - restore_cache:
+          keys:
+            - wasm-bindgen-cli-0-2-130-{{ arch }}
+      - run:
+          name: Install wasm-bindgen-cli
+          command: |
+            if ! command -v wasm-bindgen &> /dev/null; then
+              cargo install wasm-bindgen-cli --version 0.2.130
+            fi
+      - save_cache:
+          key: wasm-bindgen-cli-0-2-130-{{ arch }}
+          paths:
+            - ~/.cargo/bin/wasm-bindgen
+            - ~/.cargo/bin/wasm-bindgen-test-runner
+      - run:
+          name: Run WASM bindings tests
+          command: |
+            rustup target add wasm32-unknown-unknown
+            chromedriver --port=9515 &
+            DRIVER_PID=$!
+            sleep 1
+            CHROMEDRIVER_REMOTE=http://127.0.0.1:9515 cargo test --package dust_dds_wasm --target wasm32-unknown-unknown
+            kill $DRIVER_PID || true
 
 workflows:
   build_and_run_tests:

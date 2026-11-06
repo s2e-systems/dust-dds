@@ -38,76 +38,6 @@ Communication is established via WebRTC DataChannels over RTPS (Real-Time Publis
                                                                             +-------------------------------------+
 ```
 
----
-
-## Topics and Data Models
-
-### 1. Topic `"TextMessage"` (Keyed)
-- **Native Rust (`dust_dds`)**:
-  ```rust
-  #[derive(Debug, DdsType)]
-  pub struct TextMessage {
-      #[dust_dds(key)]
-      pub id: u32,
-      pub message: String,
-  }
-  ```
-
-- **Browser JavaScript (`dust_dds_wasm`)**:
-  ```javascript
-  const idType = DynamicTypeBuilderFactory.getPrimitiveType(TypeKind.Uint32);
-  const idMember = new MemberDescriptor("id", idType, 0, true, false);
-
-  const messageType = DynamicTypeBuilderFactory.createStringType();
-  const messageMember = new MemberDescriptor("message", messageType, 1, false, false);
-
-  const builder = DynamicTypeBuilderFactory.createStructureType("TextMessage");
-  builder.addMember(idMember);
-  builder.addMember(messageMember);
-  const textMsgType = builder.build();
-  ```
-
-### 2. Topic `"SineWave"` (No Key, History QoS `KeepLast(10)`)
-- **Native Rust (`dust_dds`)**:
-  ```rust
-  #[derive(Debug, DdsType)]
-  pub struct SineWave {
-      pub value: f64,
-  }
-
-  let mut sine_topic_qos = TopicQos::default();
-  sine_topic_qos.history.kind = HistoryQosPolicyKind::KeepLast(10);
-  ```
-
-- **Browser JavaScript (`dust_dds_wasm`)**:
-  ```javascript
-  const valueType = DynamicTypeBuilderFactory.getPrimitiveType(TypeKind.Float64);
-  const valueMember = new MemberDescriptor("value", valueType, 0, false, false);
-
-  const sineBuilder = DynamicTypeBuilderFactory.createStructureType("SineWave");
-  sineBuilder.addMember(valueMember);
-  const sineDynamicType = sineBuilder.build();
-
-  // History KeepLast(10)
-  const sineTopicQos = new TopicQos();
-  sineTopicQos.setHistory(new HistoryQosPolicy(HistoryQosPolicyKind.KeepLast, 10));
-
-  const readerQos = new DataReaderQos();
-  readerQos.setHistory(new HistoryQosPolicy(HistoryQosPolicyKind.KeepLast, 10));
-
-  const sineListener = {
-    onDataAvailable: async (reader) => {
-      const samples = await reader.read(10);
-      const values = samples
-        .filter((s) => s.getSampleInfo().getValidData())
-        .map((s) => s.getData().value);
-      drawSinePlot(values);
-    },
-  };
-  ```
-
----
-
 ## How to Run
 
 ### 1. Build WebAssembly Package (Optional / Already Pre-built)
@@ -151,6 +81,6 @@ http://127.0.0.1:8080
 
 1. The WebSocket connection (`ws://127.0.0.1:9001`) is used **exclusively for discovery / signaling** (peer registration, SDP offer/answer exchange, ICE candidates). Zero RTPS user data or SEDP discovery traffic flows over the WebSocket.
 2. The WebRTC DataChannel (`"dust_rtps"`) opens directly between the browser and native reader.
-3. Watch the **Sine Wave Monitor** automatically plot the last 10 received samples on the canvas in real time as they stream directly over the WebRTC DataChannel.
+3. Watch the **Sine Wave Monitor** automatically plot the last 100 received samples on the canvas as they stream directly over the WebRTC DataChannel.
 4. Type any message in the input box (or click one of the quick suggestions) and click **Publish**.
-5. Observe the native terminal print the received `TextMessage` in real time!
+5. Observe the native terminal print the received `TextMessage`!
