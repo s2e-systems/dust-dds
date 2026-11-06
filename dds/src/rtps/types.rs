@@ -153,8 +153,8 @@ impl WriterGroupInfo {
         debug_assert!(writer_entities.is_sorted());
         let mut md5 = md5::Context::new();
         for id in writer_entities {
-            md5.consume(&id.entity_key());
-            md5.consume(&[id.entity_kind()]);
+            md5.consume(id.entity_key());
+            md5.consume([id.entity_kind()]);
         }
         let writer_set: GroupDigest = md5.compute().into();
         Self { writer_set }

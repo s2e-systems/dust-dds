@@ -6359,6 +6359,1054 @@ fn coherent_sets_group_presentation_with_multiple_instances_and_topics() {
 }
 
 #[test]
+fn coherent_sets_group_presentation_two_publishers_independent() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant
+        .create_topic::<ShapeType>(
+            "Topic1",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let topic2 = participant
+        .create_topic::<ShapeType>(
+            "Topic2",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher1 = participant
+        .create_publisher(
+            QosKind::Specific(publisher_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher2 = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let writer1 = publisher1
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher2
+        .create_datawriter(
+            &topic2,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader1 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic1,
+            QosKind::Specific(reader_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader2 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    for writer in [&writer1, &writer2] {
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    // Publisher 1 begins coherent changes and writes a sample (does NOT end coherent changes)
+    publisher1.begin_coherent_changes().unwrap();
+    writer1
+        .write(
+            ShapeType {
+                color: "RED".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 10,
+            },
+            None,
+        )
+        .unwrap();
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    // Publisher 2 begins coherent changes, writes a sample, and ends coherent changes
+    publisher2.begin_coherent_changes().unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 2,
+                y: 2,
+                shapesize: 20,
+            },
+            None,
+        )
+        .unwrap();
+    publisher2.end_coherent_changes().unwrap();
+    writer2
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    // Now subscriber accesses samples:
+    // Publisher 2's coherent set has completed, so reader2 should have 1 sample.
+    // Publisher 1's coherent set is STILL OPEN, so reader1 should NOT have any samples!
+    subscriber.begin_access().unwrap();
+
+    let samples2 = reader2
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples2.len(), 1);
+
+    let samples1_res = reader1.take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    // Publisher 1 coherent set was NOT ended, so reader1 must NOT have any samples!
+    assert!(
+        samples1_res.is_err(),
+        "Expected NoData for unended coherent set, but got samples: {:?}",
+        samples1_res
+    );
+
+    subscriber.end_access().unwrap();
+
+    // Now Publisher 1 ends coherent changes
+    publisher1.end_coherent_changes().unwrap();
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    subscriber.begin_access().unwrap();
+    let samples1 = reader1
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples1.len(), 1);
+    subscriber.end_access().unwrap();
+}
+
+#[test]
+fn coherent_sets_group_presentation_subset_of_writers_produce_data() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant
+        .create_topic::<ShapeType>(
+            "SubsetTopic1",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant
+        .create_topic::<ShapeType>(
+            "SubsetTopic2",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic3 = participant
+        .create_topic::<ShapeType>(
+            "SubsetTopic3",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let writer1 = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher
+        .create_datawriter(
+            &topic2,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer3 = publisher
+        .create_datawriter(
+            &topic3,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader1 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic1,
+            QosKind::Specific(reader_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader2 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic2,
+            QosKind::Specific(reader_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader3 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic3,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    for writer in [&writer1, &writer2, &writer3] {
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    publisher.begin_coherent_changes().unwrap();
+    // Only writer 1 and writer 3 write data
+    writer1
+        .write(
+            ShapeType {
+                color: "RED".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 10,
+            },
+            None,
+        )
+        .unwrap();
+    writer3
+        .write(
+            ShapeType {
+                color: "GREEN".to_string(),
+                x: 3,
+                y: 3,
+                shapesize: 30,
+            },
+            None,
+        )
+        .unwrap();
+    publisher.end_coherent_changes().unwrap();
+
+    for writer in [&writer1, &writer2, &writer3] {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    subscriber.begin_access().unwrap();
+
+    let samples1 = reader1
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples1.len(), 1);
+
+    let samples3 = reader3
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples3.len(), 1);
+
+    let samples2_res = reader2.take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    assert!(
+        samples2_res.is_err(),
+        "Writer 2 wrote no data, expected NoData but got: {:?}",
+        samples2_res
+    );
+
+    subscriber.end_access().unwrap();
+}
+
+#[test]
+fn coherent_sets_group_presentation_subscriber_reads_subset_of_topics() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant
+        .create_topic::<ShapeType>(
+            "SubTopic1",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant
+        .create_topic::<ShapeType>(
+            "SubTopic2",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let writer1 = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher
+        .create_datawriter(
+            &topic2,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Subscriber only creates a DataReader for Topic 1
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader1 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic1,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer1.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    publisher.begin_coherent_changes().unwrap();
+    writer1
+        .write(
+            ShapeType {
+                color: "RED".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 10,
+            },
+            None,
+        )
+        .unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 2,
+                y: 2,
+                shapesize: 20,
+            },
+            None,
+        )
+        .unwrap();
+    publisher.end_coherent_changes().unwrap();
+
+    writer1
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    subscriber.begin_access().unwrap();
+    let samples1 = reader1
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples1.len(), 1);
+    assert_eq!(samples1[0].data.as_ref().unwrap().color, "RED");
+    subscriber.end_access().unwrap();
+}
+
+#[test]
+fn coherent_sets_group_presentation_dispose_and_unregister() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<ShapeType>(
+            "LifecycleTopic",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<ShapeType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    publisher.begin_coherent_changes().unwrap();
+
+    let data = ShapeType {
+        color: "BLUE".to_string(),
+        x: 10,
+        y: 10,
+        shapesize: 10,
+    };
+    writer.write(data.clone(), None).unwrap();
+    writer.dispose(data.clone(), None).unwrap();
+    writer.unregister_instance(data, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    // Before end_coherent_changes, nothing should be available
+    subscriber.begin_access().unwrap();
+    assert!(
+        reader
+            .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .is_err()
+    );
+    subscriber.end_access().unwrap();
+
+    publisher.end_coherent_changes().unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(10, 0))
+        .unwrap();
+
+    subscriber.begin_access().unwrap();
+    let samples = reader
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    subscriber.end_access().unwrap();
+
+    assert_eq!(samples.len(), 3);
+    assert!(samples[0].sample_info.valid_data);
+    assert!(!samples[1].sample_info.valid_data);
+    assert!(!samples[2].sample_info.valid_data);
+    assert!(samples.iter().all(|s| s.sample_info.instance_state
+        == InstanceStateKind::NotAliveNoWriters
+        || s.sample_info.instance_state == InstanceStateKind::NotAliveDisposed));
+}
+
+#[test]
+fn coherent_sets_group_presentation_multiple_sequential_sets() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic1 = participant
+        .create_topic::<ShapeType>(
+            "SeqTopic1",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic2 = participant
+        .create_topic::<ShapeType>(
+            "SeqTopic2",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let writer1 = publisher
+        .create_datawriter(
+            &topic1,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher
+        .create_datawriter(
+            &topic2,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let reader1 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic1,
+            QosKind::Specific(reader_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let reader2 = subscriber
+        .create_datareader::<ShapeType>(
+            &topic2,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    for writer in [&writer1, &writer2] {
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    // Set 1
+    publisher.begin_coherent_changes().unwrap();
+    writer1
+        .write(
+            ShapeType {
+                color: "RED".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 10,
+            },
+            None,
+        )
+        .unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 2,
+                y: 2,
+                shapesize: 20,
+            },
+            None,
+        )
+        .unwrap();
+    publisher.end_coherent_changes().unwrap();
+
+    for writer in [&writer1, &writer2] {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    subscriber.begin_access().unwrap();
+    let s1 = reader1
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    let s2 = reader2
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(s1.len(), 1);
+    assert_eq!(s2.len(), 1);
+    assert_eq!(s1[0].data.as_ref().unwrap().shapesize, 10);
+    assert_eq!(s2[0].data.as_ref().unwrap().shapesize, 20);
+    subscriber.end_access().unwrap();
+
+    // Set 2
+    publisher.begin_coherent_changes().unwrap();
+    writer1
+        .write(
+            ShapeType {
+                color: "RED".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 11,
+            },
+            None,
+        )
+        .unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 2,
+                y: 2,
+                shapesize: 21,
+            },
+            None,
+        )
+        .unwrap();
+    publisher.end_coherent_changes().unwrap();
+
+    for writer in [&writer1, &writer2] {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    subscriber.begin_access().unwrap();
+    let s1 = reader1
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    let s2 = reader2
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(s1.len(), 1);
+    assert_eq!(s2.len(), 1);
+    assert_eq!(s1[0].data.as_ref().unwrap().shapesize, 11);
+    assert_eq!(s2[0].data.as_ref().unwrap().shapesize, 21);
+    subscriber.end_access().unwrap();
+}
+
+#[test]
+fn ordered_access_group_presentation_interleaved_writers() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<ShapeType>(
+            "InterleavedTopic",
+            "ShapeType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            ordered_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = participant
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+
+    let writer1 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos.clone()),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let writer2 = publisher
+        .create_datawriter(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            access_scope: PresentationQosPolicyAccessScopeKind::Group,
+            ordered_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = participant
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<ShapeType>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    for writer in [&writer1, &writer2] {
+        let cond = writer.get_statuscondition();
+        cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+            .unwrap();
+        let mut wait_set = WaitSet::new();
+        wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+        wait_set.wait(Duration::new(10, 0)).unwrap();
+    }
+
+    // Interleaved writes from two writers belonging to the same publisher
+    writer1
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 1,
+                y: 1,
+                shapesize: 1,
+            },
+            None,
+        )
+        .unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 2,
+                y: 2,
+                shapesize: 2,
+            },
+            None,
+        )
+        .unwrap();
+    writer1
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 3,
+                y: 3,
+                shapesize: 3,
+            },
+            None,
+        )
+        .unwrap();
+    writer2
+        .write(
+            ShapeType {
+                color: "BLUE".to_string(),
+                x: 4,
+                y: 4,
+                shapesize: 4,
+            },
+            None,
+        )
+        .unwrap();
+
+    for writer in [&writer1, &writer2] {
+        writer
+            .wait_for_acknowledgments(Duration::new(10, 0))
+            .unwrap();
+    }
+
+    subscriber.begin_access().unwrap();
+    let samples = reader
+        .take(50, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    subscriber.end_access().unwrap();
+
+    assert_eq!(samples.len(), 4);
+    let sizes: Vec<i32> = samples
+        .iter()
+        .map(|s| s.data.as_ref().unwrap().shapesize)
+        .collect();
+    assert_eq!(sizes, vec![1, 2, 3, 4]);
+}
+
+#[test]
 fn coherent_sets_topic_presentation() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 

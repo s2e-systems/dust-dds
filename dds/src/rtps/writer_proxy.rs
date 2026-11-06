@@ -150,6 +150,10 @@ impl RtpsWriterProxy {
         self.remote_writer_guid
     }
 
+    pub fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
+    }
+
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
     }

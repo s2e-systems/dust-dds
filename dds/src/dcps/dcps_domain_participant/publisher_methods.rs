@@ -306,13 +306,37 @@ impl DcpsDomainParticipant {
                             let group_seq_num = publisher.group_seq_num;
                             let group_coherent_set = publisher.group_coherent_set;
 
-                            let entity_ids: Vec<EntityId> = publisher
+                            let mut md5 = md5::Context::new();
+                            let mut current_id = publisher
                                 .data_writer_list
                                 .iter()
                                 .filter(|w| w.enabled)
                                 .map(|w| w.transport_writer.guid().entity_id())
-                                .collect();
-                            let writer_group_info = Some(WriterGroupInfo::new(&entity_ids));
+                                .min();
+
+                            while let Some(id) = current_id {
+                                let count = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .filter(|w| w.transport_writer.guid().entity_id() == id)
+                                    .count();
+                                for _ in 0..count {
+                                    md5.consume(id.entity_key());
+                                    md5.consume([id.entity_kind()]);
+                                }
+
+                                current_id = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .map(|w| w.transport_writer.guid().entity_id())
+                                    .filter(|&next_id| next_id > id)
+                                    .min();
+                            }
+
+                            let writer_set = md5.compute().into();
+                            let writer_group_info = Some(WriterGroupInfo { writer_set });
 
                             for writer in &mut publisher.data_writer_list {
                                 writer.last_change_sequence_number += 1;
