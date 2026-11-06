@@ -5,14 +5,15 @@ use super::{
 };
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM,
+        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM, PID_ORIGINAL_WRITER_INFO,
+        PID_WRITER_GROUP_INFO,
     },
     rtps::{
         cache_change::{
             PID_KEY_HASH, PID_STATUS_INFO, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
             STATUS_INFO_UNREGISTERED,
         },
-        types::{ChangeKind, SequenceNumber},
+        types::{ChangeKind, OriginalWriterInfo, SequenceNumber, WriterGroupInfo},
     },
     transport::types::Locator,
 };
@@ -437,9 +438,11 @@ impl<'a> Iterator for Parameters<'a> {
 pub struct ParameterListWrite {
     pub kind: ChangeKind,
     pub instance_handle: Option<[u8; 16]>,
+    pub original_writer_info: Option<OriginalWriterInfo>,
     pub coherent_set: Option<SequenceNumber>,
     pub group_coherent_set: Option<SequenceNumber>,
     pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
 }
 
 impl WriteIntoBytes for ParameterListWrite {
@@ -461,6 +464,12 @@ impl WriteIntoBytes for ParameterListWrite {
             status_info.0.write_into_bytes(buf);
         }
 
+        if let Some(original_writer_info) = &self.original_writer_info {
+            PID_ORIGINAL_WRITER_INFO.write_into_bytes(buf);
+            24_i16.write_into_bytes(buf);
+            original_writer_info.write_into_bytes(buf);
+        }
+
         if let Some(coherent_set) = &self.coherent_set {
             PID_COHERENT_SET.write_into_bytes(buf);
             8_i16.write_into_bytes(buf);
@@ -477,6 +486,12 @@ impl WriteIntoBytes for ParameterListWrite {
             PID_GROUP_SEQ_NUM.write_into_bytes(buf);
             8_i16.write_into_bytes(buf);
             group_seq_num.write_into_bytes(buf);
+        }
+
+        if let Some(writer_group_info) = &self.writer_group_info {
+            PID_WRITER_GROUP_INFO.write_into_bytes(buf);
+            16_i16.write_into_bytes(buf);
+            writer_group_info.writer_set.write_into_bytes(buf);
         }
 
         PID_SENTINEL.write_into_bytes(buf);

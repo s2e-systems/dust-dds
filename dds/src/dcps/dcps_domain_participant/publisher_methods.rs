@@ -21,7 +21,7 @@ use crate::{
     rtps::{
         cache_change::CacheChangeWrite,
         stateful_writer::RtpsStatefulWriter,
-        types::{ChangeKind, TopicKind},
+        types::{ChangeKind, OriginalWriterInfo, TopicKind, WriterGroupInfo},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
     runtime::Spawner,
@@ -67,6 +67,16 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+
+        if publisher.coherent_changes_depth > 0
+            && publisher.qos.presentation.coherent_access
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Cannot create data writer while a group coherent set is active",
+            )));
+        }
 
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
@@ -177,6 +187,16 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
+        if publisher.coherent_changes_depth > 0
+            && publisher.qos.presentation.coherent_access
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Cannot delete data writer while a group coherent set is active",
+            )));
+        }
+
         if let Some(index) = publisher
             .data_writer_list
             .iter()
@@ -255,6 +275,7 @@ impl DcpsDomainParticipant {
                         for writer in &mut publisher.data_writer_list {
                             if writer.first_coherent_sequence_number.is_some() {
                                 writer.last_change_sequence_number += 1;
+
                                 let change = CacheChangeWrite {
                                     writer_guid: writer.transport_writer.guid(),
                                     sequence_number: writer.last_change_sequence_number,
@@ -262,9 +283,11 @@ impl DcpsDomainParticipant {
                                     inline_qos: ParameterListWrite {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
+                                        original_writer_info: None,
                                         coherent_set: None,
                                         group_coherent_set: None,
                                         group_seq_num: None,
+                                        writer_group_info: None,
                                     },
                                     data_value: Arc::from([]),
                                 };
@@ -282,8 +305,45 @@ impl DcpsDomainParticipant {
                             publisher.group_seq_num += 1;
                             let group_seq_num = publisher.group_seq_num;
                             let group_coherent_set = publisher.group_coherent_set;
+
+                            let mut md5 = md5::Context::new();
+                            let mut current_id = publisher
+                                .data_writer_list
+                                .iter()
+                                .filter(|w| w.enabled)
+                                .map(|w| w.transport_writer.guid().entity_id())
+                                .min();
+
+                            while let Some(id) = current_id {
+                                let count = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .filter(|w| w.transport_writer.guid().entity_id() == id)
+                                    .count();
+                                for _ in 0..count {
+                                    md5.consume(id.entity_key());
+                                    md5.consume([id.entity_kind()]);
+                                }
+
+                                current_id = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .map(|w| w.transport_writer.guid().entity_id())
+                                    .filter(|&next_id| next_id > id)
+                                    .min();
+                            }
+
+                            let writer_set = md5.compute().into();
+                            let writer_group_info = Some(WriterGroupInfo { writer_set });
+
                             for writer in &mut publisher.data_writer_list {
                                 writer.last_change_sequence_number += 1;
+                                let original_writer_info = Some(OriginalWriterInfo {
+                                    original_writer_guid: writer.transport_writer.guid(),
+                                    original_writer_sn: group_seq_num,
+                                });
                                 let change = CacheChangeWrite {
                                     writer_guid: writer.transport_writer.guid(),
                                     sequence_number: writer.last_change_sequence_number,
@@ -292,8 +352,10 @@ impl DcpsDomainParticipant {
                                         kind: ChangeKind::Alive,
                                         instance_handle: None,
                                         coherent_set: None,
+                                        original_writer_info,
                                         group_coherent_set,
                                         group_seq_num: Some(group_seq_num),
+                                        writer_group_info,
                                     },
                                     data_value: Arc::from([]),
                                 };

@@ -20,7 +20,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_enabled_statuses());
             }
@@ -64,7 +64,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     s.data_reader_list
                         .iter_mut()
@@ -95,7 +95,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 s.status_condition.set_enabled_statuses(status_mask);
                 return Ok(());
@@ -142,7 +142,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     s.data_reader_list
                         .iter_mut()
@@ -173,7 +173,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 return Ok(s.status_condition.get_trigger_value());
             }
@@ -217,7 +217,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     s.data_reader_list
                         .iter_mut()
@@ -248,7 +248,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                     .ok_or(DdsError::AlreadyDeleted)?;
                 s.status_condition
                     .register_notification(notification_sender);
@@ -298,7 +298,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     s.data_reader_list
                         .iter_mut()

@@ -252,7 +252,7 @@ impl DcpsDomainParticipant {
                             update(
                                 remaining,
                                 TimedEvent::CheckMissedReaderDeadline {
-                                    subscriber_handle: subscriber.instance_handle,
+                                    subscriber_handle: subscriber.subscriber_entity.instance_handle,
                                     reader_handle: data_reader.instance_handle,
                                 },
                             );
@@ -286,7 +286,9 @@ impl DcpsDomainParticipant {
                                 update(
                                     remaining,
                                     TimedEvent::RemoveStaleReaderSamples {
-                                        subscriber_handle: subscriber.instance_handle,
+                                        subscriber_handle: subscriber
+                                            .subscriber_entity
+                                            .instance_handle,
                                         reader_handle: data_reader.instance_handle,
                                     },
                                 );
@@ -449,7 +451,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     if let Some(data_reader) = subscriber
                         .data_reader_list
@@ -730,7 +732,7 @@ impl DomainParticipantEntity {
         let i = self
             .user_defined_subscriber_list
             .iter()
-            .position(|x| &x.instance_handle == handle)?;
+            .position(|x| &x.subscriber_entity.instance_handle == handle)?;
 
         Some(self.user_defined_subscriber_list.remove(i))
     }

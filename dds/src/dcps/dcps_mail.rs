@@ -364,6 +364,16 @@ pub struct SetSubscriberListenerMail {
     pub listener_mask: StatusMask,
 }
 
+pub struct BeginAccessMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+}
+
+pub struct EndAccessMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+}
+
 // --- Writer Operations ---
 
 /// Result of a write operation, which may either complete immediately or return a pending write receiver.
@@ -640,6 +650,8 @@ pub enum DomainParticipantMail {
     SetSubscriberQos(SetSubscriberQosMail),
     GetSubscriberQos(GetSubscriberQosMail),
     SetSubscriberListener(SetSubscriberListenerMail),
+    BeginAccess(BeginAccessMail),
+    EndAccess(EndAccessMail),
 
     // Writer
     WriteWTimestamp(WriteWTimestampMail),
@@ -1542,6 +1554,36 @@ impl Operation for SetSubscriberListenerMail {
 
     fn into_mail(self) -> DomainParticipantMail {
         DomainParticipantMail::SetSubscriberListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for BeginAccessMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::BeginAccess(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EndAccessMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EndAccess(self)
     }
 
     fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {

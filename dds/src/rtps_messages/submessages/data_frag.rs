@@ -312,9 +312,11 @@ mod tests {
         let inline_qos = ParameterListWrite {
             kind: ChangeKind::Alive,
             instance_handle: None,
+            original_writer_info: None,
             coherent_set: None,
             group_coherent_set: None,
             group_seq_num: None,
+            writer_group_info: None,
         };
         let payload = [1, 2, 3];
         let submessage = DataFragSubmessageWrite::new(
