@@ -390,23 +390,29 @@ impl DcpsDomainParticipant {
         subscriber_handle: &InstanceHandle,
         data_reader_handle: &InstanceHandle,
     ) -> DdsResult<DataReaderQos> {
-        let Some(subscriber) = self
-            .domain_participant
-            .user_defined_subscriber_list
-            .iter_mut()
-            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
+        if subscriber_handle == &self.domain_participant.instance_handle {
+            self.domain_participant
+                .builtin_subscriber
+                .get_data_reader_qos(data_reader_handle)
+        } else {
+            let Some(subscriber) = self
+                .domain_participant
+                .user_defined_subscriber_list
+                .iter_mut()
+                .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
 
-        let Some(data_reader) = subscriber
-            .data_reader_list
-            .iter_mut()
-            .find(|x| &x.instance_handle == data_reader_handle)
-        else {
-            return Err(DdsError::AlreadyDeleted);
-        };
-        Ok(data_reader.qos.clone())
+            let Some(data_reader) = subscriber
+                .data_reader_list
+                .iter_mut()
+                .find(|x| &x.instance_handle == data_reader_handle)
+            else {
+                return Err(DdsError::AlreadyDeleted);
+            };
+            Ok(data_reader.qos.clone())
+        }
     }
 
     #[tracing::instrument(skip(self, dcps_listener, spawner))]

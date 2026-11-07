@@ -10,7 +10,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::SubscriberQos,
+        qos::{DataReaderQos, SubscriberQos},
         sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
     },
     rtps::{
@@ -167,16 +167,48 @@ impl BuiltinSubscriber {
         self.subscriber_entity.enabled = true;
     }
 
+    pub fn stateful_data_reader_list(
+        &self,
+    ) -> impl Iterator<Item = &DataReaderEntity<RtpsStatefulReader>> {
+        let base: [&DataReaderEntity<RtpsStatefulReader>; 5] = [
+            &self.dcps_topic_reader,
+            &self.dcps_publication_reader,
+            &self.dcps_subscription_reader,
+            &self.type_lookup_request_reader,
+            &self.type_lookup_reply_reader,
+        ];
+        base.into_iter()
+            .chain(self.dcps_participant_secure_reader.as_ref())
+    }
+
     pub fn stateful_data_reader_list_mut(
         &mut self,
-    ) -> [&mut DataReaderEntity<RtpsStatefulReader>; 5] {
-        [
+    ) -> impl Iterator<Item = &mut DataReaderEntity<RtpsStatefulReader>> {
+        let base: [&mut DataReaderEntity<RtpsStatefulReader>; 5] = [
             &mut self.dcps_topic_reader,
             &mut self.dcps_publication_reader,
             &mut self.dcps_subscription_reader,
             &mut self.type_lookup_request_reader,
             &mut self.type_lookup_reply_reader,
-        ]
+        ];
+        base.into_iter()
+            .chain(self.dcps_participant_secure_reader.as_mut())
+    }
+
+    pub fn get_data_reader_qos(
+        &self,
+        data_reader_handle: &InstanceHandle,
+    ) -> DdsResult<DataReaderQos> {
+        if &self.dcps_participant_reader.instance_handle == data_reader_handle {
+            Ok(self.dcps_participant_reader.qos.clone())
+        } else if let Some(dr) = self
+            .stateful_data_reader_list()
+            .find(|dr| &dr.instance_handle == data_reader_handle)
+        {
+            Ok(dr.qos.clone())
+        } else {
+            Err(DdsError::AlreadyDeleted)
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -200,13 +232,15 @@ impl BuiltinSubscriber {
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
         } else if let Some(dr) = [
-            &mut self.dcps_topic_reader,
-            &mut self.dcps_publication_reader,
-            &mut self.dcps_subscription_reader,
-            &mut self.type_lookup_request_reader,
-            &mut self.type_lookup_reply_reader,
+            Some(&mut self.dcps_topic_reader),
+            Some(&mut self.dcps_publication_reader),
+            Some(&mut self.dcps_subscription_reader),
+            Some(&mut self.type_lookup_request_reader),
+            Some(&mut self.type_lookup_reply_reader),
+            self.dcps_participant_secure_reader.as_mut(),
         ]
-        .iter_mut()
+        .into_iter()
+        .flatten()
         .find(|dr| &dr.instance_handle == data_reader_handle)
         {
             let sample_list = dr.read(
@@ -244,13 +278,15 @@ impl BuiltinSubscriber {
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
         } else if let Some(dr) = [
-            &mut self.dcps_topic_reader,
-            &mut self.dcps_publication_reader,
-            &mut self.dcps_subscription_reader,
-            &mut self.type_lookup_request_reader,
-            &mut self.type_lookup_reply_reader,
+            Some(&mut self.dcps_topic_reader),
+            Some(&mut self.dcps_publication_reader),
+            Some(&mut self.dcps_subscription_reader),
+            Some(&mut self.type_lookup_request_reader),
+            Some(&mut self.type_lookup_reply_reader),
+            self.dcps_participant_secure_reader.as_mut(),
         ]
-        .iter_mut()
+        .into_iter()
+        .flatten()
         .find(|dr| &dr.instance_handle == data_reader_handle)
         {
             let sample_list = dr.take(
