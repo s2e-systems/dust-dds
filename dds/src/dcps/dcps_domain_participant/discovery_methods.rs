@@ -2917,6 +2917,9 @@ impl DcpsDomainParticipant {
             }
         }
 
+        self.remove_matched_participant_message_reader(prefix);
+        self.remove_matched_participant_message_writer(prefix);
+
         self.remove_matched_publications_detector(prefix);
         self.remove_matched_publications_announcer(prefix);
 
@@ -2975,6 +2978,18 @@ impl DcpsDomainParticipant {
     }
 
     #[tracing::instrument(skip(self))]
+    fn remove_matched_participant_message_reader(&mut self, prefix: GuidPrefix) {
+        {
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .participant_message_writer;
+            let guid = Guid::new(prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
+            dw.transport_writer.delete_matched_reader(guid);
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     fn add_matched_participant_message_writer(
         &mut self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -3010,6 +3025,16 @@ impl DcpsDomainParticipant {
                 .participant_message_reader;
             dr.transport_reader.add_matched_writer(&writer_proxy);
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_participant_message_writer(&mut self, prefix: GuidPrefix) {
+        let dr = &mut self
+            .domain_participant
+            .builtin_subscriber
+            .participant_message_reader;
+        let guid = Guid::new(prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        dr.transport_reader.delete_matched_writer(guid);
     }
 
     #[tracing::instrument(skip(self))]
