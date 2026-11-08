@@ -9,6 +9,7 @@ use crate::{
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
         dcps_domain_participant::{
             builtin_constants::{
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -282,6 +283,18 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
         );
 
+        let participant_message_writer_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            fragment_size,
+        );
+        let participant_message_writer = DataWriterEntity::new(
+            InstanceHandle::new(participant_message_writer_transport_writer.guid().into()),
+            participant_message_writer_transport_writer,
+            Arc::from(DCPS_SUBSCRIPTION),
+            sedp_data_writer_qos(),
+            KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
+        );
+
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
             fragment_size,
@@ -331,6 +344,7 @@ impl DcpsParticipantFactory {
             dcps_topics_writer,
             dcps_publications_writer,
             dcps_subscriptions_writer,
+            participant_message_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
             enabled: false,

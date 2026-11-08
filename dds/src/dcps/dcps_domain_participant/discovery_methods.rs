@@ -23,6 +23,8 @@ use crate::{
         },
         dcps_domain_participant::{
             builtin_constants::{
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -2816,6 +2818,8 @@ impl DcpsDomainParticipant {
 
                 self.announce_participant(now, domain_tag, transport_participant);
 
+                self.add_matched_participant_message_reader(discovered_participant_data);
+                self.add_matched_participant_message_writer(discovered_participant_data);
                 self.add_matched_publications_detector(discovered_participant_data);
                 self.add_matched_publications_announcer(discovered_participant_data);
                 self.add_matched_subscriptions_detector(discovered_participant_data);
@@ -2927,6 +2931,85 @@ impl DcpsDomainParticipant {
         self.remove_matched_service_reply_data_reader(prefix);
         self.remove_matched_service_reply_data_writer(prefix);
         true
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_participant_message_reader(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER)
+        {
+            let remote_reader_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let reader_proxy = rtps::types::ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::TransientLocal,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+                expects_inline_qos,
+            };
+            {
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .participant_message_writer;
+                dw.transport_writer.add_matched_reader(reader_proxy);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_participant_message_writer(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER)
+        {
+            let remote_writer_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+
+            let writer_proxy = rtps::types::WriterProxy {
+                remote_writer_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::TransientLocal,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+            };
+            let dr = &mut self
+                .domain_participant
+                .builtin_subscriber
+                .participant_message_reader;
+            dr.transport_reader.add_matched_writer(&writer_proxy);
+        }
     }
 
     #[tracing::instrument(skip(self))]

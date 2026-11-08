@@ -3,6 +3,7 @@ use crate::{
         DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     },
     dcps::dcps_domain_participant::{
+        builtin_constants::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
         builtin_data_reader::BuiltinDataReader,
         data_reader_entity::{DataReaderEntity, SampleList},
         subscriber_entity::SubscriberEntity,
@@ -38,6 +39,7 @@ pub struct BuiltinSubscriber {
     pub dcps_topic_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub dcps_publication_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub dcps_subscription_reader: BuiltinDataReader<RtpsStatefulReader>,
+    pub participant_message_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub type_lookup_request_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub type_lookup_reply_reader: BuiltinDataReader<RtpsStatefulReader>,
 }
@@ -125,6 +127,17 @@ impl BuiltinSubscriber {
             dcps_subscription_transport_reader,
         );
 
+        let participant_message_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            ReliabilityKind::Reliable,
+        );
+        let participant_message_reader = BuiltinDataReader::new(
+            InstanceHandle::new(participant_message_transport_reader.guid().into()),
+            SEDP_DATA_READER_QOS,
+            Arc::from(DCPS_SUBSCRIPTION),
+            participant_message_transport_reader,
+        );
+
         let type_lookup_request_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
             ReliabilityKind::Reliable,
@@ -154,6 +167,7 @@ impl BuiltinSubscriber {
             dcps_topic_reader,
             dcps_publication_reader,
             dcps_subscription_reader,
+            participant_message_reader,
             type_lookup_request_reader,
             type_lookup_reply_reader,
         }
@@ -170,10 +184,11 @@ impl BuiltinSubscriber {
     pub fn stateful_data_reader_list(
         &self,
     ) -> impl Iterator<Item = &DataReaderEntity<RtpsStatefulReader>> {
-        let base: [&DataReaderEntity<RtpsStatefulReader>; 5] = [
+        let base = [
             &self.dcps_topic_reader,
             &self.dcps_publication_reader,
             &self.dcps_subscription_reader,
+            &self.participant_message_reader,
             &self.type_lookup_request_reader,
             &self.type_lookup_reply_reader,
         ];
@@ -235,6 +250,7 @@ impl BuiltinSubscriber {
             Some(&mut self.dcps_topic_reader),
             Some(&mut self.dcps_publication_reader),
             Some(&mut self.dcps_subscription_reader),
+            Some(&mut self.participant_message_reader),
             Some(&mut self.type_lookup_request_reader),
             Some(&mut self.type_lookup_reply_reader),
             self.dcps_participant_secure_reader.as_mut(),

@@ -32,6 +32,7 @@ use crate::{
         ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
         ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
     },
+    transport::types::GuidPrefix,
     xtypes::{
         type_object::TypeInformation,
         type_support::{_String, TypeSupport},
@@ -49,6 +50,9 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 /// Topic name of the built-in participant discovery topic
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
+
+/// Topic name of the built-in participant message writer topic
+pub const DCPS_PARTICIPANT_MESSAGE: &str = "DCPSParticipantMessage";
 
 /// Topic name of the secure built-in participant discovery topic
 pub const DCPS_PARTICIPANTS_SECURE: &str = "DCPSParticipantsSecure";
@@ -595,3 +599,44 @@ impl SubscriptionBuiltinTopicData {
         &self.symmetric_cipher
     }
 }
+
+/// Type representing an array of 4 octets.
+pub type OctetArray4 = [u8; 4];
+
+/// Type representing a sequence of octets.
+pub type OctetSeq = Vec<u8>;
+
+/// Structure representing a message transmitted through the [`DCPS_PARTICIPANT_MESSAGE`] topic.
+pub struct ParticipantMessageData {
+    pub(crate) participant_guid_prefix: GuidPrefix,
+    pub(crate) kind: OctetArray4,
+    pub(crate) data: OctetSeq,
+}
+
+impl ParticipantMessageData {
+    /// Get the participant GUID prefix of the message.
+    pub fn participant_guid_prefix(&self) -> [u8; 12] {
+        self.participant_guid_prefix
+    }
+
+    /// Get the kind of the participant message.
+    pub fn kind(&self) -> [u8; 4] {
+        self.kind
+    }
+
+    /// Get the data payload of the participant message.
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+/// Participant message kind for unknown message.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN: OctetArray4 = [0x00, 0x00, 0x00, 0x00];
+
+/// Participant message kind for automatic liveliness update.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE: OctetArray4 =
+    [0x00, 0x00, 0x00, 0x01];
+
+/// Participant message kind for manual liveliness update.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE: OctetArray4 =
+    [0x00, 0x00, 0x00, 0x02];

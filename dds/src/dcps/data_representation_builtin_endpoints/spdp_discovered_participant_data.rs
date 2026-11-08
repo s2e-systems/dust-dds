@@ -43,6 +43,8 @@ impl Default for BuiltinEndpointSet {
     fn default() -> Self {
         Self(
             Self::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                | Self::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER
+                | Self::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER
                 | Self::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
                 | Self::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
                 | Self::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
@@ -78,8 +80,8 @@ impl BuiltinEndpointSet {
     @position(9) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_DETECTOR,
     */
 
-    pub const _BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER: u32 = 1 << 10;
-    pub const _BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 11;
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER: u32 = 1 << 10;
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 11;
 
     /*
     Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification

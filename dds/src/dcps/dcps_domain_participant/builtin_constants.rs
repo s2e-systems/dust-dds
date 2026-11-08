@@ -45,6 +45,12 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
+pub const ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId =
+    EntityId::new([0, 0x02, 0], BUILT_IN_WRITER_WITH_KEY);
+
+pub const ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId =
+    EntityId::new([0, 0x02, 0], BUILT_IN_READER_WITH_KEY);
+
 // XTypes Table 61 – Built-in Endpoints added by the XTYPES specification
 
 pub const ENTITYID_TL_SVC_REQ_WRITER: EntityId =
