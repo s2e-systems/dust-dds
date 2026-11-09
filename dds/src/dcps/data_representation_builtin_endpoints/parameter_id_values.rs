@@ -70,9 +70,21 @@ pub const PID_WRITER_GROUP_INFO: ParameterId = 0x0065;
 pub const PID_SECURE_WRITER_GROUP_INFO: ParameterId = 0x0066;
 
 #[allow(overflowing_literals)]
+pub const PID_ENTITY_VIRTUAL_GUID: ParameterId = 0x8002_u16 as i16;
+#[allow(overflowing_literals)]
+pub const PID_EXPECTS_VIRTUAL_HB: ParameterId = 0x8009_u16 as i16;
+#[allow(overflowing_literals)]
+pub const PID_VIRTUAL_GUID: ParameterId = 0x800d_u16 as i16;
+#[allow(overflowing_literals)]
 pub const _PID_TYPE_REPRESENTATION: ParameterId = 0x8010;
 #[allow(overflowing_literals)]
 pub const _PID_DISCOVERED_PARTICIPANT: ParameterId = 0x8020;
+#[allow(overflowing_literals)]
+pub const PID_END_COHERENT_SET: ParameterId = 0x8022_u16 as i16;
+#[allow(overflowing_literals)]
+pub const PID_END_GROUP_COHERENT_SET: ParameterId = 0x8023_u16 as i16;
+#[allow(overflowing_literals)]
+pub const PID_END_COHERENT_SET_SAMPLE_COUNT: ParameterId = 0x8024_u16 as i16;
 
 // Additional parameters defined by DDS Security v1.2
 // Table 10 – Additional parameter IDs in ParticipantBuiltinTopicData

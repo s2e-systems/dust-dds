@@ -1,4 +1,4 @@
-use alloc::{string::String, sync::Arc};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 use crate::{
     dcps::{
@@ -23,7 +23,10 @@ use crate::{
         stateful_writer::RtpsStatefulWriter,
         types::{ChangeKind, OriginalWriterInfo, TopicKind, WriterGroupInfo},
     },
-    rtps_messages::submessage_elements::ParameterListWrite,
+    rtps_messages::{
+        submessage_elements::ParameterListWrite,
+        submessages::heartbeat_virtual::VirtualWriterInfo,
+    },
     runtime::Spawner,
     transport::types::{EntityId, Guid, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY},
 };
@@ -236,6 +239,7 @@ impl DcpsDomainParticipant {
                     for writer in &mut publisher.data_writer_list {
                         writer.is_in_coherent_set = true;
                         writer.first_coherent_sequence_number = None;
+                        writer.first_coherent_group_sequence_number = None;
                     }
                 }
             }
@@ -273,7 +277,8 @@ impl DcpsDomainParticipant {
                     PresentationQosPolicyAccessScopeKind::Instance
                     | PresentationQosPolicyAccessScopeKind::Topic => {
                         for writer in &mut publisher.data_writer_list {
-                            if writer.first_coherent_sequence_number.is_some() {
+                            if let Some(first_sn) = writer.first_coherent_sequence_number {
+                                let sample_count = (writer.last_change_sequence_number - first_sn + 1) as u32;
                                 writer.last_change_sequence_number += 1;
 
                                 let change = CacheChangeWrite {
@@ -288,6 +293,9 @@ impl DcpsDomainParticipant {
                                         group_coherent_set: None,
                                         group_seq_num: None,
                                         writer_group_info: None,
+                                        end_coherent_set: Some(first_sn),
+                                        end_group_coherent_set: None,
+                                        end_coherent_set_sample_count: Some(sample_count),
                                     },
                                     data_value: Arc::from([]),
                                 };
@@ -302,8 +310,6 @@ impl DcpsDomainParticipant {
                     }
                     PresentationQosPolicyAccessScopeKind::Group => {
                         if publisher.group_coherent_set.is_some() {
-                            publisher.group_seq_num += 1;
-                            let group_seq_num = publisher.group_seq_num;
                             let group_coherent_set = publisher.group_coherent_set;
 
                             let mut md5 = md5::Context::new();
@@ -338,10 +344,26 @@ impl DcpsDomainParticipant {
                             let writer_set = md5.compute().into();
                             let writer_group_info = Some(WriterGroupInfo { writer_set });
 
+                            let mut virtual_writers = Vec::new();
+
                             for writer in &mut publisher.data_writer_list {
+                                if !writer.enabled {
+                                    continue;
+                                }
+                                let first_sn = writer.first_coherent_sequence_number;
+                                let sample_count = if let Some(first) = first_sn {
+                                    (writer.last_change_sequence_number - first + 1) as u32
+                                } else {
+                                    0
+                                };
+
+                                publisher.group_seq_num += 1;
+                                let group_seq_num = publisher.group_seq_num;
+
                                 writer.last_change_sequence_number += 1;
+                                let group_guid = Guid::from(<[u8; 16]>::from(publisher.instance_handle));
                                 let original_writer_info = Some(OriginalWriterInfo {
-                                    original_writer_guid: writer.transport_writer.guid(),
+                                    original_writer_guid: group_guid,
                                     original_writer_sn: group_seq_num,
                                 });
                                 let change = CacheChangeWrite {
@@ -353,9 +375,12 @@ impl DcpsDomainParticipant {
                                         instance_handle: None,
                                         coherent_set: None,
                                         original_writer_info,
-                                        group_coherent_set,
+                                        group_coherent_set: None,
                                         group_seq_num: Some(group_seq_num),
                                         writer_group_info,
+                                        end_coherent_set: first_sn.or(Some(writer.last_change_sequence_number)),
+                                        end_group_coherent_set: group_coherent_set,
+                                        end_coherent_set_sample_count: Some(sample_count),
                                     },
                                     data_value: Arc::from([]),
                                 };
@@ -363,14 +388,48 @@ impl DcpsDomainParticipant {
                                 writer
                                     .transport_writer
                                     .write_message(transport_participant, now);
+
+                                let first_rtps_sn =
+                                    first_sn.unwrap_or(writer.last_change_sequence_number);
+                                let last_rtps_sn = writer.last_change_sequence_number;
+                                let first_virtual_sn = writer
+                                    .first_coherent_group_sequence_number
+                                    .unwrap_or(group_seq_num);
+                                let last_virtual_sn = group_seq_num;
+
+                                virtual_writers.push(VirtualWriterInfo {
+                                    writer_id: writer.transport_writer.guid().entity_id(),
+                                    first_virtual_sn,
+                                    last_virtual_sn,
+                                    first_rtps_sn,
+                                    last_rtps_sn,
+                                });
+
                                 writer.is_in_coherent_set = false;
                                 writer.first_coherent_sequence_number = None;
+                                writer.first_coherent_group_sequence_number = None;
                             }
+
+                            virtual_writers.sort_by_key(|w| w.writer_id);
+                            let virtual_guid: [u8; 16] = publisher.instance_handle.into();
+
+                            for writer in &mut publisher.data_writer_list {
+                                if !writer.enabled {
+                                    continue;
+                                }
+                                writer.transport_writer.send_virtual_heartbeat(
+                                    transport_participant,
+                                    virtual_guid,
+                                    &virtual_writers,
+                                );
+                            }
+
                             publisher.group_coherent_set = None;
                         } else {
                             for writer in &mut publisher.data_writer_list {
                                 writer.is_in_coherent_set = false;
                                 writer.first_coherent_sequence_number = None;
+                                writer.first_coherent_group_sequence_number = None;
                             }
                         }
                     }
@@ -379,6 +438,7 @@ impl DcpsDomainParticipant {
                 for writer in &mut publisher.data_writer_list {
                     writer.is_in_coherent_set = false;
                     writer.first_coherent_sequence_number = None;
+                    writer.first_coherent_group_sequence_number = None;
                 }
             }
         }

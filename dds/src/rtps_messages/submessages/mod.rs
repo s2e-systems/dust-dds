@@ -5,6 +5,7 @@ pub mod gap;
 pub mod header_extension;
 pub mod heartbeat;
 pub mod heartbeat_frag;
+pub mod heartbeat_virtual;
 pub mod info_destination;
 pub mod info_reply;
 pub mod info_source;

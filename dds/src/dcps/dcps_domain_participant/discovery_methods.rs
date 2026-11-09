@@ -693,6 +693,7 @@ impl DcpsDomainParticipant {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         };
         let discovered_reader_data = DiscoveredReaderData {
             dds_subscription_data,
@@ -1213,6 +1214,9 @@ impl DcpsDomainParticipant {
                                         unicast_locator_list,
                                         multicast_locator_list,
                                         expects_inline_qos: false,
+                                        expects_virtual_hb: discovered_reader_data
+                                            .reader_proxy
+                                            .expects_virtual_hb,
                                     };
                                     data_writer
                                         .transport_writer
@@ -2851,6 +2855,7 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
+                expects_virtual_hb: false,
             };
             {
                 let dw = &mut self
@@ -2952,6 +2957,7 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
+                expects_virtual_hb: false,
             };
             {
                 let dw = &mut self
@@ -3053,6 +3059,7 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
+                expects_virtual_hb: false,
             };
             {
                 let dw = &mut self.domain_participant.builtin_publisher.dcps_topics_writer;
@@ -3142,6 +3149,7 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
+                expects_virtual_hb: false,
             };
             {
                 let dw = &mut self
@@ -3243,6 +3251,7 @@ impl DcpsDomainParticipant {
                     .metatraffic_multicast_locator_list
                     .to_vec(),
                 expects_inline_qos,
+                expects_virtual_hb: false,
             };
             {
                 let dw = &mut self

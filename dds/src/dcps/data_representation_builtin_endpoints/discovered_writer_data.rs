@@ -4,7 +4,8 @@ use super::parameter_id_values::{
     PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_GROUP_DATA, PID_GROUP_ENTITYID,
     PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
     PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-    PID_TOPIC_DATA, PID_TOPIC_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_TOPIC_DATA, PID_TOPIC_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA, PID_VIRTUAL_GUID,
+    PID_ENTITY_VIRTUAL_GUID,
 };
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -120,6 +121,13 @@ impl DiscoveredWriterData {
         }
         if self.writer_proxy.remote_group_entity_id != ENTITYID_UNKNOWN {
             pl.write_cdr_parameter(PID_GROUP_ENTITYID, self.writer_proxy.remote_group_entity_id);
+            let virtual_guid = <[u8; 16]>::from(Guid::new(
+                self.writer_proxy.remote_writer_guid.prefix(),
+                self.writer_proxy.remote_group_entity_id,
+            ));
+            pl.write_cdr_parameter(PID_VIRTUAL_GUID, virtual_guid);
+            let entity_virtual_guid = <[u8; 16]>::from(self.writer_proxy.remote_writer_guid);
+            pl.write_cdr_parameter(PID_ENTITY_VIRTUAL_GUID, entity_virtual_guid);
         }
         for l in self.writer_proxy.unicast_locator_list {
             pl.write_cdr_parameter(PID_UNICAST_LOCATOR, l);
@@ -268,6 +276,10 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc9, // u8[3], u8
+            0x0d, 0x80, 16, 0, // PID_VIRTUAL_GUID
+            5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 21, 22, 23, 0xc9,
+            0x02, 0x80, 16, 0, // PID_ENTITY_VIRTUAL_GUID
+            5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 11, 12, 13, 0xc2,
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
 

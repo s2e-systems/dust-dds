@@ -5,8 +5,8 @@ use super::{
 };
 use crate::{
     dcps::data_representation_builtin_endpoints::parameter_id_values::{
-        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM, PID_ORIGINAL_WRITER_INFO,
-        PID_WRITER_GROUP_INFO,
+        PID_COHERENT_SET, PID_END_COHERENT_SET, PID_END_COHERENT_SET_SAMPLE_COUNT,
+        PID_END_GROUP_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_ORIGINAL_WRITER_INFO,
     },
     rtps::{
         cache_change::{
@@ -443,6 +443,26 @@ pub struct ParameterListWrite {
     pub group_coherent_set: Option<SequenceNumber>,
     pub group_seq_num: Option<SequenceNumber>,
     pub writer_group_info: Option<WriterGroupInfo>,
+    pub end_coherent_set: Option<SequenceNumber>,
+    pub end_group_coherent_set: Option<SequenceNumber>,
+    pub end_coherent_set_sample_count: Option<u32>,
+}
+
+impl Default for ParameterListWrite {
+    fn default() -> Self {
+        Self {
+            kind: ChangeKind::Alive,
+            instance_handle: None,
+            original_writer_info: None,
+            coherent_set: None,
+            group_coherent_set: None,
+            group_seq_num: None,
+            writer_group_info: None,
+            end_coherent_set: None,
+            end_group_coherent_set: None,
+            end_coherent_set_sample_count: None,
+        }
+    }
 }
 
 impl WriteIntoBytes for ParameterListWrite {
@@ -482,6 +502,7 @@ impl WriteIntoBytes for ParameterListWrite {
             group_coherent_set.write_into_bytes(buf);
         }
 
+        /*
         if let Some(group_seq_num) = &self.group_seq_num {
             PID_GROUP_SEQ_NUM.write_into_bytes(buf);
             8_i16.write_into_bytes(buf);
@@ -492,6 +513,25 @@ impl WriteIntoBytes for ParameterListWrite {
             PID_WRITER_GROUP_INFO.write_into_bytes(buf);
             16_i16.write_into_bytes(buf);
             writer_group_info.writer_set.write_into_bytes(buf);
+        }
+        */
+
+        if let Some(end_coherent_set) = &self.end_coherent_set {
+            PID_END_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            end_coherent_set.write_into_bytes(buf);
+        }
+
+        if let Some(end_group_coherent_set) = &self.end_group_coherent_set {
+            PID_END_GROUP_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            end_group_coherent_set.write_into_bytes(buf);
+        }
+
+        if let Some(end_coherent_set_sample_count) = &self.end_coherent_set_sample_count {
+            PID_END_COHERENT_SET_SAMPLE_COUNT.write_into_bytes(buf);
+            4_i16.write_into_bytes(buf);
+            end_coherent_set_sample_count.write_into_bytes(buf);
         }
 
         PID_SENTINEL.write_into_bytes(buf);

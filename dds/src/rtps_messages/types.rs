@@ -97,6 +97,7 @@ pub enum SubmessageKind {
     NACK_FRAG,
     HEARTBEAT_FRAG,
     RTPS_HE,
+    HEARTBEAT_VIRTUAL,
     SEC_BODY,
     SEC_PREFIX,
     SEC_POSTFIX,
@@ -117,6 +118,7 @@ pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
 pub const RTPS_HE: u8 = 0x00;
+pub const HEARTBEAT_VIRTUAL: u8 = 0x1e;
 pub const HEADER_EXTENSION: u8 = 0x00;
 pub const SEC_BODY: u8 = 0x30;
 pub const SEC_PREFIX: u8 = 0x31;
@@ -140,6 +142,7 @@ impl WriteIntoBytes for SubmessageKind {
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
             SubmessageKind::RTPS_HE => RTPS_HE,
+            SubmessageKind::HEARTBEAT_VIRTUAL => HEARTBEAT_VIRTUAL,
             SubmessageKind::SEC_BODY => SEC_BODY,
             SubmessageKind::SEC_PREFIX => SEC_PREFIX,
             SubmessageKind::SEC_POSTFIX => SEC_POSTFIX,

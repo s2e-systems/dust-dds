@@ -1,7 +1,8 @@
 use super::parameter_id_values::{
     DEFAULT_EXPECTS_INLINE_QOS, PID_DATA_REPRESENTATION, PID_DEADLINE, PID_DESTINATION_ORDER,
     PID_DURABILITY, PID_ENDPOINT_GUID, PID_ENDPOINT_SECURITY_PROTECTION_INFO,
-    PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA,
+    PID_ENDPOINT_SECURITY_SYMMETRIC_CIPHER_ALGORITHM_INFO, PID_EXPECTS_INLINE_QOS,
+    PID_EXPECTS_VIRTUAL_HB, PID_GROUP_DATA,
     PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
     PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER,
     PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
@@ -31,6 +32,7 @@ pub struct ReaderProxy {
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
     pub expects_inline_qos: bool,
+    pub expects_virtual_hb: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -153,6 +155,9 @@ impl DiscoveredReaderData {
         if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
             pl.write_cdr_parameter(PID_EXPECTS_INLINE_QOS, self.reader_proxy.expects_inline_qos);
         }
+        if self.reader_proxy.expects_virtual_hb {
+            pl.write_cdr_parameter(PID_EXPECTS_VIRTUAL_HB, self.reader_proxy.expects_virtual_hb);
+        }
 
         pl.write_sentinel();
         buffer
@@ -213,6 +218,8 @@ impl DiscoveredReaderData {
             multicast_locator_list: pl.get_locator_list(PID_MULTICAST_LOCATOR)?,
             expects_inline_qos: pl
                 .get_optional_parameter(PID_EXPECTS_INLINE_QOS, DEFAULT_EXPECTS_INLINE_QOS)?,
+            expects_virtual_hb: pl
+                .get_optional_parameter(PID_EXPECTS_VIRTUAL_HB, false)?,
         };
         Ok(DiscoveredReaderData {
             dds_subscription_data,
@@ -277,6 +284,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
+                expects_virtual_hb: false,
             },
         }
         .into_bytes();
@@ -357,6 +365,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
+                expects_virtual_hb: false,
             },
         }
         .into_bytes();
@@ -409,6 +418,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
+                expects_virtual_hb: false,
             },
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -482,6 +492,7 @@ mod tests {
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
+                expects_virtual_hb: false,
             },
             dds_subscription_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {

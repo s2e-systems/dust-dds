@@ -12,6 +12,7 @@ use crate::{
         submessage_elements::SequenceNumberSet,
         submessages::{
             ack_nack::AckNackSubmessage, gap::GapSubmessage,
+            heartbeat_virtual::{HeartbeatVirtualSubmessage, VirtualWriterInfo},
             info_destination::InfoDestinationSubmessage, info_timestamp::InfoTimestampSubmessage,
             nack_frag::NackFragSubmessage,
         },
@@ -120,6 +121,7 @@ impl RtpsStatefulWriter {
             first_relevant_sample_seq_num,
             reader_proxy.durability_kind,
             highest_sent_seq_num,
+            reader_proxy.expects_virtual_hb,
         );
         if let Some(rp) = self
             .matched_readers
@@ -129,6 +131,38 @@ impl RtpsStatefulWriter {
             *rp = rtps_reader_proxy;
         } else {
             self.matched_readers.push(rtps_reader_proxy);
+        }
+    }
+
+    pub fn send_virtual_heartbeat(
+        &mut self,
+        transport_participant: &mut impl RtpsParticipant,
+        virtual_guid: [u8; 16],
+        writers: &[VirtualWriterInfo],
+    ) {
+        for reader_proxy in &mut self.matched_readers {
+            if reader_proxy.expects_virtual_hb() {
+                let count = reader_proxy.heartbeat_machine().count();
+                let heartbeat_virtual = HeartbeatVirtualSubmessage::new(
+                    reader_proxy.remote_reader_guid().entity_id(),
+                    self.guid.entity_id(),
+                    virtual_guid,
+                    writers.to_vec(),
+                    count,
+                );
+                let info_dst =
+                    InfoDestinationSubmessage::new(reader_proxy.remote_reader_guid().prefix());
+                let mut writer =
+                    transport_participant.writer(reader_proxy.unicast_locator_list());
+                for _ in 0..2 {
+                    write_submessages_into_transport(
+                        &[&info_dst, &heartbeat_virtual],
+                        self.guid.prefix(),
+                        &mut writer,
+                    );
+                }
+                writer.flush();
+            }
         }
     }
 
@@ -789,6 +823,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         });
 
         let mut transport = MockTransport::default();
@@ -803,6 +838,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
@@ -836,6 +872,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         });
         let mut transport = MockTransport::default();
         writer.add_change(CacheChangeWrite {
@@ -849,6 +886,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             source_timestamp: Time::new(0, 0).into(),
             data_value: vec![8; 1300].into(),
@@ -893,6 +931,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         });
 
         // Add non-contiguous sequence numbers (e.g. 2 and 5)
@@ -908,6 +947,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             data_value: vec![1, 2, 3].into(),
         });
@@ -923,6 +963,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             data_value: vec![4, 5, 6].into(),
         });
@@ -968,6 +1009,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             data_value: vec![1, 2, 3].into(),
         });
@@ -984,6 +1026,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         });
 
         let mut transport = MockTransport::default();
@@ -1046,6 +1089,7 @@ mod tests {
                 group_coherent_set: None,
                 group_seq_num: None,
                 writer_group_info: None,
+                ..Default::default()
             },
             data_value: vec![1, 2, 3].into(),
         });
@@ -1061,6 +1105,7 @@ mod tests {
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
+            expects_virtual_hb: false,
         });
 
         let mut transport = MockTransport::default();

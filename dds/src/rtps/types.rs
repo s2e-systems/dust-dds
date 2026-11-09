@@ -138,6 +138,7 @@ pub struct ReaderProxy {
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
     pub expects_inline_qos: bool,
+    pub expects_virtual_hb: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

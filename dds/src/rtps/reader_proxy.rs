@@ -30,6 +30,10 @@ impl HeartbeatMachine {
         now - self.last_heartbeat_time >= heartbeat_period
     }
 
+    pub fn count(&self) -> Count {
+        self.count
+    }
+
     pub fn reset_heartbeat_time(&mut self) {
         self.last_heartbeat_time = Time::new(0, 0);
     }
@@ -114,6 +118,7 @@ pub struct RtpsReaderProxy {
     reliability: ReliabilityKind,
     first_relevant_sample_seq_num: SequenceNumber,
     durability: DurabilityKind,
+    expects_virtual_hb: bool,
 }
 
 impl RtpsReaderProxy {
@@ -129,6 +134,7 @@ impl RtpsReaderProxy {
         first_relevant_sample_seq_num: SequenceNumber,
         durability: DurabilityKind,
         highest_sent_seq_num: SequenceNumber,
+        expects_virtual_hb: bool,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -150,7 +156,12 @@ impl RtpsReaderProxy {
             reliability,
             first_relevant_sample_seq_num,
             durability,
+            expects_virtual_hb,
         }
+    }
+
+    pub fn expects_virtual_hb(&self) -> bool {
+        self.expects_virtual_hb
     }
 
     pub fn remote_reader_guid(&self) -> Guid {

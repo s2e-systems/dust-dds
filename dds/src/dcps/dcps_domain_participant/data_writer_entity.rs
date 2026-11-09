@@ -18,6 +18,7 @@ use crate::{
         types::{ChangeKind, OriginalWriterInfo, SequenceNumber, TopicKind},
     },
     rtps_messages::submessage_elements::ParameterListWrite,
+    transport::types::{EntityId, Guid, USER_DEFINED_WRITER_GROUP},
     xtypes::{
         dynamic_type::{DynamicData, DynamicType},
         serializer::{serialize_cdr1_be, serialize_cdr1_le, serialize_cdr2_be, serialize_cdr2_le},
@@ -50,6 +51,7 @@ pub struct DataWriterEntity<T> {
     pub key_holder_type: KeyHolderType,
     pub is_in_coherent_set: bool,
     pub first_coherent_sequence_number: Option<SequenceNumber>,
+    pub first_coherent_group_sequence_number: Option<SequenceNumber>,
 }
 
 impl<T: RtpsWriter> DataWriterEntity<T> {
@@ -71,6 +73,7 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             key_holder_type,
             is_in_coherent_set: false,
             first_coherent_sequence_number: None,
+            first_coherent_group_sequence_number: None,
         }
     }
 
@@ -138,13 +141,27 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             if self.first_coherent_sequence_number.is_none() {
                 self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
             }
+            if self.first_coherent_group_sequence_number.is_none() {
+                self.first_coherent_group_sequence_number = group_seq_num;
+            }
             self.first_coherent_sequence_number
         } else {
             None
         };
 
+        let original_writer_guid = if group_seq_num.is_some() {
+            Guid::new(
+                self.transport_writer.guid().prefix(),
+                EntityId::new(
+                    [self.transport_writer.guid().entity_id().entity_key()[0], 0, 0],
+                    USER_DEFINED_WRITER_GROUP,
+                ),
+            )
+        } else {
+            self.transport_writer.guid()
+        };
         let original_writer_info = Some(OriginalWriterInfo {
-            original_writer_guid: self.transport_writer.guid(),
+            original_writer_guid,
             original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
         });
         let change = CacheChangeWrite {
@@ -163,6 +180,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 group_coherent_set,
                 group_seq_num,
                 writer_group_info: None,
+                end_coherent_set: None,
+                end_group_coherent_set: None,
+                end_coherent_set_sample_count: None,
             },
             data_value: serialized_data.into(),
         };
@@ -225,13 +245,27 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             if self.first_coherent_sequence_number.is_none() {
                 self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
             }
+            if self.first_coherent_group_sequence_number.is_none() {
+                self.first_coherent_group_sequence_number = group_seq_num;
+            }
             self.first_coherent_sequence_number
         } else {
             None
         };
 
+        let original_writer_guid = if group_seq_num.is_some() {
+            Guid::new(
+                self.transport_writer.guid().prefix(),
+                EntityId::new(
+                    [self.transport_writer.guid().entity_id().entity_key()[0], 0, 0],
+                    USER_DEFINED_WRITER_GROUP,
+                ),
+            )
+        } else {
+            self.transport_writer.guid()
+        };
         let original_writer_info = Some(OriginalWriterInfo {
-            original_writer_guid: self.transport_writer.guid(),
+            original_writer_guid,
             original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
         });
 
@@ -247,6 +281,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 group_coherent_set,
                 group_seq_num,
                 writer_group_info: None,
+                end_coherent_set: None,
+                end_group_coherent_set: None,
+                end_coherent_set_sample_count: None,
             },
             data_value: serialized_key.into(),
         };
@@ -320,6 +357,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             if self.first_coherent_sequence_number.is_none() {
                 self.first_coherent_sequence_number = Some(self.last_change_sequence_number);
             }
+            if self.first_coherent_group_sequence_number.is_none() {
+                self.first_coherent_group_sequence_number = group_seq_num;
+            }
             self.first_coherent_sequence_number
         } else {
             None
@@ -334,8 +374,19 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
             ChangeKind::NotAliveUnregistered
         };
 
+        let original_writer_guid = if group_seq_num.is_some() {
+            Guid::new(
+                self.transport_writer.guid().prefix(),
+                EntityId::new(
+                    [self.transport_writer.guid().entity_id().entity_key()[0], 0, 0],
+                    USER_DEFINED_WRITER_GROUP,
+                ),
+            )
+        } else {
+            self.transport_writer.guid()
+        };
         let original_writer_info = Some(OriginalWriterInfo {
-            original_writer_guid: self.transport_writer.guid(),
+            original_writer_guid,
             original_writer_sn: group_seq_num.unwrap_or(self.last_change_sequence_number),
         });
 
@@ -351,6 +402,9 @@ impl<T: RtpsWriter> DataWriterEntity<T> {
                 group_coherent_set,
                 group_seq_num,
                 writer_group_info: None,
+                end_coherent_set: None,
+                end_group_coherent_set: None,
+                end_coherent_set_sample_count: None,
             },
             data_value: serialized_key.into(),
         };
