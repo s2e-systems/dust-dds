@@ -510,7 +510,7 @@ impl DcpsDomainParticipant {
                                         || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
                                     {
                                         data_reader.transport_reader.changes.remove(i);
-                                    } else if let Some(group_sn) = c.group_coherent_set {
+                                    } else if let Some(finished) = &finished_group_coherent_set {
                                         let pub_guid = data_reader
                                             .transport_reader
                                             .matched_writer(c.writer_guid)
@@ -527,31 +527,76 @@ impl DcpsDomainParticipant {
                                                 )
                                             });
 
-                                        if finished_group_coherent_set == Some((pub_guid, group_sn))
+                                        let should_deliver = if pub_guid == finished.pub_guid {
+                                            if let Some(group_sn) = finished.group_sn {
+                                                c.group_coherent_set == Some(group_sn)
+                                                    && !c.data_value.is_empty()
+                                            } else if let Some(&(_, expected_cs, _)) = finished
+                                                .writer_coherent_sets
+                                                .iter()
+                                                .find(|(w, _, _)| *w == c.writer_guid)
+                                            {
+                                                c.coherent_set == Some(expected_cs)
+                                                    && !c.data_value.is_empty()
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        };
+
+                                        let is_finished_writer_delimiter =
+                                            if pub_guid == finished.pub_guid {
+                                                if finished.group_sn.is_some() {
+                                                    c.data_value.is_empty()
+                                                } else if let Some(&(_, expected_cs, maybe_end_sn)) = finished
+                                                    .writer_coherent_sets
+                                                    .iter()
+                                                    .find(|(w, _, _)| *w == c.writer_guid)
+                                                {
+                                                    if let Some(end_sn) = maybe_end_sn {
+                                                        c.data_value.is_empty() && c.sequence_number <= end_sn
+                                                    } else {
+                                                        c.data_value.is_empty() && c.sequence_number < expected_cs
+                                                    }
+                                                } else {
+                                                    false
+                                                }
+                                            } else {
+                                                false
+                                            };
+
+                                        if should_deliver {
+                                            let cache_change =
+                                                data_reader.transport_reader.changes.remove(i);
+                                            process_single_cache_change(
+                                                cache_change,
+                                                data_reader,
+                                            );
+                                        } else if is_finished_writer_delimiter {
+                                            data_reader.transport_reader.changes.remove(i);
+                                        } else if c.data_value.is_empty() {
+                                            i += 1;
+                                        } else if c.group_coherent_set.is_none()
+                                            && c.coherent_set.is_none()
                                         {
                                             let cache_change =
                                                 data_reader.transport_reader.changes.remove(i);
-                                            let is_ecs = cache_change.data_value.is_empty()
-                                                && cache_change.group_coherent_set.is_some();
-                                            if !is_ecs
-                                                && !process_single_cache_change(
-                                                    cache_change,
-                                                    data_reader,
-                                                )
-                                            {
-                                                data_reader.transport_reader.changes.clear();
-                                                break;
-                                            }
+                                            process_single_cache_change(
+                                                cache_change,
+                                                data_reader,
+                                            );
                                         } else {
                                             i += 1;
                                         }
-                                    } else if c.coherent_set.is_none() {
+                                    } else if c.data_value.is_empty() {
+                                        i += 1;
+                                    } else if c.group_coherent_set.is_none()
+                                        && c.coherent_set.is_none()
+                                    {
                                         let cache_change =
                                             data_reader.transport_reader.changes.remove(i);
-                                        if !process_single_cache_change(cache_change, data_reader) {
-                                            data_reader.transport_reader.changes.clear();
-                                            break;
-                                        }
+                                        process_single_cache_change(cache_change, data_reader);
                                     } else {
                                         i += 1;
                                     }
@@ -1379,56 +1424,219 @@ impl DcpsDomainParticipant {
     }
 }
 
-fn find_finished_group_coherent_set(
-    data_reader_list: &[crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
-) -> Option<(Guid, crate::rtps::types::SequenceNumber)> {
-    for reader in data_reader_list {
-        for c in &reader.transport_reader.changes {
-            if c.data_value.is_empty() {
-                if let Some(group_sn) = c.group_coherent_set {
-                    if group_sn != SEQUENCENUMBER_UNKNOWN {
-                        let pub_guid = reader
-                            .transport_reader
-                            .matched_writer(c.writer_guid)
-                            .map(|wp| {
-                                Guid::new(c.writer_guid.prefix(), wp.remote_group_entity_id())
-                            })
-                            .unwrap_or_else(|| {
-                                Guid::new(
-                                    c.writer_guid.prefix(),
-                                    crate::transport::types::ENTITYID_UNKNOWN,
-                                )
-                            });
+struct FinishedGroupCoherentSet {
+    pub_guid: Guid,
+    group_sn: Option<crate::rtps::types::SequenceNumber>,
+    writer_coherent_sets: Vec<(
+        Guid,
+        crate::rtps::types::SequenceNumber,
+        Option<crate::rtps::types::SequenceNumber>,
+    )>,
+}
 
-                        let mut has_matched = false;
-                        let all_delivered = data_reader_list.iter().all(|r| {
-                            r.transport_reader.matched_writers().iter().all(|wp| {
-                                let wp_pub = Guid::new(
-                                    wp.remote_writer_guid().prefix(),
-                                    wp.remote_group_entity_id(),
-                                );
-                                if wp_pub == pub_guid {
-                                    has_matched = true;
-                                    let writer_guid = wp.remote_writer_guid();
-                                    data_reader_list.iter().any(|r2| {
-                                        r2.transport_reader.changes.iter().any(|other_c| {
-                                            other_c.writer_guid == writer_guid
-                                                && other_c.group_coherent_set == Some(group_sn)
-                                                && (other_c.data_value.is_empty()
-                                                    || other_c.writer_group_info.is_some())
-                                        })
-                                    })
-                                } else {
-                                    true
-                                }
+fn find_finished_group_coherent_set(
+    data_reader_list: &mut [crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
+) -> Option<FinishedGroupCoherentSet> {
+    let mut publishers: Vec<Guid> = Vec::new();
+    for r in data_reader_list.iter() {
+        for mw in r.transport_reader.matched_writers() {
+            let pub_guid = Guid::new(
+                mw.remote_writer_guid().prefix(),
+                mw.remote_group_entity_id(),
+            );
+            if !publishers.contains(&pub_guid) {
+                publishers.push(pub_guid);
+            }
+        }
+    }
+
+    for pub_guid in publishers {
+        let mut pub_writers: Vec<Guid> = Vec::new();
+        for r in data_reader_list.iter() {
+            for mw in r.transport_reader.matched_writers() {
+                let wp_pub = Guid::new(
+                    mw.remote_writer_guid().prefix(),
+                    mw.remote_group_entity_id(),
+                );
+                if wp_pub == pub_guid && !pub_writers.contains(&mw.remote_writer_guid()) {
+                    pub_writers.push(mw.remote_writer_guid());
+                }
+            }
+        }
+
+        if pub_writers.is_empty() {
+            continue;
+        }
+
+        let has_group_coherent_set = data_reader_list.iter().any(|r| {
+            r.transport_reader.changes.iter().any(|c| {
+                pub_writers.contains(&c.writer_guid)
+                    && c.group_coherent_set.is_some()
+                    && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
+            })
+        });
+
+        if has_group_coherent_set {
+            let min_group_sn = data_reader_list
+                .iter()
+                .flat_map(|r| r.transport_reader.changes.iter())
+                .filter(|c| pub_writers.contains(&c.writer_guid))
+                .filter_map(|c| c.group_coherent_set)
+                .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
+                .min();
+
+            let Some(group_sn) = min_group_sn else { continue; };
+
+            let all_writers_finished = pub_writers.iter().all(|&w| {
+                data_reader_list.iter().any(|r| {
+                    let changes = &r.transport_reader.changes;
+                    let has_end_marker = changes.iter().any(|c| {
+                        c.writer_guid == w
+                            && ((c.group_coherent_set == Some(group_sn) && c.data_value.is_empty())
+                                || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                    });
+                    let has_this = changes.iter().any(|c| {
+                        c.writer_guid == w && c.group_coherent_set == Some(group_sn)
+                    });
+                    let has_other = changes.iter().any(|c| {
+                        c.writer_guid == w
+                            && (c.group_coherent_set.is_some()
+                                && c.group_coherent_set != Some(group_sn)
+                                || c.group_coherent_set.is_none())
+                    });
+                    let has_higher = changes.iter().any(|c| {
+                        c.writer_guid == w && c.group_coherent_set > Some(group_sn)
+                    });
+
+                    has_end_marker || (has_this && has_other) || (!has_this && has_higher)
+                })
+            });
+
+            if all_writers_finished {
+                return Some(FinishedGroupCoherentSet {
+                    pub_guid,
+                    group_sn: Some(group_sn),
+                    writer_coherent_sets: Vec::new(),
+                });
+            }
+        } else {
+            // Standard PID_COHERENT_SET (per-writer)
+            // First, prune any incomplete coherent sets from late discovery
+            for &w in &pub_writers {
+                if let Some(r) = data_reader_list.iter_mut().find(|r| {
+                    r.transport_reader.matched_writers().iter().any(|mw| mw.remote_writer_guid() == w)
+                }) {
+                    let changes = &mut r.transport_reader.changes;
+                    let earliest_cs = changes
+                        .iter()
+                        .filter(|c| c.writer_guid == w)
+                        .filter_map(|c| c.coherent_set)
+                        .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
+                        .min();
+
+                    if let Some(sn) = earliest_cs {
+                        // Stale empty delimiters strictly before earliest_cs are discarded
+                        changes.retain(|c| !(c.writer_guid == w && c.data_value.is_empty() && c.sequence_number < sn));
+
+                        let has_first_sample = changes.iter().any(|c| {
+                            c.writer_guid == w && c.sequence_number == sn
+                        });
+                        let end_sn = changes
+                            .iter()
+                            .filter(|c| {
+                                c.writer_guid == w
+                                    && c.sequence_number > sn
+                                    && (c.data_value.is_empty()
+                                        || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
                             })
+                            .map(|c| c.sequence_number)
+                            .min();
+                        let has_subsequent = changes.iter().any(|c| {
+                            c.writer_guid == w
+                                && c.sequence_number > sn
+                                && (c.coherent_set.is_some() && c.coherent_set != Some(sn)
+                                    || (c.coherent_set.is_none() && !c.data_value.is_empty()))
                         });
 
-                        if has_matched && all_delivered {
-                            return Some((pub_guid, group_sn));
+                        if !has_first_sample && (end_sn.is_some() || has_subsequent) {
+                            changes.retain(|c| {
+                                if c.writer_guid == w {
+                                    if c.coherent_set == Some(sn) {
+                                        return false;
+                                    }
+                                    if let Some(esn) = end_sn {
+                                        if c.sequence_number <= esn && c.data_value.is_empty() {
+                                            return false;
+                                        }
+                                    }
+                                }
+                                true
+                            });
                         }
                     }
                 }
+            }
+
+            // Now check if all pub_writers have a finished coherent set
+            let mut writer_sets = Vec::new();
+            let mut all_ready = true;
+
+            for &w in &pub_writers {
+                let Some(r) = data_reader_list.iter().find(|r| {
+                    r.transport_reader.matched_writers().iter().any(|mw| mw.remote_writer_guid() == w)
+                }) else {
+                    all_ready = false;
+                    break;
+                };
+
+                let changes = &r.transport_reader.changes;
+                let earliest_cs = changes
+                    .iter()
+                    .filter(|c| c.writer_guid == w)
+                    .filter_map(|c| c.coherent_set)
+                    .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
+                    .min();
+
+                let Some(sn) = earliest_cs else {
+                    all_ready = false;
+                    break;
+                };
+
+                let end_sn = changes
+                    .iter()
+                    .filter(|c| {
+                        c.writer_guid == w
+                            && c.sequence_number > sn
+                            && (c.data_value.is_empty()
+                                || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                    })
+                    .map(|c| c.sequence_number)
+                    .min();
+
+                let has_this = changes.iter().any(|c| {
+                    c.writer_guid == w && c.coherent_set == Some(sn)
+                });
+                let has_other = changes.iter().any(|c| {
+                    c.writer_guid == w
+                        && c.sequence_number > sn
+                        && c.coherent_set.is_some()
+                        && c.coherent_set != Some(sn)
+                });
+
+                if (has_this && end_sn.is_some()) || (has_this && has_other) {
+                    writer_sets.push((w, sn, end_sn));
+                } else {
+                    all_ready = false;
+                    break;
+                }
+            }
+
+            if all_ready && !writer_sets.is_empty() {
+                return Some(FinishedGroupCoherentSet {
+                    pub_guid,
+                    group_sn: None,
+                    writer_coherent_sets: writer_sets,
+                });
             }
         }
     }
