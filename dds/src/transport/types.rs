@@ -114,6 +114,12 @@ impl WriteIntoBytes for Guid {
     }
 }
 
+impl Default for Guid {
+    fn default() -> Self {
+        GUID_UNKNOWN
+    }
+}
+
 pub const GUID_UNKNOWN: Guid = Guid::new(GUIDPREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 
 /// GuidPrefix_t
