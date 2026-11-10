@@ -1610,7 +1610,7 @@ fn find_finished_group_coherent_set(
                         c.writer_guid == w && c.sequence_number > sn && c.coherent_set.is_some() && c.coherent_set != Some(sn)
                     });
 
-                    (has_this && end_sn.is_some()) || (has_this && has_other)
+                    (has_other || end_sn.is_some()) && has_this
                 });
 
                 if all_ready && any_writer {
