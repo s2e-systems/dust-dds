@@ -504,8 +504,10 @@ impl DcpsDomainParticipant {
                             }
                             PresentationQosPolicyAccessScopeKind::Group => {
                                 let mut writer_finished_mask: u64 = 0;
-                                let mut writer_active_coherent_set: [Option<crate::rtps::types::SequenceNumber>; 64] =
-                                    [None; 64];
+                                let mut writer_active_coherent_set: [Option<
+                                    crate::rtps::types::SequenceNumber,
+                                >;
+                                    64] = [None; 64];
 
                                 let mut i = 0;
                                 while i < data_reader.transport_reader.changes.len() {
@@ -519,11 +521,15 @@ impl DcpsDomainParticipant {
                                             .transport_reader
                                             .matched_writers()
                                             .iter()
-                                            .position(|mw| mw.remote_writer_guid() == c.writer_guid);
+                                            .position(|mw| {
+                                                mw.remote_writer_guid() == c.writer_guid
+                                            });
 
                                         let pub_guid = mw_index
                                             .map(|idx| {
-                                                let mw = &data_reader.transport_reader.matched_writers()[idx];
+                                                let mw = &data_reader
+                                                    .transport_reader
+                                                    .matched_writers()[idx];
                                                 Guid::new(
                                                     c.writer_guid.prefix(),
                                                     mw.remote_group_entity_id(),
@@ -539,11 +545,14 @@ impl DcpsDomainParticipant {
                                         let (should_deliver, is_finished_writer_delimiter) =
                                             if pub_guid == finished.pub_guid {
                                                 if let Some(group_sn) = finished.group_sn {
-                                                    let should_deliver = c.group_coherent_set == Some(group_sn)
+                                                    let should_deliver = c.group_coherent_set
+                                                        == Some(group_sn)
                                                         && !c.data_value.is_empty();
                                                     let is_delimiter = c.data_value.is_empty();
                                                     (should_deliver, is_delimiter)
-                                                } else if let Some(idx) = mw_index.filter(|&idx| idx < 64) {
+                                                } else if let Some(idx) =
+                                                    mw_index.filter(|&idx| idx < 64)
+                                                {
                                                     let is_writer_finished =
                                                         (writer_finished_mask & (1 << idx)) != 0;
                                                     if is_writer_finished {
@@ -551,18 +560,22 @@ impl DcpsDomainParticipant {
                                                     } else if c.data_value.is_empty() {
                                                         writer_finished_mask |= 1 << idx;
                                                         (false, true)
-                                                    } else if let Some(coherent_set) = c.coherent_set {
+                                                    } else if let Some(coherent_set) =
+                                                        c.coherent_set
+                                                    {
                                                         if let Some(expected_coherent_set) =
                                                             writer_active_coherent_set[idx]
                                                         {
-                                                            if coherent_set == expected_coherent_set {
+                                                            if coherent_set == expected_coherent_set
+                                                            {
                                                                 (true, false)
                                                             } else {
                                                                 writer_finished_mask |= 1 << idx;
                                                                 (false, false)
                                                             }
                                                         } else {
-                                                            writer_active_coherent_set[idx] = Some(coherent_set);
+                                                            writer_active_coherent_set[idx] =
+                                                                Some(coherent_set);
                                                             (true, false)
                                                         }
                                                     } else {
@@ -578,10 +591,7 @@ impl DcpsDomainParticipant {
                                         if should_deliver {
                                             let cache_change =
                                                 data_reader.transport_reader.changes.remove(i);
-                                            process_single_cache_change(
-                                                cache_change,
-                                                data_reader,
-                                            );
+                                            process_single_cache_change(cache_change, data_reader);
                                         } else if is_finished_writer_delimiter {
                                             data_reader.transport_reader.changes.remove(i);
                                         } else if c.data_value.is_empty() {
@@ -591,10 +601,7 @@ impl DcpsDomainParticipant {
                                         {
                                             let cache_change =
                                                 data_reader.transport_reader.changes.remove(i);
-                                            process_single_cache_change(
-                                                cache_change,
-                                                data_reader,
-                                            );
+                                            process_single_cache_change(cache_change, data_reader);
                                         } else {
                                             i += 1;
                                         }
@@ -1446,7 +1453,10 @@ fn writers_of_pub<'a>(
         .iter()
         .flat_map(|r| r.transport_reader.matched_writers())
         .filter(move |other| {
-            Guid::new(other.remote_writer_guid().prefix(), other.remote_group_entity_id()) == pub_guid
+            Guid::new(
+                other.remote_writer_guid().prefix(),
+                other.remote_group_entity_id(),
+            ) == pub_guid
         })
         .map(|other| other.remote_writer_guid())
 }
@@ -1455,7 +1465,11 @@ fn find_finished_group_coherent_set(
     data_reader_list: &mut [crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
 ) -> Option<FinishedGroupCoherentSet> {
     for r_idx in 0..data_reader_list.len() {
-        for mw_idx in 0..data_reader_list[r_idx].transport_reader.matched_writers().len() {
+        for mw_idx in 0..data_reader_list[r_idx]
+            .transport_reader
+            .matched_writers()
+            .len()
+        {
             let mw = &data_reader_list[r_idx].transport_reader.matched_writers()[mw_idx];
             let pub_guid = Guid::new(
                 mw.remote_writer_guid().prefix(),
@@ -1468,7 +1482,10 @@ fn find_finished_group_coherent_set(
                 .iter()
                 .flat_map(|r| r.transport_reader.matched_writers())
                 .find(|other| {
-                    Guid::new(other.remote_writer_guid().prefix(), other.remote_group_entity_id()) == pub_guid
+                    Guid::new(
+                        other.remote_writer_guid().prefix(),
+                        other.remote_group_entity_id(),
+                    ) == pub_guid
                 })
                 .map(|other| other.remote_writer_guid())
                 == Some(mw_guid);
@@ -1489,25 +1506,35 @@ fn find_finished_group_coherent_set(
                 let min_group_sn = data_reader_list
                     .iter()
                     .flat_map(|r| r.transport_reader.changes.iter())
-                    .filter(|c| writers_of_pub(data_reader_list, pub_guid).any(|w| w == c.writer_guid))
+                    .filter(|c| {
+                        writers_of_pub(data_reader_list, pub_guid).any(|w| w == c.writer_guid)
+                    })
                     .filter_map(|c| c.group_coherent_set)
                     .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
                     .min();
 
-                let Some(group_sn) = min_group_sn else { continue; };
+                let Some(group_sn) = min_group_sn else {
+                    continue;
+                };
 
                 let all_finished = writers_of_pub(data_reader_list, pub_guid).all(|w| {
                     data_reader_list.iter().any(|r| {
                         let changes = &r.transport_reader.changes;
                         changes.iter().any(|c| {
                             c.writer_guid == w
-                                && ((c.group_coherent_set == Some(group_sn) && c.data_value.is_empty())
+                                && ((c.group_coherent_set == Some(group_sn)
+                                    && c.data_value.is_empty())
                                     || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
                                     || c.group_coherent_set > Some(group_sn))
-                        }) || (
-                            changes.iter().any(|c| c.writer_guid == w && c.group_coherent_set == Some(group_sn))
-                            && changes.iter().any(|c| c.writer_guid == w && (c.group_coherent_set.is_some() && c.group_coherent_set != Some(group_sn) || c.group_coherent_set.is_none()))
-                        )
+                        }) || (changes
+                            .iter()
+                            .any(|c| c.writer_guid == w && c.group_coherent_set == Some(group_sn))
+                            && changes.iter().any(|c| {
+                                c.writer_guid == w
+                                    && (c.group_coherent_set.is_some()
+                                        && c.group_coherent_set != Some(group_sn)
+                                        || c.group_coherent_set.is_none())
+                            }))
                     })
                 });
 
@@ -1523,7 +1550,11 @@ fn find_finished_group_coherent_set(
                 for r in data_reader_list.iter_mut() {
                     for mw_idx in 0..r.transport_reader.matched_writers().len() {
                         let mw = &r.transport_reader.matched_writers()[mw_idx];
-                        if Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id()) != pub_guid {
+                        if Guid::new(
+                            mw.remote_writer_guid().prefix(),
+                            mw.remote_group_entity_id(),
+                        ) != pub_guid
+                        {
                             continue;
                         }
                         let w = mw.remote_writer_guid();
@@ -1537,15 +1568,22 @@ fn find_finished_group_coherent_set(
 
                         if let Some(sn) = earliest_coherent_set {
                             // Stale empty delimiters strictly before earliest_coherent_set are discarded
-                            changes.retain(|c| !(c.writer_guid == w && c.data_value.is_empty() && c.sequence_number < sn));
+                            changes.retain(|c| {
+                                !(c.writer_guid == w
+                                    && c.data_value.is_empty()
+                                    && c.sequence_number < sn)
+                            });
 
-                            let has_first_sample = changes.iter().any(|c| c.writer_guid == w && c.sequence_number == sn);
+                            let has_first_sample = changes
+                                .iter()
+                                .any(|c| c.writer_guid == w && c.sequence_number == sn);
                             let end_sn = changes
                                 .iter()
                                 .filter(|c| {
                                     c.writer_guid == w
                                         && c.sequence_number > sn
-                                        && (c.data_value.is_empty() || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                                        && (c.data_value.is_empty()
+                                            || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
                                 })
                                 .map(|c| c.sequence_number)
                                 .min();
@@ -1580,7 +1618,10 @@ fn find_finished_group_coherent_set(
                 let all_ready = writers_of_pub(data_reader_list, pub_guid).all(|w| {
                     any_writer = true;
                     let Some(r) = data_reader_list.iter().find(|r| {
-                        r.transport_reader.matched_writers().iter().any(|mw| mw.remote_writer_guid() == w)
+                        r.transport_reader
+                            .matched_writers()
+                            .iter()
+                            .any(|mw| mw.remote_writer_guid() == w)
                     }) else {
                         return false;
                     };
@@ -1593,21 +1634,29 @@ fn find_finished_group_coherent_set(
                         .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
                         .min();
 
-                    let Some(sn) = earliest_coherent_set else { return false; };
+                    let Some(sn) = earliest_coherent_set else {
+                        return false;
+                    };
 
                     let end_sn = changes
                         .iter()
                         .filter(|c| {
                             c.writer_guid == w
                                 && c.sequence_number > sn
-                                && (c.data_value.is_empty() || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                                && (c.data_value.is_empty()
+                                    || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
                         })
                         .map(|c| c.sequence_number)
                         .min();
 
-                    let has_this = changes.iter().any(|c| c.writer_guid == w && c.coherent_set == Some(sn));
+                    let has_this = changes
+                        .iter()
+                        .any(|c| c.writer_guid == w && c.coherent_set == Some(sn));
                     let has_other = changes.iter().any(|c| {
-                        c.writer_guid == w && c.sequence_number > sn && c.coherent_set.is_some() && c.coherent_set != Some(sn)
+                        c.writer_guid == w
+                            && c.sequence_number > sn
+                            && c.coherent_set.is_some()
+                            && c.coherent_set != Some(sn)
                     });
 
                     (has_other || end_sn.is_some()) && has_this
