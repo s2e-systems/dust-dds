@@ -504,7 +504,7 @@ impl DcpsDomainParticipant {
                             }
                             PresentationQosPolicyAccessScopeKind::Group => {
                                 let mut writer_finished_mask: u64 = 0;
-                                let mut writer_active_cs: [Option<crate::rtps::types::SequenceNumber>; 64] =
+                                let mut writer_active_coherent_set: [Option<crate::rtps::types::SequenceNumber>; 64] =
                                     [None; 64];
 
                                 let mut i = 0;
@@ -551,16 +551,18 @@ impl DcpsDomainParticipant {
                                                     } else if c.data_value.is_empty() {
                                                         writer_finished_mask |= 1 << idx;
                                                         (false, true)
-                                                    } else if let Some(cs) = c.coherent_set {
-                                                        if let Some(expected_cs) = writer_active_cs[idx] {
-                                                            if cs == expected_cs {
+                                                    } else if let Some(coherent_set) = c.coherent_set {
+                                                        if let Some(expected_coherent_set) =
+                                                            writer_active_coherent_set[idx]
+                                                        {
+                                                            if coherent_set == expected_coherent_set {
                                                                 (true, false)
                                                             } else {
                                                                 writer_finished_mask |= 1 << idx;
                                                                 (false, false)
                                                             }
                                                         } else {
-                                                            writer_active_cs[idx] = Some(cs);
+                                                            writer_active_coherent_set[idx] = Some(coherent_set);
                                                             (true, false)
                                                         }
                                                     } else {
@@ -1436,6 +1438,19 @@ struct FinishedGroupCoherentSet {
     group_sn: Option<crate::rtps::types::SequenceNumber>,
 }
 
+fn writers_of_pub<'a>(
+    data_reader_list: &'a [crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
+    pub_guid: Guid,
+) -> impl Iterator<Item = Guid> + 'a {
+    data_reader_list
+        .iter()
+        .flat_map(|r| r.transport_reader.matched_writers())
+        .filter(move |other| {
+            Guid::new(other.remote_writer_guid().prefix(), other.remote_group_entity_id()) == pub_guid
+        })
+        .map(|other| other.remote_writer_guid())
+}
+
 fn find_finished_group_coherent_set(
     data_reader_list: &mut [crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader],
 ) -> Option<FinishedGroupCoherentSet> {
@@ -1446,31 +1461,25 @@ fn find_finished_group_coherent_set(
                 mw.remote_writer_guid().prefix(),
                 mw.remote_group_entity_id(),
             );
+            let mw_guid = mw.remote_writer_guid();
 
-            let already_seen = data_reader_list[..r_idx].iter().any(|r| {
-                r.transport_reader.matched_writers().iter().any(|other| {
+            // Only evaluate each publisher once (when encountering its first matched writer)
+            let is_first_for_pub = data_reader_list
+                .iter()
+                .flat_map(|r| r.transport_reader.matched_writers())
+                .find(|other| {
                     Guid::new(other.remote_writer_guid().prefix(), other.remote_group_entity_id()) == pub_guid
                 })
-            }) || data_reader_list[r_idx].transport_reader.matched_writers()[..mw_idx].iter().any(|other| {
-                Guid::new(other.remote_writer_guid().prefix(), other.remote_group_entity_id()) == pub_guid
-            });
+                .map(|other| other.remote_writer_guid())
+                == Some(mw_guid);
 
-            if already_seen {
+            if !is_first_for_pub {
                 continue;
             }
 
-            let is_pub_writer = |data_reader_list: &[crate::dcps::dcps_domain_participant::user_defined_data_reader::UserDefinedDataReader], w: Guid| -> bool {
-                data_reader_list.iter().any(|r| {
-                    r.transport_reader.matched_writers().iter().any(|mw| {
-                        mw.remote_writer_guid() == w
-                            && Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id()) == pub_guid
-                    })
-                })
-            };
-
             let has_group_coherent_set = data_reader_list.iter().any(|r| {
                 r.transport_reader.changes.iter().any(|c| {
-                    is_pub_writer(data_reader_list, c.writer_guid)
+                    writers_of_pub(data_reader_list, pub_guid).any(|w| w == c.writer_guid)
                         && c.group_coherent_set.is_some()
                         && c.group_coherent_set != Some(SEQUENCENUMBER_UNKNOWN)
                 })
@@ -1480,62 +1489,29 @@ fn find_finished_group_coherent_set(
                 let min_group_sn = data_reader_list
                     .iter()
                     .flat_map(|r| r.transport_reader.changes.iter())
-                    .filter(|c| is_pub_writer(data_reader_list, c.writer_guid))
+                    .filter(|c| writers_of_pub(data_reader_list, pub_guid).any(|w| w == c.writer_guid))
                     .filter_map(|c| c.group_coherent_set)
                     .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
                     .min();
 
                 let Some(group_sn) = min_group_sn else { continue; };
 
-                let mut all_writers_finished = true;
-                for (r_i, r) in data_reader_list.iter().enumerate() {
-                    for (mw_i, mw) in r.transport_reader.matched_writers().iter().enumerate() {
-                        let wp_pub = Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id());
-                        if wp_pub != pub_guid {
-                            continue;
-                        }
-                        let w = mw.remote_writer_guid();
-                        let already_seen = data_reader_list[..r_i].iter().any(|prev_r| {
-                            prev_r.transport_reader.matched_writers().iter().any(|other| other.remote_writer_guid() == w)
-                        }) || r.transport_reader.matched_writers()[..mw_i].iter().any(|other| other.remote_writer_guid() == w);
-                        if already_seen {
-                            continue;
-                        }
+                let all_finished = writers_of_pub(data_reader_list, pub_guid).all(|w| {
+                    data_reader_list.iter().any(|r| {
+                        let changes = &r.transport_reader.changes;
+                        changes.iter().any(|c| {
+                            c.writer_guid == w
+                                && ((c.group_coherent_set == Some(group_sn) && c.data_value.is_empty())
+                                    || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN)
+                                    || c.group_coherent_set > Some(group_sn))
+                        }) || (
+                            changes.iter().any(|c| c.writer_guid == w && c.group_coherent_set == Some(group_sn))
+                            && changes.iter().any(|c| c.writer_guid == w && (c.group_coherent_set.is_some() && c.group_coherent_set != Some(group_sn) || c.group_coherent_set.is_none()))
+                        )
+                    })
+                });
 
-                        let finished = data_reader_list.iter().any(|r| {
-                            let changes = &r.transport_reader.changes;
-                            let has_end_marker = changes.iter().any(|c| {
-                                c.writer_guid == w
-                                    && ((c.group_coherent_set == Some(group_sn) && c.data_value.is_empty())
-                                        || c.group_coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
-                            });
-                            let has_this = changes.iter().any(|c| {
-                                c.writer_guid == w && c.group_coherent_set == Some(group_sn)
-                            });
-                            let has_other = changes.iter().any(|c| {
-                                c.writer_guid == w
-                                    && (c.group_coherent_set.is_some()
-                                        && c.group_coherent_set != Some(group_sn)
-                                        || c.group_coherent_set.is_none())
-                            });
-                            let has_higher = changes.iter().any(|c| {
-                                c.writer_guid == w && c.group_coherent_set > Some(group_sn)
-                            });
-
-                            has_end_marker || (has_this && has_other) || (!has_this && has_higher)
-                        });
-
-                        if !finished {
-                            all_writers_finished = false;
-                            break;
-                        }
-                    }
-                    if !all_writers_finished {
-                        break;
-                    }
-                }
-
-                if all_writers_finished {
+                if all_finished {
                     return Some(FinishedGroupCoherentSet {
                         pub_guid,
                         group_sn: Some(group_sn),
@@ -1547,33 +1523,29 @@ fn find_finished_group_coherent_set(
                 for r in data_reader_list.iter_mut() {
                     for mw_idx in 0..r.transport_reader.matched_writers().len() {
                         let mw = &r.transport_reader.matched_writers()[mw_idx];
-                        let wp_pub = Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id());
-                        if wp_pub != pub_guid {
+                        if Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id()) != pub_guid {
                             continue;
                         }
                         let w = mw.remote_writer_guid();
                         let changes = &mut r.transport_reader.changes;
-                        let earliest_cs = changes
+                        let earliest_coherent_set = changes
                             .iter()
                             .filter(|c| c.writer_guid == w)
                             .filter_map(|c| c.coherent_set)
                             .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
                             .min();
 
-                        if let Some(sn) = earliest_cs {
-                            // Stale empty delimiters strictly before earliest_cs are discarded
+                        if let Some(sn) = earliest_coherent_set {
+                            // Stale empty delimiters strictly before earliest_coherent_set are discarded
                             changes.retain(|c| !(c.writer_guid == w && c.data_value.is_empty() && c.sequence_number < sn));
 
-                            let has_first_sample = changes.iter().any(|c| {
-                                c.writer_guid == w && c.sequence_number == sn
-                            });
+                            let has_first_sample = changes.iter().any(|c| c.writer_guid == w && c.sequence_number == sn);
                             let end_sn = changes
                                 .iter()
                                 .filter(|c| {
                                     c.writer_guid == w
                                         && c.sequence_number > sn
-                                        && (c.data_value.is_empty()
-                                            || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                                        && (c.data_value.is_empty() || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
                                 })
                                 .map(|c| c.sequence_number)
                                 .min();
@@ -1604,68 +1576,42 @@ fn find_finished_group_coherent_set(
                 }
 
                 // Now check if all pub_writers have a finished coherent set
-                let mut all_ready = true;
                 let mut any_writer = false;
+                let all_ready = writers_of_pub(data_reader_list, pub_guid).all(|w| {
+                    any_writer = true;
+                    let Some(r) = data_reader_list.iter().find(|r| {
+                        r.transport_reader.matched_writers().iter().any(|mw| mw.remote_writer_guid() == w)
+                    }) else {
+                        return false;
+                    };
 
-                for (r_i, r) in data_reader_list.iter().enumerate() {
-                    for (mw_i, mw) in r.transport_reader.matched_writers().iter().enumerate() {
-                        let wp_pub = Guid::new(mw.remote_writer_guid().prefix(), mw.remote_group_entity_id());
-                        if wp_pub != pub_guid {
-                            continue;
-                        }
-                        let w = mw.remote_writer_guid();
-                        let already_seen = data_reader_list[..r_i].iter().any(|prev_r| {
-                            prev_r.transport_reader.matched_writers().iter().any(|other| other.remote_writer_guid() == w)
-                        }) || r.transport_reader.matched_writers()[..mw_i].iter().any(|other| other.remote_writer_guid() == w);
-                        if already_seen {
-                            continue;
-                        }
+                    let changes = &r.transport_reader.changes;
+                    let earliest_coherent_set = changes
+                        .iter()
+                        .filter(|c| c.writer_guid == w)
+                        .filter_map(|c| c.coherent_set)
+                        .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
+                        .min();
 
-                        any_writer = true;
+                    let Some(sn) = earliest_coherent_set else { return false; };
 
-                        let changes = &r.transport_reader.changes;
-                        let earliest_cs = changes
-                            .iter()
-                            .filter(|c| c.writer_guid == w)
-                            .filter_map(|c| c.coherent_set)
-                            .filter(|&sn| sn != SEQUENCENUMBER_UNKNOWN)
-                            .min();
-
-                        let Some(sn) = earliest_cs else {
-                            all_ready = false;
-                            break;
-                        };
-
-                        let end_sn = changes
-                            .iter()
-                            .filter(|c| {
-                                c.writer_guid == w
-                                    && c.sequence_number > sn
-                                    && (c.data_value.is_empty()
-                                        || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
-                            })
-                            .map(|c| c.sequence_number)
-                            .min();
-
-                        let has_this = changes.iter().any(|c| {
-                            c.writer_guid == w && c.coherent_set == Some(sn)
-                        });
-                        let has_other = changes.iter().any(|c| {
+                    let end_sn = changes
+                        .iter()
+                        .filter(|c| {
                             c.writer_guid == w
                                 && c.sequence_number > sn
-                                && c.coherent_set.is_some()
-                                && c.coherent_set != Some(sn)
-                        });
+                                && (c.data_value.is_empty() || c.coherent_set == Some(SEQUENCENUMBER_UNKNOWN))
+                        })
+                        .map(|c| c.sequence_number)
+                        .min();
 
-                        if !((has_this && end_sn.is_some()) || (has_this && has_other)) {
-                            all_ready = false;
-                            break;
-                        }
-                    }
-                    if !all_ready {
-                        break;
-                    }
-                }
+                    let has_this = changes.iter().any(|c| c.writer_guid == w && c.coherent_set == Some(sn));
+                    let has_other = changes.iter().any(|c| {
+                        c.writer_guid == w && c.sequence_number > sn && c.coherent_set.is_some() && c.coherent_set != Some(sn)
+                    });
+
+                    (has_this && end_sn.is_some()) || (has_this && has_other)
+                });
 
                 if all_ready && any_writer {
                     return Some(FinishedGroupCoherentSet {
