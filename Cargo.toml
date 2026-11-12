@@ -52,6 +52,3 @@ overflow-checks = true # <-
 
 [profile.bench]
 debug = true
-
-[patch.crates-io]
-webrtc-dtls = { path = "bindings/wasm/demo/native_reader/patches/webrtc-dtls" }

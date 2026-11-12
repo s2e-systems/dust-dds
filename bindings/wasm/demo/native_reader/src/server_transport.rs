@@ -12,11 +12,14 @@ use dust_dds::transport::{
     types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator},
 };
 use webrtc::{
-    api::{APIBuilder, setting_engine::SettingEngine},
-    data_channel::{RTCDataChannel, data_channel_init::RTCDataChannelInit},
-    ice_transport::ice_candidate::RTCIceCandidateInit,
+    data_channel::{
+        DataChannel, DataChannelEvent, RTCDataChannelInit, RTCDataChannelState,
+    },
     peer_connection::{
-        configuration::RTCConfiguration, sdp::session_description::RTCSessionDescription,
+        PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler,
+        RTCConfiguration, RTCIceCandidateInit, RTCIceConnectionState,
+        RTCPeerConnectionIceEvent, RTCPeerConnectionState, RTCSessionDescription,
+        SettingEngineBuilder,
     },
 };
 
@@ -140,7 +143,7 @@ impl RtpsParticipant for RtpsWebRtcServerParticipant {
 
 struct ClientSession {
     ws_tx: mpsc::Sender<Message>,
-    data_channel: Arc<Mutex<Option<Arc<RTCDataChannel>>>>,
+    data_channel: Arc<Mutex<Option<Arc<dyn DataChannel>>>>,
 }
 
 pub struct RtpsWebRtcServerTransport {
@@ -238,8 +241,8 @@ impl Transport for RtpsWebRtcServerTransport {
                     if is_multicast {
                         for session in clients_guard.values() {
                             if let Some(ref dc) = *session.data_channel.lock().await {
-                                if dc.ready_state() == webrtc::data_channel::data_channel_state::RTCDataChannelState::Open {
-                                    let _ = dc.send(&msg.data.clone().into()).await;
+                                if let Ok(RTCDataChannelState::Open) = dc.ready_state().await {
+                                    let _ = dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
                                 }
                             }
                         }
@@ -249,8 +252,8 @@ impl Transport for RtpsWebRtcServerTransport {
 
                         if let Some(session) = clients_guard.get(&target) {
                             if let Some(ref dc) = *session.data_channel.lock().await {
-                                if dc.ready_state() == webrtc::data_channel::data_channel_state::RTCDataChannelState::Open {
-                                    let _ = dc.send(&msg.data.clone().into()).await;
+                                if let Ok(RTCDataChannelState::Open) = dc.ready_state().await {
+                                    let _ = dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
                                 }
                             }
                         }
@@ -273,6 +276,69 @@ impl Transport for RtpsWebRtcServerTransport {
     }
 
     fn delete_participant(&mut self, _handle: Guid) {}
+}
+
+struct NativePeerHandler {
+    native_guid_prefix: GuidPrefix,
+    ws_out_tx: mpsc::Sender<Message>,
+    dc_holder: Arc<Mutex<Option<Arc<dyn DataChannel>>>>,
+    incoming_tx: mpsc::Sender<Vec<u8>>,
+}
+
+#[async_trait::async_trait]
+impl PeerConnectionEventHandler for NativePeerHandler {
+    async fn on_ice_candidate(&self, event: RTCPeerConnectionIceEvent) {
+        if let Ok(json_cand) = event.candidate.to_json() {
+            tracing::info!(
+                "[Native WebRTC] Generated local ICE candidate: {}",
+                json_cand.candidate
+            );
+            let msg = SignalingMessage::IceCandidate {
+                from: self.native_guid_prefix,
+                to: [0; 12],
+                candidate: json_cand.candidate,
+                sdp_mid: json_cand.sdp_mid,
+                sdp_m_line_index: json_cand.sdp_mline_index,
+            };
+            if let Ok(text) = serde_json::to_string(&msg) {
+                let _ = self.ws_out_tx.send(Message::Text(text.into())).await;
+            }
+        }
+    }
+
+    async fn on_ice_connection_state_change(&self, state: RTCIceConnectionState) {
+        tracing::info!("[Native WebRTC] ICE connection state changed: {state}");
+    }
+
+    async fn on_connection_state_change(&self, state: RTCPeerConnectionState) {
+        tracing::info!("[Native WebRTC] Peer connection state changed: {state}");
+    }
+
+    async fn on_data_channel(&self, d: Arc<dyn DataChannel>) {
+        if let Ok(label) = d.label().await {
+            tracing::info!("[Native WebRTC] Remote DataChannel received: {label}");
+        }
+        *self.dc_holder.lock().await = Some(d.clone());
+        let incoming_tx = self.incoming_tx.clone();
+        tokio::spawn(async move {
+            while let Some(event) = d.poll().await {
+                match event {
+                    DataChannelEvent::OnOpen => {
+                        tracing::info!("[Native WebRTC] Remote DataChannel OPENED!");
+                    }
+                    DataChannelEvent::OnMessage(msg) => {
+                        let bytes = msg.data.to_vec();
+                        let _ = incoming_tx.send(bytes).await;
+                    }
+                    DataChannelEvent::OnClose => {
+                        tracing::info!("[Native WebRTC] Remote DataChannel CLOSED");
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
 }
 
 async fn handle_incoming_connection(
@@ -302,17 +368,26 @@ async fn handle_incoming_connection(
         }
     });
 
-    let dc_holder: Arc<Mutex<Option<Arc<RTCDataChannel>>>> = Arc::new(Mutex::new(None));
+    let dc_holder: Arc<Mutex<Option<Arc<dyn DataChannel>>>> = Arc::new(Mutex::new(None));
     let mut registered_prefix: Option<[u8; 12]> = None;
 
-    // Initialize WebRTC PeerConnection with loopback candidates enabled
-    let mut setting_engine = SettingEngine::default();
-    setting_engine.set_include_loopback_candidate(true);
-    let webrtc_api = APIBuilder::new()
-        .with_setting_engine(setting_engine)
+    let setting_engine = SettingEngineBuilder::new()
+        .with_include_loopback_candidate(true)
         .build();
-    let pc = match webrtc_api
-        .new_peer_connection(RTCConfiguration::default())
+
+    let handler = Arc::new(NativePeerHandler {
+        native_guid_prefix,
+        ws_out_tx: ws_out_tx.clone(),
+        dc_holder: dc_holder.clone(),
+        incoming_tx: incoming_tx.clone(),
+    });
+
+    let pc = match PeerConnectionBuilder::<String>::new()
+        .with_configuration(RTCConfiguration::default())
+        .with_setting_engine(setting_engine)
+        .with_handler(handler)
+        .with_udp_addrs(vec!["0.0.0.0:0".to_string()])
+        .build()
         .await
     {
         Ok(pc) => Arc::new(pc),
@@ -322,90 +397,34 @@ async fn handle_incoming_connection(
         }
     };
 
-    pc.on_peer_connection_state_change(Box::new(move |s| {
-        tracing::info!("[Native WebRTC] Peer connection state changed: {s}");
-        Box::pin(async move {})
-    }));
-
-    pc.on_ice_connection_state_change(Box::new(move |s| {
-        tracing::info!("[Native WebRTC] ICE connection state changed: {s}");
-        Box::pin(async move {})
-    }));
-
-    // DataChannel message handling
-    let incoming_for_dc = incoming_tx.clone();
-    let dc_holder_clone = dc_holder.clone();
-
-    // Setup on_data_channel from client
-    let dc_holder_for_remote = dc_holder.clone();
-    let incoming_for_remote_dc = incoming_tx.clone();
-    pc.on_data_channel(Box::new(move |d: Arc<RTCDataChannel>| {
-        let dc_holder = dc_holder_for_remote.clone();
-        let incoming_tx = incoming_for_remote_dc.clone();
-        tracing::info!("[Native WebRTC] Remote DataChannel received: {}", d.label());
-        d.on_open(Box::new(move || {
-            tracing::info!("[Native WebRTC] Remote DataChannel OPENED!");
-            Box::pin(async move {})
-        }));
-        Box::pin(async move {
-            *dc_holder.lock().await = Some(d.clone());
-            d.on_message(Box::new(move |msg| {
-                let incoming = incoming_tx.clone();
-                let bytes = msg.data.to_vec();
-                Box::pin(async move {
-                    let _ = incoming.send(bytes).await;
-                })
-            }));
-        })
-    }));
-
     // Setup local data channel
     let dc_init = RTCDataChannelInit {
-        ordered: Some(false),
+        ordered: false,
         max_retransmits: Some(0),
         ..Default::default()
     };
     if let Ok(dc) = pc.create_data_channel("dust_rtps", Some(dc_init)).await {
-        *dc_holder_clone.lock().await = Some(dc.clone());
-        dc.on_open(Box::new(move || {
-            tracing::info!("[Native WebRTC] Local DataChannel 'dust_rtps' OPENED!");
-            Box::pin(async move {})
-        }));
-        let incoming_tx = incoming_for_dc.clone();
-        dc.on_message(Box::new(move |msg| {
-            let incoming = incoming_tx.clone();
-            let bytes = msg.data.to_vec();
-            Box::pin(async move {
-                let _ = incoming.send(bytes).await;
-            })
-        }));
-    }
-
-    // ICE candidate signaling
-    let ws_out_for_ice = ws_out_tx.clone();
-    pc.on_ice_candidate(Box::new(move |c| {
-        let ws_tx = ws_out_for_ice.clone();
-        Box::pin(async move {
-            if let Some(candidate) = c {
-                if let Ok(json_cand) = candidate.to_json() {
-                    tracing::info!(
-                        "[Native WebRTC] Generated local ICE candidate: {}",
-                        json_cand.candidate
-                    );
-                    let msg = SignalingMessage::IceCandidate {
-                        from: native_guid_prefix,
-                        to: [0; 12],
-                        candidate: json_cand.candidate,
-                        sdp_mid: json_cand.sdp_mid,
-                        sdp_m_line_index: json_cand.sdp_mline_index,
-                    };
-                    if let Ok(text) = serde_json::to_string(&msg) {
-                        let _ = ws_tx.send(Message::Text(text.into())).await;
+        *dc_holder.lock().await = Some(dc.clone());
+        let incoming_tx_local = incoming_tx.clone();
+        tokio::spawn(async move {
+            while let Some(event) = dc.poll().await {
+                match event {
+                    DataChannelEvent::OnOpen => {
+                        tracing::info!("[Native WebRTC] Local DataChannel 'dust_rtps' OPENED!");
                     }
+                    DataChannelEvent::OnMessage(msg) => {
+                        let bytes = msg.data.to_vec();
+                        let _ = incoming_tx_local.send(bytes).await;
+                    }
+                    DataChannelEvent::OnClose => {
+                        tracing::info!("[Native WebRTC] Local DataChannel CLOSED");
+                        break;
+                    }
+                    _ => {}
                 }
             }
-        })
-    }));
+        });
+    }
 
     // Receive messages from the client
     while let Some(Ok(msg)) = ws_stream.next().await {
@@ -496,6 +515,7 @@ async fn handle_incoming_connection(
                                     sdp_mid,
                                     sdp_mline_index: sdp_m_line_index,
                                     username_fragment: None,
+                                    url: None,
                                 };
                                 if let Err(e) = pc.add_ice_candidate(init).await {
                                     tracing::warn!(
