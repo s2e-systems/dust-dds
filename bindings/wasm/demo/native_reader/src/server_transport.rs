@@ -12,14 +12,11 @@ use dust_dds::transport::{
     types::{ENTITYID_PARTICIPANT, Guid, GuidPrefix, Locator},
 };
 use webrtc::{
-    data_channel::{
-        DataChannel, DataChannelEvent, RTCDataChannelInit, RTCDataChannelState,
-    },
+    data_channel::{DataChannel, DataChannelEvent, RTCDataChannelInit, RTCDataChannelState},
     peer_connection::{
-        PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler,
-        RTCConfiguration, RTCIceCandidateInit, RTCIceConnectionState,
-        RTCPeerConnectionIceEvent, RTCPeerConnectionState, RTCSessionDescription,
-        SettingEngineBuilder,
+        PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, RTCConfiguration,
+        RTCIceCandidateInit, RTCIceConnectionState, RTCPeerConnectionIceEvent,
+        RTCPeerConnectionState, RTCSessionDescription, SettingEngineBuilder,
     },
 };
 
@@ -242,7 +239,8 @@ impl Transport for RtpsWebRtcServerTransport {
                         for session in clients_guard.values() {
                             if let Some(ref dc) = *session.data_channel.lock().await {
                                 if let Ok(RTCDataChannelState::Open) = dc.ready_state().await {
-                                    let _ = dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
+                                    let _ =
+                                        dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
                                 }
                             }
                         }
@@ -253,7 +251,8 @@ impl Transport for RtpsWebRtcServerTransport {
                         if let Some(session) = clients_guard.get(&target) {
                             if let Some(ref dc) = *session.data_channel.lock().await {
                                 if let Ok(RTCDataChannelState::Open) = dc.ready_state().await {
-                                    let _ = dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
+                                    let _ =
+                                        dc.send(bytes::BytesMut::from(msg.data.as_slice())).await;
                                 }
                             }
                         }
