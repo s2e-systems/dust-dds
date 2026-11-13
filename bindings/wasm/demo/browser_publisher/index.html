@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dust DDS - Browser Publisher Demo</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --border: #334155;
+      --input-bg: #0f172a;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    header {
+      text-align: center;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #60a5fa;
+    }
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .status-row:last-child {
+      border-bottom: none;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .badge-info {
+      background-color: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+    }
+    .badge-info .badge-dot {
+      background-color: #3b82f6;
+    }
+    .badge-success {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+    .badge-success .badge-dot {
+      background-color: #10b981;
+    }
+    .badge-warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+    }
+    .badge-warning .badge-dot {
+      background-color: #f59e0b;
+    }
+    .form-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      background-color: var(--input-bg);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+    button.btn-primary {
+      padding: 0.75rem 1.5rem;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, opacity 0.2s;
+      white-space: nowrap;
+    }
+    button.btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+    button.btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .quick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .chip {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 0.375rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .chip:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+    .log-container {
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+    }
+    .log-entry {
+      background-color: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .log-empty {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 1.5rem 0;
+      font-family: inherit;
+    }
+    .log-id {
+      color: #93c5fd;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .log-msg {
+      flex: 1;
+      word-break: break-all;
+    }
+    .log-time {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-left: 0.5rem;
+    }
+    .btn-clear {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .btn-clear:hover {
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Dust DDS Browser Publisher</h1>
+      <p>Publishes TextMessage samples via WebRTC to the Native DataReader</p>
+    </header>
+
+    <!-- Connection Status Card -->
+    <div class="card">
+      <div class="card-title">Connection Status</div>
+      <div class="status-row">
+        <span>Signaling Server (WebSocket)</span>
+        <span id="signaling-badge" class="badge badge-warning">
+          <span class="badge-dot"></span>
+          <span id="signaling-text">Connecting to ws://127.0.0.1:9001...</span>
+        </span>
+      </div>
+      <div class="status-row">
+        <span>DDS Discovery & Matching</span>
+        <span id="matched-badge" class="badge badge-warning">
+          <span class="badge-dot"></span>
+          <span id="matched-text">Waiting for DataReader...</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Sine Wave Subscriber Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Sine Wave Monitor</span>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-family: ui-monospace, monospace; font-size: 0.95rem; color: #38bdf8;">
+            sin(θ) = <strong id="sine-value">--</strong>
+          </span>
+          <span id="sine-status-badge" class="badge badge-warning">
+            <span class="badge-dot"></span>
+            <span id="sine-status-text">Waiting for samples...</span>
+          </span>
+        </div>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem;">
+        Topic: <strong style="color: #60a5fa;">SineWave</strong> &bull; QoS: <code>KeepLast(10)</code> &bull; Type: <code>SineWave { value: f64 }</code>
+      </p>
+      <div style="width: 100%; background: #0b1120; border: 1px solid var(--border); border-radius: 0.5rem; overflow: hidden; padding: 0.5rem;">
+        <canvas id="sine-canvas" width="616" height="200" style="display: block; width: 100%; height: auto;"></canvas>
+      </div>
+    </div>
+
+    <!-- Publisher Card -->
+    <div class="card">
+      <div class="card-title">Publish TextMessage</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        Topic: <strong style="color: #60a5fa;">TextMessage</strong> &bull; Type: <code>TextMessage { id: u32 (@key), message: string }</code>
+      </p>
+
+      <form id="publish-form" onsubmit="return false;">
+        <div class="form-group">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type a message to publish..."
+            autocomplete="off"
+            disabled
+          />
+          <button type="submit" id="publish-btn" class="btn-primary" disabled>
+            Publish
+          </button>
+        </div>
+      </form>
+
+      <div class="quick-chips">
+        <span class="chip" data-msg="Hello Dust DDS from the Browser!">"Hello Dust DDS from the Browser!"</span>
+        <span class="chip" data-msg="WebRTC DataChannel works smoothly!">"WebRTC DataChannel works smoothly!"</span>
+        <span class="chip" data-msg="High-performance RTPS in WASM">"High-performance RTPS in WASM"</span>
+      </div>
+    </div>
+
+    <!-- Activity Log Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Published Messages (<span id="count-display">0</span>)</span>
+        <button id="clear-btn" class="btn-clear">Clear</button>
+      </div>
+      <div id="log-container" class="log-container">
+        <div class="log-empty" id="log-empty">No messages published yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__browserLogs = [];
+    ['log', 'info', 'warn', 'error'].forEach(type => {
+      const orig = console[type];
+      console[type] = (...args) => {
+        window.__browserLogs.push({ type, msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') });
+        orig.apply(console, args);
+      };
+    });
+  </script>
+  <script type="module" src="./publisher.js"></script>
+</body>
+</html>
