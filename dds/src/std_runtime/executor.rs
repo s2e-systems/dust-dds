@@ -1,11 +1,12 @@
 use std::{
     any::Any,
+    cell::RefCell,
     collections::BinaryHeap,
     future::Future,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     pin::{Pin, pin},
     sync::{
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
         atomic::{self, AtomicBool, AtomicUsize},
         mpsc::{Sender, TryRecvError, channel},
     },
@@ -18,6 +19,25 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
     runtime::{Spawner, TaskHandle, Timer},
 };
+
+pub trait IoPoller: Send + Sync + 'static {
+    fn poll(&self, timeout: Option<Duration>);
+    fn wake(&self);
+}
+
+type SharedIoPoller = Arc<OnceLock<Arc<dyn IoPoller>>>;
+
+thread_local! {
+    static CURRENT_IO_POLLER: RefCell<Option<SharedIoPoller>> = const { RefCell::new(None) };
+}
+
+pub fn register_io_poller(poller: Arc<dyn IoPoller>) {
+    CURRENT_IO_POLLER.with(|cell| {
+        if let Some(slot) = cell.borrow().as_ref() {
+            let _ = slot.set(poller);
+        }
+    });
+}
 
 pub fn block_timeout<T>(
     duration: core::time::Duration,
@@ -90,6 +110,7 @@ pub struct Task {
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
+    io_poller: SharedIoPoller,
     finished: AtomicBool,
     is_queued: AtomicBool,
     join_waker: Mutex<Option<Waker>>,
@@ -146,6 +167,9 @@ impl Wake for Task {
         if !self.is_finished() && !self.is_queued.swap(true, atomic::Ordering::AcqRel) {
             self.task_sender.send(self.clone()).unwrap();
             self.thread_handle.unpark();
+            if let Some(poller) = self.io_poller.get() {
+                poller.wake();
+            }
         }
     }
 }
@@ -154,6 +178,7 @@ impl Wake for Task {
 pub struct ExecutorHandle {
     task_sender: Sender<Arc<Task>>,
     thread_handle: Thread,
+    io_poller: SharedIoPoller,
 }
 
 impl ExecutorHandle {
@@ -163,6 +188,7 @@ impl ExecutorHandle {
             future: Mutex::new(future),
             task_sender: self.task_sender.clone(),
             thread_handle: self.thread_handle.clone(),
+            io_poller: self.io_poller.clone(),
             finished: AtomicBool::new(false),
             is_queued: AtomicBool::new(true),
             join_waker: Mutex::new(None),
@@ -172,6 +198,9 @@ impl ExecutorHandle {
             .send(task.clone())
             .expect("Should never fail to send");
         self.thread_handle.unpark();
+        if let Some(poller) = self.io_poller.get() {
+            poller.wake();
+        }
         ExecutorTaskHandle { task }
     }
 }
@@ -211,19 +240,31 @@ impl Ord for TimerEntry {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct TimerState {
     next_id: AtomicUsize,
     entries: Mutex<BinaryHeap<TimerEntry>>,
     executor_thread: Mutex<Option<Thread>>,
+    io_poller: SharedIoPoller,
+}
+
+impl core::fmt::Debug for TimerState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TimerState")
+            .field("next_id", &self.next_id)
+            .field("entries", &self.entries)
+            .field("executor_thread", &self.executor_thread)
+            .finish()
+    }
 }
 
 impl TimerState {
-    pub fn new() -> Self {
+    pub fn new(io_poller: SharedIoPoller) -> Self {
         Self {
             next_id: AtomicUsize::new(1),
             entries: Mutex::new(BinaryHeap::new()),
             executor_thread: Mutex::new(None),
+            io_poller,
         }
     }
 
@@ -251,6 +292,9 @@ impl TimerState {
             if let Some(thread) = self.executor_thread.lock().unwrap().as_ref() {
                 thread.unpark();
             }
+            if let Some(poller) = self.io_poller.get() {
+                poller.wake();
+            }
         }
     }
 
@@ -271,7 +315,7 @@ impl TimerState {
         })
     }
 
-    pub fn wake_elapsed(&self) {
+    pub fn wake_elapsed(&self) -> bool {
         let now = Instant::now();
         let mut to_wake = Vec::new();
         {
@@ -286,9 +330,11 @@ impl TimerState {
                 }
             }
         }
+        let woke_any = !to_wake.is_empty();
         for waker in to_wake {
             waker.wake();
         }
+        woke_any
     }
 }
 
@@ -376,6 +422,7 @@ pub struct Executor {
     task_sender: Sender<Arc<Task>>,
     executor_thread_handle: JoinHandle<()>,
     timer_state: Arc<TimerState>,
+    io_poller: SharedIoPoller,
 }
 
 impl Default for Executor {
@@ -387,7 +434,9 @@ impl Default for Executor {
 impl Executor {
     pub fn new() -> Self {
         let (task_sender, task_receiver) = channel::<Arc<Task>>();
-        let timer_state = Arc::new(TimerState::new());
+        let io_poller: SharedIoPoller = Arc::new(OnceLock::new());
+        let io_poller_clone = io_poller.clone();
+        let timer_state = Arc::new(TimerState::new(io_poller.clone()));
         let timer_state_clone = timer_state.clone();
 
         let executor_thread_handle = std::thread::Builder::new()
@@ -395,6 +444,9 @@ impl Executor {
             .spawn(move || {
                 let current_thread = std::thread::current();
                 timer_state_clone.set_executor_thread(current_thread);
+                CURRENT_IO_POLLER.with(|cell| {
+                    *cell.borrow_mut() = Some(io_poller_clone.clone());
+                });
 
                 loop {
                     match task_receiver.try_recv() {
@@ -431,19 +483,23 @@ impl Executor {
                             }
                         }
                         Err(TryRecvError::Empty) => {
-                            timer_state_clone.wake_elapsed();
+                            let woke_timer = timer_state_clone.wake_elapsed();
+                            let timeout = if woke_timer {
+                                Some(Duration::ZERO)
+                            } else {
+                                timer_state_clone.duration_until_next_deadline()
+                            };
 
-                            if let Some(duration) = timer_state_clone.duration_until_next_deadline()
-                            {
-                                if duration == std::time::Duration::ZERO {
-                                    timer_state_clone.wake_elapsed();
-                                } else {
+                            if let Some(poller) = io_poller_clone.get() {
+                                poller.poll(timeout);
+                            } else if let Some(duration) = timeout {
+                                if duration > Duration::ZERO {
                                     thread::park_timeout(duration);
-                                    timer_state_clone.wake_elapsed();
                                 }
                             } else {
                                 thread::park();
                             }
+                            timer_state_clone.wake_elapsed();
                         }
                         Err(TryRecvError::Disconnected) => break,
                     }
@@ -455,6 +511,7 @@ impl Executor {
             task_sender,
             executor_thread_handle,
             timer_state,
+            io_poller,
         }
     }
 
@@ -462,6 +519,7 @@ impl Executor {
         ExecutorHandle {
             task_sender: self.task_sender.clone(),
             thread_handle: self.executor_thread_handle.thread().clone(),
+            io_poller: self.io_poller.clone(),
         }
     }
 
