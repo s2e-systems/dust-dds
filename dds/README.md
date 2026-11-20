@@ -3,16 +3,69 @@
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/s2e-systems/dust-dds/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/s2e-systems/dust-dds/tree/main)
 [![Crates.io](https://img.shields.io/crates/v/dust_dds.svg)](https://crates.io/crates/dust_dds)
 [![Docs.rs](https://docs.rs/dust_dds/badge.svg)](https://docs.rs/dust_dds)
-[![License](https://img.shields.io/crates/l/dust_dds.svg)](https://github.com/s2e-systems/dust-dds/blob/master/LICENSE)
+[![License](https://img.shields.io/crates/l/dust_dds.svg)](https://github.com/s2e-systems/dust-dds/blob/main/LICENSE)
+[![WebRTC](https://img.shields.io/badge/WebRTC%20%26%20WASM-Browser%20Native-blue)](#browser-connectivity-via-webassembly--webrtc)
+[![OMG DDS Security](https://img.shields.io/badge/OMG%20DDS%20Security%20v1.1-WIP-orange)](#omg-dds-security-v11-plugin-work-in-progress)
+[![Services](https://img.shields.io/badge/Engineering%20Services-S2E%20Systems-green)](https://www.s2e-systems.com)
 
-[Dust DDS](https://dust-dds.s2e-systems.com) is a native Rust implementation of the [Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware using the [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol developed by [S2E Software Systems](https://www.s2e-systems.com).
+[Dust DDS](https://dust-dds.s2e-systems.com) is a native, memory-safe Rust implementation of the [OMG Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol standard developed by [S2E Software Systems](https://www.s2e-systems.com).
 
-This crate provides a Rust implementation of the minimum DDS profile. It uses only stable Rust and has no `unsafe` code while providing a large code coverage validated by our CI systems to ensure its quality.
+Dust DDS provides peer-to-peer, data-centric connectivity for Physical AI, robotics, defense, aerospace, and mission-critical embedded systems. It uses only stable Rust with `#![forbid(unsafe_code)]` in the core engine, guaranteeing deterministic, zero-overhead execution without garbage collection pauses or C/C++ memory corruption vulnerabilities.
 
+---
+
+## Key Architectural Features
+
+* **Brokerless Peer-to-Peer Discovery**: Nodes dynamically discover each other over the network via standard RTPS discovery. There is no central broker to configure, bottleneck, or introduce a single point of failure.
+* **Fine-Grained Quality of Service (QoS)**: Contract-based data delivery policies built natively into the wire protocol (Reliability, Durability, Deadline, Liveliness, History, and Ownership).
+* **Deterministic Memory Safety**: Pure, stable Rust eliminates memory safety CVEs, buffer overflows, and data races in multi-threaded stacks without runtime garbage collector pauses.
+* **Modular Pluggable Transports**: Configurable transport architecture supporting standard UDP/IP (v4 and v6), zero-copy shared memory (`iceoryx2`), and WebRTC DataChannels.
+* **Multi-Platform Support**: Runs on desktop Linux, macOS, and Windows, safety-critical RTOSes (QNX, VxWorks), resource-constrained microcontrollers (`no_std`), and web browsers via WebAssembly.
+
+---
+
+## Comparison with Alternative DDS Implementations
+
+| Feature | Dust DDS | Eclipse Cyclone DDS | eProsima Fast DDS | RTI Connext |
+| :--- | :---: | :---: | :---: | :---: |
+| **Primary Language** | Safe Rust | C | C++ | C / C++ |
+| **Memory Safety** | Compile-time guaranteed | Manual / C liabilities | Manual / C++ liabilities | Manual / C++ liabilities |
+| **Security Dependencies** | Zero OpenSSL bloat (Pure Rust) | OpenSSL | OpenSSL | OpenSSL / WolfSSL |
+| **Browser / WebRTC** | Native WASM & WebRTC DataChannels | External bridges only | External bridges only | External gateways |
+| **Pluggable Transports** | Modular trait (UDP, Shared Memory, WebRTC) | Static / Monolithic | Transport API | Pluggable (Monolithic core) |
+| **Embedded & Microcontrollers** | Native `no_std` / Embassy support | CycloneDDS Micro | Micro XRCE-DDS | Connext Micro / Cert |
+| **License** | Apache 2.0 | EPL 2.0 | Apache 2.0 | Commercial / Proprietary |
+
+---
+
+## Browser Connectivity via WebAssembly & WebRTC
+
+Standard DDS implementations rely on UDP multicast and raw UDP sockets, which cannot be opened within web browsers. Integrating DDS with browser-based teleoperation consoles or diagnostic dashboards traditionally required intermediate WebSocket proxies (such as `rosbridge`) or dedicated VPN tunnels, which introduce serialization overhead, head-of-line blocking, and complex deployment requirements over cellular networks.
+
+Dust DDS addresses this by compiling directly to WebAssembly (`wasm32-unknown-unknown`) and communicating over WebRTC DataChannels:
+
+```text
+┌────────────────────────────────────┐              WebSocket Signaling (Discovery Only)
+│   Web Browser Client               │< ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ >┌────────────────────────────────────┐
+│   (Chrome / Firefox / Safari)      │                                                          │   Native Node / Robot              │
+│                                    │            WebRTC DataChannel ("dust_rtps")              │   (dust_dds daemon / application)  │
+│   • Pure Rust via dust_dds_wasm    │=========================================================>│                                    │
+│   • Zero client installation       │              Sub-100ms, zero-copy RTPS data              │   • Native UDP / Shared Memory     │
+│   • Runs in Web Worker or main UI  │<=========================================================│   • STUN/TURN NAT Traversal        │
+└────────────────────────────────────┘                                                          └────────────────────────────────────┘
+```
+
+* **Zero-Install Web Clients**: The WebAssembly package (`dust_dds_wasm`) runs directly inside standard browsers, enabling low-latency telemetry visualization and control interfaces delivered via URL.
+* **Direct RTPS DataChannels**: RTPS messages travel directly over peer-to-peer WebRTC DataChannels, retaining binary serialization and fine-grained DDS QoS contracts.
+* **NAT & Firewall Traversal**: Built-in STUN/TURN integration enables reliable connectivity across symmetric NATs and cellular (4G/5G) links without public IP addresses or client VPN software.
+
+A complete runnable demonstration of bidirectional communication between a native Rust application and a web browser client is available in [bindings/wasm/demo](https://github.com/s2e-systems/dust-dds/tree/main/bindings/wasm/demo).
+
+---
 
 ## Example
 
-A basic example on how to use Dust DDS. The publisher side can be implemented as:
+### Publisher
 
 ```rust
 use dust_dds::{
@@ -53,7 +106,7 @@ let hello_world = HelloWorldType {
 writer.write(hello_world, None).unwrap();
 ```
 
-The subscriber side can be implemented as:
+### Subscriber
 
 ```rust
 use dust_dds::{
@@ -92,257 +145,102 @@ if let Ok(hello_world_sample) = reader.read_next_sample() {
 }
 ```
 
-## A brief introduction to DDS
+---
 
-DDS is a machine-to-machine communication middleware and API standard designed for data-centric connectivity. At its core, DDS aims to facilitate the seamless sharing of pertinent data precisely where and when it's needed, even across publishers and subscribers operating asynchronously in time. With DDS, applications can exchange information through the reading and writing of data-objects identified by user-defined names (Topics) and keys. One of its defining features is the robust control it offers over Quality-of-Service (QoS) parameters, encompassing reliability, bandwidth, delivery deadlines, and resource allocations.
+## Defining DDS Types
 
-The [DDS standard](https://www.omg.org/spec/DDS/1.4/PDF) "defines both the Application Interfaces (APIs) and the Communication Semantics (behavior and quality of service) that enable the efficient delivery of information from information producers to matching consumer". Complementing this standard is the [DDSI-RTPS specification](https://www.omg.org/spec/DDSI-RTPS/2.5/PDF), which defines an interoperability wire protocol for DDS. Its primary aim is to ensure that applications based on different vendors' implementations of DDS can interoperate. The implementation of Dust DDS primarily centers around the DDS and DDSI-RTPS standards.
-
-## Who should use DDS?
-
-Choosing the right middleware depends on many factors like *network architecture*, *latency requirements*, *scalability* and *workload*. There are though some questions you can ask to determine if DDS is the right solution:
-1. Do I have a dynamic network topology? A dynamic network topology means that devices are able to join and leave the communication domain at anytime. Imagine an air traffic control system, a rail network monitoring system or a robot with variable sensor and actuator setup. This makes any fixed configuration very challenging and is well handled by the dynamic discovery system of DDS.
-2. Do I need to send a large volume of messages and/or operate on the millisecond time range? Imagine publishing data from a radar system, monitoring a vehicle position or sending mixed robot video and sensor data. Default DDS implementation use UDP and provide an extensive QoS which enable it to handle high-throughput and low-latency messaging.
-3. Does my system need to be robust to failures on the different nodes? Imagine a defense system which should be resilient or a robot that can continue to operate when certain sensors or actuators are removed. DDS discovery does not rely on any centralized server and communication is peer-to-peer. This reduces single points-of-failure and bottlenecks.
-4. Do I need well defined communication types that can evolve over time? Imagine an automotive or robotic system where you want to have well defined data types transmitted by the sensors. DDS is a data-centric middleware and its type system allows type definitions to be extended and evolve over time.
-
-If you answered yes to one or more of these questions, DDS is likely a strong candidate for your application. There are also certain common applications for which DDS is typically not the best fit. These include:
-
-1. Heavy database-centric workloads. If your system is primarily used to store and retrieve data from persistent data storage you are probably better off with a database-driven approach.
-2. Non-real-time web applications. If your main requirement is scalable centralized web-based communication you are probably better of with other message broker solutions
-3. Simple request-response workloads. If your application follows a standard request-response model then you are probably better off with REST or RPC-based communication even if DDS is able to handle request reply mechanisms.
-
-## Rust type definition using #[derive(DdsType)]
-
-This library provides the `DdsType` derive macro to support defining DDS types in Rust. The `DdsType` derive macro can be applied to `struct`s, tuples, and `enum`s to automatically implement the traits needed for communication.
-
-### Container Attributes
-
-Container attributes apply to the entire `struct` or `enum` definition and are defined using `#[dust_dds(...)]` on the container:
-
-* **`name = "<string>"`**:
-  Customizes the name of the DDS type. Defaults to the Rust struct or enum identifier.
-* **`extensibility = "final" | "appendable" | "mutable"`**:
-  Specifies the type extensibility (defined in the DDS XTypes specification). Defaults to `"final"`.
-* **`nested`**:
-  A boolean flag marking the type as nested. Nested types cannot be used as standalone top-level topics but can be members of other types.
-* **`base_type = <Type>`**:
-  Specifies the base struct for single inheritance. When specified, the struct must declare a `parent` field of type `<Type>`.
-
-### Struct Field Attributes
-
-Field attributes apply to individual fields of a struct or tuple, defined using `#[dust_dds(...)]` on the field:
-
-* **`key`**:
-  Marks the field as part of the key of the type. Multiple fields can be marked as keys.
-* **`id = <integer>`**:
-  Explicitly assigns a member ID. This is particularly useful for `"mutable"` extensibility.
-* **`optional`**:
-  Marks the field as optional.
-* **`default_value = <expression>`**:
-  Specifies a default value expression to use if the field is missing during deserialization.
-* **`non_serialized`**:
-  Marks a field to be skipped during serialization and deserialization. It is initialized using `Default::default()`.
-* **`external`**:
-  Marks the field as external, which indicates it uses a pointer/box/reference semantic representation in the DDS type system.
-* **`hashid`**:
-  Instructs the macro to automatically assign a member ID computed from the MD5 hash of the field's name (first 4 bytes as a little-endian integer).
-* **`try_construct = "discard" | "use_default" | "trim"`**:
-  Specifies the try construct behavior for deserialization (defined in the DDS XTypes specification). Defaults to `"discard"`.
-
-### Struct Inheritance (Base Type)
-
-DDS XTypes supports single inheritance for structures (corresponding to `struct Child : Parent` in IDL). Because Rust does not support struct inheritance directly, Dust DDS follows the OMG DDS-XTypes specification mapping for languages without native inheritance:
-
-1. Annotate the derived struct with the `#[dust_dds(base_type = <BaseType>)]` container attribute.
-2. Declare a field named `parent` of type `<BaseType>` in the derived struct.
-
-When `base_type` is configured:
-* **Field access**: Fields of the base type are accessed on the Rust struct through the `parent` field (e.g., `car.parent.vin`).
-* **Serialization**: Base struct members are serialized and deserialized first, followed by the derived struct's own members.
-* **Member IDs**: Member IDs for the derived struct's fields automatically continue after the base type's member IDs (for `final` and `appendable` structs, or auto-assigned in `mutable` structs).
-* **Type Object**: The generated `TypeObject` links the derived type to the base type via `header.base_type`, preserving the inheritance hierarchy across DDS discovery and type consistency checks.
-
-### Enum Attributes
-
-An enum can represent either a standard **Enumerated Type** or an **XTypes Union**.
-
-#### 1. Enumerated Types (Unit Variants Only)
-
-If an enum contains only unit variants (variants without fields), it is mapped to a DDS enumerated type.
-
-* **`bit_bound = "8" | "16" | "32"`**:
-  Specifies the size of the integer representation in bits. Defaults to `"32"`.
-* Custom integer discriminants (e.g. `A = 10`) are mapped directly to their corresponding DDS values.
-
-#### 2. XTypes Unions (Variants with Fields)
-
-If an enum contains at least one variant with fields, it is mapped to a DDS Union.
-
-* **`switch(<Type>)` or `switch(key, <Type>)`**:
-  **Required.** Specifies the type of the discriminator. If `key` is present, the discriminator is treated as a key.
-* **`case = <expression>`** (on variants):
-  Specifies the discriminator value(s) for which this variant is selected. If omitted, defaults to the 0-indexed index of the variant.
-* **`default`** (on a variant):
-  Marks the variant as the default case if no other case matches.
-
-### Examples
-
-#### Basic Struct with Key
+Dust DDS allows topic types to be defined natively in Rust using the `DdsType` derive macro:
 
 ```rust
 use dust_dds::infrastructure::type_support::DdsType;
 
 #[derive(DdsType)]
-struct HelloWorld {
+struct SensorData {
     #[dust_dds(key)]
-    id: i32,
-    msg: String,
+    sensor_id: u32,
+    timestamp: u64,
+    reading: f64,
 }
 ```
 
-#### Appendable and Nested Struct
+DDS types can also be generated from OMG IDL v4 specifications using the [`dust_dds_gen`](https://crates.io/crates/dust_dds_gen) crate.
 
-```rust
-use dust_dds::infrastructure::type_support::DdsType;
+For full technical documentation on:
+* Container attributes (`name`, `extensibility`, `nested`, `base_type`)
+* Field attributes (`key`, `id`, `optional`, `default_value`, `non_serialized`, `external`, `hashid`, `try_construct`)
+* Single inheritance (`base_type` and `parent` field mapping)
+* Enumerated types (`bit_bound`) and XTypes Unions (`switch`, `case`, `default`)
+* IDL type generation
 
-#[derive(DdsType)]
-#[dust_dds(name = "CustomPoint", extensibility = "appendable", nested)]
-struct Point {
-    x: f64,
-    y: f64,
-}
+Please refer to the [DDS Type Definition and IDL Guide](https://github.com/s2e-systems/dust-dds/blob/main/dds/docs/type_support.md).
+
+---
+
+## Synchronous and Asynchronous API
+
+Dust DDS provides both synchronous and asynchronous APIs to support diverse application architectures:
+
+* **Synchronous API**: Follows the standard DDS specification using DDS listeners and waitsets for event-driven architectures. Recommended for standard embedded and multi-threaded systems.
+* **Asynchronous API**: Built for async runtimes such as [Tokio](https://tokio.rs). When integrating with Tokio, the asynchronous API must be used to avoid panics resulting from blocking calls inside the runtime.
+
+---
+
+## Multi-Language and Ecosystem Bindings
+
+* **WebAssembly (`dust_dds_wasm`)**: WebAssembly bindings running in browsers with WebRTC DataChannels for teleoperation and telemetry.
+* **Python Bindings (`dust-dds-python`)**: Connects AI training and inference pipelines (PyTorch, JAX) and simulation platforms directly to DDS topics without IPC conversion overhead.
+* **C / C++ Bindings**: Stable C-compatible API allowing incremental integration into existing C and C++ codebases.
+* **ROS 2 RMW (`rmw_dust_dds`)**: Drop-in ROS 2 RMW implementation supporting active ROS 2 distributions (Humble, Jazzy).
+* **Microcontrollers (`no_std`)**: Support for bare-metal targets and microcontrollers with a pre-built runtime using the Embassy async framework.
+
+---
+
+## Commercial Extensions & Engineering Services
+
+[S2E Software Systems](https://www.s2e-systems.com) offers commercial software modules, platform porting, and engineering services for production deployments of Dust DDS:
+
+### OMG DDS Security v1.1 Plugin (Work in Progress)
+A pure-Rust implementation of the OMG DDS Security v1.1 specification, delivering cryptographic protection without OpenSSL dependencies:
+* **Authentication**: PKI mutual authentication with X.509 certificates.
+* **Access Control**: Fine-grained, signed topic governance and permissions.
+* **Wire Cryptography**: AES-GCM (128/256-bit) payload encryption and message authentication (MAC).
+* *Status*: Under active development. Contact S2E for roadmap access and pilot evaluation.
+
+### WebRTC Teleoperation Fleet Gateway
+Production edge daemon and signaling infrastructure connecting local DDS networks to remote browser consoles across enterprise NATs and cellular links.
+
+### Custom Transport Implementation
+Design and qualification of custom transport drivers for specialized hardware buses and determinism requirements:
+* Time-Sensitive Networking (TSN / IEEE 802.1Qbv)
+* CAN / CAN-FD and industrial fieldbuses
+* PCIe interconnects and FPGA shared-memory buffers
+* Tactical radio, SATCOM, and custom RF links
+
+### Platform & RTOS Porting
+Porting, hardening, and qualification of Dust DDS for customer hardware targets and certified operating environments:
+* Safety-critical RTOSes (QNX Neutrino, Wind River VxWorks)
+* Small-footprint targets (Zephyr RTOS, FreeRTOS, bare-metal `no_std`)
+* Board bring-up with automated Hardware-in-the-Loop (HIL) qualification
+
+### Technical Training & Support SLAs
+* **Workshops**: Hands-on engineering workshops covering DDS QoS tuning, distributed systems architecture, and Rust integration into legacy C/C++ stacks.
+* **Commercial Support**: Commercial SLAs, dedicated issue resolution, and long-term support (LTS) backports available upon request.
+
+For inquiries, contact [info@s2e-systems.com](mailto:info@s2e-systems.com) or visit [s2e-systems.com](https://www.s2e-systems.com).
+
+---
+
+## Shapes Demo
+
+DDS interoperability is typically validated using a shapes demo. The Dust DDS Shapes Demo is included in this repository and can be launched with:
+
+```bash
+cargo run --package dust_dds_shapes_demo
 ```
 
-#### Mutable Struct with Custom Member IDs and Defaults
+![Dust DDS Shapes demo screenshot](https://raw.githubusercontent.com/s2e-systems/dust-dds/main/dds/docs/shapes_demo_screenshot.png)
 
-```rust
-use dust_dds::infrastructure::type_support::DdsType;
-
-#[derive(DdsType)]
-#[dust_dds(extensibility = "mutable")]
-struct Profile {
-    #[dust_dds(id = 1, key)]
-    id: u32,
-    #[dust_dds(id = 2)]
-    username: String,
-    #[dust_dds(id = 10, optional)]
-    email: Option<String>,
-    #[dust_dds(id = 11, default_value = 18)]
-    age: u32,
-    #[dust_dds(non_serialized)]
-    session_count: u32,
-}
-```
-
-#### Struct Inheritance with Base Type
-
-```rust
-use dust_dds::infrastructure::type_support::DdsType;
-
-#[derive(DdsType)]
-struct Vehicle {
-    #[dust_dds(key)]
-    vin: String,
-    speed: f32,
-}
-
-#[derive(DdsType)]
-#[dust_dds(base_type = Vehicle)]
-struct Car {
-    parent: Vehicle,
-    number_of_doors: u8,
-}
-```
-
-#### Enumerated Type with Bit Bound
-
-```rust
-use dust_dds::infrastructure::type_support::DdsType;
-
-#[derive(DdsType)]
-#[dust_dds(bit_bound = "16")]
-enum TrafficLight {
-    Red = 1,
-    Yellow = 2,
-    Green = 3,
-}
-```
-
-#### Union with Discriminator Switch
-
-```rust
-use dust_dds::infrastructure::type_support::DdsType;
-
-#[derive(DdsType)]
-#[dust_dds(switch(i32))]
-enum Shape {
-    #[dust_dds(case = 1)]
-    Circle(f64),
-    #[dust_dds(case = 2)]
-    Square { side: f64 },
-    #[dust_dds(default)]
-    Unknown,
-}
-```
-
-## IDL type generation
-
-If using different programming languages or vendors, the DDS type can be generated from an IDL file using the [dust_dds_gen crate](https://crates.io/crates/dust_dds_gen). For example, the `HelloWorldType` can be generated from the following IDL:
-
-```idl
-struct HelloWorldType {
-  @key
-  uint8 id;
-  string msg;
-};
-```
-
-Inheritance in IDL is also supported and automatically translated to the `base_type` attribute with a `parent` field:
-
-```idl
-struct Parent {
-  uint8 a;
-};
-
-struct Child : Parent {
-  string name;
-};
-```
-
-## Sync and Async library API
-
-Dust DDS provides both a "sync" and an "async" API to allow integrating DDS in the largest number of applications with maximum performance. In general, the first option should be to use the sync API and make use of the DDS specified functionality such as listeners for event based programs.
-
-When implementing applications that already make use of async, then the async API must be used. In particular, when using a Tokio runtime, using the Sync API will result in a panic due to blocking calls. You can see find an example in the examples folder.
-
-## Dust DDS extensions
-
-### Dust DDS C Bindings
-
-Dust DDS provides [C bindings](https://dust-dds.s2e-systems.com/product/c-binding/) as an extension, enabling integration with existing C and C++ codebases and facilitating adoption in environments where Rust cannot be used directly. The bindings expose a stable, C-compatible API that mirrors the core DDS concepts while preserving Dust DDS’s focus on correctness and performance. This extension makes it possible to incrementally introduce Dust DDS into legacy systems, mixed-language projects, or constrained embedded environments, without requiring a full rewrite in Rust.
-
-### Dust DDS for microcontrollers
-
-Dust DDS can be deployed on [microcontrollers](https://dust-dds.s2e-systems.com/product/microcontrollers/) and other *no_std* targets, enabling DDS-based communication in highly constrained environments. For this purpose, Dust DDS provides a pre-made runtime built on top of the Embassy async framework, offering a ready-to-use execution model tailored to embedded systems. In addition, S2E offers services to assist with porting Dust DDS to custom or proprietary runtimes, allowing integration into environments where Embassy is not available or where specific platform requirements apply.
-
-### DDS over the Internet
-
-Standard DDS implementations are limited to local networks because they rely on UDP multicast for participant discovery, which is not permitted across the internet. If you want to connect your devices over the internet, our [Global DDS](https://dust-dds.s2e-systems.com/product/global-dds/) offers a plug-and-play solution without code modifications or additional software needed.
-
-### DDS REST API
-
-If you want to interact with your DDS data using a REST API you can use our [Nebula DDS WebLink](https://www.s2e-systems.com/products/nebula-dds-weblink/) software. Nebula DDS WebLink provides a server implementing the Object Management Group (OMG) Web-Enabled DDS v1.0 standard.
-
-## Shapes demo
-
-DDS interoperability is typically tested using a shapes demo. The Dust DDS Shapes Demo is available on our repository and can be started by running `cargo run --package dust_dds_shapes_demo` from the root folder.
-
-![Dust DDS Shapes demo screenshot](https://raw.githubusercontent.com/s2e-systems/dust-dds/master/dds/docs/shapes_demo_screenshot.png)
-
-## Release schedule
-
-Dust DDS doesn't follow a fixed release schedule but we will make releases as new features are implemented.
+---
 
 ## License
 
