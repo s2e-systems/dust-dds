@@ -8,58 +8,9 @@
 [![OMG DDS Security](https://img.shields.io/badge/OMG%20DDS%20Security%20v1.1-WIP-orange)](#omg-dds-security-v11-plugin-work-in-progress)
 [![Services](https://img.shields.io/badge/Engineering%20Services-S2E%20Systems-green)](https://www.s2e-systems.com)
 
-[Dust DDS](https://dust-dds.s2e-systems.com) is a native, memory-safe Rust implementation of the [OMG Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol standard developed by [S2E Software Systems](https://www.s2e-systems.com).
+[Dust DDS](https://dust-dds.s2e-systems.com) is a native Rust implementation of the [Data Distribution Service (DDS)](https://www.omg.org/omg-dds-portal/) middleware and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) wire protocol standard developed by [S2E Software Systems](https://www.s2e-systems.com).
 
-Dust DDS provides peer-to-peer, data-centric connectivity for Physical AI, robotics, defense, aerospace, and mission-critical embedded systems. It uses only stable Rust with `#![forbid(unsafe_code)]` in the core engine, guaranteeing deterministic, zero-overhead execution without garbage collection pauses or C/C++ memory corruption vulnerabilities.
-
----
-
-## Key Architectural Features
-
-* **Brokerless Peer-to-Peer Discovery**: Nodes dynamically discover each other over the network via standard RTPS discovery. There is no central broker to configure, bottleneck, or introduce a single point of failure.
-* **Fine-Grained Quality of Service (QoS)**: Contract-based data delivery policies built natively into the wire protocol (Reliability, Durability, Deadline, Liveliness, History, and Ownership).
-* **Deterministic Memory Safety**: Pure, stable Rust eliminates memory safety CVEs, buffer overflows, and data races in multi-threaded stacks without runtime garbage collector pauses.
-* **Modular Pluggable Transports**: Configurable transport architecture supporting standard UDP/IP (v4 and v6), zero-copy shared memory (`iceoryx2`), and WebRTC DataChannels.
-* **Multi-Platform Support**: Runs on desktop Linux, macOS, and Windows, safety-critical RTOSes (QNX, VxWorks), resource-constrained microcontrollers (`no_std`), and web browsers via WebAssembly.
-
----
-
-## Comparison with Alternative DDS Implementations
-
-| Feature | Dust DDS | Eclipse Cyclone DDS | eProsima Fast DDS | RTI Connext |
-| :--- | :---: | :---: | :---: | :---: |
-| **Primary Language** | Safe Rust | C | C++ | C / C++ |
-| **Memory Safety** | Compile-time guaranteed | Manual / C liabilities | Manual / C++ liabilities | Manual / C++ liabilities |
-| **Security Dependencies** | Zero OpenSSL bloat (Pure Rust) | OpenSSL | OpenSSL | OpenSSL / WolfSSL |
-| **Browser / WebRTC** | Native WASM & WebRTC DataChannels | External bridges only | External bridges only | External gateways |
-| **Pluggable Transports** | Modular trait (UDP, Shared Memory, WebRTC) | Static / Monolithic | Transport API | Pluggable (Monolithic core) |
-| **Embedded & Microcontrollers** | Native `no_std` / Embassy support | CycloneDDS Micro | Micro XRCE-DDS | Connext Micro / Cert |
-| **License** | Apache 2.0 | EPL 2.0 | Apache 2.0 | Commercial / Proprietary |
-
----
-
-## Browser Connectivity via WebAssembly & WebRTC
-
-Standard DDS implementations rely on UDP multicast and raw UDP sockets, which cannot be opened within web browsers. Integrating DDS with browser-based teleoperation consoles or diagnostic dashboards traditionally required intermediate WebSocket proxies (such as `rosbridge`) or dedicated VPN tunnels, which introduce serialization overhead, head-of-line blocking, and complex deployment requirements over cellular networks.
-
-Dust DDS addresses this by compiling directly to WebAssembly (`wasm32-unknown-unknown`) and communicating over WebRTC DataChannels:
-
-```text
-┌────────────────────────────────────┐              WebSocket Signaling (Discovery Only)
-│   Web Browser Client               │< ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ >┌────────────────────────────────────┐
-│   (Chrome / Firefox / Safari)      │                                                          │   Native Node / Robot              │
-│                                    │            WebRTC DataChannel ("dust_rtps")              │   (dust_dds daemon / application)  │
-│   • Pure Rust via dust_dds_wasm    │=========================================================>│                                    │
-│   • Zero client installation       │              Sub-100ms, zero-copy RTPS data              │   • Native UDP / Shared Memory     │
-│   • Runs in Web Worker or main UI  │<=========================================================│   • STUN/TURN NAT Traversal        │
-└────────────────────────────────────┘                                                          └────────────────────────────────────┘
-```
-
-* **Zero-Install Web Clients**: The WebAssembly package (`dust_dds_wasm`) runs directly inside standard browsers, enabling low-latency telemetry visualization and control interfaces delivered via URL.
-* **Direct RTPS DataChannels**: RTPS messages travel directly over peer-to-peer WebRTC DataChannels, retaining binary serialization and fine-grained DDS QoS contracts.
-* **NAT & Firewall Traversal**: Built-in STUN/TURN integration enables reliable connectivity across symmetric NATs and cellular (4G/5G) links without public IP addresses or client VPN software.
-
-A complete runnable demonstration of bidirectional communication between a native Rust application and a web browser client is available in [bindings/wasm/demo](https://github.com/s2e-systems/dust-dds/tree/main/bindings/wasm/demo).
+Dust DDS provides peer-to-peer, data-centric connectivity for Physical AI, robotics, defense, aerospace, and mission-critical embedded systems. It uses only stable Rust with `#![forbid(unsafe_code)]` in the core engine.
 
 ---
 
@@ -147,6 +98,16 @@ if let Ok(hello_world_sample) = reader.read_next_sample() {
 
 ---
 
+## Key Architectural Features
+
+* **Brokerless Peer-to-Peer Discovery**: Nodes dynamically discover each other over the network via standard RTPS discovery. There is no central broker to configure, bottleneck, or introduce a single point of failure.
+* **Fine-Grained Quality of Service (QoS)**: Contract-based data delivery policies built natively into the wire protocol (Reliability, Durability, Deadline, Liveliness, History, and Ownership).
+* **Deterministic Memory Safety**: Pure, stable Rust eliminates memory safety CVEs, buffer overflows, and data races in multi-threaded stacks without runtime garbage collector pauses.
+* **Modular Pluggable Transports**: Configurable transport architecture supporting standard UDP/IP (v4 and v6), zero-copy shared memory (`iceoryx2`), and WebRTC DataChannels.
+* **Multi-Platform Support**: Runs on desktop Linux, macOS, and Windows, safety-critical RTOSes (QNX, VxWorks), resource-constrained microcontrollers (`no_std`), and web browsers via WebAssembly.
+
+---
+
 ## Defining DDS Types
 
 Dust DDS allows topic types to be defined natively in Rust using the `DdsType` derive macro:
@@ -206,13 +167,9 @@ A pure-Rust implementation of the OMG DDS Security v1.1 specification, deliverin
 * **Wire Cryptography**: AES-GCM (128/256-bit) payload encryption and message authentication (MAC).
 * *Status*: Under active development. Contact S2E for roadmap access and pilot evaluation.
 
-### WebRTC Teleoperation Fleet Gateway
-Production edge daemon and signaling infrastructure connecting local DDS networks to remote browser consoles across enterprise NATs and cellular links.
-
 ### Custom Transport Implementation
 Design and qualification of custom transport drivers for specialized hardware buses and determinism requirements:
 * Time-Sensitive Networking (TSN / IEEE 802.1Qbv)
-* CAN / CAN-FD and industrial fieldbuses
 * PCIe interconnects and FPGA shared-memory buffers
 * Tactical radio, SATCOM, and custom RF links
 
