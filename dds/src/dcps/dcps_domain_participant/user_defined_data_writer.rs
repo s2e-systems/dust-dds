@@ -102,9 +102,55 @@ impl UserDefinedDataWriter {
             return;
         };
         self.matched_subscription_list.remove(i);
+        self.writer
+            .transport_writer
+            .delete_matched_reader((*subscription_handle.as_ref()).into());
 
         self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
         self.publication_matched_status.current_count_change -= 1;
+        self.status_condition
+            .add_communication_state(StatusKind::PublicationMatched);
+
+        self.complete_satisfied_acknowledgment_waits();
+    }
+
+    pub fn remove_matched_subscriptions_by_prefix(&mut self, prefix: [u8; 12]) {
+        let mut removed_count = 0i32;
+        self.matched_subscription_list.retain(|subscription| {
+            if subscription.key.value[..12] == prefix {
+                self.writer
+                    .transport_writer
+                    .delete_matched_reader(subscription.key.value.into());
+                removed_count += 1;
+                false
+            } else {
+                true
+            }
+        });
+        if removed_count == 0 {
+            return;
+        }
+
+        self.publication_matched_status.current_count = self.matched_subscription_list.len() as i32;
+        self.publication_matched_status.current_count_change -= removed_count;
+        self.status_condition
+            .add_communication_state(StatusKind::PublicationMatched);
+
+        self.complete_satisfied_acknowledgment_waits();
+    }
+
+    fn complete_satisfied_acknowledgment_waits(&mut self) {
+        // Removed readers can no longer acknowledge changes. Complete pending
+        // waits only when every remaining reliable reader has acknowledged.
+        if self
+            .writer
+            .transport_writer
+            .is_change_acknowledged(self.writer.last_change_sequence_number)
+        {
+            for notification in self.wait_for_acknowledgments_notification.drain(..) {
+                notification.send(Ok(()));
+            }
+        }
     }
 
     pub fn get_offered_deadline_missed_status(&mut self) -> OfferedDeadlineMissedStatus {
