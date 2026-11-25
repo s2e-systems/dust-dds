@@ -344,7 +344,7 @@ impl RtpsUdpTransport {
     /// separate message using RTPS data fragments
     pub fn set_fragment_size(&mut self, fragment_size: usize) -> DdsResult<&mut Self> {
         let fragment_size_range = 8..=65000;
-        if !fragment_size_range.contains(&self.fragment_size) {
+        if !fragment_size_range.contains(&fragment_size) {
             return Err(DdsError::BadParameter);
         }
         self.fragment_size = fragment_size;
@@ -1032,5 +1032,35 @@ mod tests {
         assert_eq!(IpVersion::default(), IpVersion::V4);
         let factory = RtpsUdpTransport::default();
         assert_eq!(factory.ip_version(), IpVersion::V4);
+    }
+
+    #[test]
+    fn set_fragment_size_validates_argument_bounds() {
+        let mut transport = RtpsUdpTransport::default();
+        let default_size = transport.fragment_size();
+
+        assert_eq!(
+            transport.set_fragment_size(0).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
+
+        assert_eq!(
+            transport.set_fragment_size(7).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
+
+        assert_eq!(
+            transport.set_fragment_size(65001).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
+
+        assert!(transport.set_fragment_size(8).is_ok());
+        assert_eq!(transport.fragment_size(), 8);
+
+        assert!(transport.set_fragment_size(65000).is_ok());
+        assert_eq!(transport.fragment_size(), 65000);
     }
 }
