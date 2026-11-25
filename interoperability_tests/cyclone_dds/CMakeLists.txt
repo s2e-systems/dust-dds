@@ -32,13 +32,8 @@ include(FetchContent)
 FetchContent_Declare(
     CycloneDDS
     GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
-    # TODO: proper tag and not a commit hash,
-    #       latest known commit with all CI checks passing
-    GIT_TAG 663cdbee019e06d97222463b72220b9061170ab7
-    # TODO: uncomment when `GIT_TAG` is a proper tag and not a commit hash,
-    # see https://cmake.org/cmake/help/latest/module/ExternalProject.html#id6
-    # GIT_SHALLOW ON
-    #
+    GIT_TAG 11.1.0
+    GIT_SHALLOW ON
     # TODO: uncomment when `cmake_minimum_required` >= 3.25,
     # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
     # SYSTEM
