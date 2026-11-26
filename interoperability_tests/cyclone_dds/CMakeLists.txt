@@ -34,9 +34,6 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
     GIT_TAG 11.1.0
     GIT_SHALLOW ON
-    # TODO: uncomment when `cmake_minimum_required` >= 3.25,
-    # see https://cmake.org/cmake/help/latest/module/FetchContent.html#commands
-    # SYSTEM
   )
 FetchContent_MakeAvailable(CycloneDDS)
 
