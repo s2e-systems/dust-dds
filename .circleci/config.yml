@@ -248,7 +248,7 @@ jobs:
       - run:
           name: Build Cyclone DDS Interoperability tests
           command: |
-            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds -DCMAKE_BUILD_TYPE=Debug
+            cmake -S interoperability_tests/cyclone_dds -B build/cyclone_dds
             cmake --build build/cyclone_dds --parallel 9
       - run:
           name: Build Dust DDS binaries
