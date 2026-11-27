@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 use super::infrastructure::qos_policy::{
     DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
