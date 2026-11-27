@@ -1075,4 +1075,75 @@ mod tests {
             .count();
         assert_eq!(data_count, 1);
     }
+
+    #[test]
+    fn late_joining_volatile_reliable_reader_does_not_block_prejoin_changes() {
+        let writer_guid = Guid::new([1; 12], EntityId::new([1; 3], 1));
+        let mut writer = RtpsStatefulWriter::new(writer_guid, 500);
+        writer.add_change(CacheChangeWrite {
+            writer_guid,
+            sequence_number: 1,
+            source_timestamp: Time::new(0, 0).into(),
+            inline_qos: ParameterListWrite {
+                kind: ChangeKind::Alive,
+                instance_handle: None,
+                original_writer_info: None,
+                coherent_set: None,
+                group_coherent_set: None,
+                group_seq_num: None,
+                writer_group_info: None,
+            },
+            data_value: vec![1, 2, 3].into(),
+        });
+
+        let volatile_reader = Guid::new([2; 12], EntityId::new([2; 3], 2));
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid: volatile_reader,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::Volatile,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+
+        assert!(writer.is_change_acknowledged(1));
+        assert!(!writer.is_change_acknowledged(2));
+
+        // Idle volatile reader should not trigger periodic heartbeats for pre-join samples.
+        let mut transport = MockTransport::default();
+        writer.write_message(&mut transport, Time::new(1, 0));
+        assert!(transport.submessages.lock().unwrap().is_empty());
+
+        // TransientLocal reader still requires acknowledgment of historical sample 1.
+        let transient_reader = Guid::new([3; 12], EntityId::new([3; 3], 3));
+        writer.add_matched_reader(ReaderProxy {
+            remote_reader_guid: transient_reader,
+            remote_group_entity_id: ENTITYID_UNKNOWN,
+            reliability_kind: ReliabilityKind::Reliable,
+            durability_kind: DurabilityKind::TransientLocal,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            expects_inline_qos: false,
+        });
+        assert!(!writer.is_change_acknowledged(1));
+    }
+
+    #[test]
+    fn reader_proxy_clamps_zero_first_relevant_seq_num_to_zero_acked() {
+        let proxy = RtpsReaderProxy::new(
+            Guid::new([4; 12], EntityId::new([4; 3], 4)),
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+            0,
+            DurabilityKind::Volatile,
+            0,
+        );
+        assert!(!proxy.unacked_changes(Some(0)));
+        assert!(proxy.unacked_changes(Some(1)));
+    }
 }
