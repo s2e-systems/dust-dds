@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::instance::InstanceHandle,
-    transport::types::TopicKind,
+    rtps::types::TopicKind,
     xtypes::{
         dynamic_type::{
             DynamicData, DynamicDataFactory, DynamicType, DynamicTypeMember, TypeDescriptor,

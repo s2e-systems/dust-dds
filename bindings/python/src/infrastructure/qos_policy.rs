@@ -873,6 +873,7 @@ impl PartitionQosPolicy {
 pub enum PresentationQosPolicyAccessScopeKind {
     Instance,
     Topic,
+    Group,
 }
 
 impl From<PresentationQosPolicyAccessScopeKind>
@@ -885,6 +886,9 @@ impl From<PresentationQosPolicyAccessScopeKind>
             }
             PresentationQosPolicyAccessScopeKind::Topic => {
                 dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic
+            }
+            PresentationQosPolicyAccessScopeKind::Group => {
+                dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Group
             }
         }
     }
@@ -899,6 +903,7 @@ impl From<dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScope
         match value {
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Instance => PresentationQosPolicyAccessScopeKind::Instance,
             dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Topic => PresentationQosPolicyAccessScopeKind::Topic,
+            dust_dds::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Group => PresentationQosPolicyAccessScopeKind::Group,
         }
     }
 }

@@ -3,7 +3,20 @@ use super::{
     overall_structure::{BufRead, Endianness, Read, TryReadFromBytes, Write, WriteIntoBytes},
     types::{Checksum32, Checksum64, Checksum128, FragmentNumber, ParameterId},
 };
-use crate::transport::types::{Locator, SequenceNumber};
+use crate::{
+    dcps::data_representation_builtin_endpoints::parameter_id_values::{
+        PID_COHERENT_SET, PID_GROUP_COHERENT_SET, PID_GROUP_SEQ_NUM, PID_ORIGINAL_WRITER_INFO,
+        PID_WRITER_GROUP_INFO,
+    },
+    rtps::{
+        cache_change::{
+            PID_KEY_HASH, PID_STATUS_INFO, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
+            STATUS_INFO_UNREGISTERED,
+        },
+        types::{ChangeKind, OriginalWriterInfo, SequenceNumber, WriterGroupInfo},
+    },
+    transport::types::Locator,
+};
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
 
@@ -422,29 +435,65 @@ impl<'a> Iterator for Parameters<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct ParameterListWrite<'a> {
-    parameter: &'a [ParameterWrite<'a>],
+pub struct ParameterListWrite {
+    pub kind: ChangeKind,
+    pub instance_handle: Option<[u8; 16]>,
+    pub original_writer_info: Option<OriginalWriterInfo>,
+    pub coherent_set: Option<SequenceNumber>,
+    pub group_coherent_set: Option<SequenceNumber>,
+    pub group_seq_num: Option<SequenceNumber>,
+    pub writer_group_info: Option<WriterGroupInfo>,
 }
 
-impl<'a> ParameterListWrite<'a> {
-    pub const fn new(parameter: &'a [ParameterWrite<'a>]) -> Self {
-        Self { parameter }
-    }
-
-    pub const fn empty() -> Self {
-        Self { parameter: &[] }
-    }
-
-    pub fn parameter(&self) -> &'a [ParameterWrite<'a>] {
-        self.parameter
-    }
-}
-
-impl WriteIntoBytes for ParameterListWrite<'_> {
+impl WriteIntoBytes for ParameterListWrite {
     fn write_into_bytes(&self, buf: &mut dyn Write) {
-        for parameter in self.parameter() {
-            parameter.write_into_bytes(buf);
+        let status_info = match self.kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => None,
+            ChangeKind::NotAliveDisposed => Some(STATUS_INFO_DISPOSED),
+            ChangeKind::NotAliveUnregistered => Some(STATUS_INFO_UNREGISTERED),
+            ChangeKind::NotAliveDisposedUnregistered => Some(STATUS_INFO_DISPOSED_UNREGISTERED),
+        };
+
+        if let Some(key) = &self.instance_handle {
+            ParameterWrite::new(PID_KEY_HASH, key).write_into_bytes(buf);
         }
+
+        if let Some(status_info) = status_info {
+            PID_STATUS_INFO.write_into_bytes(buf);
+            4_i16.write_into_bytes(buf);
+            status_info.0.write_into_bytes(buf);
+        }
+
+        if let Some(original_writer_info) = &self.original_writer_info {
+            PID_ORIGINAL_WRITER_INFO.write_into_bytes(buf);
+            24_i16.write_into_bytes(buf);
+            original_writer_info.write_into_bytes(buf);
+        }
+
+        if let Some(coherent_set) = &self.coherent_set {
+            PID_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            coherent_set.write_into_bytes(buf);
+        }
+
+        if let Some(group_coherent_set) = &self.group_coherent_set {
+            PID_GROUP_COHERENT_SET.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            group_coherent_set.write_into_bytes(buf);
+        }
+
+        if let Some(group_seq_num) = &self.group_seq_num {
+            PID_GROUP_SEQ_NUM.write_into_bytes(buf);
+            8_i16.write_into_bytes(buf);
+            group_seq_num.write_into_bytes(buf);
+        }
+
+        if let Some(writer_group_info) = &self.writer_group_info {
+            PID_WRITER_GROUP_INFO.write_into_bytes(buf);
+            16_i16.write_into_bytes(buf);
+            writer_group_info.writer_set.write_into_bytes(buf);
+        }
+
         PID_SENTINEL.write_into_bytes(buf);
         [0_u8; 2].write_into_bytes(buf);
     }
@@ -1112,31 +1161,6 @@ mod tests {
         assert_eq!(write_into_bytes_vec(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
-        ]);
-    }
-
-    #[test]
-    fn serialize_parameter_list_write() {
-        let parameter_1 = ParameterWrite::new(2, &[51, 61, 71, 81]);
-        let parameter_2 = ParameterWrite::new(3, &[52, 62, 0, 0]);
-        let parameters = [parameter_1, parameter_2];
-        let parameter_list = ParameterListWrite::new(&parameters);
-        #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(parameter_list), vec![
-            0x02, 0x00, 4, 0, // Parameter ID | length
-            51, 61, 71, 81,   // value
-            0x03, 0x00, 4, 0, // Parameter ID | length
-            52, 62, 0, 0,   // value
-            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
-        ]);
-    }
-
-    #[test]
-    fn serialize_parameter_list_write_empty() {
-        let parameter_list = ParameterListWrite::empty();
-        #[rustfmt::skip]
-        assert_eq!(write_into_bytes_vec(parameter_list), vec![
-            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }
 

@@ -5,9 +5,9 @@ use super::{
 use crate::{
     dcps::{
         dcps_mail::{
-            CreateDataWriterMail, DeleteDataWriterMail, GetDefaultDataWriterQosMail,
-            GetPublisherQosMail, SetDefaultDataWriterQosMail, SetPublisherListenerMail,
-            SetPublisherQosMail,
+            BeginCoherentChanges, CreateDataWriterMail, DeleteDataWriterMail, EndCoherentChanges,
+            GetDefaultDataWriterQosMail, GetPublisherQosMail, SetDefaultDataWriterQosMail,
+            SetPublisherListenerMail, SetPublisherQosMail,
         },
         listeners::{
             data_writer_listener::DcpsDataWriterListener, publisher_listener::DcpsPublisherListener,
@@ -113,13 +113,23 @@ impl PublisherAsync {
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::begin_coherent_changes).
     #[tracing::instrument(skip(self))]
     pub async fn begin_coherent_changes(&self) -> DdsResult<()> {
-        todo!()
+        self.dcps_sender()
+            .execute(BeginCoherentChanges {
+                participant_handle: self.participant.get_instance_handle(),
+                publisher_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::end_coherent_changes).
     #[tracing::instrument(skip(self))]
     pub async fn end_coherent_changes(&self) -> DdsResult<()> {
-        todo!()
+        self.dcps_sender()
+            .execute(EndCoherentChanges {
+                participant_handle: self.participant.get_instance_handle(),
+                publisher_handle: self.handle,
+            })
+            .await
     }
 
     /// Async version of [`delete_datawriter`](crate::publication::publisher::Publisher::wait_for_acknowledgments).

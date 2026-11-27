@@ -4,11 +4,9 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         listener::NO_LISTENER,
-        qos::{DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        qos::QosKind,
         status::{NO_STATUS, StatusKind},
-        time::{Duration, DurationKind},
+        time::Duration,
         type_support::DdsType,
     },
     subscription::data_reader_listener::DataReaderListener,
@@ -664,8 +662,6 @@ fn best_effort_write_and_receive_frag(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    best_effort_write_only,
-    best_effort_read_only,
     best_effort_write_and_receive,
     best_effort_write_and_receive_frag
 );

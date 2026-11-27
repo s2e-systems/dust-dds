@@ -278,6 +278,16 @@ pub struct GetDefaultDataWriterQosMail {
     pub publisher_handle: InstanceHandle,
 }
 
+pub struct BeginCoherentChanges {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
+pub struct EndCoherentChanges {
+    pub participant_handle: InstanceHandle,
+    pub publisher_handle: InstanceHandle,
+}
+
 pub struct SetDefaultDataWriterQosMail {
     pub participant_handle: InstanceHandle,
     pub publisher_handle: InstanceHandle,
@@ -352,6 +362,16 @@ pub struct SetSubscriberListenerMail {
     pub subscriber_handle: InstanceHandle,
     pub dcps_listener: Option<DcpsSubscriberListener>,
     pub listener_mask: StatusMask,
+}
+
+pub struct BeginAccessMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
+}
+
+pub struct EndAccessMail {
+    pub participant_handle: InstanceHandle,
+    pub subscriber_handle: InstanceHandle,
 }
 
 // --- Writer Operations ---
@@ -613,6 +633,8 @@ pub enum DomainParticipantMail {
     // Publisher
     CreateDataWriter(Box<CreateDataWriterMail>),
     DeleteDataWriter(DeleteDataWriterMail),
+    BeginCoherentChanges(BeginCoherentChanges),
+    EndCoherentChanges(EndCoherentChanges),
     GetDefaultDataWriterQos(GetDefaultDataWriterQosMail),
     SetDefaultDataWriterQos(SetDefaultDataWriterQosMail),
     GetPublisherQos(GetPublisherQosMail),
@@ -628,6 +650,8 @@ pub enum DomainParticipantMail {
     SetSubscriberQos(SetSubscriberQosMail),
     GetSubscriberQos(GetSubscriberQosMail),
     SetSubscriberListener(SetSubscriberListenerMail),
+    BeginAccess(BeginAccessMail),
+    EndAccess(EndAccessMail),
 
     // Writer
     WriteWTimestamp(WriteWTimestampMail),
@@ -1328,6 +1352,36 @@ impl Operation for GetDefaultDataWriterQosMail {
     }
 }
 
+impl Operation for BeginCoherentChanges {
+    type Output = ();
+
+    fn into_mail(self) -> crate::dcps::dcps_mail::DomainParticipantMail {
+        DomainParticipantMail::BeginCoherentChanges(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EndCoherentChanges {
+    type Output = ();
+
+    fn into_mail(self) -> crate::dcps::dcps_mail::DomainParticipantMail {
+        DomainParticipantMail::EndCoherentChanges(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
 impl Operation for SetDefaultDataWriterQosMail {
     type Output = ();
 
@@ -1500,6 +1554,36 @@ impl Operation for SetSubscriberListenerMail {
 
     fn into_mail(self) -> DomainParticipantMail {
         DomainParticipantMail::SetSubscriberListener(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for BeginAccessMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::BeginAccess(self)
+    }
+
+    fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {
+        match reply {
+            DcpsReply::Ok(res) => res,
+            other => panic!("expected Ok reply, got {:?}", other),
+        }
+    }
+}
+
+impl Operation for EndAccessMail {
+    type Output = ();
+
+    fn into_mail(self) -> DomainParticipantMail {
+        DomainParticipantMail::EndAccess(self)
     }
 
     fn extract_reply(reply: DcpsReply) -> DdsResult<Self::Output> {

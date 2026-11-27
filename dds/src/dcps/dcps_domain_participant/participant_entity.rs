@@ -28,7 +28,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
     security::types::{
@@ -252,7 +252,7 @@ impl DcpsDomainParticipant {
                             update(
                                 remaining,
                                 TimedEvent::CheckMissedReaderDeadline {
-                                    subscriber_handle: subscriber.instance_handle,
+                                    subscriber_handle: subscriber.subscriber_entity.instance_handle,
                                     reader_handle: data_reader.instance_handle,
                                 },
                             );
@@ -266,37 +266,32 @@ impl DcpsDomainParticipant {
                     .any(|p| matches!(p.lifespan().duration, DurationKind::Finite(_)));
                 if has_finite_lifespan {
                     for sample in &data_reader.sample_list {
-                        let timestamp = match data_reader.qos.destination_order.kind {
-                            DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                                sample.source_timestamp
-                            }
-                            DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                                Some(sample.reception_timestamp)
-                            }
-                        };
-                        if let Some(timestamp) = timestamp {
-                            if let Some(matched_publication) = data_reader
-                                .matched_publication_list
-                                .iter()
-                                .find(|x| x.key().value == sample.writer_guid)
+                        let timestamp = sample
+                            .source_timestamp
+                            .unwrap_or(sample.reception_timestamp);
+                        if let Some(matched_publication) = data_reader
+                            .matched_publication_list
+                            .iter()
+                            .find(|x| x.key().value == sample.writer_guid)
+                        {
+                            if let DurationKind::Finite(lifespan) =
+                                matched_publication.lifespan().duration
                             {
-                                if let DurationKind::Finite(lifespan) =
-                                    matched_publication.lifespan().duration
-                                {
-                                    let expiry = timestamp + lifespan;
-                                    let remaining = if expiry > now {
-                                        expiry - now
-                                    } else {
-                                        Duration::new(0, 0)
-                                    };
-                                    update(
-                                        remaining,
-                                        TimedEvent::RemoveStaleReaderSamples {
-                                            subscriber_handle: subscriber.instance_handle,
-                                            reader_handle: data_reader.instance_handle,
-                                        },
-                                    );
-                                }
+                                let expiry = timestamp + lifespan;
+                                let remaining = if expiry > now {
+                                    expiry - now
+                                } else {
+                                    Duration::new(0, 0)
+                                };
+                                update(
+                                    remaining,
+                                    TimedEvent::RemoveStaleReaderSamples {
+                                        subscriber_handle: subscriber
+                                            .subscriber_entity
+                                            .instance_handle,
+                                        reader_handle: data_reader.instance_handle,
+                                    },
+                                );
                             }
                         }
                     }
@@ -328,21 +323,19 @@ impl DcpsDomainParticipant {
 
                 if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
                     if let Some(cc) = data_writer.transport_writer.changes().first() {
-                        if let Some(source_timestamp) = cc.source_timestamp {
-                            let expiry = Time::from(source_timestamp) + lifespan;
-                            let remaining = if expiry > now {
-                                expiry - now
-                            } else {
-                                Duration::new(0, 0)
-                            };
-                            update(
-                                remaining,
-                                TimedEvent::RemoveStaleWriterSamples {
-                                    publisher_handle: publisher.instance_handle,
-                                    writer_handle: data_writer.instance_handle,
-                                },
-                            );
-                        }
+                        let expiry = Time::from(cc.source_timestamp) + lifespan;
+                        let remaining = if expiry > now {
+                            expiry - now
+                        } else {
+                            Duration::new(0, 0)
+                        };
+                        update(
+                            remaining,
+                            TimedEvent::RemoveStaleWriterSamples {
+                                publisher_handle: publisher.instance_handle,
+                                writer_handle: data_writer.instance_handle,
+                            },
+                        );
                     }
                 }
 
@@ -403,6 +396,8 @@ impl DcpsDomainParticipant {
             }
             TimedEvent::RemoveStaleParticipant { handle } => {
                 self.remove_discovered_participant(&handle, now);
+                self.process_pending_write_samples(now, transport_participant);
+                self.write_messages(now, transport_participant);
             }
             TimedEvent::CheckMissedReaderDeadline {
                 subscriber_handle,
@@ -440,13 +435,10 @@ impl DcpsDomainParticipant {
                         .find(|w| w.instance_handle == writer_handle)
                     {
                         if let DurationKind::Finite(lifespan) = data_writer.qos.lifespan.duration {
-                            data_writer.transport_writer.changes_mut().retain(|cc| {
-                                if let Some(timestamp) = &cc.source_timestamp {
-                                    Time::from(*timestamp) + lifespan > now
-                                } else {
-                                    true
-                                }
-                            });
+                            data_writer
+                                .transport_writer
+                                .changes_mut()
+                                .retain(|cc| Time::from(cc.source_timestamp) + lifespan > now);
                         }
                     }
                 }
@@ -461,7 +453,7 @@ impl DcpsDomainParticipant {
                     .domain_participant
                     .user_defined_subscriber_list
                     .iter_mut()
-                    .find(|s| s.instance_handle == subscriber_handle)
+                    .find(|s| s.subscriber_entity.instance_handle == subscriber_handle)
                 {
                     if let Some(data_reader) = subscriber
                         .data_reader_list
@@ -742,7 +734,7 @@ impl DomainParticipantEntity {
         let i = self
             .user_defined_subscriber_list
             .iter()
-            .position(|x| &x.instance_handle == handle)?;
+            .position(|x| &x.subscriber_entity.instance_handle == handle)?;
 
         Some(self.user_defined_subscriber_list.remove(i))
     }

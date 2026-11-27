@@ -7,7 +7,7 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
         qos_policy::{
             DataRepresentationQosPolicy, OwnershipQosPolicy, OwnershipQosPolicyKind,
-            PartitionQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
+            PartitionQosPolicy, PresentationQosPolicy, UserDataQosPolicy, XCDR_DATA_REPRESENTATION,
             XCDR2_DATA_REPRESENTATION,
         },
         status::{NO_STATUS, StatusKind},
@@ -723,6 +723,63 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
 }
 
 #[test]
+fn publisher_default_partition_and_subscriber_wildcard_partition_is_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let topic = dp
+        .create_topic::<UserType>(
+            "topic_name",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let cond_data_writer = data_writer.get_statuscondition();
+    cond_data_writer
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        partition: PartitionQosPolicy {
+            name: vec!["*".to_string()],
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let cond_data_reader = data_reader.get_statuscondition();
+    cond_data_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set_data_reader = WaitSet::new();
+    wait_set_data_reader
+        .attach_condition(Condition::StatusCondition(cond_data_reader))
+        .unwrap();
+
+    let mut wait_set_data_writer = WaitSet::new();
+    wait_set_data_writer
+        .attach_condition(Condition::StatusCondition(cond_data_writer))
+        .unwrap();
+
+    assert!(wait_set_data_reader.wait(Duration::new(5, 0)).is_ok());
+    assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
+}
+
+#[test]
 fn writer_matched_to_already_existing_reader_with_matched_writer() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
@@ -985,6 +1042,61 @@ fn reader_requesting_xcdr2_should_not_match_writer_offering_xcdr1() {
 }
 
 #[test]
+fn writer_offering_xcdr2_should_match_reader_with_default_representation() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "topic_name",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        representation: DataRepresentationQosPolicy {
+            value: vec![XCDR2_DATA_REPRESENTATION],
+        },
+        ..Default::default()
+    };
+    let data_writer = publisher
+        .create_datawriter::<UserType>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
+    assert_eq!(matched_subscriptions.len(), 1);
+    let matched_publications = data_reader.get_matched_publications().unwrap();
+    assert_eq!(matched_publications.len(), 1);
+}
+
+#[test]
 fn writer_offering_exclusive_ownership_should_not_match_reader_requesting_shared_ownership() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
@@ -1174,4 +1286,342 @@ fn participant_removed_after_lease_duration() {
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
     assert_eq!(discovered_participant.len(), 1);
+}
+
+#[test]
+fn presentation_qos_offered_coherent_and_ordered_matches_requested_default() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "presentation_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: true,
+            ordered_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: false,
+            ordered_access: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn presentation_qos_offered_non_coherent_does_not_match_requested_coherent() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>(
+            "presentation_topic_incompatible",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher_qos = PublisherQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        presentation: PresentationQosPolicy {
+            coherent_access: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let cond = data_writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn separate_async_factories_in_same_process_discover_each_other() {
+    use dust_dds::{
+        dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
+        domain::domain_participant::DomainParticipant,
+        infrastructure::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        rtps_udp_transport::udp_transport::RtpsUdpTransport,
+        security::plugins::types::DdsSecurityPlugins,
+        std_runtime::{StdRuntime, executor::block_on},
+    };
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let factory_a = DomainParticipantFactoryAsync::new(
+        Default::default(),
+        StdRuntime::default(),
+        RtpsUdpTransport::default(),
+        DdsSecurityPlugins::disabled(),
+    );
+    let factory_b = DomainParticipantFactoryAsync::new(
+        Default::default(),
+        StdRuntime::default(),
+        RtpsUdpTransport::default(),
+        DdsSecurityPlugins::disabled(),
+    );
+
+    let dp_a_async =
+        block_on(factory_a.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS))
+            .unwrap();
+    let dp_b_async =
+        block_on(factory_b.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS))
+            .unwrap();
+    let dp_a = DomainParticipant::from(dp_a_async.clone());
+    let dp_b = DomainParticipant::from(dp_b_async.clone());
+
+    assert_ne!(dp_a.get_instance_handle(), dp_b.get_instance_handle());
+
+    let topic_a = dp_a
+        .create_topic::<UserType>(
+            "separate_factories_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic_b = dp_b
+        .create_topic::<UserType>(
+            "separate_factories_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = dp_a
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<UserType>(&topic_a, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber = dp_b
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<UserType>(&topic_b, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let match_cond = writer.get_statuscondition();
+    match_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut match_wait_set = WaitSet::new();
+    match_wait_set
+        .attach_condition(Condition::StatusCondition(match_cond))
+        .unwrap();
+    match_wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(writer.get_matched_subscriptions().unwrap().len(), 1);
+
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut data_wait_set = WaitSet::new();
+    data_wait_set
+        .attach_condition(Condition::StatusCondition(data_cond))
+        .unwrap();
+
+    writer.write(UserType(42), None).unwrap();
+    data_wait_set.wait(Duration::new(10, 0)).unwrap();
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap().0, 42);
+
+    dp_a.delete_contained_entities().unwrap();
+    dp_b.delete_contained_entities().unwrap();
+    block_on(factory_a.delete_participant(&dp_a_async)).unwrap();
+    block_on(factory_b.delete_participant(&dp_b_async)).unwrap();
+}
+
+#[test]
+fn deleted_participant_unmatches_reliable_reader_and_does_not_rematch() {
+    use dust_dds::infrastructure::{
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
+        time::DurationKind,
+    };
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let factory = DomainParticipantFactory::get_instance();
+    let dp_writer = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let dp_reader = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic_w = dp_writer
+        .create_topic::<UserType>(
+            "deleted_participant_cleanup_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic_r = dp_reader
+        .create_topic::<UserType>(
+            "deleted_participant_cleanup_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 500_000_000)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        ..Default::default()
+    };
+    let publisher = dp_writer
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<UserType>(
+            &topic_w,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 500_000_000)),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp_reader
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<UserType>(
+            &topic_r,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(
+        writer
+            .get_publication_matched_status()
+            .unwrap()
+            .current_count,
+        1
+    );
+
+    dp_reader.delete_contained_entities().unwrap();
+    factory.delete_participant(&dp_reader).unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(
+        writer
+            .get_publication_matched_status()
+            .unwrap()
+            .current_count,
+        0
+    );
+    assert!(writer.get_matched_subscriptions().unwrap().is_empty());
+
+    // Subsequent discovery ticks must not re-match endpoints of the deleted participant.
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    assert!(writer.get_matched_subscriptions().unwrap().is_empty());
+
+    writer.write(UserType(1), None).unwrap();
+    writer.write(UserType(2), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(5, 0))
+        .unwrap();
+
+    dp_writer.delete_contained_entities().unwrap();
+    factory.delete_participant(&dp_writer).unwrap();
 }

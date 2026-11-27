@@ -5,7 +5,7 @@
 
 #define MAX_SAMPLES 1
 
-int main(int argc, char *argv[])
+int main()
 {
 	const char *topic_name = "Inheritance";
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 	}
 
 	dds_attach_t wsresults[1];
-	const size_t wsresultsize = 1U;
+	const dds_return_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(3660));
 	if (rc == 0)
 	{
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	interoperability_test_Cat *msg;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
-	samples[0] = interoperability_test_Animal__alloc();
+	samples[0] = interoperability_test_Cat__alloc();
 
 	rc = dds_read(data_reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
 	if (rc < 0)

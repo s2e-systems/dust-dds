@@ -185,15 +185,15 @@ impl Time {
     }
 }
 
-impl From<crate::transport::types::Time> for Time {
-    fn from(value: crate::transport::types::Time) -> Self {
+impl From<crate::rtps::types::Time> for Time {
+    fn from(value: crate::rtps::types::Time) -> Self {
         Self::new(value.sec() as u32, nanosec_to_fraction(value.nanosec()))
     }
 }
 
-impl From<Time> for crate::transport::types::Time {
+impl From<Time> for crate::rtps::types::Time {
     fn from(value: Time) -> Self {
-        crate::transport::types::Time::new(
+        crate::rtps::types::Time::new(
             value.seconds() as i32,
             fraction_to_nanosec(value.fraction()),
         )
@@ -251,9 +251,8 @@ pub type ParameterId = Short;
 pub type FragmentNumber = UnsignedLong;
 
 /// GroupDigest_t
-/// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant.
-#[allow(dead_code)]
-pub type GroupDigest = [Octet; 4];
+/// Type used to hold a digest value that uniquely identifies a group of Entities belonging to the same Participant (128-bit).
+pub type GroupDigest = [Octet; 16];
 
 /// UExtension4_t
 /// Type used to hold an undefined 4-byte value. It is intended to be used in future revisions of the specification.

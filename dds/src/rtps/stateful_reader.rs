@@ -1,12 +1,16 @@
 use super::writer_proxy::RtpsWriterProxy;
 use crate::{
+    rtps::{
+        cache_change::CacheChangeRead,
+        types::{ReliabilityKind, WriterProxy},
+    },
     rtps_messages::{
         submessages::{data::DataSubmessage, data_frag::DataFragSubmessage},
         types::Time,
     },
     transport::{
         interface::RtpsParticipant,
-        types::{CacheChange, Guid, GuidPrefix, ReliabilityKind, WriterProxy},
+        types::{Guid, GuidPrefix},
     },
 };
 use alloc::vec::Vec;
@@ -14,7 +18,7 @@ use alloc::vec::Vec;
 pub struct RtpsStatefulReader {
     guid: Guid,
     /// History cache of changes received by this reader.
-    pub changes: Vec<CacheChange>,
+    pub changes: Vec<CacheChangeRead>,
     matched_writers: Vec<RtpsWriterProxy>,
     reliability: ReliabilityKind,
 }
@@ -63,6 +67,16 @@ impl RtpsStatefulReader {
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 
+    pub fn matched_writers(&self) -> &[RtpsWriterProxy] {
+        &self.matched_writers
+    }
+
+    pub fn matched_writer(&self, a_writer_guid: Guid) -> Option<&RtpsWriterProxy> {
+        self.matched_writers
+            .iter()
+            .find(|x| x.remote_writer_guid() == a_writer_guid)
+    }
+
     pub fn reliability(&self) -> ReliabilityKind {
         self.reliability
     }
@@ -89,7 +103,7 @@ impl RtpsStatefulReader {
                             writer_proxy.lost_changes_update(sequence_number);
                         }
 
-                        if let Ok(change) = CacheChange::try_from_data_submessage(
+                        if let Ok(change) = CacheChangeRead::try_from_data_submessage(
                             data_submessage,
                             source_guid_prefix,
                             source_timestamp,
@@ -103,7 +117,7 @@ impl RtpsStatefulReader {
                     if sequence_number == expected_seq_num {
                         writer_proxy.received_change_set(sequence_number);
 
-                        if let Ok(change) = CacheChange::try_from_data_submessage(
+                        if let Ok(change) = CacheChangeRead::try_from_data_submessage(
                             data_submessage,
                             source_guid_prefix,
                             source_timestamp,

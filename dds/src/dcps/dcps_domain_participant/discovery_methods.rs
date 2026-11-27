@@ -54,9 +54,10 @@ use crate::{
             DATA_REPRESENTATION_QOS_POLICY_ID, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, DurabilityQosPolicyKind,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIP_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, QosPolicyId, RELIABILITY_QOS_POLICY_ID,
-            ReliabilityQosPolicyKind, TypeConsistencyEnforcementQosPolicy,
-            XCDR_DATA_REPRESENTATION,
+            PRESENTATION_QOS_POLICY_ID, PartitionQosPolicy, PresentationQosPolicy, QosPolicyId,
+            RELIABILITY_QOS_POLICY_ID, ReliabilityQosPolicyKind,
+            TypeConsistencyEnforcementQosPolicy, XCDR_DATA_REPRESENTATION,
+            XCDR2_DATA_REPRESENTATION,
         },
         status::{
             InconsistentTopicStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -64,11 +65,11 @@ use crate::{
         },
         time::{Duration, DurationKind, Time},
     },
-    rtps::types::{PROTOCOLVERSION, VENDOR_ID_S2E},
-    transport::{
+    rtps::{
         self,
-        types::{DurabilityKind, ENTITYID_UNKNOWN, Guid, GuidPrefix, ReliabilityKind},
+        types::{DurabilityKind, PROTOCOLVERSION, ReliabilityKind, VENDOR_ID_S2E},
     },
+    transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
     xtypes::{
         serializer::serialize_cdr2_le,
         type_object::{TypeIdentifier, TypeIdentifierTypeObjectPair, TypeObject},
@@ -162,6 +163,8 @@ impl DcpsDomainParticipant {
                     serialized_data,
                     sample_timestamp,
                     now,
+                    None,
+                    None,
                 )
                 .ok();
             }
@@ -194,7 +197,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
             self.domain_participant
                 .builtin_publisher
@@ -244,11 +247,11 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter_mut()
-            .find(|s| &s.instance_handle == subscriber_handle)
+            .find(|s| &s.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
-        let subscriber_handle = subscriber.instance_handle;
+        let subscriber_handle = subscriber.subscriber_entity.instance_handle;
         let subscriber_listener_mask = subscriber.listener_mask;
         let subscriber_listener_sender = subscriber.listener_sender.clone();
         let Some(data_reader) = subscriber
@@ -534,7 +537,8 @@ impl DcpsDomainParticipant {
         };
         let writer_proxy = WriterProxy {
             remote_writer_guid: data_writer.transport_writer.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(publisher.instance_handle))
+                .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
         };
@@ -556,6 +560,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -585,7 +591,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -608,7 +614,7 @@ impl DcpsDomainParticipant {
             .domain_participant
             .user_defined_subscriber_list
             .iter()
-            .find(|x| &x.instance_handle == subscriber_handle)
+            .find(|x| &x.subscriber_entity.instance_handle == subscriber_handle)
         else {
             return;
         };
@@ -669,10 +675,10 @@ impl DcpsDomainParticipant {
             destination_order: data_reader.qos.destination_order.clone(),
             user_data: data_reader.qos.user_data.clone(),
             time_based_filter: data_reader.qos.time_based_filter.clone(),
-            presentation: subscriber.qos.presentation.clone(),
-            partition: subscriber.qos.partition.clone(),
+            presentation: subscriber.subscriber_entity.qos.presentation.clone(),
+            partition: subscriber.subscriber_entity.qos.partition.clone(),
             topic_data: topic.qos.topic_data.clone(),
-            group_data: subscriber.qos.group_data.clone(),
+            group_data: subscriber.subscriber_entity.qos.group_data.clone(),
             representation: data_reader.qos.representation.clone(),
             type_consistency: data_reader.qos.type_consistency.clone(),
             protection_info: Default::default(),
@@ -680,7 +686,10 @@ impl DcpsDomainParticipant {
         };
         let reader_proxy = ReaderProxy {
             remote_reader_guid: data_reader.transport_reader.guid(),
-            remote_group_entity_id: ENTITYID_UNKNOWN,
+            remote_group_entity_id: Guid::from(<[u8; 16]>::from(
+                subscriber.subscriber_entity.instance_handle,
+            ))
+            .entity_id(),
             unicast_locator_list: vec![],
             multicast_locator_list: vec![],
             expects_inline_qos: false,
@@ -703,6 +712,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -732,7 +743,7 @@ impl DcpsDomainParticipant {
             let instance_handle = InstanceHandle::new(topic_key_data.value);
             let serialized_key = topic_key_data.into_bytes();
 
-            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp)
+            dw.unregister_w_timestamp(instance_handle, serialized_key, timestamp, None, None)
                 .ok();
         }
         self.domain_participant
@@ -794,6 +805,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -871,86 +884,89 @@ impl DcpsDomainParticipant {
                             .find(|x| x.topic_name == writer_topic_name)
                             .expect("A matched topic to the writer must exist");
 
-                        let is_matched_type = match &discovered_reader_data
-                            .dds_subscription_data
-                            .type_information
-                        {
-                            Some(discovered_type_information) => {
-                                let discovered_type_id = &discovered_type_information
-                                    .complete
-                                    .typeid_with_size
-                                    .type_id;
+                        let is_matched_type = if self.enable_type_information {
+                            match &discovered_reader_data
+                                .dds_subscription_data
+                                .type_information
+                            {
+                                Some(discovered_type_information) => {
+                                    let discovered_type_id = &discovered_type_information
+                                        .complete
+                                        .typeid_with_size
+                                        .type_id;
 
-                                // If the minimal hash match it is guaranteed compatible
-                                if writer_associated_topic
-                                    .type_information
-                                    .minimal
-                                    .typeid_with_size
-                                    == discovered_type_information.minimal.typeid_with_size
-                                {
-                                    true
-                                } else if let Some(type_object) =
-                                    type_register.get_type_object(discovered_type_id)
-                                {
-                                    match &type_object {
-                                        TypeObject::EkComplete { complete } => {
-                                            if let Some(TypeObject::EkComplete {
-                                                complete: local_complete,
-                                            }) = type_register.get_type_object(
-                                                &writer_associated_topic
-                                                    .type_information
-                                                    .complete
-                                                    .typeid_with_size
-                                                    .type_id,
-                                            ) {
-                                                let resolver = |id: &TypeIdentifier| {
-                                                    if let Some(TypeObject::EkComplete {
-                                                        complete,
-                                                    }) = type_register.get_type_object(id)
-                                                    {
-                                                        Some(complete)
-                                                    } else {
-                                                        None
-                                                    }
-                                                };
-                                                complete.is_assignable_from_w_type_consistency(
-                                                    &local_complete,
-                                                    &discovered_reader_data
-                                                        .dds_subscription_data
-                                                        .type_consistency,
-                                                    &resolver,
-                                                )
-                                            } else {
-                                                false
-                                            }
-                                        }
-                                        TypeObject::EkMinimal { minimal } => {
-                                            if let Some(TypeObject::EkMinimal {
-                                                minimal: local_minimal,
-                                            }) = type_register.get_type_object(
-                                                &writer_associated_topic
-                                                    .type_information
-                                                    .minimal
-                                                    .typeid_with_size
-                                                    .type_id,
-                                            ) {
-                                                &local_minimal == minimal
-                                            } else {
-                                                false
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if discovered_type_information.complete.dependent_typeid_count
-                                        < 0
+                                    // If the minimal hash match it is guaranteed compatible
+                                    if writer_associated_topic
+                                        .type_information
+                                        .minimal
+                                        .typeid_with_size
+                                        == discovered_type_information.minimal.typeid_with_size
                                     {
-                                        if !type_register
-                                            .is_dependencies_lookup_pending(discovered_type_id)
+                                        true
+                                    } else if let Some(type_object) =
+                                        type_register.get_type_object(discovered_type_id)
+                                    {
+                                        match &type_object {
+                                            TypeObject::EkComplete { complete } => {
+                                                if let Some(TypeObject::EkComplete {
+                                                    complete: local_complete,
+                                                }) = type_register.get_type_object(
+                                                    &writer_associated_topic
+                                                        .type_information
+                                                        .complete
+                                                        .typeid_with_size
+                                                        .type_id,
+                                                ) {
+                                                    let resolver = |id: &TypeIdentifier| {
+                                                        if let Some(TypeObject::EkComplete {
+                                                            complete,
+                                                        }) = type_register.get_type_object(id)
+                                                        {
+                                                            Some(complete)
+                                                        } else {
+                                                            None
+                                                        }
+                                                    };
+                                                    complete.is_assignable_from_w_type_consistency(
+                                                        &local_complete,
+                                                        &discovered_reader_data
+                                                            .dds_subscription_data
+                                                            .type_consistency,
+                                                        &resolver,
+                                                    )
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                            TypeObject::EkMinimal { minimal } => {
+                                                if let Some(TypeObject::EkMinimal {
+                                                    minimal: local_minimal,
+                                                }) = type_register.get_type_object(
+                                                    &writer_associated_topic
+                                                        .type_information
+                                                        .minimal
+                                                        .typeid_with_size
+                                                        .type_id,
+                                                ) {
+                                                    &local_minimal == minimal
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if discovered_type_information
+                                            .complete
+                                            .dependent_typeid_count
+                                            < 0
                                         {
-                                            let type_request_writer =
-                                                &mut builtin_publisher.type_lookup_request_writer;
+                                            if !type_register
+                                                .is_dependencies_lookup_pending(discovered_type_id)
+                                            {
+                                                let type_request_writer = &mut builtin_publisher
+                                                    .type_lookup_request_writer;
 
-                                            let type_lookup_request = TypeLookupRequest {
+                                                let type_lookup_request = TypeLookupRequest {
                                                 header: RequestHeader {
                                                     request_id: SampleIdentity {
                                                         writer_guid: type_request_writer
@@ -982,93 +998,106 @@ impl DcpsDomainParticipant {
                                                             },
                                                     },
                                             };
-                                            let sample_instance_handle = InstanceHandle::default();
-                                            let serialized_data = serialize_cdr2_le(
-                                                &type_lookup_request.create_dynamic_sample(),
-                                            )
-                                            .unwrap();
-                                            type_request_writer
-                                                .write_w_timestamp(
-                                                    sample_instance_handle,
-                                                    serialized_data,
-                                                    now,
-                                                    now,
+                                                let sample_instance_handle =
+                                                    InstanceHandle::default();
+                                                let serialized_data = serialize_cdr2_le(
+                                                    &type_lookup_request.create_dynamic_sample(),
                                                 )
-                                                .ok();
-                                            type_register.add_pending_dependencies_lookup(
-                                                discovered_type_id.clone(),
+                                                .unwrap();
+                                                type_request_writer
+                                                    .write_w_timestamp(
+                                                        sample_instance_handle,
+                                                        serialized_data,
+                                                        now,
+                                                        now,
+                                                        None,
+                                                        None,
+                                                    )
+                                                    .ok();
+                                                type_register.add_pending_dependencies_lookup(
+                                                    discovered_type_id.clone(),
+                                                );
+                                            }
+                                        } else {
+                                            type_register.register_type_dependencies(
+                                                discovered_type_id,
+                                                discovered_type_information
+                                                    .complete
+                                                    .dependent_typeids
+                                                    .clone(),
                                             );
-                                        }
-                                    } else {
-                                        type_register.register_type_dependencies(
-                                            discovered_type_id,
-                                            discovered_type_information
-                                                .complete
-                                                .dependent_typeids
-                                                .clone(),
-                                        );
-                                        let unresolved = type_register
-                                            .get_unresolved_type_ids(discovered_type_id);
-                                        if !unresolved.is_empty()
-                                            && !type_register.is_types_lookup_pending(&unresolved)
-                                        {
-                                            let type_request_writer =
-                                                &mut builtin_publisher.type_lookup_request_writer;
+                                            let unresolved = type_register
+                                                .get_unresolved_type_ids(discovered_type_id);
+                                            if !unresolved.is_empty()
+                                                && !type_register
+                                                    .is_types_lookup_pending(&unresolved)
+                                            {
+                                                let type_request_writer = &mut builtin_publisher
+                                                    .type_lookup_request_writer;
 
-                                            let type_lookup_request = TypeLookupRequest {
-                                                header: RequestHeader {
-                                                    request_id: SampleIdentity {
-                                                        writer_guid: type_request_writer
-                                                            .transport_writer
-                                                            .guid(),
-                                                        sequence_number: (type_request_writer
-                                                            .last_change_sequence_number
-                                                            + 1)
-                                                        .into(),
-                                                    },
-                                                    instance_name: format!(
-                                                        "dds.builtin.TOS.{:x}",
-                                                        InstanceHandle::new(
-                                                            discovered_reader_data
-                                                                .dds_subscription_data
-                                                                .participant_key()
-                                                                .value
+                                                let type_lookup_request = TypeLookupRequest {
+                                                    header: RequestHeader {
+                                                        request_id: SampleIdentity {
+                                                            writer_guid: type_request_writer
+                                                                .transport_writer
+                                                                .guid(),
+                                                            sequence_number: (type_request_writer
+                                                                .last_change_sequence_number
+                                                                + 1)
+                                                            .into(),
+                                                        },
+                                                        instance_name: format!(
+                                                            "dds.builtin.TOS.{:x}",
+                                                            InstanceHandle::new(
+                                                                discovered_reader_data
+                                                                    .dds_subscription_data
+                                                                    .participant_key()
+                                                                    .value
+                                                            ),
                                                         ),
-                                                    ),
-                                                },
-                                                call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                                    get_types: TypeLookupGetTypesIn {
-                                                        type_ids: unresolved.clone(),
                                                     },
-                                                },
-                                            };
-                                            let sample_instance_handle = InstanceHandle::default();
-                                            let serialized_data = serialize_cdr2_le(
-                                                &type_lookup_request.create_dynamic_sample(),
-                                            )
-                                            .unwrap();
-                                            type_request_writer
-                                                .write_w_timestamp(
-                                                    sample_instance_handle,
-                                                    serialized_data,
-                                                    now,
-                                                    now,
+                                                    call:
+                                                        TypeLookupCall::TypeLookupGetTypesHashId {
+                                                            get_types: TypeLookupGetTypesIn {
+                                                                type_ids: unresolved.clone(),
+                                                            },
+                                                        },
+                                                };
+                                                let sample_instance_handle =
+                                                    InstanceHandle::default();
+                                                let serialized_data = serialize_cdr2_le(
+                                                    &type_lookup_request.create_dynamic_sample(),
                                                 )
-                                                .ok();
-                                            type_register.add_pending_types_lookup(unresolved);
+                                                .unwrap();
+                                                type_request_writer
+                                                    .write_w_timestamp(
+                                                        sample_instance_handle,
+                                                        serialized_data,
+                                                        now,
+                                                        now,
+                                                        None,
+                                                        None,
+                                                    )
+                                                    .ok();
+                                                type_register.add_pending_types_lookup(unresolved);
+                                            }
                                         }
+                                        continue;
                                     }
-                                    continue;
+                                }
+                                _ => {
+                                    !discovered_reader_data
+                                        .dds_subscription_data
+                                        .type_consistency
+                                        .force_type_validation
+                                        && discovered_reader_data
+                                            .dds_subscription_data
+                                            .get_type_name()
+                                            == writer_associated_topic.type_name.as_ref()
                                 }
                             }
-                            _ => {
-                                !discovered_reader_data
-                                    .dds_subscription_data
-                                    .type_consistency
-                                    .force_type_validation
-                                    && discovered_reader_data.dds_subscription_data.get_type_name()
-                                        == writer_associated_topic.type_name.as_ref()
-                            }
+                        } else {
+                            true
                         };
 
                         if is_matched_topic_name {
@@ -1184,7 +1213,7 @@ impl DcpsDomainParticipant {
                                         }
                                     };
 
-                                    let reader_proxy = transport::types::ReaderProxy {
+                                    let reader_proxy = rtps::types::ReaderProxy {
                                         remote_reader_guid: discovered_reader_data
                                             .reader_proxy
                                             .remote_reader_guid,
@@ -1440,17 +1469,7 @@ impl DcpsDomainParticipant {
         else {
             return;
         };
-        if data_writer
-            .matched_subscription_list
-            .iter()
-            .any(|x| subscription_handle.as_ref() == &x.key().value)
-        {
-            data_writer.remove_matched_subscription(&subscription_handle);
-
-            data_writer
-                .status_condition
-                .add_communication_state(StatusKind::PublicationMatched);
-        }
+        data_writer.remove_matched_subscription(&subscription_handle);
     }
 
     #[tracing::instrument(skip(self))]
@@ -1485,8 +1504,8 @@ impl DcpsDomainParticipant {
         let dcps_sender = self.dcps_sender.clone();
 
         for subscriber in user_defined_subscriber_list.iter_mut() {
-            let subscriber_handle = subscriber.instance_handle;
-            let subscriber_qos = subscriber.qos.clone();
+            let subscriber_handle = subscriber.subscriber_entity.instance_handle;
+            let subscriber_qos = subscriber.subscriber_entity.qos.clone();
             let subscriber_listener_mask = subscriber.listener_mask;
             let subscriber_listener_sender = subscriber.listener_sender.clone();
             for data_reader in &mut subscriber.data_reader_list {
@@ -1543,85 +1562,85 @@ impl DcpsDomainParticipant {
                             discovered_writer_data.dds_publication_data.topic_name()
                                 == reader_associated_topic.topic_name.as_ref();
 
-                        let is_matched_type = match &discovered_writer_data
-                            .dds_publication_data
-                            .type_information
-                        {
-                            Some(discovered_type_information) => {
-                                let discovered_type_id = &discovered_type_information
-                                    .complete
-                                    .typeid_with_size
-                                    .type_id;
+                        let is_matched_type = if self.enable_type_information {
+                            match &discovered_writer_data.dds_publication_data.type_information {
+                                Some(discovered_type_information) => {
+                                    let discovered_type_id = &discovered_type_information
+                                        .complete
+                                        .typeid_with_size
+                                        .type_id;
 
-                                // If the minimal hash match it is guaranteed compatible
-                                if reader_associated_topic
-                                    .type_information
-                                    .minimal
-                                    .typeid_with_size
-                                    == discovered_type_information.minimal.typeid_with_size
-                                {
-                                    true
-                                } else if let Some(type_object) =
-                                    type_register.get_type_object(discovered_type_id)
-                                {
-                                    match &type_object {
-                                        TypeObject::EkComplete { complete } => {
-                                            if let Some(TypeObject::EkComplete {
-                                                complete: local_complete,
-                                            }) = type_register.get_type_object(
-                                                &reader_associated_topic
-                                                    .type_information
-                                                    .complete
-                                                    .typeid_with_size
-                                                    .type_id,
-                                            ) {
-                                                let resolver = |id: &TypeIdentifier| {
-                                                    if let Some(TypeObject::EkComplete {
-                                                        complete,
-                                                    }) = type_register.get_type_object(id)
-                                                    {
-                                                        Some(complete)
-                                                    } else {
-                                                        None
-                                                    }
-                                                };
-                                                local_complete
-                                                    .is_assignable_from_w_type_consistency(
-                                                        complete,
-                                                        &data_reader.qos.type_consistency,
-                                                        &resolver,
-                                                    )
-                                            } else {
-                                                false
-                                            }
-                                        }
-                                        TypeObject::EkMinimal { minimal } => {
-                                            if let Some(TypeObject::EkMinimal {
-                                                minimal: local_minimal,
-                                            }) = type_register.get_type_object(
-                                                &reader_associated_topic
-                                                    .type_information
-                                                    .minimal
-                                                    .typeid_with_size
-                                                    .type_id,
-                                            ) {
-                                                &local_minimal == minimal
-                                            } else {
-                                                false
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if discovered_type_information.complete.dependent_typeid_count
-                                        < 0
+                                    // If the minimal hash match it is guaranteed compatible
+                                    if reader_associated_topic
+                                        .type_information
+                                        .minimal
+                                        .typeid_with_size
+                                        == discovered_type_information.minimal.typeid_with_size
                                     {
-                                        if !type_register
-                                            .is_dependencies_lookup_pending(discovered_type_id)
+                                        true
+                                    } else if let Some(type_object) =
+                                        type_register.get_type_object(discovered_type_id)
+                                    {
+                                        match &type_object {
+                                            TypeObject::EkComplete { complete } => {
+                                                if let Some(TypeObject::EkComplete {
+                                                    complete: local_complete,
+                                                }) = type_register.get_type_object(
+                                                    &reader_associated_topic
+                                                        .type_information
+                                                        .complete
+                                                        .typeid_with_size
+                                                        .type_id,
+                                                ) {
+                                                    let resolver = |id: &TypeIdentifier| {
+                                                        if let Some(TypeObject::EkComplete {
+                                                            complete,
+                                                        }) = type_register.get_type_object(id)
+                                                        {
+                                                            Some(complete)
+                                                        } else {
+                                                            None
+                                                        }
+                                                    };
+                                                    local_complete
+                                                        .is_assignable_from_w_type_consistency(
+                                                            complete,
+                                                            &data_reader.qos.type_consistency,
+                                                            &resolver,
+                                                        )
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                            TypeObject::EkMinimal { minimal } => {
+                                                if let Some(TypeObject::EkMinimal {
+                                                    minimal: local_minimal,
+                                                }) = type_register.get_type_object(
+                                                    &reader_associated_topic
+                                                        .type_information
+                                                        .minimal
+                                                        .typeid_with_size
+                                                        .type_id,
+                                                ) {
+                                                    &local_minimal == minimal
+                                                } else {
+                                                    false
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if discovered_type_information
+                                            .complete
+                                            .dependent_typeid_count
+                                            < 0
                                         {
-                                            let type_request_writer =
-                                                &mut builtin_publisher.type_lookup_request_writer;
+                                            if !type_register
+                                                .is_dependencies_lookup_pending(discovered_type_id)
+                                            {
+                                                let type_request_writer = &mut builtin_publisher
+                                                    .type_lookup_request_writer;
 
-                                            let type_lookup_request = TypeLookupRequest {
+                                                let type_lookup_request = TypeLookupRequest {
                                                 header: RequestHeader {
                                                     request_id: SampleIdentity {
                                                         writer_guid: type_request_writer
@@ -1653,90 +1672,103 @@ impl DcpsDomainParticipant {
                                                             },
                                                     },
                                             };
-                                            let sample_instance_handle = InstanceHandle::default();
-                                            let serialized_data = serialize_cdr2_le(
-                                                &type_lookup_request.create_dynamic_sample(),
-                                            )
-                                            .unwrap();
-                                            type_request_writer
-                                                .write_w_timestamp(
-                                                    sample_instance_handle,
-                                                    serialized_data,
-                                                    now,
-                                                    now,
+                                                let sample_instance_handle =
+                                                    InstanceHandle::default();
+                                                let serialized_data = serialize_cdr2_le(
+                                                    &type_lookup_request.create_dynamic_sample(),
                                                 )
-                                                .ok();
-                                            type_register.add_pending_dependencies_lookup(
-                                                discovered_type_id.clone(),
+                                                .unwrap();
+                                                type_request_writer
+                                                    .write_w_timestamp(
+                                                        sample_instance_handle,
+                                                        serialized_data,
+                                                        now,
+                                                        now,
+                                                        None,
+                                                        None,
+                                                    )
+                                                    .ok();
+                                                type_register.add_pending_dependencies_lookup(
+                                                    discovered_type_id.clone(),
+                                                );
+                                            }
+                                        } else {
+                                            type_register.register_type_dependencies(
+                                                discovered_type_id,
+                                                discovered_type_information
+                                                    .complete
+                                                    .dependent_typeids
+                                                    .clone(),
                                             );
-                                        }
-                                    } else {
-                                        type_register.register_type_dependencies(
-                                            discovered_type_id,
-                                            discovered_type_information
-                                                .complete
-                                                .dependent_typeids
-                                                .clone(),
-                                        );
-                                        let unresolved = type_register
-                                            .get_unresolved_type_ids(discovered_type_id);
-                                        if !unresolved.is_empty()
-                                            && !type_register.is_types_lookup_pending(&unresolved)
-                                        {
-                                            let type_request_writer =
-                                                &mut builtin_publisher.type_lookup_request_writer;
+                                            let unresolved = type_register
+                                                .get_unresolved_type_ids(discovered_type_id);
+                                            if !unresolved.is_empty()
+                                                && !type_register
+                                                    .is_types_lookup_pending(&unresolved)
+                                            {
+                                                let type_request_writer = &mut builtin_publisher
+                                                    .type_lookup_request_writer;
 
-                                            let type_lookup_request = TypeLookupRequest {
-                                                header: RequestHeader {
-                                                    request_id: SampleIdentity {
-                                                        writer_guid: type_request_writer
-                                                            .transport_writer
-                                                            .guid(),
-                                                        sequence_number: (type_request_writer
-                                                            .last_change_sequence_number
-                                                            + 1)
-                                                        .into(),
-                                                    },
-                                                    instance_name: format!(
-                                                        "dds.builtin.TOS.{:x}",
-                                                        InstanceHandle::new(
-                                                            discovered_writer_data
-                                                                .dds_publication_data
-                                                                .participant_key()
-                                                                .value
+                                                let type_lookup_request = TypeLookupRequest {
+                                                    header: RequestHeader {
+                                                        request_id: SampleIdentity {
+                                                            writer_guid: type_request_writer
+                                                                .transport_writer
+                                                                .guid(),
+                                                            sequence_number: (type_request_writer
+                                                                .last_change_sequence_number
+                                                                + 1)
+                                                            .into(),
+                                                        },
+                                                        instance_name: format!(
+                                                            "dds.builtin.TOS.{:x}",
+                                                            InstanceHandle::new(
+                                                                discovered_writer_data
+                                                                    .dds_publication_data
+                                                                    .participant_key()
+                                                                    .value
+                                                            ),
                                                         ),
-                                                    ),
-                                                },
-                                                call: TypeLookupCall::TypeLookupGetTypesHashId {
-                                                    get_types: TypeLookupGetTypesIn {
-                                                        type_ids: unresolved.clone(),
                                                     },
-                                                },
-                                            };
-                                            let sample_instance_handle = InstanceHandle::default();
-                                            let serialized_data = serialize_cdr2_le(
-                                                &type_lookup_request.create_dynamic_sample(),
-                                            )
-                                            .unwrap();
-                                            type_request_writer
-                                                .write_w_timestamp(
-                                                    sample_instance_handle,
-                                                    serialized_data,
-                                                    now,
-                                                    now,
+                                                    call:
+                                                        TypeLookupCall::TypeLookupGetTypesHashId {
+                                                            get_types: TypeLookupGetTypesIn {
+                                                                type_ids: unresolved.clone(),
+                                                            },
+                                                        },
+                                                };
+                                                let sample_instance_handle =
+                                                    InstanceHandle::default();
+                                                let serialized_data = serialize_cdr2_le(
+                                                    &type_lookup_request.create_dynamic_sample(),
                                                 )
-                                                .ok();
-                                            type_register.add_pending_types_lookup(unresolved);
+                                                .unwrap();
+                                                type_request_writer
+                                                    .write_w_timestamp(
+                                                        sample_instance_handle,
+                                                        serialized_data,
+                                                        now,
+                                                        now,
+                                                        None,
+                                                        None,
+                                                    )
+                                                    .ok();
+                                                type_register.add_pending_types_lookup(unresolved);
+                                            }
                                         }
+                                        continue;
                                     }
-                                    continue;
+                                }
+                                _ => {
+                                    !data_reader.qos.type_consistency.force_type_validation
+                                        && discovered_writer_data
+                                            .dds_publication_data
+                                            .get_type_name()
+                                            == reader_associated_topic.type_name.as_ref()
                                 }
                             }
-                            _ => {
-                                !data_reader.qos.type_consistency.force_type_validation
-                                    && discovered_writer_data.dds_publication_data.get_type_name()
-                                        == reader_associated_topic.type_name.as_ref()
-                            }
+                        } else {
+                            true
                         };
 
                         if is_matched_topic_name {
@@ -1824,7 +1856,7 @@ impl DcpsDomainParticipant {
                                             DurabilityKind::Persistent
                                         }
                                     };
-                                    let writer_proxy = transport::types::WriterProxy {
+                                    let writer_proxy = rtps::types::WriterProxy {
                                         remote_writer_guid: discovered_writer_data
                                             .writer_proxy
                                             .remote_writer_guid,
@@ -2084,7 +2116,14 @@ impl DcpsDomainParticipant {
                         serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                     type_lookup_reply_writer
-                        .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                        .write_w_timestamp(
+                            InstanceHandle::default(),
+                            serialized_data,
+                            now,
+                            now,
+                            None,
+                            None,
+                        )
                         .ok();
                     type_lookup_reply_writer
                         .transport_writer
@@ -2122,7 +2161,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_reply.create_dynamic_sample()).unwrap();
 
                         type_lookup_reply_writer
-                            .write_w_timestamp(InstanceHandle::default(), serialized_data, now, now)
+                            .write_w_timestamp(
+                                InstanceHandle::default(),
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         type_lookup_reply_writer
                             .transport_writer
@@ -2196,7 +2242,14 @@ impl DcpsDomainParticipant {
                             serialize_cdr2_le(&type_lookup_request.create_dynamic_sample())
                                 .unwrap();
                         type_request_writer
-                            .write_w_timestamp(sample_instance_handle, serialized_data, now, now)
+                            .write_w_timestamp(
+                                sample_instance_handle,
+                                serialized_data,
+                                now,
+                                now,
+                                None,
+                                None,
+                            )
                             .ok();
                         self.domain_participant
                             .type_register
@@ -2522,6 +2575,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -2588,6 +2643,8 @@ impl DcpsDomainParticipant {
                                         serialized_data,
                                         now,
                                         now,
+                                        None,
+                                        None,
                                     )
                                     .ok();
                                 type_request_writer
@@ -2720,6 +2777,13 @@ impl DcpsDomainParticipant {
 
         let prefix = Guid::from(<[u8; 16]>::from(*handle)).prefix();
 
+        self.domain_participant
+            .discovered_writer_list
+            .retain(|w| w.dds_publication_data.key().value[..12] != prefix);
+        self.domain_participant
+            .discovered_reader_list
+            .retain(|r| r.dds_subscription_data.key().value[..12] != prefix);
+
         for subscriber in &mut self.domain_participant.user_defined_subscriber_list {
             let (subscriber_status_condition, data_reader_list) = (
                 &mut subscriber.status_condition,
@@ -2744,18 +2808,7 @@ impl DcpsDomainParticipant {
 
         for publisher in &mut self.domain_participant.user_defined_publisher_list {
             for data_writer in &mut publisher.data_writer_list {
-                for matched_subscription in &data_writer.matched_subscription_list {
-                    if matched_subscription.key.value[..12] == prefix {
-                        // Remove readers
-                        data_writer
-                            .writer
-                            .transport_writer
-                            .delete_matched_reader(matched_subscription.key.value.into());
-                    }
-                }
-                data_writer
-                    .matched_subscription_list
-                    .retain(|subscription| subscription.key.value[..12] != prefix);
+                data_writer.remove_matched_subscriptions_by_prefix(prefix);
             }
         }
 
@@ -2791,7 +2844,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2844,7 +2897,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 unicast_locator_list: discovered_participant_data
@@ -2892,7 +2945,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2945,7 +2998,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -2993,7 +3046,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3040,7 +3093,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3082,7 +3135,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3135,7 +3188,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3183,7 +3236,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let reader_proxy = transport::types::ReaderProxy {
+            let reader_proxy = rtps::types::ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3236,7 +3289,7 @@ impl DcpsDomainParticipant {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
 
-            let writer_proxy = transport::types::WriterProxy {
+            let writer_proxy = rtps::types::WriterProxy {
                 remote_writer_guid,
                 remote_group_entity_id,
                 reliability_kind: ReliabilityKind::Reliable,
@@ -3299,6 +3352,8 @@ impl DcpsDomainParticipant {
                 serialized_data,
                 sample_timestamp,
                 now,
+                None,
+                None,
             )
             .ok();
         }
@@ -3315,11 +3370,13 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     if &writer_qos.durability < discovered_reader_data.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
-        || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation().coherent_access
-        || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation().ordered_access
+
+    if !(publisher_qos.presentation.access_scope
+        >= discovered_reader_data.presentation.access_scope
+        && (!discovered_reader_data.presentation.coherent_access
+            || publisher_qos.presentation.coherent_access)
+        && (!discovered_reader_data.presentation.ordered_access
+            || publisher_qos.presentation.ordered_access))
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3347,13 +3404,12 @@ fn get_discovered_reader_incompatible_qos_policy_list(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !(discovered_reader_data
-        .representation()
-        .value
-        .contains(writer_offered_representation)
-        || (writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && discovered_reader_data.representation().value.is_empty()))
-    {
+    let reader_representation = if discovered_reader_data.representation().value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        discovered_reader_data.representation().value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
         incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
@@ -3368,14 +3424,9 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
 ) -> Vec<QosPolicyId> {
     let mut incompatible_qos_policy_list = Vec::new();
 
-    if subscriber_qos.presentation.access_scope
-        > publication_builtin_topic_data.presentation().access_scope
-        || subscriber_qos.presentation.coherent_access
-            != publication_builtin_topic_data
-                .presentation()
-                .coherent_access
-        || subscriber_qos.presentation.ordered_access
-            != publication_builtin_topic_data.presentation().ordered_access
+    if !publication_builtin_topic_data
+        .presentation()
+        .is_compatible_with_requested(&subscriber_qos.presentation)
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
@@ -3406,49 +3457,53 @@ fn get_discovered_writer_incompatible_qos_policy_list<R>(
         .value
         .first()
         .unwrap_or(&XCDR_DATA_REPRESENTATION);
-    if !data_reader
-        .qos
-        .representation
-        .value
-        .contains(writer_offered_representation)
-    {
-        // Empty list is interpreted as containing XCDR_DATA_REPRESENTATION
-        if !(writer_offered_representation == &XCDR_DATA_REPRESENTATION
-            && data_reader.qos.representation.value.is_empty())
-        {
-            incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID)
-        }
+    let reader_representation = if data_reader.qos.representation.value.is_empty() {
+        &[XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION][..]
+    } else {
+        data_reader.qos.representation.value.as_slice()
+    };
+    if !reader_representation.contains(writer_offered_representation) {
+        incompatible_qos_policy_list.push(DATA_REPRESENTATION_QOS_POLICY_ID);
     }
 
     incompatible_qos_policy_list
 }
 
 fn is_partition_matched(p1: &PartitionQosPolicy, p2: &PartitionQosPolicy) -> bool {
-    if p1 == p2 {
+    let default_partition = [String::new()];
+    let p1_names = if p1.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p1.name.as_slice()
+    };
+    let p2_names = if p2.name.is_empty() {
+        default_partition.as_slice()
+    } else {
+        p2.name.as_slice()
+    };
+    if p1_names == p2_names {
         return true;
     }
-    if p1.name.iter().any(|n| p2.name.contains(n)) {
+    if p1_names.iter().any(|n| p2_names.contains(n)) {
         return true;
     }
-    let p1_has_wildcard = p1.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
-    let p2_has_wildcard = p2.name.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p1_has_wildcard = p1_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
+    let p2_has_wildcard = p2_names.iter().any(|n| n.contains(['*', '?', '[', '+']));
     if p1_has_wildcard
-        && p1
-            .name
+        && p1_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p2.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p2_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
     if p2_has_wildcard
-        && p2
-            .name
+        && p2_names
             .iter()
             .filter(|n| n.contains(['*', '?', '[', '+']))
             .filter_map(|n| Regex::new(&fnmatch_to_regex(n)).ok())
-            .any(|regex| p1.name.iter().any(|n| regex.is_match(n)))
+            .any(|regex| p1_names.iter().any(|n| regex.is_match(n)))
     {
         return true;
     }
@@ -3542,6 +3597,14 @@ fn fnmatch_to_regex(pattern: &str) -> String {
     flush_literal(&mut out, &mut literal);
     out.push('$');
     out
+}
+
+impl PresentationQosPolicy {
+    fn is_compatible_with_requested(&self, requested: &Self) -> bool {
+        self.access_scope >= requested.access_scope
+            && (!requested.coherent_access || self.coherent_access)
+            && (!requested.ordered_access || self.ordered_access)
+    }
 }
 
 impl PublicationMatchedStatus {

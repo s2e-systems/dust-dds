@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, sync::Arc};
 
 use crate::{
     dcps::{
@@ -15,13 +15,17 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
+        qos_policy::PresentationQosPolicyAccessScopeKind,
         time::Time,
     },
-    rtps::stateful_writer::RtpsStatefulWriter,
-    runtime::Spawner,
-    transport::types::{
-        EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+    rtps::{
+        cache_change::CacheChangeWrite,
+        stateful_writer::RtpsStatefulWriter,
+        types::{ChangeKind, OriginalWriterInfo, TopicKind, WriterGroupInfo},
     },
+    rtps_messages::submessage_elements::ParameterListWrite,
+    runtime::Spawner,
+    transport::types::{EntityId, Guid, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY},
 };
 
 impl DcpsDomainParticipant {
@@ -63,6 +67,16 @@ impl DcpsDomainParticipant {
         else {
             return Err(DdsError::AlreadyDeleted);
         };
+
+        if publisher.coherent_changes_depth > 0
+            && publisher.qos.presentation.coherent_access
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Cannot create data writer while a group coherent set is active",
+            )));
+        }
 
         let entity_kind = match topic_kind {
             TopicKind::WithKey => USER_DEFINED_WRITER_WITH_KEY,
@@ -123,7 +137,7 @@ impl DcpsDomainParticipant {
         .unwrap_or_default();
 
         let listener_sender = dcps_listener.map(|l| l.spawn(spawner));
-        let data_writer = UserDefinedDataWriter::new(
+        let mut data_writer = UserDefinedDataWriter::new(
             writer_handle,
             transport_writer,
             topic.topic_name.clone(),
@@ -132,6 +146,13 @@ impl DcpsDomainParticipant {
             qos,
             key_holder_type,
         );
+        if publisher.coherent_changes_depth > 0
+            && publisher.qos.presentation.coherent_access
+            && publisher.qos.presentation.access_scope
+                != PresentationQosPolicyAccessScopeKind::Instance
+        {
+            data_writer.is_in_coherent_set = true;
+        }
         let data_writer_handle = data_writer.instance_handle;
 
         publisher.data_writer_list.push(data_writer);
@@ -166,6 +187,16 @@ impl DcpsDomainParticipant {
             return Err(DdsError::AlreadyDeleted);
         };
 
+        if publisher.coherent_changes_depth > 0
+            && publisher.qos.presentation.coherent_access
+            && publisher.qos.presentation.access_scope
+                == PresentationQosPolicyAccessScopeKind::Group
+        {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "Cannot delete data writer while a group coherent set is active",
+            )));
+        }
+
         if let Some(index) = publisher
             .data_writer_list
             .iter()
@@ -177,6 +208,182 @@ impl DcpsDomainParticipant {
         } else {
             Err(DdsError::AlreadyDeleted)
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn begin_coherent_changes(&mut self, publisher_handle: &InstanceHandle) -> DdsResult<()> {
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        publisher.coherent_changes_depth += 1;
+        if publisher.coherent_changes_depth == 1 && publisher.qos.presentation.coherent_access {
+            match publisher.qos.presentation.access_scope {
+                PresentationQosPolicyAccessScopeKind::Instance
+                | PresentationQosPolicyAccessScopeKind::Topic => {
+                    for writer in &mut publisher.data_writer_list {
+                        writer.is_in_coherent_set = true;
+                        writer.first_coherent_sequence_number = None;
+                    }
+                }
+                PresentationQosPolicyAccessScopeKind::Group => {
+                    publisher.group_coherent_set = None;
+                    for writer in &mut publisher.data_writer_list {
+                        writer.is_in_coherent_set = true;
+                        writer.first_coherent_sequence_number = None;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self, transport_participant))]
+    pub fn end_coherent_changes(
+        &mut self,
+        publisher_handle: &InstanceHandle,
+        now: Time,
+        transport_participant: &mut impl crate::transport::interface::RtpsParticipant,
+    ) -> DdsResult<()> {
+        let Some(publisher) = self
+            .domain_participant
+            .user_defined_publisher_list
+            .iter_mut()
+            .find(|x| &x.instance_handle == publisher_handle)
+        else {
+            return Err(DdsError::AlreadyDeleted);
+        };
+
+        if publisher.coherent_changes_depth == 0 {
+            return Err(DdsError::PreconditionNotMet(String::from(
+                "end_coherent_changes called without matching begin_coherent_changes",
+            )));
+        }
+
+        publisher.coherent_changes_depth -= 1;
+        if publisher.coherent_changes_depth == 0 {
+            if publisher.qos.presentation.coherent_access {
+                match publisher.qos.presentation.access_scope {
+                    PresentationQosPolicyAccessScopeKind::Instance
+                    | PresentationQosPolicyAccessScopeKind::Topic => {
+                        for writer in &mut publisher.data_writer_list {
+                            if writer.first_coherent_sequence_number.is_some() {
+                                writer.last_change_sequence_number += 1;
+
+                                let change = CacheChangeWrite {
+                                    writer_guid: writer.transport_writer.guid(),
+                                    sequence_number: writer.last_change_sequence_number,
+                                    source_timestamp: now.into(),
+                                    inline_qos: ParameterListWrite {
+                                        kind: ChangeKind::Alive,
+                                        instance_handle: None,
+                                        original_writer_info: None,
+                                        coherent_set: None,
+                                        group_coherent_set: None,
+                                        group_seq_num: None,
+                                        writer_group_info: None,
+                                    },
+                                    data_value: Arc::from([]),
+                                };
+                                writer.transport_writer.add_change(change);
+                                writer
+                                    .transport_writer
+                                    .write_message(transport_participant, now);
+                            }
+                            writer.is_in_coherent_set = false;
+                            writer.first_coherent_sequence_number = None;
+                        }
+                    }
+                    PresentationQosPolicyAccessScopeKind::Group => {
+                        if publisher.group_coherent_set.is_some() {
+                            publisher.group_seq_num += 1;
+                            let group_seq_num = publisher.group_seq_num;
+                            let group_coherent_set = publisher.group_coherent_set;
+
+                            let mut md5 = md5::Context::new();
+                            let mut current_id = publisher
+                                .data_writer_list
+                                .iter()
+                                .filter(|w| w.enabled)
+                                .map(|w| w.transport_writer.guid().entity_id())
+                                .min();
+
+                            while let Some(id) = current_id {
+                                let count = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .filter(|w| w.transport_writer.guid().entity_id() == id)
+                                    .count();
+                                for _ in 0..count {
+                                    md5.consume(id.entity_key());
+                                    md5.consume([id.entity_kind()]);
+                                }
+
+                                current_id = publisher
+                                    .data_writer_list
+                                    .iter()
+                                    .filter(|w| w.enabled)
+                                    .map(|w| w.transport_writer.guid().entity_id())
+                                    .filter(|&next_id| next_id > id)
+                                    .min();
+                            }
+
+                            let writer_set = md5.compute().into();
+                            let writer_group_info = Some(WriterGroupInfo { writer_set });
+
+                            for writer in &mut publisher.data_writer_list {
+                                writer.last_change_sequence_number += 1;
+                                let original_writer_info = Some(OriginalWriterInfo {
+                                    original_writer_guid: writer.transport_writer.guid(),
+                                    original_writer_sn: group_seq_num,
+                                });
+                                let change = CacheChangeWrite {
+                                    writer_guid: writer.transport_writer.guid(),
+                                    sequence_number: writer.last_change_sequence_number,
+                                    source_timestamp: now.into(),
+                                    inline_qos: ParameterListWrite {
+                                        kind: ChangeKind::Alive,
+                                        instance_handle: None,
+                                        coherent_set: None,
+                                        original_writer_info,
+                                        group_coherent_set,
+                                        group_seq_num: Some(group_seq_num),
+                                        writer_group_info,
+                                    },
+                                    data_value: Arc::from([]),
+                                };
+                                writer.transport_writer.add_change(change);
+                                writer
+                                    .transport_writer
+                                    .write_message(transport_participant, now);
+                                writer.is_in_coherent_set = false;
+                                writer.first_coherent_sequence_number = None;
+                            }
+                            publisher.group_coherent_set = None;
+                        } else {
+                            for writer in &mut publisher.data_writer_list {
+                                writer.is_in_coherent_set = false;
+                                writer.first_coherent_sequence_number = None;
+                            }
+                        }
+                    }
+                }
+            } else {
+                for writer in &mut publisher.data_writer_list {
+                    writer.is_in_coherent_set = false;
+                    writer.first_coherent_sequence_number = None;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

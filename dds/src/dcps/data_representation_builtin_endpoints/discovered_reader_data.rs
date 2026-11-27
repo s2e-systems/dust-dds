@@ -18,10 +18,11 @@ use crate::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION,
     },
     transport::types::{ENTITYID_UNKNOWN, EntityId, Guid, Locator},
 };
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderProxy {
@@ -108,6 +109,13 @@ impl DiscoveredReaderData {
             pl.write_xcdr1_parameter(
                 PID_DATA_REPRESENTATION,
                 self.dds_subscription_data.representation,
+            );
+        } else {
+            pl.write_xcdr1_parameter(
+                PID_DATA_REPRESENTATION,
+                DataRepresentationQosPolicy {
+                    value: vec![XCDR_DATA_REPRESENTATION, XCDR2_DATA_REPRESENTATION],
+                },
             );
         }
         if self.dds_subscription_data.protection_info != Default::default() {
@@ -291,6 +299,9 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
+            0x73, 0x00, 8, 0, // PID_DATA_REPRESENTATION, length
+            2, 0, 0, 0, //
+            0, 0, 2, 0, //
             0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
             1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
@@ -374,6 +385,9 @@ mod tests {
             b'o', b'n', b'e', 0, // String
             4, 0, 0, 0, // String length
             b't', b'w', b'o', 0, // String
+            0x73, 0x00, 8, 0, // PID_DATA_REPRESENTATION, length
+            2, 0, 0, 0, //
+            0, 0, 2, 0, //
             0x74, 0x00, 8, 0, // PID_TYPE_CONSISTENCY_ENFORCEMENT, length
             1, 0, 1, 1, 0, 0, 0, 0, //
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID

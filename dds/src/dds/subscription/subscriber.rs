@@ -201,6 +201,39 @@ impl Subscriber {
         block_on(self.subscriber_async.set_listener(a_listener, mask))
     }
 
+    /// This operation indicates that the application is about to access the data samples in any of the [`DataReader`] objects attached to
+    /// the [`Subscriber`].
+    ///
+    /// The application is required to use this operation only if [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) of the [`Subscriber`] to which the
+    /// [`DataReader`] belongs has the `access_scope` set to [`PresentationQosPolicyAccessScopeKind::Group`](crate::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Group).
+    ///
+    /// In the aforementioned case, the operation [`Self::begin_access`] must be called prior to calling any of the sample-accessing operations,
+    /// namely: `get_datareaders` on the [`Subscriber`] and [`DataReader::read`], [`DataReader::take`], [`DataReader::read_w_condition`], [`DataReader::take_w_condition`] on any [`DataReader`].
+    /// Otherwise the sample-accessing operations will return the error [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError). Once the application has
+    /// finished accessing the data samples it must call [`Self::end_access`].
+    ///
+    /// It is not required for the application to call [`Self::begin_access`]/[`Self::end_access`] if the [`PresentationQosPolicy`](crate::infrastructure::qos_policy::PresentationQosPolicy) has the `access_scope`
+    /// set to something other than [`PresentationQosPolicyAccessScopeKind::Group`](crate::infrastructure::qos_policy::PresentationQosPolicyAccessScopeKind::Group). Calling [`Self::begin_access`]/[`Self::end_access`] in this case is not considered an error and has no
+    /// effect.
+    ///
+    /// The calls to [`Self::begin_access`]/[`Self::end_access`] may be nested. In that case, the application must call [`Self::end_access`] as many times as it
+    /// called [`Self::begin_access`].
+    #[tracing::instrument(skip(self))]
+    pub fn begin_access(&self) -> DdsResult<()> {
+        block_on(self.subscriber_async.begin_access())
+    }
+
+    /// Indicates that the application has finished accessing the data samples in [`DataReader`] objects managed by the [`Subscriber`].
+    ///
+    /// This operation must be used to 'close' a corresponding [`Self::begin_access`].
+    /// After calling [`Self::end_access`] the application should no longer access any of the Data or [`SampleInfo`](crate::infrastructure::sample_info::SampleInfo) elements returned from the
+    /// sample-accessing operations. This call must close a previous call to [`Self::begin_access`] otherwise the operation will return the error
+    /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    #[tracing::instrument(skip(self))]
+    pub fn end_access(&self) -> DdsResult<()> {
+        block_on(self.subscriber_async.end_access())
+    }
+
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.

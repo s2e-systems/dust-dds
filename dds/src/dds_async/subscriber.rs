@@ -6,9 +6,9 @@ use super::{
 use crate::{
     dcps::{
         dcps_mail::{
-            CreateDataReaderMail, DeleteDataReaderMail, GetDefaultDataReaderQosMail,
-            GetSubscriberQosMail, LookupDataReaderMail, SetDefaultDataReaderQosMail,
-            SetSubscriberListenerMail, SetSubscriberQosMail,
+            BeginAccessMail, CreateDataReaderMail, DeleteDataReaderMail, EndAccessMail,
+            GetDefaultDataReaderQosMail, GetSubscriberQosMail, LookupDataReaderMail,
+            SetDefaultDataReaderQosMail, SetSubscriberListenerMail, SetSubscriberQosMail,
         },
         listeners::{
             data_reader_listener::DcpsDataReaderListener,
@@ -215,6 +215,28 @@ impl SubscriberAsync {
                 subscriber_handle: self.handle,
                 dcps_listener,
                 listener_mask: mask.iter().collect(),
+            })
+            .await
+    }
+
+    /// Async version of [`begin_access`](crate::subscription::subscriber::Subscriber::begin_access).
+    #[tracing::instrument(skip(self))]
+    pub async fn begin_access(&self) -> DdsResult<()> {
+        self.dcps_sender()
+            .execute(BeginAccessMail {
+                participant_handle: self.participant.get_instance_handle(),
+                subscriber_handle: self.handle,
+            })
+            .await
+    }
+
+    /// Async version of [`end_access`](crate::subscription::subscriber::Subscriber::end_access).
+    #[tracing::instrument(skip(self))]
+    pub async fn end_access(&self) -> DdsResult<()> {
+        self.dcps_sender()
+            .execute(EndAccessMail {
+                participant_handle: self.participant.get_instance_handle(),
+                subscriber_handle: self.handle,
             })
             .await
     }

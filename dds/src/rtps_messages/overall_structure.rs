@@ -1,6 +1,8 @@
-use crate::transport::types::{
-    EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, SequenceNumber, UnsignedLong,
-    VendorId,
+use crate::{
+    rtps::types::SequenceNumber,
+    transport::types::{
+        EntityId, GuidPrefix, Locator, Long, Octet, ProtocolVersion, UnsignedLong, VendorId,
+    },
 };
 
 use super::{
@@ -199,6 +201,14 @@ impl TryReadFromBytes for GuidPrefix {
         let mut guid_prefix = [0; 12];
         data.read_exact(&mut guid_prefix)?;
         Ok(guid_prefix)
+    }
+}
+
+impl TryReadFromBytes for [Octet; 16] {
+    fn try_read_from_bytes(data: &mut &[u8], _endianness: &Endianness) -> RtpsMessageResult<Self> {
+        let mut bytes = [0; 16];
+        data.read_exact(&mut bytes)?;
+        Ok(bytes)
     }
 }
 

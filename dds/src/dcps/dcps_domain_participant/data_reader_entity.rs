@@ -5,7 +5,10 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::{HANDLE_NIL, InstanceHandle},
         qos::DataReaderQos,
-        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind},
+        qos_policy::{
+            DestinationOrderQosPolicyKind, HistoryQosPolicyKind, OwnershipQosPolicyKind,
+            PresentationQosPolicy, PresentationQosPolicyAccessScopeKind,
+        },
         sample_info::{
             InstanceStateKind, InstanceStateMask, SampleInfo, SampleStateKind, SampleStateMask,
             ViewStateKind, ViewStateMask,
@@ -13,7 +16,8 @@ use crate::{
         status::SampleRejectedStatusKind,
         time::{Duration, DurationKind, TIME_INVALID_NSEC, TIME_INVALID_SEC, Time},
     },
-    transport::types::{ChangeKind, Guid},
+    rtps::types::ChangeKind,
+    transport::types::Guid,
     xtypes::{dynamic_type::DynamicType, type_support::TypeSupport},
 };
 use alloc::{string::ToString, sync::Arc, vec::Vec};
@@ -295,26 +299,20 @@ impl<T> DataReaderEntity<T> {
     }
 
     pub fn remove_stale_samples(&mut self, now: Time) {
-        let destination_order = self.qos.destination_order.kind;
         self.sample_list.retain(|sample| {
-            let timestamp = match destination_order {
-                DestinationOrderQosPolicyKind::BySourceTimestamp => sample.source_timestamp,
-                DestinationOrderQosPolicyKind::ByReceptionTimestamp => {
-                    Some(sample.reception_timestamp)
-                }
-            };
-            if let Some(timestamp) = timestamp {
-                if let Some(matched_publication) = self
-                    .matched_publication_list
-                    .iter()
-                    .find(|x| x.key().value == sample.writer_guid)
+            let timestamp = sample
+                .source_timestamp
+                .unwrap_or(sample.reception_timestamp);
+            if let Some(matched_publication) = self
+                .matched_publication_list
+                .iter()
+                .find(|x| x.key().value == sample.writer_guid)
+            {
+                if let DurationKind::Finite(lifespan_duration) =
+                    matched_publication.lifespan().duration
                 {
-                    if let DurationKind::Finite(lifespan_duration) =
-                        matched_publication.lifespan().duration
-                    {
-                        if now >= timestamp + lifespan_duration {
-                            return false;
-                        }
+                    if now >= timestamp + lifespan_duration {
+                        return false;
                     }
                 }
             }
@@ -322,6 +320,7 @@ impl<T> DataReaderEntity<T> {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_sample_collection(
         &mut self,
         max_samples: i32,
@@ -330,6 +329,7 @@ impl<T> DataReaderEntity<T> {
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
         take: bool,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if self.sample_list.is_empty() || max_samples <= 0 {
             return Err(DdsError::NoData);
@@ -576,38 +576,85 @@ impl<T> DataReaderEntity<T> {
         let mut samples = Vec::with_capacity(estimated_capacity);
         let mut instances_in_collection = InstancesTracker::new();
 
+        let ordered_by_instance = specific_instance_handle.is_none()
+            && self.instances.len() > 1
+            && !(presentation.ordered_access
+                && presentation.access_scope >= PresentationQosPolicyAccessScopeKind::Topic);
+
         if !take {
-            for cache_change in &mut self.sample_list {
-                if samples.len() as i32 == max_samples {
-                    break;
-                }
-
-                if let Some((instance_idx, instance)) = match_sample(
-                    cache_change,
-                    specific_instance_handle,
-                    &self.instances,
-                    match_all_sample_states,
-                    sample_state_mask,
-                    match_all_view_states,
-                    view_state_mask,
-                    match_all_instance_states,
-                    instance_state_mask,
-                ) {
-                    let (data, sample_info, absolute_generation_rank) =
-                        create_sample_info(cache_change, instance);
-
-                    if self.instances.len() > 1 {
-                        let inst_in_coll = instances_in_collection
-                            .get_or_insert_mut(cache_change.instance_handle, instance_idx);
-                        inst_in_coll.most_recent_sample_absolute_generation_rank =
-                            absolute_generation_rank;
+            if !ordered_by_instance {
+                for cache_change in &mut self.sample_list {
+                    if samples.len() as i32 == max_samples {
+                        break;
                     }
 
-                    samples.push((data, sample_info));
-                    cache_change.sample_state = SampleStateKind::Read;
+                    if let Some((instance_idx, instance)) = match_sample(
+                        cache_change,
+                        specific_instance_handle,
+                        &self.instances,
+                        match_all_sample_states,
+                        sample_state_mask,
+                        match_all_view_states,
+                        view_state_mask,
+                        match_all_instance_states,
+                        instance_state_mask,
+                    ) {
+                        let (data, sample_info, absolute_generation_rank) =
+                            create_sample_info(cache_change, instance);
+
+                        if self.instances.len() > 1 {
+                            let inst_in_coll = instances_in_collection
+                                .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                            inst_in_coll.most_recent_sample_absolute_generation_rank =
+                                absolute_generation_rank;
+                        }
+
+                        samples.push((data, sample_info));
+                        cache_change.sample_state = SampleStateKind::Read;
+                    }
+                }
+            } else {
+                let mut instance_order = Vec::new();
+                for cache_change in &self.sample_list {
+                    if !instance_order.contains(&cache_change.instance_handle) {
+                        instance_order.push(cache_change.instance_handle);
+                    }
+                }
+
+                'read_outer: for target_handle in instance_order {
+                    for cache_change in &mut self.sample_list {
+                        if samples.len() as i32 == max_samples {
+                            break 'read_outer;
+                        }
+
+                        if cache_change.instance_handle == target_handle {
+                            if let Some((instance_idx, instance)) = match_sample(
+                                cache_change,
+                                specific_instance_handle,
+                                &self.instances,
+                                match_all_sample_states,
+                                sample_state_mask,
+                                match_all_view_states,
+                                view_state_mask,
+                                match_all_instance_states,
+                                instance_state_mask,
+                            ) {
+                                let (data, sample_info, absolute_generation_rank) =
+                                    create_sample_info(cache_change, instance);
+
+                                let inst_in_coll = instances_in_collection
+                                    .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                                inst_in_coll.most_recent_sample_absolute_generation_rank =
+                                    absolute_generation_rank;
+
+                                samples.push((data, sample_info));
+                                cache_change.sample_state = SampleStateKind::Read;
+                            }
+                        }
+                    }
                 }
             }
-        } else {
+        } else if !ordered_by_instance {
             self.sample_list.retain_mut(|cache_change| {
                 if samples.len() as i32 == max_samples {
                     return true;
@@ -639,6 +686,71 @@ impl<T> DataReaderEntity<T> {
                 } else {
                     true
                 }
+            });
+        } else {
+            let mut instance_order = Vec::new();
+            for cache_change in &self.sample_list {
+                if !instance_order.contains(&cache_change.instance_handle) {
+                    instance_order.push(cache_change.instance_handle);
+                }
+            }
+
+            let mut taken_indices = Vec::new();
+            'take_outer: for target_handle in instance_order {
+                for (idx, cache_change) in self.sample_list.iter().enumerate() {
+                    if cache_change.instance_handle == target_handle
+                        && match_sample(
+                            cache_change,
+                            specific_instance_handle,
+                            &self.instances,
+                            match_all_sample_states,
+                            sample_state_mask,
+                            match_all_view_states,
+                            view_state_mask,
+                            match_all_instance_states,
+                            instance_state_mask,
+                        )
+                        .is_some()
+                    {
+                        taken_indices.push(idx);
+                        if taken_indices.len() as i32 == max_samples {
+                            break 'take_outer;
+                        }
+                    }
+                }
+            }
+
+            for &idx in &taken_indices {
+                let cache_change = &self.sample_list[idx];
+                let (instance_idx, instance) = match_sample(
+                    cache_change,
+                    specific_instance_handle,
+                    &self.instances,
+                    match_all_sample_states,
+                    sample_state_mask,
+                    match_all_view_states,
+                    view_state_mask,
+                    match_all_instance_states,
+                    instance_state_mask,
+                )
+                .unwrap();
+                let (data, sample_info, absolute_generation_rank) =
+                    create_sample_info(cache_change, instance);
+                let inst_in_coll = instances_in_collection
+                    .get_or_insert_mut(cache_change.instance_handle, instance_idx);
+                inst_in_coll.most_recent_sample_absolute_generation_rank = absolute_generation_rank;
+                samples.push((data, sample_info));
+            }
+
+            let mut taken_set = alloc::vec![false; self.sample_list.len()];
+            for &idx in &taken_indices {
+                taken_set[idx] = true;
+            }
+            let mut i = 0;
+            self.sample_list.retain(|_| {
+                let keep = !taken_set[i];
+                i += 1;
+                keep
             });
         }
 
@@ -1000,6 +1112,7 @@ impl<T> DataReaderEntity<T> {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -1012,6 +1125,7 @@ impl<T> DataReaderEntity<T> {
             instance_state_mask,
             specific_instance_handle,
             false,
+            presentation,
         )
     }
 
@@ -1022,6 +1136,7 @@ impl<T> DataReaderEntity<T> {
         view_state_mask: ViewStateMask,
         instance_state_mask: InstanceStateMask,
         specific_instance_handle: &Option<InstanceHandle>,
+        presentation: &PresentationQosPolicy,
     ) -> DdsResult<SampleList> {
         if !self.enabled {
             return Err(DdsError::NotEnabled);
@@ -1034,6 +1149,7 @@ impl<T> DataReaderEntity<T> {
             instance_state_mask,
             specific_instance_handle,
             true,
+            presentation,
         )
     }
 }
