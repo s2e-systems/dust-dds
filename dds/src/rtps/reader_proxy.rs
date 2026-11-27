@@ -138,7 +138,7 @@ impl RtpsReaderProxy {
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
             highest_sent_seq_num,
-            highest_acked_seq_num: 0,
+            highest_acked_seq_num: first_relevant_sample_seq_num.saturating_sub(1).max(0),
             requested_changes: Vec::new(),
             requested_fragments: Vec::new(),
             expects_inline_qos,
