@@ -17,7 +17,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering},
     },
     task::{Context, Poll as TaskPoll},
 };
@@ -318,7 +318,6 @@ pub struct RtpsUdpTransport {
     fragment_size: usize,
     udp_receive_buffer_size: Option<usize>,
     ip_version: IpVersion,
-    participant_counter: u32,
     reactors: HashMap<Guid, ReactorHandle>,
 }
 
@@ -385,7 +384,6 @@ impl Default for RtpsUdpTransport {
             fragment_size: 1344,
             udp_receive_buffer_size: None,
             ip_version: IpVersion::default(),
-            participant_counter: 0,
             reactors: HashMap::new(),
         }
     }
@@ -502,9 +500,11 @@ impl Transport for RtpsUdpTransport {
                 [0; 4]
             });
 
+        static PROCESS_PARTICIPANT_COUNTER: AtomicU32 = AtomicU32::new(0);
         let app_id = std::process::id().to_ne_bytes();
-        let counter_bytes = self.participant_counter.to_be_bytes();
-        self.participant_counter += 1;
+        let counter_bytes = PROCESS_PARTICIPANT_COUNTER
+            .fetch_add(1, Ordering::Relaxed)
+            .to_be_bytes();
         let guid_prefix: GuidPrefix = [
             host_id[0],
             host_id[1],
@@ -1032,5 +1032,22 @@ mod tests {
         assert_eq!(IpVersion::default(), IpVersion::V4);
         let factory = RtpsUdpTransport::default();
         assert_eq!(factory.ip_version(), IpVersion::V4);
+    }
+
+    #[test]
+    fn separate_transports_generate_distinct_guid_prefixes() {
+        let mut transport_a = RtpsUdpTransport::default();
+        let mut transport_b = RtpsUdpTransport::default();
+
+        let participant_a = transport_a.create_participant(200);
+        let participant_b = transport_b.create_participant(200);
+
+        let guid_a = participant_a.guid();
+        let guid_b = participant_b.guid();
+
+        transport_a.delete_participant(guid_a);
+        transport_b.delete_participant(guid_b);
+
+        assert_ne!(guid_a.prefix(), guid_b.prefix());
     }
 }
