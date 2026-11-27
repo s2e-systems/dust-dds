@@ -56,6 +56,13 @@ pub struct HandshakeMessageToken(pub MessageToken);
 #[dust_dds(extensibility = "final")]
 pub struct IdentityToken(pub Token);
 
+impl IdentityToken {
+    /// Checks whether two [`IdentityToken`] instances have compatible class IDs.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        is_class_id_compatible(&self.0.class_id, &other.0.class_id)
+    }
+}
+
 /// IdentityStatusToken type as defined in the DDS Security specification.
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
 #[dust_dds(extensibility = "final")]
@@ -65,6 +72,13 @@ pub struct IdentityStatusToken(pub Token);
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
 #[dust_dds(extensibility = "final")]
 pub struct PermissionsToken(pub Token);
+
+impl PermissionsToken {
+    /// Checks whether two [`PermissionsToken`] instances have compatible class IDs.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        is_class_id_compatible(&self.0.class_id, &other.0.class_id)
+    }
+}
 
 /// AuthenticatedPeerCredentialToken type as defined in the DDS Security specification.
 #[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
@@ -237,6 +251,15 @@ pub const CBIT_ECDHE_CEUM_P256: CryptoAlgorithmBit = 1 << 1;
 /// Predefined CryptoAlgorithmBit value for ECDHE-CEUM+P384.
 pub const CBIT_ECDHE_CEUM_P384: CryptoAlgorithmBit = 1 << 2;
 
+/// Predefined CryptoAlgorithmBit value for RSASSA-PSS-MGF1SHA256+2048+SHA256.
+pub const CBIT_RSASSA_PSS_MGF1SHA256_2048_SHA256: CryptoAlgorithmBit = 1 << 0;
+/// Predefined CryptoAlgorithmBit value for RSASSA-PKCS1-V1_5+2048+SHA256.
+pub const CBIT_RSASSA_PKCS1_V1_5_2048_SHA256: CryptoAlgorithmBit = 1 << 1;
+/// Predefined CryptoAlgorithmBit value for ECDSA+P256+SHA256.
+pub const CBIT_ECDSA_P256_SHA256: CryptoAlgorithmBit = 1 << 2;
+/// Predefined CryptoAlgorithmBit value for ECDSA+P384+SHA384.
+pub const CBIT_ECDSA_P384_SHA384: CryptoAlgorithmBit = 1 << 3;
+
 /// Predefined CryptoAlgorithmBit value for AES128+GMAC.
 pub const CBIT_AES128_GMAC: CryptoAlgorithmBit = 1 << 0;
 /// Predefined CryptoAlgorithmBit value for AES128+GCM.
@@ -245,6 +268,23 @@ pub const CBIT_AES128_GCM: CryptoAlgorithmBit = 1 << 0;
 pub const CBIT_AES256_GMAC: CryptoAlgorithmBit = 1 << 1;
 /// Predefined CryptoAlgorithmBit value for AES256+GCM.
 pub const CBIT_AES256_GCM: CryptoAlgorithmBit = 1 << 1;
+
+/// Parses `<PluginClassName>:<MajorVersion>.<MinorVersion>`.
+///
+/// If no version is present, defaults to major version `"1"`.
+fn parse_class_id(s: &str) -> (&str, &str) {
+    if let Some((class, version)) = s.rsplit_once(':') {
+        let major = version.split('.').next().unwrap_or("1");
+        (class, major)
+    } else {
+        (s, "1")
+    }
+}
+
+/// Checks whether two class IDs are compatible according to DDS Security Section 10.3.2.1 and 10.4.2.2.
+pub fn is_class_id_compatible(local: &str, remote: &str) -> bool {
+    parse_class_id(local) == parse_class_id(remote)
+}
 
 /// CryptoAlgorithmRequirements type as defined in Section 7.3.10 of the DDS Security specification.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
@@ -272,13 +312,30 @@ impl CryptoAlgorithmRequirements {
 }
 
 /// ParticipantSecurityDigitalSignatureAlgorithmInfo type as defined in Section 7.5.1.4 of the DDS Security specification.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, TypeSupport)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, TypeSupport)]
 #[dust_dds(extensibility = "appendable")]
 pub struct ParticipantSecurityDigitalSignatureAlgorithmInfo {
     /// Trust chain algorithm requirements.
     pub trust_chain: CryptoAlgorithmRequirements,
     /// Message authentication algorithm requirements.
     pub message_auth: CryptoAlgorithmRequirements,
+}
+
+impl Default for ParticipantSecurityDigitalSignatureAlgorithmInfo {
+    fn default() -> Self {
+        Self {
+            trust_chain: CryptoAlgorithmRequirements {
+                supported_mask: CBIT_RSASSA_PSS_MGF1SHA256_2048_SHA256
+                    | CBIT_RSASSA_PKCS1_V1_5_2048_SHA256
+                    | CBIT_ECDSA_P256_SHA256,
+                required_mask: CBIT_ECDSA_P256_SHA256,
+            },
+            message_auth: CryptoAlgorithmRequirements {
+                supported_mask: CBIT_RSASSA_PSS_MGF1SHA256_2048_SHA256 | CBIT_ECDSA_P256_SHA256,
+                required_mask: CBIT_ECDSA_P256_SHA256,
+            },
+        }
+    }
 }
 
 impl ParticipantSecurityDigitalSignatureAlgorithmInfo {
@@ -373,6 +430,20 @@ pub struct ParticipantSecurityAlgorithmInfo {
     pub key_establishment: ParticipantSecurityKeyEstablishmentAlgorithmInfo,
     /// Symmetric cipher algorithm info.
     pub symmetric_cipher: ParticipantSecuritySymmetricCipherAlgorithmInfo,
+}
+
+impl ParticipantSecurityAlgorithmInfo {
+    /// Checks whether two [`ParticipantSecurityAlgorithmInfo`] configurations are compatible.
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        self.digital_signature
+            .is_compatible_with(&other.digital_signature)
+            && self
+                .key_establishment
+                .is_compatible_with(&other.key_establishment)
+            && self
+                .symmetric_cipher
+                .is_compatible_with(&other.symmetric_cipher)
+    }
 }
 
 /// ParticipantSecurityConfig type as defined in Section 7.3 of the DDS Security specification.

@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::{
-        BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        BuiltInTopicKey, ParticipantBuiltinTopicData, PublicationBuiltinTopicData,
+        SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         data_representation_builtin_endpoints::{
@@ -23,6 +23,8 @@ use crate::{
         },
         dcps_domain_participant::{
             builtin_constants::{
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -34,7 +36,8 @@ use crate::{
             data_reader_entity::DataReaderEntity,
             data_writer_entity::IncompatibleSubscriptions,
             participant_entity::{
-                DcpsDomainParticipant, DiscoveredParticipantInfo, DomainParticipantEntity,
+                DcpsDomainParticipant, DcpsParticipantSecurityInfo, DiscoveredParticipantInfo,
+                DomainParticipantEntity,
             },
             user_defined_data_reader::UserDefinedDataReader,
             user_defined_data_writer::UserDefinedDataWriter,
@@ -68,6 +71,9 @@ use crate::{
     rtps::{
         self,
         types::{DurabilityKind, PROTOCOLVERSION, ReliabilityKind, VENDOR_ID_S2E},
+    },
+    security::types::{
+        PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT, ParticipantSecurityProtectionInfo,
     },
     transport::types::{ENTITYID_UNKNOWN, Guid, GuidPrefix},
     xtypes::{
@@ -2661,6 +2667,69 @@ impl DcpsDomainParticipant {
         }
     }
 
+    fn is_security_plugin_compatible(
+        local_security: &DcpsParticipantSecurityInfo,
+        remote: &ParticipantBuiltinTopicData,
+    ) -> bool {
+        let (Some(remote_identity_token), Some(remote_permissions_token)) =
+            (&remote.identity_token, &remote.permissions_token)
+        else {
+            return false;
+        };
+
+        if !local_security
+            .identity_token
+            .is_compatible_with(remote_identity_token)
+        {
+            return false;
+        }
+
+        if !local_security
+            .permissions_token
+            .is_compatible_with(remote_permissions_token)
+        {
+            return false;
+        }
+
+        let local_protection_info =
+            ParticipantSecurityProtectionInfo::from(&local_security.participant_security_config);
+        let remote_protection_info = remote
+            .protection_info
+            .unwrap_or(PARTICIPANT_SECURITY_ATTRIBUTES_INFO_DEFAULT);
+        if !local_protection_info.is_compatible_with(&remote_protection_info) {
+            return false;
+        }
+
+        let remote_digital_signature = remote.digital_signature.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .digital_signature
+            .is_compatible_with(&remote_digital_signature)
+        {
+            return false;
+        }
+
+        let remote_key_establishment = remote.key_establishment.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .key_establishment
+            .is_compatible_with(&remote_key_establishment)
+        {
+            return false;
+        }
+
+        let remote_symmetric_cipher = remote.symmetric_cipher.unwrap_or_default();
+        if !local_security
+            .adjusted_algorithm_info
+            .symmetric_cipher
+            .is_compatible_with(&remote_symmetric_cipher)
+        {
+            return false;
+        }
+
+        true
+    }
+
     #[tracing::instrument(skip(self, transport_participant))]
     pub(crate) fn add_discovered_participant(
         &mut self,
@@ -2699,6 +2768,45 @@ impl DcpsDomainParticipant {
             .any(|handle| handle == &discovered_participant_data.dds_participant_data.key.value);
 
         if is_domain_id_matching && is_domain_tag_matching && !is_participant_ignored {
+            let is_remote_authenticated = if let Some(local_security) = &self.security_info {
+                let is_compatible = Self::is_security_plugin_compatible(
+                    local_security,
+                    &discovered_participant_data.dds_participant_data,
+                );
+                if !local_security
+                    .participant_security_config
+                    .allow_unauthenticated_participants
+                {
+                    if !is_compatible {
+                        // Discovered DomainParticipant entities that do not implement the DDS Security specification
+                        // or do not contain compatible Security Plugins shall be rejected without attempting to authenticate them.
+                        return false;
+                    }
+                    true
+                } else if is_compatible {
+                    true
+                } else {
+                    // allow_unauthenticated_participants is TRUE:
+                    // allow matching other DomainParticipants—even if the remote DomainParticipant cannot authenticate—
+                    // as long as there is not already a valid authentication with the same DomainParticipant's GUID.
+                    let already_authenticated = self
+                        .domain_participant
+                        .discovered_participant_list
+                        .iter()
+                        .any(|p| {
+                            p.dds_participant_data.key().value
+                                == discovered_participant_data.dds_participant_data.key.value
+                                && p.is_authenticated
+                        });
+                    if already_authenticated {
+                        return false;
+                    }
+                    false
+                }
+            } else {
+                false
+            };
+
             if !is_participant_discovered {
                 let discovered_participant_info = DiscoveredParticipantInfo {
                     dds_participant_data: discovered_participant_data.dds_participant_data.clone(),
@@ -2713,6 +2821,7 @@ impl DcpsDomainParticipant {
                         .clone(),
                     lease_duration: discovered_participant_data.lease_duration,
                     last_communication_timestamp: now,
+                    is_authenticated: is_remote_authenticated,
                 };
                 self.domain_participant
                     .discovered_participant_list
@@ -2720,6 +2829,8 @@ impl DcpsDomainParticipant {
 
                 self.announce_participant(now, domain_tag, transport_participant);
 
+                self.add_matched_participant_message_reader(discovered_participant_data);
+                self.add_matched_participant_message_writer(discovered_participant_data);
                 self.add_matched_publications_detector(discovered_participant_data);
                 self.add_matched_publications_announcer(discovered_participant_data);
                 self.add_matched_subscriptions_detector(discovered_participant_data);
@@ -2751,6 +2862,7 @@ impl DcpsDomainParticipant {
                     .clone();
                 p.lease_duration = discovered_participant_data.lease_duration;
                 p.last_communication_timestamp = now;
+                p.is_authenticated = is_remote_authenticated;
             }
             true
         } else {
@@ -2812,6 +2924,9 @@ impl DcpsDomainParticipant {
             }
         }
 
+        self.remove_matched_participant_message_reader(prefix);
+        self.remove_matched_participant_message_writer(prefix);
+
         self.remove_matched_publications_detector(prefix);
         self.remove_matched_publications_announcer(prefix);
 
@@ -2826,6 +2941,107 @@ impl DcpsDomainParticipant {
         self.remove_matched_service_reply_data_reader(prefix);
         self.remove_matched_service_reply_data_writer(prefix);
         true
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_participant_message_reader(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER)
+        {
+            let remote_reader_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let reader_proxy = rtps::types::ReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::TransientLocal,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+                expects_inline_qos,
+            };
+            {
+                let dw = &mut self
+                    .domain_participant
+                    .builtin_publisher
+                    .participant_message_writer;
+                dw.transport_writer.add_matched_reader(reader_proxy);
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_participant_message_reader(&mut self, prefix: GuidPrefix) {
+        {
+            let dw = &mut self
+                .domain_participant
+                .builtin_publisher
+                .participant_message_writer;
+            let guid = Guid::new(prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
+            dw.transport_writer.delete_matched_reader(guid);
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_matched_participant_message_writer(
+        &mut self,
+        discovered_participant_data: &SpdpDiscoveredParticipantData,
+    ) {
+        if discovered_participant_data
+            .participant_proxy
+            .available_builtin_endpoints
+            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER)
+        {
+            let remote_writer_guid = Guid::new(
+                discovered_participant_data.participant_proxy.guid_prefix,
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+
+            let writer_proxy = rtps::types::WriterProxy {
+                remote_writer_guid,
+                remote_group_entity_id,
+                reliability_kind: ReliabilityKind::Reliable,
+                durability_kind: DurabilityKind::TransientLocal,
+                unicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+                    .to_vec(),
+                multicast_locator_list: discovered_participant_data
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+                    .to_vec(),
+            };
+            let dr = &mut self
+                .domain_participant
+                .builtin_subscriber
+                .participant_message_reader;
+            dr.transport_reader.add_matched_writer(&writer_proxy);
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn remove_matched_participant_message_writer(&mut self, prefix: GuidPrefix) {
+        let dr = &mut self
+            .domain_participant
+            .builtin_subscriber
+            .participant_message_reader;
+        let guid = Guid::new(prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        dr.transport_reader.delete_matched_writer(guid);
     }
 
     #[tracing::instrument(skip(self))]

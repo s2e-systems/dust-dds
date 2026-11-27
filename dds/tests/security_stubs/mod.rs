@@ -320,6 +320,10 @@ pub struct StubAccessControl {
                 + Send,
         >,
     >,
+    pub get_permissions_token_fn:
+        Option<Box<dyn FnMut(&u32) -> Result<PermissionsToken, SecurityException> + Send>>,
+    pub get_participant_security_config_fn:
+        Option<Box<dyn FnMut(&u32) -> Result<ParticipantSecurityConfig, SecurityException> + Send>>,
 }
 
 impl AccessControl for StubAccessControl {
@@ -499,9 +503,13 @@ impl AccessControl for StubAccessControl {
 
     fn get_permissions_token(
         &mut self,
-        _handle: &Self::PermissionsHandle,
+        handle: &Self::PermissionsHandle,
     ) -> Result<PermissionsToken, SecurityException> {
-        Ok(PermissionsToken::default())
+        if let Some(ref mut f) = self.get_permissions_token_fn {
+            f(handle)
+        } else {
+            Ok(PermissionsToken::default())
+        }
     }
 
     fn get_permissions_credential_token(
@@ -534,9 +542,13 @@ impl AccessControl for StubAccessControl {
 
     fn get_participant_security_config(
         &mut self,
-        _permissions_handle: &Self::PermissionsHandle,
+        handle: &Self::PermissionsHandle,
     ) -> Result<ParticipantSecurityConfig, SecurityException> {
-        Ok(ParticipantSecurityConfig::default())
+        if let Some(ref mut f) = self.get_participant_security_config_fn {
+            f(handle)
+        } else {
+            Ok(ParticipantSecurityConfig::default())
+        }
     }
 
     fn get_topic_security_config(

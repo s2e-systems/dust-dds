@@ -1,14 +1,15 @@
 use crate::{
     builtin_topics::{
-        DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, ParticipantBuiltinTopicData, ParticipantBuiltinTopicDataSecure,
+        PublicationBuiltinTopicData, SubscriptionBuiltinTopicData, TopicBuiltinTopicData,
     },
     dcps::{
         channels::rpc::rpc_channel,
         data_representation_builtin_endpoints::type_lookup::{TypeLookupReply, TypeLookupRequest},
         dcps_domain_participant::{
             builtin_constants::{
+                ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
@@ -19,7 +20,9 @@ use crate::{
             builtin_publisher::BuiltinPublisher,
             builtin_subscriber::BuiltinSubscriber,
             data_writer_entity::DataWriterEntity,
-            participant_entity::{DcpsDomainParticipant, DomainParticipantEntity},
+            participant_entity::{
+                DcpsDomainParticipant, DcpsParticipantSecurityInfo, DomainParticipantEntity,
+            },
             type_register::TypeRegister,
         },
         dcps_mail::{DcpsReply, DeleteParticipantMail, DomainParticipantMail},
@@ -46,21 +49,12 @@ use crate::{
     rtps::{stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter},
     runtime::{Either3, TaskHandle, select3_future},
     security::{
+        builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
         plugins::{
-            access_control::AccessControl, authentication::Authentication,
-            cryptographic::Cryptographic, types::DdsSecurityPlugins,
-        },
-        types::{
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED,
-            PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID,
-            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS,
-            PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED,
-            ParticipantSecurityAttributesMaskExt, ParticipantSecurityConfig,
-            ParticipantSecurityProtectionInfo,
+            access_control::AccessControl,
+            authentication::{Authentication, ValidateLocalIdentityOut},
+            cryptographic::{Cryptographic, RegisterLocalParticipantOut},
+            types::DdsSecurityPlugins,
         },
     },
     transport::{
@@ -117,7 +111,7 @@ impl DcpsParticipantFactory {
         timer: &Timer,
         clock: &Clock,
         spawner: &Spawner,
-        _security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
+        security_plugins: &mut Option<DdsSecurityPlugins<Auth, Access, Crypto>>,
     ) -> DdsResult<(InstanceHandle, DcpsSender)>
     where
         Auth: Authentication,
@@ -133,9 +127,108 @@ impl DcpsParticipantFactory {
 
         let mut transport_participant = transport.create_participant(domain_id);
 
-        let guid = transport_participant.guid();
+        let candidate_participant_guid = transport_participant.guid();
+
+        let (guid, security_info) = if let Some(security) = security_plugins {
+            let ValidateLocalIdentityOut {
+                local_identity_handle,
+                adjusted_participant_guid,
+            } = security
+                .authentication_plugin
+                .validate_local_identity(
+                    domain_id,
+                    &domain_participant_qos,
+                    candidate_participant_guid,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_handle = security
+                .access_control_plugin
+                .validate_local_permissions(
+                    &mut security.authentication_plugin,
+                    &local_identity_handle,
+                    domain_id,
+                    &domain_participant_qos,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            security
+                .access_control_plugin
+                .check_create_participant(&permissions_handle, domain_id, &domain_participant_qos)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let identity_token = security
+                .authentication_plugin
+                .get_identity_token(&local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let identity_status_token = security
+                .authentication_plugin
+                .get_identity_status_token(&local_identity_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_token = security
+                .access_control_plugin
+                .get_permissions_token(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let permissions_credential_token = security
+                .access_control_plugin
+                .get_permissions_credential_token(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            security
+                .authentication_plugin
+                .set_permissions_credential_and_token(
+                    &local_identity_handle,
+                    permissions_credential_token,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let participant_security_config = security
+                .access_control_plugin
+                .get_participant_security_config(&permissions_handle)
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let participant_security_algorithm_info = security
+                .authentication_plugin
+                .set_participant_security_config(
+                    &local_identity_handle,
+                    &participant_security_config,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            let RegisterLocalParticipantOut {
+                participant_crypto_handle: _,
+                adjusted_algorithm_info,
+            } = security
+                .cryptographic_plugin
+                .register_local_participant(
+                    &mut security.authentication_plugin,
+                    &mut security.access_control_plugin,
+                    &local_identity_handle,
+                    &permissions_handle,
+                    domain_participant_qos.property.value.iter(),
+                    &participant_security_config,
+                )
+                .map_err(|_| DdsError::NotAllowedBySecurity)?;
+
+            (
+                adjusted_participant_guid,
+                Some(DcpsParticipantSecurityInfo {
+                    identity_token,
+                    identity_status_token,
+                    permissions_token,
+                    participant_security_config,
+                    participant_security_algorithm_info,
+                    adjusted_algorithm_info,
+                }),
+            )
+        } else {
+            (candidate_participant_guid, None)
+        };
+
         let guid_prefix = guid.prefix();
-        let security_data = None;
 
         let mut dcps_participant_transport_writer = RtpsStatelessWriter::new(Guid::new(
             guid_prefix,
@@ -190,6 +283,18 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
         );
 
+        let participant_message_writer_transport_writer = RtpsStatefulWriter::new(
+            Guid::new(guid_prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            fragment_size,
+        );
+        let participant_message_writer = DataWriterEntity::new(
+            InstanceHandle::new(participant_message_writer_transport_writer.guid().into()),
+            participant_message_writer_transport_writer,
+            Arc::from(DCPS_SUBSCRIPTION),
+            sedp_data_writer_qos(),
+            KeyHolderType::new(&SubscriptionBuiltinTopicData::TYPE),
+        );
+
         let type_lookup_request_transport_writer = RtpsStatefulWriter::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_WRITER),
             fragment_size,
@@ -214,11 +319,32 @@ impl DcpsParticipantFactory {
             KeyHolderType::new(&TypeLookupReply::TYPE),
         );
 
+        let dcps_participant_secure_writer = if security_info.is_some() {
+            let dcps_participant_secure_transport_writer = RtpsStatefulWriter::new(
+                Guid::new(
+                    guid_prefix,
+                    ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+                ),
+                fragment_size,
+            );
+            Some(DataWriterEntity::new(
+                InstanceHandle::new(dcps_participant_secure_transport_writer.guid().into()),
+                dcps_participant_secure_transport_writer,
+                Arc::from(DCPS_PARTICIPANTS_SECURE),
+                sedp_data_writer_qos(),
+                KeyHolderType::new(&ParticipantBuiltinTopicDataSecure::TYPE),
+            ))
+        } else {
+            None
+        };
+
         let builtin_publisher = BuiltinPublisher {
             dcps_participant_writer,
+            dcps_participant_secure_writer,
             dcps_topics_writer,
             dcps_publications_writer,
             dcps_subscriptions_writer,
+            participant_message_writer,
             type_lookup_request_writer,
             type_lookup_reply_writer,
             enabled: false,
@@ -226,7 +352,7 @@ impl DcpsParticipantFactory {
 
         let participant_handle = InstanceHandle::new(guid.into());
 
-        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix());
+        let builtin_subscriber = BuiltinSubscriber::new(guid.prefix(), security_info.is_some());
 
         let domain_participant = DomainParticipantEntity {
             domain_id,
@@ -256,7 +382,6 @@ impl DcpsParticipantFactory {
             listener_mask,
             find_topic_sender_list: Vec::new(),
             last_announcement_timestamp: None,
-            security_data,
         };
 
         let (participant_sender, participant_receiver) = rpc_channel();
@@ -270,6 +395,7 @@ impl DcpsParticipantFactory {
             dcps_sender: participant_sender.clone(),
             domain_tag: self.configuration.domain_tag().to_string(),
             enable_type_information: self.configuration.enable_type_information(),
+            security_info,
         };
 
         if self.qos.entity_factory.autoenable_created_entities {
@@ -420,49 +546,6 @@ impl DcpsParticipantFactory {
 
     pub fn get_qos(&mut self) -> DomainParticipantFactoryQos {
         self.qos.clone()
-    }
-}
-
-impl From<&ParticipantSecurityConfig> for ParticipantSecurityProtectionInfo {
-    fn from(config: &ParticipantSecurityConfig) -> Self {
-        let mut mask = PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
-        if config.is_rtps_axk_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_AXK_PROTECTED;
-        }
-        if config.is_discovery_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
-        }
-        if config.is_liveliness_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
-        }
-        if config.is_key_revision_enabled {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_REVISION_ENABLED;
-        }
-        if config.is_rtps_psk_protected {
-            mask |= PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PSK_PROTECTED;
-        }
-
-        let mut opt_mask: u16 = 0;
-        let mut opt_is_set: u16 = 0;
-
-        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
-        if config.allow_unauthenticated_participants {
-            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_ALLOW_UNAUTHENTICATED_PARTICIPANTS;
-        }
-
-        opt_is_set |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
-        if config.is_access_protected {
-            opt_mask |= PARTICIPANT_SECURITY_OPT_ATTRIBUTES_FLAG_IS_ACCESS_PROTECTED;
-        }
-
-        Self {
-            participant_security_attributes: mask,
-            plugin_participant_security_attributes: config.plugin_participant_attributes,
-            participant_security_optional_attributes: ParticipantSecurityAttributesMaskExt {
-                is_set: opt_is_set,
-                value: opt_mask,
-            },
-        }
     }
 }
 

@@ -1,6 +1,9 @@
 use crate::{
-    builtin_topics::{DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
+    builtin_topics::{
+        DCPS_PARTICIPANT, DCPS_PARTICIPANTS_SECURE, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+    },
     dcps::dcps_domain_participant::{
+        builtin_constants::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
         builtin_data_reader::BuiltinDataReader,
         data_reader_entity::{DataReaderEntity, SampleList},
         subscriber_entity::SubscriberEntity,
@@ -8,13 +11,14 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::SubscriberQos,
+        qos::{DataReaderQos, SubscriberQos},
         sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
     },
     rtps::{
         stateful_reader::RtpsStatefulReader, stateless_reader::RtpsStatelessReader,
         types::ReliabilityKind,
     },
+    security::builtin_constants::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
     transport::types::{Guid, GuidPrefix},
 };
 use alloc::sync::Arc;
@@ -31,9 +35,11 @@ use super::builtin_constants::{
 pub struct BuiltinSubscriber {
     pub subscriber_entity: SubscriberEntity,
     pub dcps_participant_reader: BuiltinDataReader<RtpsStatelessReader>,
+    pub dcps_participant_secure_reader: Option<BuiltinDataReader<RtpsStatefulReader>>,
     pub dcps_topic_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub dcps_publication_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub dcps_subscription_reader: BuiltinDataReader<RtpsStatefulReader>,
+    pub participant_message_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub type_lookup_request_reader: BuiltinDataReader<RtpsStatefulReader>,
     pub type_lookup_reply_reader: BuiltinDataReader<RtpsStatefulReader>,
 }
@@ -53,7 +59,7 @@ impl DerefMut for BuiltinSubscriber {
 }
 
 impl BuiltinSubscriber {
-    pub fn new(guid_prefix: GuidPrefix) -> Self {
+    pub fn new(guid_prefix: GuidPrefix, has_security: bool) -> Self {
         let subscriber_entity = SubscriberEntity::new(
             InstanceHandle::new(Guid::new(guid_prefix, ENTITYID_BUILTIN_SUBSCRIBER).into()),
             SubscriberQos::default(),
@@ -69,6 +75,24 @@ impl BuiltinSubscriber {
             Arc::from(DCPS_PARTICIPANT),
             rtps_stateless_reader,
         );
+
+        let dcps_participant_secure_reader = if has_security {
+            let dcps_participant_secure_transport_reader = RtpsStatefulReader::new(
+                Guid::new(
+                    guid_prefix,
+                    ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
+                ),
+                ReliabilityKind::Reliable,
+            );
+            Some(BuiltinDataReader::new(
+                InstanceHandle::new(dcps_participant_secure_transport_reader.guid().into()),
+                SEDP_DATA_READER_QOS,
+                Arc::from(DCPS_PARTICIPANTS_SECURE),
+                dcps_participant_secure_transport_reader,
+            ))
+        } else {
+            None
+        };
 
         let dcps_topic_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
@@ -103,6 +127,17 @@ impl BuiltinSubscriber {
             dcps_subscription_transport_reader,
         );
 
+        let participant_message_transport_reader = RtpsStatefulReader::new(
+            Guid::new(guid_prefix, ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            ReliabilityKind::Reliable,
+        );
+        let participant_message_reader = BuiltinDataReader::new(
+            InstanceHandle::new(participant_message_transport_reader.guid().into()),
+            SEDP_DATA_READER_QOS,
+            Arc::from(DCPS_SUBSCRIPTION),
+            participant_message_transport_reader,
+        );
+
         let type_lookup_request_transport_reader = RtpsStatefulReader::new(
             Guid::new(guid_prefix, ENTITYID_TL_SVC_REQ_READER),
             ReliabilityKind::Reliable,
@@ -128,9 +163,11 @@ impl BuiltinSubscriber {
         Self {
             subscriber_entity,
             dcps_participant_reader,
+            dcps_participant_secure_reader,
             dcps_topic_reader,
             dcps_publication_reader,
             dcps_subscription_reader,
+            participant_message_reader,
             type_lookup_request_reader,
             type_lookup_reply_reader,
         }
@@ -144,16 +181,49 @@ impl BuiltinSubscriber {
         self.subscriber_entity.enabled = true;
     }
 
+    pub fn stateful_data_reader_list(
+        &self,
+    ) -> impl Iterator<Item = &DataReaderEntity<RtpsStatefulReader>> {
+        let base = [
+            &self.dcps_topic_reader,
+            &self.dcps_publication_reader,
+            &self.dcps_subscription_reader,
+            &self.participant_message_reader,
+            &self.type_lookup_request_reader,
+            &self.type_lookup_reply_reader,
+        ];
+        base.into_iter()
+            .chain(self.dcps_participant_secure_reader.as_ref())
+    }
+
     pub fn stateful_data_reader_list_mut(
         &mut self,
-    ) -> [&mut DataReaderEntity<RtpsStatefulReader>; 5] {
-        [
+    ) -> impl Iterator<Item = &mut DataReaderEntity<RtpsStatefulReader>> {
+        let base: [&mut DataReaderEntity<RtpsStatefulReader>; 5] = [
             &mut self.dcps_topic_reader,
             &mut self.dcps_publication_reader,
             &mut self.dcps_subscription_reader,
             &mut self.type_lookup_request_reader,
             &mut self.type_lookup_reply_reader,
-        ]
+        ];
+        base.into_iter()
+            .chain(self.dcps_participant_secure_reader.as_mut())
+    }
+
+    pub fn get_data_reader_qos(
+        &self,
+        data_reader_handle: &InstanceHandle,
+    ) -> DdsResult<DataReaderQos> {
+        if &self.dcps_participant_reader.instance_handle == data_reader_handle {
+            Ok(self.dcps_participant_reader.qos.clone())
+        } else if let Some(dr) = self
+            .stateful_data_reader_list()
+            .find(|dr| &dr.instance_handle == data_reader_handle)
+        {
+            Ok(dr.qos.clone())
+        } else {
+            Err(DdsError::AlreadyDeleted)
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -177,13 +247,16 @@ impl BuiltinSubscriber {
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
         } else if let Some(dr) = [
-            &mut self.dcps_topic_reader,
-            &mut self.dcps_publication_reader,
-            &mut self.dcps_subscription_reader,
-            &mut self.type_lookup_request_reader,
-            &mut self.type_lookup_reply_reader,
+            Some(&mut self.dcps_topic_reader),
+            Some(&mut self.dcps_publication_reader),
+            Some(&mut self.dcps_subscription_reader),
+            Some(&mut self.participant_message_reader),
+            Some(&mut self.type_lookup_request_reader),
+            Some(&mut self.type_lookup_reply_reader),
+            self.dcps_participant_secure_reader.as_mut(),
         ]
-        .iter_mut()
+        .into_iter()
+        .flatten()
         .find(|dr| &dr.instance_handle == data_reader_handle)
         {
             let sample_list = dr.read(
@@ -221,13 +294,15 @@ impl BuiltinSubscriber {
             )?;
             Ok((sample_list, self.dcps_participant_reader.topic_name.clone()))
         } else if let Some(dr) = [
-            &mut self.dcps_topic_reader,
-            &mut self.dcps_publication_reader,
-            &mut self.dcps_subscription_reader,
-            &mut self.type_lookup_request_reader,
-            &mut self.type_lookup_reply_reader,
+            Some(&mut self.dcps_topic_reader),
+            Some(&mut self.dcps_publication_reader),
+            Some(&mut self.dcps_subscription_reader),
+            Some(&mut self.type_lookup_request_reader),
+            Some(&mut self.type_lookup_reply_reader),
+            self.dcps_participant_secure_reader.as_mut(),
         ]
-        .iter_mut()
+        .into_iter()
+        .flatten()
         .find(|dr| &dr.instance_handle == data_reader_handle)
         {
             let sample_list = dr.take(
