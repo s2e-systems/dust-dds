@@ -1401,3 +1401,106 @@ fn presentation_qos_offered_non_coherent_does_not_match_requested_coherent() {
         .unwrap();
     wait_set.wait(Duration::new(10, 0)).unwrap();
 }
+
+#[test]
+fn separate_async_factories_in_same_process_discover_each_other() {
+    use dust_dds::{
+        dds_async::domain_participant_factory::DomainParticipantFactoryAsync,
+        domain::domain_participant::DomainParticipant,
+        infrastructure::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        rtps_udp_transport::udp_transport::RtpsUdpTransport,
+        security::plugins::types::DdsSecurityPlugins,
+        std_runtime::{StdRuntime, executor::block_on},
+    };
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let factory_a = DomainParticipantFactoryAsync::new(
+        Default::default(),
+        StdRuntime::default(),
+        RtpsUdpTransport::default(),
+        DdsSecurityPlugins::disabled(),
+    );
+    let factory_b = DomainParticipantFactoryAsync::new(
+        Default::default(),
+        StdRuntime::default(),
+        RtpsUdpTransport::default(),
+        DdsSecurityPlugins::disabled(),
+    );
+
+    let dp_a_async =
+        block_on(factory_a.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS))
+            .unwrap();
+    let dp_b_async =
+        block_on(factory_b.create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS))
+            .unwrap();
+    let dp_a = DomainParticipant::from(dp_a_async.clone());
+    let dp_b = DomainParticipant::from(dp_b_async.clone());
+
+    assert_ne!(dp_a.get_instance_handle(), dp_b.get_instance_handle());
+
+    let topic_a = dp_a
+        .create_topic::<UserType>(
+            "separate_factories_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic_b = dp_b
+        .create_topic::<UserType>(
+            "separate_factories_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = dp_a
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<UserType>(&topic_a, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let subscriber = dp_b
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader::<UserType>(&topic_b, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let match_cond = writer.get_statuscondition();
+    match_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut match_wait_set = WaitSet::new();
+    match_wait_set
+        .attach_condition(Condition::StatusCondition(match_cond))
+        .unwrap();
+    match_wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(writer.get_matched_subscriptions().unwrap().len(), 1);
+
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut data_wait_set = WaitSet::new();
+    data_wait_set
+        .attach_condition(Condition::StatusCondition(data_cond))
+        .unwrap();
+
+    writer.write(UserType(42), None).unwrap();
+    data_wait_set.wait(Duration::new(10, 0)).unwrap();
+    let samples = reader
+        .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap().0, 42);
+
+    dp_a.delete_contained_entities().unwrap();
+    dp_b.delete_contained_entities().unwrap();
+    block_on(factory_a.delete_participant(&dp_a_async)).unwrap();
+    block_on(factory_b.delete_participant(&dp_b_async)).unwrap();
+}
