@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 use super::infrastructure::qos_policy::{
     DataRepresentationQosPolicy, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
@@ -26,12 +28,13 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, TypeConsistencyEnforcementQosPolicy,
     },
     security::types::{
-        BuiltinEndpointSetExt, EndpointSecurityProtectionInfo,
+        BuiltinEndpointSetExt, DataHolder, DataHolderSeq, EndpointSecurityProtectionInfo,
         EndpointSecuritySymmetricCipherAlgorithmInfo, IdentityStatusToken, IdentityToken,
         ParticipantSecurityDigitalSignatureAlgorithmInfo,
         ParticipantSecurityKeyEstablishmentAlgorithmInfo, ParticipantSecurityProtectionInfo,
         ParticipantSecuritySymmetricCipherAlgorithmInfo, PermissionsToken,
     },
+    transport::types::{Guid, GuidPrefix},
     xtypes::{
         type_object::TypeInformation,
         type_support::{_String, TypeSupport},
@@ -49,6 +52,9 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 /// Topic name of the built-in participant discovery topic
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
+
+/// Topic name of the built-in participant message writer topic
+pub const DCPS_PARTICIPANT_MESSAGE: &str = "DCPSParticipantMessage";
 
 /// Topic name of the secure built-in participant discovery topic
 pub const DCPS_PARTICIPANTS_SECURE: &str = "DCPSParticipantsSecure";
@@ -593,5 +599,140 @@ impl SubscriptionBuiltinTopicData {
     /// Get the symmetric cipher algorithm info of the discovered reader.
     pub fn symmetric_cipher(&self) -> &EndpointSecuritySymmetricCipherAlgorithmInfo {
         &self.symmetric_cipher
+    }
+}
+
+/// Type representing an array of 4 octets.
+pub type OctetArray4 = [u8; 4];
+
+/// Type representing a sequence of octets.
+pub type OctetSeq = Vec<u8>;
+
+/// Structure representing a message transmitted through the [`DCPS_PARTICIPANT_MESSAGE`] topic.
+pub struct ParticipantMessageData {
+    pub(crate) participant_guid_prefix: GuidPrefix,
+    pub(crate) kind: OctetArray4,
+    pub(crate) data: OctetSeq,
+}
+
+impl ParticipantMessageData {
+    /// Get the participant GUID prefix of the message.
+    pub fn participant_guid_prefix(&self) -> [u8; 12] {
+        self.participant_guid_prefix
+    }
+
+    /// Get the kind of the participant message.
+    pub fn kind(&self) -> [u8; 4] {
+        self.kind
+    }
+
+    /// Get the data payload of the participant message.
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+/// Participant message kind for unknown message.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_UNKNOWN: OctetArray4 = [0x00, 0x00, 0x00, 0x00];
+
+/// Participant message kind for automatic liveliness update.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE: OctetArray4 =
+    [0x00, 0x00, 0x00, 0x01];
+
+/// Participant message kind for manual liveliness update.
+pub const PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE: OctetArray4 =
+    [0x00, 0x00, 0x00, 0x02];
+
+/// Structure representing a message identity as defined in the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "final")]
+pub struct MessageIdentity {
+    /// Source GUID of the message.
+    pub source_guid: Guid,
+    /// Sequence number of the message.
+    pub sequence_number: i64,
+}
+
+impl MessageIdentity {
+    /// Create a new [`MessageIdentity`].
+    pub const fn new(source_guid: Guid, sequence_number: i64) -> Self {
+        Self {
+            source_guid,
+            sequence_number,
+        }
+    }
+}
+
+/// Type representing a generic message class identifier.
+pub type GenericMessageClassId = String;
+
+/// Structure representing a participant generic message as defined in the DDS Security specification.
+#[derive(Debug, PartialEq, Eq, Clone, Default, TypeSupport)]
+#[dust_dds(extensibility = "appendable")]
+pub struct ParticipantGenericMessage {
+    pub(crate) message_identity: MessageIdentity,
+    pub(crate) related_message_identity: MessageIdentity,
+    pub(crate) destination_participant_guid: Guid,
+    pub(crate) destination_endpoint_guid: Guid,
+    pub(crate) source_endpoint_guid: Guid,
+    pub(crate) message_class_id: GenericMessageClassId,
+    pub(crate) message_data: DataHolderSeq,
+}
+
+impl ParticipantGenericMessage {
+    /// Create a new [`ParticipantGenericMessage`].
+    pub fn new(
+        message_identity: MessageIdentity,
+        related_message_identity: MessageIdentity,
+        destination_participant_guid: Guid,
+        destination_endpoint_guid: Guid,
+        source_endpoint_guid: Guid,
+        message_class_id: GenericMessageClassId,
+        message_data: DataHolderSeq,
+    ) -> Self {
+        Self {
+            message_identity,
+            related_message_identity,
+            destination_participant_guid,
+            destination_endpoint_guid,
+            source_endpoint_guid,
+            message_class_id,
+            message_data,
+        }
+    }
+
+    /// Get the message identity.
+    pub fn message_identity(&self) -> &MessageIdentity {
+        &self.message_identity
+    }
+
+    /// Get the related message identity.
+    pub fn related_message_identity(&self) -> &MessageIdentity {
+        &self.related_message_identity
+    }
+
+    /// Get the destination participant GUID.
+    pub fn destination_participant_guid(&self) -> Guid {
+        self.destination_participant_guid
+    }
+
+    /// Get the destination endpoint GUID.
+    pub fn destination_endpoint_guid(&self) -> Guid {
+        self.destination_endpoint_guid
+    }
+
+    /// Get the source endpoint GUID.
+    pub fn source_endpoint_guid(&self) -> Guid {
+        self.source_endpoint_guid
+    }
+
+    /// Get the message class ID.
+    pub fn message_class_id(&self) -> &str {
+        &self.message_class_id
+    }
+
+    /// Get the message data.
+    pub fn message_data(&self) -> &[DataHolder] {
+        &self.message_data
     }
 }
