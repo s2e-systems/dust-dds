@@ -1,7 +1,7 @@
 module interoperability {
 	module test {
-		struct BigDataType
-		{
+		@final
+		struct BigDataType {
 			sequence<octet> msg;
 		};
 	};

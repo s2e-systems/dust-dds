@@ -380,3 +380,211 @@ fn xtypes_mismatch_does_not_abort_discovery() {
         "Writer 2 should have discovered Reader 2 despite Reader 1 type mismatch"
     );
 }
+
+#[test]
+fn stale_participant_lease_expiry_unmatches_reader_and_unblocks_writer() {
+    use dust_dds::{
+        infrastructure::{
+            qos::DataWriterQos,
+            qos_policy::{
+                DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy,
+                HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            },
+            status::StatusKind,
+            time::{Duration, DurationKind},
+        },
+        wait_set::{Condition, WaitSet},
+    };
+
+    let receive_channel = Arc::new(Channel::new());
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let domain_participant_factory = DomainParticipantFactoryAsync::new(
+        Default::default(),
+        dust_dds::std_runtime::StdRuntime::default(),
+        MockTransport::new(receive_channel.clone()),
+        DdsSecurityPlugins::disabled(),
+    );
+
+    let participant = DomainParticipant::from(
+        dust_dds::std_runtime::executor::block_on(domain_participant_factory.create_participant(
+            domain_id,
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        ))
+        .unwrap(),
+    );
+
+    #[derive(dust_dds::infrastructure::type_support::DdsType)]
+    struct StaleType {
+        id: i32,
+    }
+
+    let topic = participant
+        .create_topic::<StaleType>(
+            "StaleTopic",
+            "StaleType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(5, 0)),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter::<StaleType>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let remote_guid_prefix = [9; 12];
+    const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+        EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
+    const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER: EntityId =
+        EntityId::new([0x00, 0x00, 0x04], BUILT_IN_WRITER_WITH_KEY);
+
+    // Announce remote participant with a 2-second lease duration.
+    let spdp_payload = Data::new(
+        vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID
+            9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 1, 0xc1, 0x15, 0x00, 4,
+            0x00, // PID_PROTOCOL_VERSION
+            0x02, 0x04, 0x00, 0x00, 0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, 0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x3f, 0x00, 0x00, 0x00, 0x02, 0x00, 8,
+            0x00, // PID_PARTICIPANT_LEASE_DURATION (2s)
+            2, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ]
+        .into(),
+    );
+    let spdp_submsg = DataSubmessage::new(
+        false,
+        true,
+        false,
+        false,
+        ENTITYID_UNKNOWN,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        1,
+        ParameterList::empty(),
+        spdp_payload.as_ref(),
+    );
+    let mut buf = [0u8; 1024];
+    let spdp_msg =
+        RtpsMessageWrite::from_submessages(&mut buf, &[&spdp_submsg], remote_guid_prefix);
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], spdp_msg.buffer().to_vec())),
+    );
+
+    // Announce a Reliable reader on StaleTopic belonging to that remote participant.
+    let sedp_payload = Data::new(
+        vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0x00, // PID_ENDPOINT_GUID
+            9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 1, 0x04, 0x50, 0x00, 16,
+            0x00, // PID_PARTICIPANT_GUID
+            9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 1, 0xc1, 0x05, 0x00, 16,
+            0x00, // PID_TOPIC_NAME ("StaleTopic")
+            11, 0x00, 0x00, 0x00, b'S', b't', b'a', b'l', b'e', b'T', b'o', b'p', b'i', b'c', 0, 0,
+            0x07, 0x00, 16, 0x00, // PID_TYPE_NAME ("StaleType")
+            10, 0x00, 0x00, 0x00, b'S', b't', b'a', b'l', b'e', b'T', b'y', b'p', b'e', 0, 0, 0,
+            0x1a, 0x00, 12, 0x00, // PID_RELIABILITY (RELIABLE_RELIABILITY_QOS = 2)
+            2, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0x00, // PID_SENTINEL
+        ]
+        .into(),
+    );
+    let sedp_submsg = DataSubmessage::new(
+        false,
+        true,
+        false,
+        false,
+        ENTITYID_UNKNOWN,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
+        1,
+        ParameterList::empty(),
+        sedp_payload.as_ref(),
+    );
+    let mut buf = [0u8; 1024];
+    let sedp_msg =
+        RtpsMessageWrite::from_submessages(&mut buf, &[&sedp_submsg], remote_guid_prefix);
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut ws = WaitSet::new();
+    ws.attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], sedp_msg.buffer().to_vec())),
+    );
+    ws.wait(Duration::new(5, 0)).unwrap();
+    assert_eq!(writer.get_matched_subscriptions().unwrap().len(), 1);
+
+    // First sample fills KeepLast(1); the mock remote reader never ACKs it.
+    writer.write(StaleType { id: 1 }, None).unwrap();
+
+    // Second write blocks until the stale participant lease expires (2s < 5s max_blocking_time).
+    writer.write(StaleType { id: 2 }, None).unwrap();
+    assert!(writer.get_matched_subscriptions().unwrap().is_empty());
+    writer
+        .wait_for_acknowledgments(Duration::new(2, 0))
+        .unwrap();
+
+    // Injecting an unrelated packet must not re-match the expired participant's reader.
+    let other_prefix = [7; 12];
+    let other_spdp = Data::new(
+        vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID
+            7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 1, 0xc1, 0x15, 0x00, 4,
+            0x00, // PID_PROTOCOL_VERSION
+            0x02, 0x04, 0x00, 0x00, 0x16, 0x00, 4, 0x00, // PID_VENDORID
+            73, 74, 0x00, 0x00, 0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET
+            0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION
+            10, 0x00, 0x00, 0x00, 0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
+        ]
+        .into(),
+    );
+    let other_submsg = DataSubmessage::new(
+        false,
+        true,
+        false,
+        false,
+        ENTITYID_UNKNOWN,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        1,
+        ParameterList::empty(),
+        other_spdp.as_ref(),
+    );
+    let mut buf = [0u8; 1024];
+    let other_msg = RtpsMessageWrite::from_submessages(&mut buf, &[&other_submsg], other_prefix);
+    dust_dds::std_runtime::executor::block_on(
+        receive_channel.send(([0; 4], other_msg.buffer().to_vec())),
+    );
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    assert!(
+        writer.get_matched_subscriptions().unwrap().is_empty(),
+        "Expired participant's reader must not be re-matched by later discovery cycles"
+    );
+}
