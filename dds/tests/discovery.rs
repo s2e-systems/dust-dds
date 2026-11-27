@@ -1504,3 +1504,124 @@ fn separate_async_factories_in_same_process_discover_each_other() {
     block_on(factory_a.delete_participant(&dp_a_async)).unwrap();
     block_on(factory_b.delete_participant(&dp_b_async)).unwrap();
 }
+
+#[test]
+fn deleted_participant_unmatches_reliable_reader_and_does_not_rematch() {
+    use dust_dds::infrastructure::{
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
+        time::DurationKind,
+    };
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let factory = DomainParticipantFactory::get_instance();
+    let dp_writer = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let dp_reader = factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+
+    let topic_w = dp_writer
+        .create_topic::<UserType>(
+            "deleted_participant_cleanup_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+    let topic_r = dp_reader
+        .create_topic::<UserType>(
+            "deleted_participant_cleanup_topic",
+            "UserType",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 500_000_000)),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        ..Default::default()
+    };
+    let publisher = dp_writer
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter::<UserType>(
+            &topic_w,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 500_000_000)),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp_reader
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let _reader = subscriber
+        .create_datareader::<UserType>(
+            &topic_r,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let cond = writer.get_statuscondition();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(
+        writer
+            .get_publication_matched_status()
+            .unwrap()
+            .current_count,
+        1
+    );
+
+    dp_reader.delete_contained_entities().unwrap();
+    factory.delete_participant(&dp_reader).unwrap();
+
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+    assert_eq!(
+        writer
+            .get_publication_matched_status()
+            .unwrap()
+            .current_count,
+        0
+    );
+    assert!(writer.get_matched_subscriptions().unwrap().is_empty());
+
+    // Subsequent discovery ticks must not re-match endpoints of the deleted participant.
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    assert!(writer.get_matched_subscriptions().unwrap().is_empty());
+
+    writer.write(UserType(1), None).unwrap();
+    writer.write(UserType(2), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(5, 0))
+        .unwrap();
+
+    dp_writer.delete_contained_entities().unwrap();
+    factory.delete_participant(&dp_writer).unwrap();
+}
