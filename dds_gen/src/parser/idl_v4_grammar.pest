@@ -242,7 +242,8 @@ unary_operator = {
 }
 // (16)
 primary_expr = {
-    scoped_name
+    &("L'" | "L\"") ~ literal
+    | scoped_name
     | literal
     | "(" ~ const_expr ~ ")"
 }
@@ -254,8 +255,8 @@ literal = {
     | character_literal
     | wide_character_literal
     | boolean_literal
-    | string_literal
-    | wide_string_literal
+    | string_literal+
+    | wide_string_literal+
 }
 // (18)
 boolean_literal = {
@@ -299,7 +300,7 @@ base_type_spec = {
 }
 // (24)
 floating_pt_type = {
-    "long" ~" double"
+    "long" ~ "double"
     | "float"
     | "double"
 }
