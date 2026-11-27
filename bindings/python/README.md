@@ -10,6 +10,22 @@ DDS is a middleware protocol and API standard designed for data-centric connecti
 
 The [DDS standard](https://www.omg.org/spec/DDS/1.4/PDF) "defines both the Application Interfaces (APIs) and the Communication Semantics (behavior and quality of service) that enable the efficient delivery of information from information producers to matching consumer". Complementing this standard is the [DDSI-RTPS specification](https://www.omg.org/spec/DDSI-RTPS/2.5/PDF), which defines an interoperability wire protocol for DDS. Its primary aim is to ensure that applications based on different vendors' implementations of DDS can interoperate. The implementation of Dust DDS primarily centers around the DDS and DDSI-RTPS standards.
 
+## Installation
+
+Pre-built binary wheels and source distributions are published as assets on [GitHub Releases](https://github.com/s2e-systems/dust-dds/releases).
+
+You can install a wheel directly via `pip`:
+
+```bash
+pip install https://github.com/s2e-systems/dust-dds/releases/download/<version>/dust_dds-<version>-<tags>.whl
+```
+
+Or download the wheel matching your platform and Python version from the [Release page](https://github.com/s2e-systems/dust-dds/releases) and install it locally:
+
+```bash
+pip install dust_dds-<version>-<tags>.whl
+```
+
 ## Example
 
 A basic example on how to use Dust DDS:

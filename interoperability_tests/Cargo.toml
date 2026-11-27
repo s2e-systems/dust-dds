@@ -22,20 +22,20 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 dust_dds_gen = { path = "../dds_gen" }
 
 [[bin]]
-name = "dust_dds_publisher"
-path = "dust_dds_publisher.rs"
+name = "dust_dds_publisher_hello_world"
+path = "dust_dds_publisher_hello_world.rs"
 
 [[bin]]
-name = "dust_dds_subscriber"
-path = "dust_dds_subscriber.rs"
+name = "dust_dds_subscriber_hello_world"
+path = "dust_dds_subscriber_hello_world.rs"
 
 [[bin]]
-name = "dust_dds_big_data_subscriber"
-path = "dust_dds_big_data_subscriber.rs"
+name = "dust_dds_subscriber_big_data"
+path = "dust_dds_subscriber_big_data.rs"
 
 [[bin]]
-name = "dust_dds_big_data_publisher"
-path = "dust_dds_big_data_publisher.rs"
+name = "dust_dds_publisher_big_data"
+path = "dust_dds_publisher_big_data.rs"
 
 [[bin]]
 name = "multiple_subscriber_test_subscriber"

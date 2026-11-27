@@ -467,6 +467,8 @@ impl DcpsDomainParticipant {
             }
             TimedEvent::RemoveStaleParticipant { handle } => {
                 self.remove_discovered_participant(&handle, now);
+                self.process_pending_write_samples(now, transport_participant);
+                self.write_messages(now, transport_participant);
             }
             TimedEvent::CheckMissedReaderDeadline {
                 subscriber_handle,

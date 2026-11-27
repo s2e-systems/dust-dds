@@ -8152,3 +8152,103 @@ fn ordered_access_instance_and_topic_presentation() {
         }
     }
 }
+
+#[test]
+fn late_joining_volatile_reliable_reader_does_not_stall_keep_last_writer() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<UserData>(
+            "LateVolatileKeepLastTopic",
+            "UserData",
+            QosKind::Default,
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 200_000_000)),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::Volatile,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter::<UserData>(
+            &topic,
+            QosKind::Specific(writer_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    // Write sample 1 before any reader matches.
+    writer.write(UserData(1), None).unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, NO_LISTENER, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(Duration::new(0, 200_000_000)),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::Volatile,
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader::<UserData>(
+            &topic,
+            QosKind::Specific(reader_qos),
+            NO_LISTENER,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let match_cond = writer.get_statuscondition();
+    match_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut match_ws = WaitSet::new();
+    match_ws
+        .attach_condition(Condition::StatusCondition(match_cond))
+        .unwrap();
+    match_ws.wait(Duration::new(10, 0)).unwrap();
+
+    let data_cond = reader.get_statuscondition();
+    data_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut data_ws = WaitSet::new();
+    data_ws
+        .attach_condition(Condition::StatusCondition(data_cond))
+        .unwrap();
+
+    // Pre-join sample 1 must not block KeepLast(1) eviction or wait_for_acknowledgments.
+    writer.write(UserData(2), None).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(5, 0))
+        .unwrap();
+
+    data_ws.wait(Duration::new(5, 0)).unwrap();
+    let samples = reader
+        .take(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data, Some(UserData(2)));
+}
