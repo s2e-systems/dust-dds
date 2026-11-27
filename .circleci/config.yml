@@ -50,7 +50,7 @@ jobs:
       - run: cargo fmt --check --all
   performance_benchmark:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     steps:
       - checkout
       - run: cargo bench --package dust_dds --bench benchmark -- --save-baseline branch_baseline
@@ -62,7 +62,7 @@ jobs:
           path: ./target/criterion
   memory_benchmark:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     steps:
       - checkout
       - run:
@@ -146,7 +146,7 @@ jobs:
           path: /tmp/coverage
   check_binary_sizes:
     docker:
-      - image: cimg/rust:1.87.0
+      - image: cimg/rust:1.89.0
     steps:
       - checkout
       - restore_cache:
