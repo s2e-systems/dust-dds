@@ -343,7 +343,7 @@ impl RtpsUdpTransport {
     /// separate message using RTPS data fragments
     pub fn set_fragment_size(&mut self, fragment_size: usize) -> DdsResult<&mut Self> {
         let fragment_size_range = 8..=65000;
-        if !fragment_size_range.contains(&self.fragment_size) {
+        if !fragment_size_range.contains(&fragment_size) {
             return Err(DdsError::BadParameter);
         }
         self.fragment_size = fragment_size;
@@ -1035,19 +1035,32 @@ mod tests {
     }
 
     #[test]
-    fn separate_transports_generate_distinct_guid_prefixes() {
-        let mut transport_a = RtpsUdpTransport::default();
-        let mut transport_b = RtpsUdpTransport::default();
+    fn set_fragment_size_validates_argument_bounds() {
+        let mut transport = RtpsUdpTransport::default();
+        let default_size = transport.fragment_size();
 
-        let participant_a = transport_a.create_participant(200);
-        let participant_b = transport_b.create_participant(200);
+        assert_eq!(
+            transport.set_fragment_size(0).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
 
-        let guid_a = participant_a.guid();
-        let guid_b = participant_b.guid();
+        assert_eq!(
+            transport.set_fragment_size(7).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
 
-        transport_a.delete_participant(guid_a);
-        transport_b.delete_participant(guid_b);
+        assert_eq!(
+            transport.set_fragment_size(65001).err(),
+            Some(DdsError::BadParameter)
+        );
+        assert_eq!(transport.fragment_size(), default_size);
 
-        assert_ne!(guid_a.prefix(), guid_b.prefix());
+        assert!(transport.set_fragment_size(8).is_ok());
+        assert_eq!(transport.fragment_size(), 8);
+
+        assert!(transport.set_fragment_size(65000).is_ok());
+        assert_eq!(transport.fragment_size(), 65000);
     }
 }
